@@ -16,9 +16,16 @@ func main() {
 
 	app := cli.NewApp()
 
+	app.Version = "0.1.0"
+	app.Author = "Southclaws"
+	app.Email = "southclaws@gmail.com"
+	app.Name = "sampctl"
+
+	fmt.Println("sampctl")
+
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
-			Name:  "version",
+			Name:  "ver",
 			Value: "samp037svr_R2-2-1",
 			Usage: "server version - corresponds to http://files.sa-mp.com packages without the .tar.gz",
 		},
@@ -44,9 +51,9 @@ func main() {
 		{
 			Name:    "download",
 			Aliases: []string{"d"},
-			Usage:   "download a version of the server, uses latest if --version is not specified",
+			Usage:   "download a version of the server, uses latest if --ver is not specified",
 			Action: func(c *cli.Context) error {
-				// --version refers to a filename on http://files.sa-mp.com without the extension
+				// --ver refers to a filename on http://files.sa-mp.com without the extension
 				// samp037svr_R2-2-1 maps to http://files.sa-mp.com/samp037svr_R2-2-1.tar.gz etc
 				return nil
 			},
