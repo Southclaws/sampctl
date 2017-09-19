@@ -27,10 +27,14 @@ func download(version, cwd string) (err error) {
 func Untar(dst string, r io.Reader) error {
 
 	gzr, err := gzip.NewReader(r)
-	defer gzr.Close()
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if err := gzr.Close(); err != nil {
+			panic(err)
+		}
+	}()
 
 	tr := tar.NewReader(gzr)
 
