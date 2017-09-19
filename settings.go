@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"reflect"
 
@@ -69,7 +70,7 @@ func (server *Server) LoadFromJSON(data []byte) error {
 
 // Generate creates a settings file in the SA:MP "server.cfg" format at the specified location
 func (server *Server) Generate(path string) (err error) {
-	file, err := os.Open(path)
+	file, err := os.Create(path)
 	if err != nil {
 		return
 	}
@@ -80,13 +81,24 @@ func (server *Server) Generate(path string) (err error) {
 		}
 	}()
 
-	v := reflect.ValueOf(server)
+	v := reflect.ValueOf(*server)
+	t := reflect.TypeOf(*server)
 
-	for i := 0; i < v.Len(); i++ {
+	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
-		_, err := file.WriteString(field.String() + "\n")
-		if err != nil {
-			return errors.Wrap(err, "failed to write setting to server.cfg")
+		setting := field.String()
+		structField := t.Field(i)
+
+		if setting != "" {
+			name := structField.Tag.Get("json")
+			_, err := file.WriteString(fmt.Sprintf("%s=%s\n", name, setting))
+			if err != nil {
+				return errors.Wrap(err, "failed to write setting to server.cfg")
+			}
+		} else {
+			if structField.Tag.Get("required") == "1" {
+				return errors.Errorf("field %s is required", structField.Name)
+			}
 		}
 	}
 
