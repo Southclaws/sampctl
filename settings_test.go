@@ -13,17 +13,21 @@ func TestServer_Generate(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			"valid",
+			"required",
 			&Server{
-				Announce:     "1",
-				Hostname:     "Test",
-				RCONPassword: "test",
-				MaxPlayers:   "32",
-				Port:         "7777",
-				RCON:         "1",
-				Language:     "English",
+				// Announce:     &[]bool{true}[0],
+				// Hostname:     &[]string{"Test"}[0],
+				// MaxPlayers:   &[]int{32}[0],
+				// Port:         &[]int{8080}[0],
+				// RCON:         &[]bool{true}[0],
+				// Language:     &[]string{"English"}[0],
+				Gamemode: &[]string{
+					"rivershell",
+					"baserace",
+				},
+				RCONPassword: &[]string{"test"}[0],
 			},
-			args{"./server.cfg"},
+			args{"./testspace/server.cfg"},
 			false,
 		},
 	}
