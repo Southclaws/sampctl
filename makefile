@@ -4,6 +4,9 @@ VERSION := $(shell cat VERSION)
 compile:
 	go build -o sampctl
 
+install:
+	go install
+
 build:
 	docker build -t southclaws/sampctl .
 
