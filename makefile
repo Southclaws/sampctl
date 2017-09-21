@@ -1,16 +1,20 @@
 VERSION := $(shell cat VERSION)
 
 
-compile:
-	go build -o sampctl
-
 install:
 	go install
 
-build:
+fast:
+	go build -o sampctl
+
+static:
+	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o sampctl .
+
+build: static
 	docker build -t southclaws/sampctl .
 
 run:
+	-docker rm sampctl-test
 	docker run --name sampctl-test southclaws/sampctl
 
 enter:

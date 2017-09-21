@@ -206,7 +206,7 @@ func Untar(src, dst string) error {
 		// if its a dir and it doesn't exist create it
 		case tar.TypeDir:
 			if _, err := os.Stat(target); err != nil {
-				if err := os.MkdirAll(target, 0755); err != nil {
+				if err := os.MkdirAll(target, 0655); err != nil {
 					return err
 				}
 			}
