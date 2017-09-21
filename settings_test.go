@@ -2,19 +2,19 @@ package main
 
 import "testing"
 
-func TestServer_Generate(t *testing.T) {
+func TestServer_GenerateServerCfg(t *testing.T) {
 	type args struct {
 		path string
 	}
 	tests := []struct {
 		name    string
-		server  *Server
+		cfg     *Config
 		args    args
 		wantErr bool
 	}{
 		{
 			"required",
-			&Server{
+			&Config{
 				// Announce:     &[]bool{true}[0],
 				// Hostname:     &[]string{"Test"}[0],
 				// MaxPlayers:   &[]int{32}[0],
@@ -27,14 +27,14 @@ func TestServer_Generate(t *testing.T) {
 				},
 				RCONPassword: &[]string{"test"}[0],
 			},
-			args{"./testspace/server.cfg"},
+			args{"./testspace"},
 			false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := tt.server.Generate(tt.args.path); (err != nil) != tt.wantErr {
-				t.Errorf("Server.Generate() error = %v, wantErr %v", err, tt.wantErr)
+			if err := tt.cfg.GenerateServerCfg(tt.args.path); (err != nil) != tt.wantErr {
+				t.Errorf("Config.GenerateServerCfg() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

@@ -1,16 +1,20 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 )
 
-// Server stores the server settings and working directory
-type Server struct {
+// Config stores the server settings and working directory
+type Config struct {
 	Gamemode          *[]string `required:"1"            json:"gamemode"`                       //
 	RCONPassword      *string   `required:"1"            json:"rcon_password"`                  // changeme
 	Announce          *bool     `default:"0"             required:"0" json:"announce"`          // 0
@@ -56,23 +60,92 @@ type Server struct {
 	CookieLogging     *bool     `default:"0"             required:"0" json:"cookielogging"`     // 1
 }
 
-// LoadFromEnv fills a Server with environment variable values
-func (server *Server) LoadFromEnv() error {
-	// convert json tags to uppercase
-	// scan for env vars
-	// error on missing if required tag set
-	return nil
+// NewConfigFromEnvironment creates a Config from the given environment which includes a directory which
+// searched for a `samp.json` file and environment variable versions of the config parameters.
+func NewConfigFromEnvironment(dir string) (cfg Config, err error) {
+	cfg.LoadEnvironmentVariables()
+
+	jsonFile := filepath.Join(dir, "samp.json")
+	_, err = os.Stat(jsonFile)
+	if !os.IsNotExist(err) && err != nil {
+		err = errors.Wrap(err, "failed to stat samp.json")
+		return
+	}
+
+	contents, err := ioutil.ReadFile(jsonFile)
+	if err != nil {
+		err = errors.Wrap(err, "failed to stat samp.json")
+		return
+	}
+
+	err = json.Unmarshal(contents, &cfg)
+	if err != nil {
+		err = errors.Wrap(err, "failed to unmarshal samp.json")
+		return
+	}
+
+	return
 }
 
-// LoadFromJSON loads settings from JSON
-func (server *Server) LoadFromJSON(data []byte) error {
-	// error on missing if required tag set
-	return nil
+// LoadEnvironmentVariables loads Config fields from environment variables - the variable names are
+// simply the `json` tag names uppercased and prefixed with `SAMP_`
+func (cfg *Config) LoadEnvironmentVariables() {
+	t := reflect.TypeOf(cfg)
+	v := reflect.ValueOf(cfg)
+
+	for i := 0; i < t.NumField(); i++ {
+		fieldval := v.Field(i)
+		stype := t.Field(i)
+
+		if !fieldval.CanSet() {
+			panic(fmt.Sprintf("cannot set cfg field %s", stype.Name))
+		}
+
+		name := "SAMP_" + strings.ToUpper(t.Field(i).Tag.Get("json"))
+
+		value, ok := os.LookupEnv(name)
+		if !ok {
+			continue
+		}
+
+		switch stype.Type.String() {
+		case "*string":
+			fieldval.SetString(value)
+
+		case "*[]string":
+			// todo: allow gamemode setting via env vars
+
+		case "*bool":
+			valueAsBool, err := strconv.ParseBool(value)
+			if err != nil {
+				fmt.Println("warning: environment variable '%s' could not interpret value '%s' as boolean: %v", stype.Name, value, err)
+			}
+			fieldval.SetBool(valueAsBool)
+
+		case "*int":
+			valueAsInt, err := strconv.Atoi(value)
+			if err != nil {
+				fmt.Println("warning: environment variable '%s' could not interpret value '%s' as integer: %v", stype.Name, value, err)
+				continue
+			}
+			fieldval.SetInt(int64(valueAsInt))
+
+		case "*float32":
+			valueAsFloat, err := strconv.ParseFloat(value, 64)
+			if err != nil {
+				fmt.Println("warning: environment variable '%s' could not interpret value '%s' as float: %v", stype.Name, value, err)
+				continue
+			}
+			fieldval.SetFloat(valueAsFloat)
+		default:
+			panic(fmt.Sprintf("unknown kind %v", stype.Type))
+		}
+	}
 }
 
-// Generate creates a settings file in the SA:MP "server.cfg" format at the specified location
-func (server *Server) Generate(path string) (err error) {
-	file, err := os.Create(path)
+// GenerateServerCfg creates a settings file in the SA:MP "server.cfg" format at the specified location
+func (cfg *Config) GenerateServerCfg(dir string) (err error) {
+	file, err := os.Create(filepath.Join(dir, "server.cfg"))
 	if err != nil {
 		return
 	}
@@ -83,8 +156,8 @@ func (server *Server) Generate(path string) (err error) {
 		}
 	}()
 
-	v := reflect.ValueOf(*server)
-	t := reflect.TypeOf(*server)
+	v := reflect.ValueOf(*cfg)
+	t := reflect.TypeOf(*cfg)
 
 	for i := 0; i < v.NumField(); i++ {
 		fieldval := v.Field(i)
