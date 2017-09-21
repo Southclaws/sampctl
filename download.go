@@ -90,9 +90,12 @@ func fromCache(cacheDir, version, cwd string) (hit bool, err error) {
 		return false, errors.Wrapf(err, "failed to unzip package %s", filename)
 	}
 
-	errs := validate(cwd, version)
+	empty, errs := validate(cwd, version)
 	if errs != nil {
 		return false, errors.Errorf("validation errors: %#v", errs)
+	}
+	if empty {
+		return false, errors.Errorf("dir is empty")
 	}
 
 	return true, nil
@@ -152,9 +155,12 @@ func fromNet(endpoint, cacheDir, version, cwd string) (err error) {
 		return errors.Wrapf(err, "failed to unzip package %s", filename)
 	}
 
-	errs := validate(cwd, version)
+	empty, errs := validate(cwd, version)
 	if errs != nil {
 		return errors.Errorf("validation errors: %v", errs)
+	}
+	if empty {
+		return errors.Errorf("dir is empty")
 	}
 
 	return
@@ -167,15 +173,19 @@ func cleanUp(cwd string) (err error) {
 
 // validate ensures the cwd has all the necessary files to run a server, it also performs an MD5
 // checksum against the binary to prevent running anything unwanted.
-func validate(cwd, version string) (errs []error) {
+func validate(cwd, version string) (empty bool, errs []error) {
+	missing := 0
 	if !exists(filepath.Join(cwd, getNpcBinary())) {
 		errs = append(errs, errors.New("missing npc binary"))
+		missing++
 	}
 	if !exists(filepath.Join(cwd, getAnnounceBinary())) {
 		errs = append(errs, errors.New("missing announce binary"))
+		missing++
 	}
 	if !exists(filepath.Join(cwd, getServerBinary())) {
 		errs = append(errs, errors.New("missing server binary"))
+		missing++
 	} else {
 		// now perform an md5 on the server
 		ok, err := matchesChecksum(filepath.Join(cwd, getServerBinary()), version)
@@ -184,6 +194,9 @@ func validate(cwd, version string) (errs []error) {
 		} else if !ok {
 			errs = append(errs, errors.Errorf("existing binary does not match checksum for version %s", version))
 		}
+	}
+	if missing == 3 {
+		empty = true
 	}
 	return
 }
