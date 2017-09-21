@@ -17,4 +17,5 @@ sampctl
 config.json
 config.yaml
 
+testcache/
 testspace/
