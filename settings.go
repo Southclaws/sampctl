@@ -67,7 +67,10 @@ func NewConfigFromEnvironment(dir string) (cfg Config, err error) {
 
 	jsonFile := filepath.Join(dir, "samp.json")
 	_, err = os.Stat(jsonFile)
-	if !os.IsNotExist(err) && err != nil {
+	if os.IsNotExist(err) {
+		err = nil
+		return
+	} else if err != nil {
 		err = errors.Wrap(err, "failed to stat samp.json")
 		return
 	}
@@ -90,15 +93,15 @@ func NewConfigFromEnvironment(dir string) (cfg Config, err error) {
 // LoadEnvironmentVariables loads Config fields from environment variables - the variable names are
 // simply the `json` tag names uppercased and prefixed with `SAMP_`
 func (cfg *Config) LoadEnvironmentVariables() {
-	t := reflect.TypeOf(cfg)
-	v := reflect.ValueOf(cfg)
+	t := reflect.TypeOf(*cfg)
+	v := reflect.ValueOf(*cfg)
 
 	for i := 0; i < t.NumField(); i++ {
 		fieldval := v.Field(i)
 		stype := t.Field(i)
 
 		if !fieldval.CanSet() {
-			panic(fmt.Sprintf("cannot set cfg field %s", stype.Name))
+			continue
 		}
 
 		name := "SAMP_" + strings.ToUpper(t.Field(i).Tag.Get("json"))
@@ -114,6 +117,7 @@ func (cfg *Config) LoadEnvironmentVariables() {
 
 		case "*[]string":
 			// todo: allow gamemode setting via env vars
+			fmt.Println("cannot set gamemode via environment variables yet")
 
 		case "*bool":
 			valueAsBool, err := strconv.ParseBool(value)
@@ -212,6 +216,13 @@ func fromString(name string, obj reflect.Value, required bool, defaultValue stri
 }
 
 func fromSlice(name string, obj reflect.Value, required bool, defaultValue string) (result string, err error) {
+	if obj.IsNil() {
+		if required {
+			return "", errors.Errorf("field %s is required", name)
+		}
+		return
+	}
+
 	elem := obj.Elem()
 	len := elem.Len()
 	for i := 0; i < len; i++ {
