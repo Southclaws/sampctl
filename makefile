@@ -7,14 +7,14 @@ fast:
 static:
 	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o sampctl .
 
-build:
+build: static
 	docker build -t southclaws/sampctl .
 
-run: build
-	docker rm sampctl-test
+run:
+	-docker rm sampctl-test
 	docker run --name sampctl-test southclaws/sampctl
 
-enter: build
+enter:
 	docker run -it --entrypoint=bash southclaws/sampctl
 
 clean:
