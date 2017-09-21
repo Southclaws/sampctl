@@ -6,14 +6,12 @@ import (
 	"compress/gzip"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"runtime"
-	"strings"
 
 	"github.com/minio/go-homedir"
 	"github.com/pkg/errors"
@@ -126,7 +124,12 @@ func fromNet(endpoint, cacheDir, version, cwd string) (err error) {
 	if err != nil {
 		return errors.Wrap(err, "failed to download package")
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			panic(err)
+		}
+	}()
+
 	content, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return errors.Wrap(err, "failed to download package")
@@ -217,7 +220,11 @@ func Untar(src, dst string) error {
 			if err != nil {
 				return err
 			}
-			defer f.Close()
+			defer func() {
+				if err := f.Close(); err != nil {
+					panic(err)
+				}
+			}()
 
 			// copy over contents
 			if _, err := io.Copy(f, tr); err != nil {
@@ -234,7 +241,11 @@ func Unzip(src, dest string) error {
 	if err != nil {
 		return err
 	}
-	defer r.Close()
+	defer func() {
+		if err := r.Close(); err != nil {
+			panic(err)
+		}
+	}()
 
 	for _, f := range r.File {
 
@@ -242,32 +253,37 @@ func Unzip(src, dest string) error {
 		if err != nil {
 			return err
 		}
-		defer rc.Close()
+		defer func() {
+			if err := rc.Close(); err != nil {
+				panic(err)
+			}
+		}()
 
 		// Store filename/path for returning and using later on
 		fpath := filepath.Join(dest, f.Name)
 
 		if f.FileInfo().IsDir() {
 			// Make Folder
-			os.MkdirAll(fpath, os.ModePerm)
+			err = os.MkdirAll(fpath, os.ModePerm)
+			if err != nil {
+				return err
+			}
 		} else {
 			// Make File
-			var fdir string
-			if lastIndex := strings.LastIndex(fpath, string(os.PathSeparator)); lastIndex > -1 {
-				fdir = fpath[:lastIndex]
+			err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm)
+			if err != nil {
+				return err
 			}
 
-			err = os.MkdirAll(fdir, os.ModePerm)
-			if err != nil {
-				log.Fatal(err)
-				return err
-			}
-			f, err := os.OpenFile(
-				fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+			f, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
 			if err != nil {
 				return err
 			}
-			defer f.Close()
+			defer func() {
+				if err := f.Close(); err != nil {
+					panic(err)
+				}
+			}()
 
 			_, err = io.Copy(f, rc)
 			if err != nil {

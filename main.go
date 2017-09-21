@@ -45,7 +45,7 @@ func main() {
 			Usage:   "run a sa-mp server, uses the cwd if --dir is not set",
 			Action: func(c *cli.Context) error {
 				endpoint := c.String("endpoint")
-				ver := c.String("ver")
+				ver := c.String("version")
 				dir := c.String("dir")
 				err := GetPackage(endpoint, ver, dir)
 				if err != nil {
@@ -62,7 +62,7 @@ func main() {
 			Usage:   "download a version of the server, uses latest if --version is not specified",
 			Action: func(c *cli.Context) error {
 				endpoint := c.String("endpoint")
-				ver := c.String("ver")
+				ver := c.String("version")
 				dir := c.String("dir")
 				fmt.Printf("Downloading package %s from endpoint %s into %s\n", ver, endpoint, dir)
 				return GetPackage(endpoint, ver, dir)
