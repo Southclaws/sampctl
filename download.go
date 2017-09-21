@@ -5,14 +5,17 @@ import (
 	"archive/zip"
 	"compress/gzip"
 	"io"
+	"io/ioutil"
 	"log"
+	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
 
 	"github.com/minio/go-homedir"
-
 	"github.com/pkg/errors"
 )
 
@@ -59,41 +62,34 @@ func getCacheDir() (string, error) {
 
 func fromCache(cacheDir, version, cwd string) (hit bool, err error) {
 	var filename string
+	var method func(string, string) error
+
+	pkg, ok := Packages[version]
+	if !ok {
+		return false, errors.Errorf("invalid version '%s'", version)
+	}
+
 	if runtime.GOOS == "windows" {
-		filename = filepath.Join(cacheDir, Packages[version].Win32)
-
-		_, err = os.Stat(filename)
-		if os.IsNotExist(err) {
-			return false, nil
-		} else if err != nil {
-			return false, errors.Wrap(err, "failed to check cached package existence")
-		}
-
-		_, err = Unzip(filename, cwd)
-		if err != nil {
-			return false, errors.Wrapf(err, "failed to unzip package %s", filename)
-		}
+		filename = filepath.Join(cacheDir, pkg.Win32)
+		method = Unzip
 	} else if runtime.GOOS == "linux" {
-		filename = filepath.Join(cacheDir, Packages[version].Linux)
-
-		_, err = os.Stat(filename)
-		if os.IsNotExist(err) {
-			return false, nil
-		} else if err != nil {
-			return false, errors.Wrap(err, "failed to check cached package existence")
-		}
-
-		reader, err := os.Open(filename)
-		if err != nil {
-			return false, errors.Wrapf(err, "failed to open cached package %s", filename)
-		}
-		err = Untar(cwd, reader)
-		if err != nil {
-			return false, errors.Wrapf(err, "failed to untar package %s", filename)
-		}
+		filename = filepath.Join(cacheDir, pkg.Linux)
+		method = Untar
 	} else {
 		err = errors.Errorf("unsupported OS %s", runtime.GOOS)
 		return
+	}
+
+	_, err = os.Stat(filename)
+	if os.IsNotExist(err) {
+		return false, nil
+	} else if err != nil {
+		return false, errors.Wrap(err, "failed to check cached package existence")
+	}
+
+	err = method(filename, cwd)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to unzip package %s", filename)
 	}
 
 	return true, nil
@@ -101,6 +97,53 @@ func fromCache(cacheDir, version, cwd string) (hit bool, err error) {
 
 // fromNet downloads a server package to the cache, then calls fromCache to finish the job
 func fromNet(endpoint, cacheDir, version, cwd string) (err error) {
+	var filename string
+	var method func(string, string) error
+
+	pkg, ok := Packages[version]
+	if !ok {
+		return errors.Errorf("invalid version '%s'", version)
+	}
+
+	if runtime.GOOS == "windows" {
+		filename = pkg.Win32
+		method = Unzip
+	} else if runtime.GOOS == "linux" {
+		filename = pkg.Linux
+		method = Untar
+	} else {
+		err = errors.Errorf("unsupported OS %s", runtime.GOOS)
+		return
+	}
+
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return errors.Wrapf(err, "failed to parse endpoint %s", endpoint)
+	}
+	u.Path = path.Join(u.Path, filename)
+
+	resp, err := http.Get(u.String())
+	if err != nil {
+		return errors.Wrap(err, "failed to download package")
+	}
+	defer resp.Body.Close()
+	content, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return errors.Wrap(err, "failed to download package")
+	}
+
+	fullPath := filepath.Join(cacheDir, filename)
+
+	err = ioutil.WriteFile(fullPath, content, 0655)
+	if err != nil {
+		return errors.Wrap(err, "failed to download package")
+	}
+
+	err = method(fullPath, cwd)
+	if err != nil {
+		return errors.Wrapf(err, "failed to unzip package %s", filename)
+	}
+
 	return
 }
 
@@ -112,7 +155,16 @@ func cleanUp(cwd string) (err error) {
 // Untar takes a destination path and a reader; a tar reader loops over the tarfile
 // creating the file structure at 'dst' along the way, and writing any files
 // from https://medium.com/@skdomino/taring-untaring-files-in-go-6b07cf56bc07
-func Untar(dst string, r io.Reader) error {
+func Untar(src, dst string) error {
+	r, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := r.Close(); err != nil {
+			panic(err)
+		}
+	}()
 
 	gzr, err := gzip.NewReader(r)
 	if err != nil {
@@ -125,12 +177,9 @@ func Untar(dst string, r io.Reader) error {
 	}()
 
 	tr := tar.NewReader(gzr)
-
 	for {
 		header, err := tr.Next()
-
 		switch {
-
 		// if no more files are found return
 		case err == io.EOF:
 			return nil
@@ -180,12 +229,10 @@ func Untar(dst string, r io.Reader) error {
 
 // Unzip will un-compress a zip archive, moving all files and folders to an output directory.
 // from: https://golangcode.com/unzip-files-in-go/
-func Unzip(src, dest string) ([]string, error) {
-	var filenames []string
-
+func Unzip(src, dest string) error {
 	r, err := zip.OpenReader(src)
 	if err != nil {
-		return filenames, err
+		return err
 	}
 	defer r.Close()
 
@@ -193,13 +240,12 @@ func Unzip(src, dest string) ([]string, error) {
 
 		rc, err := f.Open()
 		if err != nil {
-			return filenames, err
+			return err
 		}
 		defer rc.Close()
 
 		// Store filename/path for returning and using later on
 		fpath := filepath.Join(dest, f.Name)
-		filenames = append(filenames, fpath)
 
 		if f.FileInfo().IsDir() {
 			// Make Folder
@@ -214,20 +260,20 @@ func Unzip(src, dest string) ([]string, error) {
 			err = os.MkdirAll(fdir, os.ModePerm)
 			if err != nil {
 				log.Fatal(err)
-				return filenames, err
+				return err
 			}
 			f, err := os.OpenFile(
 				fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
 			if err != nil {
-				return filenames, err
+				return err
 			}
 			defer f.Close()
 
 			_, err = io.Copy(f, rc)
 			if err != nil {
-				return filenames, err
+				return err
 			}
 		}
 	}
-	return filenames, nil
+	return nil
 }
