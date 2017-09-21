@@ -1,9 +1,32 @@
 package main
 
+import (
+	"github.com/pkg/errors"
+)
+
 // Execute handles the actual running of the server process - it collects log output too
 func Execute(endpoint, version, dir string) (err error) {
-	// check if matching binary exists in dir using md5
-	// if not, run GetPackage
+	empty, errs := validate(dir, version)
+	if errs != nil {
+		return errors.Errorf("directory in invalid state: %v", errs)
+	}
+	if empty {
+		err := GetPackage(endpoint, version, dir)
+		if err != nil {
+			return errors.Wrap(err, "failed to get server package")
+		}
+	}
+
+	server, err := NewConfigFromEnvironment(dir)
+	if err != nil {
+		return errors.Wrap(err, "failed to generate config from environment")
+	}
+
+	err = server.GenerateServerCfg(dir)
+	if err != nil {
+		return errors.Wrap(err, "failed to generate server.cfg")
+	}
+
 	// create a Server object from config/env vars
 	// generate server.cfg
 	// execute platform binary in goroutine
