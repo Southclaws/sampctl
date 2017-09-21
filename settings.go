@@ -129,9 +129,8 @@ func fromString(name string, obj reflect.Value, required bool, defaultValue stri
 	if obj.IsNil() {
 		if required {
 			return "", errors.Errorf("field %s is required", name)
-		} else {
-			value = defaultValue
 		}
+		value = defaultValue
 	} else {
 		value = obj.Elem().String()
 	}
@@ -153,11 +152,10 @@ func fromBool(name string, obj reflect.Value, required bool, defaultValue string
 	if obj.IsNil() {
 		if required {
 			return "", errors.Errorf("field %s is required", name)
-		} else {
-			value, err = strconv.Atoi(defaultValue)
-			if err != nil {
-				panic(errors.Wrapf(err, "default bool value %s failed to convert", defaultValue))
-			}
+		}
+		value, err = strconv.Atoi(defaultValue)
+		if err != nil {
+			panic(errors.Wrapf(err, "default bool value %s failed to convert", defaultValue))
 		}
 	} else {
 		if obj.Elem().Bool() {
@@ -176,13 +174,12 @@ func fromInt(name string, obj reflect.Value, required bool, defaultValue string)
 	if obj.IsNil() {
 		if required {
 			return "", errors.Errorf("field %s is required", name)
-		} else {
-			tmp, err := strconv.Atoi(defaultValue)
-			if err != nil {
-				panic(errors.Wrapf(err, "default int value %s failed to convert", defaultValue))
-			}
-			value = int64(tmp)
 		}
+		tmp, err := strconv.Atoi(defaultValue)
+		if err != nil {
+			panic(errors.Wrapf(err, "default int value %s failed to convert", defaultValue))
+		}
+		value = int64(tmp)
 	} else {
 		value = obj.Elem().Int()
 	}
@@ -196,11 +193,10 @@ func fromFloat(name string, obj reflect.Value, required bool, defaultValue strin
 	if obj.IsNil() {
 		if required {
 			return "", errors.Errorf("field %s is required", name)
-		} else {
-			value, err = strconv.ParseFloat(defaultValue, 32)
-			if err != nil {
-				panic(errors.Wrapf(err, "default int value %s failed to convert", defaultValue))
-			}
+		}
+		value, err = strconv.ParseFloat(defaultValue, 32)
+		if err != nil {
+			panic(errors.Wrapf(err, "default int value %s failed to convert", defaultValue))
 		}
 	} else {
 		value = obj.Elem().Float()
