@@ -269,6 +269,10 @@ func Untar(src, dst string) error {
 			headerName = header.Name
 		}
 
+		if !isBinary(headerName) {
+			continue
+		}
+
 		// the target location where the dir/file should be created - trimming off "samp03"
 		target := filepath.Join(dst, headerName)
 
@@ -276,19 +280,7 @@ func Untar(src, dst string) error {
 		// a benefit of using one vs. the other.
 		// fi := header.FileInfo()
 
-		// check the file type
-		switch header.Typeflag {
-
-		// if its a dir and it doesn't exist create it
-		case tar.TypeDir:
-			// if _, err := os.Stat(target); err != nil {
-			// 	if err := os.MkdirAll(target, 0775); err != nil {
-			// 		return err
-			// 	}
-			// }
-
-		// if it's a file create it
-		case tar.TypeReg:
+		if header.Typeflag == tar.TypeReg {
 			f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
 			if err != nil {
 				return err
