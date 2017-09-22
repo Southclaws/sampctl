@@ -1,4 +1,6 @@
 language: go
-script: go test -v -race
+script:
+- go get -u
+- go test -v -race
 go:
   - 1.x
