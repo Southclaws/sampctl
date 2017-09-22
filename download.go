@@ -12,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/minio/go-homedir"
 	"github.com/pkg/errors"
@@ -253,8 +254,15 @@ func Untar(src, dst string) error {
 			continue
 		}
 
-		// the target location where the dir/file should be created
-		target := filepath.Join(dst, header.Name)
+		var headerName string
+		if strings.HasPrefix(header.Name, "samp03") {
+			headerName = header.Name[7:]
+		} else {
+			headerName = header.Name
+		}
+
+		// the target location where the dir/file should be created - trimming off "samp03"
+		target := filepath.Join(dst, headerName)
 
 		// the following switch could also be done using fi.Mode(), not sure if there
 		// a benefit of using one vs. the other.
@@ -266,7 +274,7 @@ func Untar(src, dst string) error {
 		// if its a dir and it doesn't exist create it
 		case tar.TypeDir:
 			if _, err := os.Stat(target); err != nil {
-				if err := os.MkdirAll(target, 0655); err != nil {
+				if err := os.MkdirAll(target, 0775); err != nil {
 					return err
 				}
 			}
