@@ -1,6 +1,10 @@
 # sampctl
 
-A small utility for launching a SA:MP server with better settings handling.
+A small utility for starting and managing SA:MP servers with better settings handling and crash resiliency.
+
+- auto download of binary packages for either platform
+- manage your server settings in JSON format (compiles to server.cfg)
+- automatically restarts after crashes and prevents crashloops
 
 ## Usage
 

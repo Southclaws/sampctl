@@ -7,6 +7,11 @@ install:
 fast:
 	go build -o sampctl
 
+dist:
+	gox -os="windows linux" -arch="386"
+
+# Docker
+
 static:
 	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o sampctl .
 
