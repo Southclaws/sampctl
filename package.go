@@ -45,6 +45,22 @@ var Packages = map[string]*Package{
 	"0.3z-R1-2":    v03zr12,
 }
 
+func isBinary(filename string) bool {
+	switch runtime.GOOS {
+	case "windows":
+		switch filename {
+		case "samp-server.exe", "announce.exe", "samp-npc.exe":
+			return true
+		}
+	case "linux":
+		switch filename {
+		case "samp03svr", "announce", "samp-npc":
+			return true
+		}
+	}
+	return false
+}
+
 func getServerBinary() string {
 	switch runtime.GOOS {
 	case "windows":

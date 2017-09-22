@@ -41,11 +41,6 @@ func GetPackage(endpoint, version, cwd string) (err error) {
 		return errors.Wrapf(err, "failed to get package %s from net", version)
 	}
 
-	err = cleanUp(cwd)
-	if err != nil {
-		return errors.Wrapf(err, "failed to clean up extracted package %s", version)
-	}
-
 	return
 }
 
@@ -79,11 +74,8 @@ func fromCache(cacheDir, version, cwd string) (hit bool, err error) {
 		return
 	}
 
-	_, err = os.Stat(filename)
-	if os.IsNotExist(err) {
+	if !exists(filename) {
 		return false, nil
-	} else if err != nil {
-		return false, errors.Wrap(err, "failed to check cached package existence")
 	}
 
 	err = method(filename, cwd)
@@ -123,23 +115,21 @@ func fromNet(endpoint, cacheDir, version, cwd string) (err error) {
 		return
 	}
 
-	u, err := url.Parse(endpoint)
-	if err != nil {
-		return errors.Wrapf(err, "failed to parse endpoint %s", endpoint)
-	}
-	u.Path = path.Join(u.Path, filename)
-
-	resp, err := http.Get(u.String())
-	if err != nil {
-		return errors.Wrap(err, "failed to download package")
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			panic(err)
+	if !exists(cwd) {
+		err := os.MkdirAll(cwd, 0755)
+		if err != nil {
+			return errors.Wrapf(err, "failed to create dir %s", cwd)
 		}
-	}()
+	}
 
-	content, err := ioutil.ReadAll(resp.Body)
+	if !exists(cacheDir) {
+		err := os.MkdirAll(cacheDir, 0755)
+		if err != nil {
+			return errors.Wrapf(err, "failed to create cache %s", cacheDir)
+		}
+	}
+
+	content, err := downloadPackage(endpoint, filename)
 	if err != nil {
 		return errors.Wrap(err, "failed to download package")
 	}
@@ -148,7 +138,7 @@ func fromNet(endpoint, cacheDir, version, cwd string) (err error) {
 
 	err = ioutil.WriteFile(fullPath, content, 0655)
 	if err != nil {
-		return errors.Wrap(err, "failed to download package")
+		return errors.Wrap(err, "failed to write package to cache")
 	}
 
 	err = method(fullPath, cwd)
@@ -167,9 +157,27 @@ func fromNet(endpoint, cacheDir, version, cwd string) (err error) {
 	return
 }
 
-// cleanUp removes unnecessary files and folders from the extracted package such as readmes etc.
-func cleanUp(cwd string) (err error) {
-	return
+// downloadPackage downloads the server package by filename from the specified endpoint
+func downloadPackage(endpoint, filename string) (content []byte, err error) {
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		err = errors.Wrapf(err, "failed to parse endpoint %s", endpoint)
+		return
+	}
+	u.Path = path.Join(u.Path, filename)
+
+	resp, err := http.Get(u.String())
+	if err != nil {
+		err = errors.Wrap(err, "failed to download package")
+		return
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			panic(err)
+		}
+	}()
+
+	return ioutil.ReadAll(resp.Body)
 }
 
 // validate ensures the cwd has all the necessary files to run a server, it also performs an MD5
@@ -273,11 +281,11 @@ func Untar(src, dst string) error {
 
 		// if its a dir and it doesn't exist create it
 		case tar.TypeDir:
-			if _, err := os.Stat(target); err != nil {
-				if err := os.MkdirAll(target, 0775); err != nil {
-					return err
-				}
-			}
+			// if _, err := os.Stat(target); err != nil {
+			// 	if err := os.MkdirAll(target, 0775); err != nil {
+			// 		return err
+			// 	}
+			// }
 
 		// if it's a file create it
 		case tar.TypeReg:
@@ -313,6 +321,9 @@ func Unzip(src, dest string) error {
 	}()
 
 	for _, f := range r.File {
+		if !isBinary(f.Name) {
+			continue
+		}
 
 		rc, err := f.Open()
 		if err != nil {
@@ -324,17 +335,9 @@ func Unzip(src, dest string) error {
 			}
 		}()
 
-		// Store filename/path for returning and using later on
 		fpath := filepath.Join(dest, f.Name)
 
-		if f.FileInfo().IsDir() {
-			// Make Folder
-			err = os.MkdirAll(fpath, os.ModePerm)
-			if err != nil {
-				return err
-			}
-		} else {
-			// Make File
+		if !f.FileInfo().IsDir() {
 			err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm)
 			if err != nil {
 				return err
