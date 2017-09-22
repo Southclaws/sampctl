@@ -204,6 +204,16 @@ func validate(cwd, version string) (empty bool, errs []error) {
 			errs = append(errs, errors.Errorf("existing binary does not match checksum for version %s", version))
 		}
 	}
+
+	if !exists(filepath.Join(cwd, "gamemodes")) {
+		errs = append(errs, errors.New("missing gamemodes dir"))
+		missing++
+	}
+	if !exists(filepath.Join(cwd, "filterscripts")) {
+		errs = append(errs, errors.New("missing gamemodes dir"))
+		missing++
+	}
+
 	if missing == 3 {
 		empty = true
 	}
@@ -224,7 +234,7 @@ func exists(path string) bool {
 // Untar takes a destination path and a reader; a tar reader loops over the tarfile
 // creating the file structure at 'dst' along the way, and writing any files
 // from https://medium.com/@skdomino/taring-untaring-files-in-go-6b07cf56bc07
-func Untar(src, dst string) error {
+func Untar(src, dst string) (err error) {
 	r, err := os.Open(src)
 	if err != nil {
 		return err
@@ -246,16 +256,17 @@ func Untar(src, dst string) error {
 	}()
 
 	tr := tar.NewReader(gzr)
+loop:
 	for {
 		header, err := tr.Next()
 		switch {
 		// if no more files are found return
 		case err == io.EOF:
-			return nil
+			break loop
 
 		// return any other error
 		case err != nil:
-			return err
+			break loop
 
 		// if the header is nil, just skip it (not sure how this happens)
 		case header == nil:
@@ -297,6 +308,10 @@ func Untar(src, dst string) error {
 			}
 		}
 	}
+	if err != nil {
+		return
+	}
+	return createDirs(dst)
 }
 
 // Unzip will un-compress a zip archive, moving all files and folders to an output directory.
@@ -351,5 +366,15 @@ func Unzip(src, dest string) error {
 			}
 		}
 	}
-	return nil
+	return createDirs(dest)
+}
+
+// createDirs simply creates the necessary gamemodes and filterscripts directories
+func createDirs(cwd string) (err error) {
+	err = os.MkdirAll(filepath.Join(cwd, "gamemodes"), 0755)
+	if err != nil {
+		return
+	}
+	err = os.MkdirAll(filepath.Join(cwd, "filterscripts"), 0755)
+	return
 }
