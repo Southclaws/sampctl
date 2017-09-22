@@ -122,14 +122,14 @@ func (cfg *Config) LoadEnvironmentVariables() {
 		case "*bool":
 			valueAsBool, err := strconv.ParseBool(value)
 			if err != nil {
-				fmt.Println("warning: environment variable '%s' could not interpret value '%s' as boolean: %v", stype.Name, value, err)
+				fmt.Printf("warning: environment variable '%s' could not interpret value '%s' as boolean: %v\n", stype.Name, value, err)
 			}
 			fieldval.SetBool(valueAsBool)
 
 		case "*int":
 			valueAsInt, err := strconv.Atoi(value)
 			if err != nil {
-				fmt.Println("warning: environment variable '%s' could not interpret value '%s' as integer: %v", stype.Name, value, err)
+				fmt.Printf("warning: environment variable '%s' could not interpret value '%s' as integer: %v\n", stype.Name, value, err)
 				continue
 			}
 			fieldval.SetInt(int64(valueAsInt))
@@ -137,7 +137,7 @@ func (cfg *Config) LoadEnvironmentVariables() {
 		case "*float32":
 			valueAsFloat, err := strconv.ParseFloat(value, 64)
 			if err != nil {
-				fmt.Println("warning: environment variable '%s' could not interpret value '%s' as float: %v", stype.Name, value, err)
+				fmt.Printf("warning: environment variable '%s' could not interpret value '%s' as float: %v\n", stype.Name, value, err)
 				continue
 			}
 			fieldval.SetFloat(valueAsFloat)
