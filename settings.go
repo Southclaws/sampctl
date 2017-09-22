@@ -15,49 +15,49 @@ import (
 
 // Config stores the server settings and working directory
 type Config struct {
-	Gamemode          *[]string `required:"1"            json:"gamemode"`                       //
-	RCONPassword      *string   `required:"1"            json:"rcon_password"`                  // changeme
-	Announce          *bool     `default:"0"             required:"0" json:"announce"`          // 0
-	MaxPlayers        *int      `default:"50"            required:"0" json:"maxplayers"`        // 50
-	Port              *int      `default:"8192"          required:"0" json:"port"`              // 8192
-	LANMode           *bool     `default:"0"             required:"0" json:"lanmode"`           // 0
-	Query             *bool     `default:"0"             required:"0" json:"query"`             // 0
-	RCON              *bool     `default:"0"             required:"0" json:"rcon"`              // 0
-	LogQueries        *bool     `default:"0"             required:"0" json:"logqueries"`        // 0
-	StreamRate        *int      `default:"1000"          required:"0" json:"stream_rate"`       // 1000
-	StreamDistance    *float32  `default:"200.0"         required:"0" json:"stream_distance"`   // 200.0
-	Sleep             *string   `default:"5"             required:"0" json:"sleep"`             // 5
-	MaxNPC            *int      `default:"0"             required:"0" json:"maxnpc"`            // 0
-	OnFootRate        *int      `default:"30"            required:"0" json:"onfoot_rate"`       // 30
-	InCarRate         *int      `default:"30"            required:"0" json:"incar_rate"`        // 30
-	WeaponRate        *int      `default:"30"            required:"0" json:"weapon_rate"`       // 30
-	ChatLogging       *bool     `default:"1"             required:"0" json:"chatlogging"`       // 1
-	Timestamp         *bool     `default:"1"             required:"0" json:"timestamp"`         // 1
-	Bind              *string   `default:""              required:"0" json:"bind"`              //
-	Password          *string   `default:""              required:"0" json:"password"`          //
-	Hostname          *string   `default:"SA-MP Server"  required:"0" json:"hostname"`          // SA-MP Server
-	Language          *string   `default:""              required:"0" json:"language"`          //
-	Mapname           *string   `default:"San Andreas"   required:"0" json:"mapname"`           // San Andreas
-	Weburl            *string   `default:"www.sa-mp.com" required:"0" json:"weburl"`            // www.sa-mp.com
-	Gravity           *float32  `default:"0.008"         required:"0" json:"gravity"`           // 0.008
-	Weather           *int      `default:"10"            required:"0" json:"weather"`           // 10
-	GamemodeText      *string   `default:"Unknown"       required:"0" json:"gamemodetext"`      // Unknown
-	Filterscripts     *string   `default:""              required:"0" json:"filterscripts"`     //
-	Plugins           *string   `default:""              required:"0" json:"plugins"`           //
-	NoSign            *string   `default:""              required:"0" json:"nosign"`            //
-	LogTimeFormat     *string   `default:"[%H:%M:%S]"    required:"0" json:"logtimeformat"`     // [%H:%M:%S]
-	MessageHoleLimit  *int      `default:"3000"          required:"0" json:"messageholelimit"`  // 3000
-	MessagesLimit     *int      `default:"500"           required:"0" json:"messageslimit"`     // 500
-	AcksLimit         *int      `default:"3000"          required:"0" json:"ackslimit"`         // 3000
-	PlayerTimeout     *int      `default:"10000"         required:"0" json:"playertimeout"`     // 10000
-	MinConnectionTime *int      `default:"0"             required:"0" json:"minconnectiontime"` // 0
-	Myriad            *int      `default:"50"            required:"0" json:"myriad"`            // 50
-	LagCompmode       *int      `default:"1"             required:"0" json:"lagcompmode"`       // 1
-	ConnseedTime      *int      `default:"300000"        required:"0" json:"connseedtime"`      // 300000
-	DBLogging         *bool     `default:"0"             required:"0" json:"db_logging"`        // 0
-	DBLogQueries      *bool     `default:"0"             required:"0" json:"db_log_queries"`    // 0
-	ConnectCookies    *bool     `default:"1"             required:"0" json:"conncookies"`       // 1
-	CookieLogging     *bool     `default:"0"             required:"0" json:"cookielogging"`     // 1
+	Gamemode          []string `required:"1"            json:"gamemode"`                       //
+	RCONPassword      *string  `required:"1"            json:"rcon_password"`                  // changeme
+	Announce          *bool    `default:"0"             required:"0" json:"announce"`          // 0
+	MaxPlayers        *int     `default:"50"            required:"0" json:"maxplayers"`        // 50
+	Port              *int     `default:"8192"          required:"0" json:"port"`              // 8192
+	LANMode           *bool    `default:"0"             required:"0" json:"lanmode"`           // 0
+	Query             *bool    `default:"0"             required:"0" json:"query"`             // 0
+	RCON              *bool    `default:"0"             required:"0" json:"rcon"`              // 0
+	LogQueries        *bool    `default:"0"             required:"0" json:"logqueries"`        // 0
+	StreamRate        *int     `default:"1000"          required:"0" json:"stream_rate"`       // 1000
+	StreamDistance    *float32 `default:"200.0"         required:"0" json:"stream_distance"`   // 200.0
+	Sleep             *string  `default:"5"             required:"0" json:"sleep"`             // 5
+	MaxNPC            *int     `default:"0"             required:"0" json:"maxnpc"`            // 0
+	OnFootRate        *int     `default:"30"            required:"0" json:"onfoot_rate"`       // 30
+	InCarRate         *int     `default:"30"            required:"0" json:"incar_rate"`        // 30
+	WeaponRate        *int     `default:"30"            required:"0" json:"weapon_rate"`       // 30
+	ChatLogging       *bool    `default:"1"             required:"0" json:"chatlogging"`       // 1
+	Timestamp         *bool    `default:"1"             required:"0" json:"timestamp"`         // 1
+	Bind              *string  `default:""              required:"0" json:"bind"`              //
+	Password          *string  `default:""              required:"0" json:"password"`          //
+	Hostname          *string  `default:"SA-MP Server"  required:"0" json:"hostname"`          // SA-MP Server
+	Language          *string  `default:""              required:"0" json:"language"`          //
+	Mapname           *string  `default:"San Andreas"   required:"0" json:"mapname"`           // San Andreas
+	Weburl            *string  `default:"www.sa-mp.com" required:"0" json:"weburl"`            // www.sa-mp.com
+	Gravity           *float32 `default:"0.008"         required:"0" json:"gravity"`           // 0.008
+	Weather           *int     `default:"10"            required:"0" json:"weather"`           // 10
+	GamemodeText      *string  `default:"Unknown"       required:"0" json:"gamemodetext"`      // Unknown
+	Filterscripts     *string  `default:""              required:"0" json:"filterscripts"`     //
+	Plugins           *string  `default:""              required:"0" json:"plugins"`           //
+	NoSign            *string  `default:""              required:"0" json:"nosign"`            //
+	LogTimeFormat     *string  `default:"[%H:%M:%S]"    required:"0" json:"logtimeformat"`     // [%H:%M:%S]
+	MessageHoleLimit  *int     `default:"3000"          required:"0" json:"messageholelimit"`  // 3000
+	MessagesLimit     *int     `default:"500"           required:"0" json:"messageslimit"`     // 500
+	AcksLimit         *int     `default:"3000"          required:"0" json:"ackslimit"`         // 3000
+	PlayerTimeout     *int     `default:"10000"         required:"0" json:"playertimeout"`     // 10000
+	MinConnectionTime *int     `default:"0"             required:"0" json:"minconnectiontime"` // 0
+	Myriad            *int     `default:"50"            required:"0" json:"myriad"`            // 50
+	LagCompmode       *int     `default:"1"             required:"0" json:"lagcompmode"`       // 1
+	ConnseedTime      *int     `default:"300000"        required:"0" json:"connseedtime"`      // 300000
+	DBLogging         *bool    `default:"0"             required:"0" json:"db_logging"`        // 0
+	DBLogQueries      *bool    `default:"0"             required:"0" json:"db_log_queries"`    // 0
+	ConnectCookies    *bool    `default:"1"             required:"0" json:"conncookies"`       // 1
+	CookieLogging     *bool    `default:"0"             required:"0" json:"cookielogging"`     // 1
 }
 
 // NewConfigFromEnvironment creates a Config from the given environment which includes a directory which
@@ -93,8 +93,8 @@ func NewConfigFromEnvironment(dir string) (cfg Config, err error) {
 // LoadEnvironmentVariables loads Config fields from environment variables - the variable names are
 // simply the `json` tag names uppercased and prefixed with `SAMP_`
 func (cfg *Config) LoadEnvironmentVariables() {
-	t := reflect.TypeOf(*cfg)
-	v := reflect.ValueOf(*cfg)
+	v := reflect.ValueOf(cfg).Elem()
+	t := v.Type()
 
 	for i := 0; i < t.NumField(); i++ {
 		fieldval := v.Field(i)
@@ -113,9 +113,13 @@ func (cfg *Config) LoadEnvironmentVariables() {
 
 		switch stype.Type.String() {
 		case "*string":
-			fieldval.SetString(value)
+			if fieldval.IsNil() {
+				v := reflect.ValueOf(value)
+				fieldval.Set(reflect.New(v.Type()))
+			}
+			fieldval.Elem().SetString(value)
 
-		case "*[]string":
+		case "[]string":
 			// todo: allow gamemode setting via env vars
 			fmt.Println("cannot set gamemode via environment variables yet")
 
@@ -124,7 +128,11 @@ func (cfg *Config) LoadEnvironmentVariables() {
 			if err != nil {
 				fmt.Printf("warning: environment variable '%s' could not interpret value '%s' as boolean: %v\n", stype.Name, value, err)
 			}
-			fieldval.SetBool(valueAsBool)
+			if fieldval.IsNil() {
+				v := reflect.ValueOf(valueAsBool)
+				fieldval.Set(reflect.New(v.Type()))
+			}
+			fieldval.Elem().SetBool(valueAsBool)
 
 		case "*int":
 			valueAsInt, err := strconv.Atoi(value)
@@ -132,7 +140,11 @@ func (cfg *Config) LoadEnvironmentVariables() {
 				fmt.Printf("warning: environment variable '%s' could not interpret value '%s' as integer: %v\n", stype.Name, value, err)
 				continue
 			}
-			fieldval.SetInt(int64(valueAsInt))
+			if fieldval.IsNil() {
+				v := reflect.ValueOf(valueAsInt)
+				fieldval.Set(reflect.New(v.Type()))
+			}
+			fieldval.Elem().SetInt(int64(valueAsInt))
 
 		case "*float32":
 			valueAsFloat, err := strconv.ParseFloat(value, 64)
@@ -140,9 +152,13 @@ func (cfg *Config) LoadEnvironmentVariables() {
 				fmt.Printf("warning: environment variable '%s' could not interpret value '%s' as float: %v\n", stype.Name, value, err)
 				continue
 			}
-			fieldval.SetFloat(valueAsFloat)
+			if fieldval.IsNil() {
+				v := reflect.ValueOf(valueAsFloat)
+				fieldval.Set(reflect.New(v.Type()))
+			}
+			fieldval.Elem().SetFloat(valueAsFloat)
 		default:
-			panic(fmt.Sprintf("unknown kind %v", stype.Type))
+			panic(fmt.Sprintf("unknown kind '%s'", stype.Type.String()))
 		}
 	}
 }
@@ -176,7 +192,7 @@ func (cfg *Config) GenerateServerCfg(dir string) (err error) {
 		switch stype.Type.String() {
 		case "*string":
 			line, err = fromString(name, fieldval, required, defaultValue)
-		case "*[]string":
+		case "[]string":
 			line, err = fromSlice(name, fieldval, required, defaultValue)
 		case "*bool":
 			line, err = fromBool(name, fieldval, required, defaultValue)
@@ -185,7 +201,7 @@ func (cfg *Config) GenerateServerCfg(dir string) (err error) {
 		case "*float32":
 			line, err = fromFloat(name, fieldval, required, defaultValue)
 		default:
-			err = errors.Errorf("unknown kind %v", stype.Type)
+			err = errors.Errorf("unknown kind '%s'", stype.Type.String())
 		}
 		if err != nil {
 			return errors.Wrapf(err, "failed to unpack settings object %s", name)
@@ -223,10 +239,9 @@ func fromSlice(name string, obj reflect.Value, required bool, defaultValue strin
 		return
 	}
 
-	elem := obj.Elem()
-	len := elem.Len()
+	len := obj.Len()
 	for i := 0; i < len; i++ {
-		result += fmt.Sprintf("%s%d %s\n", name, i, elem.Index(i).String())
+		result += fmt.Sprintf("%s%d %s\n", name, i, obj.Index(i).String())
 	}
 	return
 }

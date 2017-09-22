@@ -10,6 +10,9 @@ fast:
 static:
 	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o sampctl .
 
+static_windows:
+	CGO_ENABLED=0 GOOS=windows go build -a -installsuffix cgo -o sampctl.exe .
+
 build: static
 	docker build -t southclaws/sampctl .
 
