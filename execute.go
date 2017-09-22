@@ -1,6 +1,12 @@
 package main
 
 import (
+	"bufio"
+	"fmt"
+	"log"
+	"os/exec"
+	"time"
+
 	"github.com/pkg/errors"
 )
 
@@ -27,11 +33,76 @@ func Execute(endpoint, version, dir string) (err error) {
 		return errors.Wrap(err, "failed to generate server.cfg")
 	}
 
-	// create a Server object from config/env vars
-	// generate server.cfg
-	// execute platform binary in goroutine
-	// collect stdout and print in other goroutine
-	// in future, add options to send to syslog, database or something
-	// also, parse log depending on the log_format setting, pull out time/date and maybe in future, allow custom regex for grouping outputs
-	return
+	binary := "./" + getServerBinary()
+	fmt.Printf("Starting server process '%s'...\n", binary)
+
+	return watchdog(binary)
+}
+
+func watchdog(binary string) (err error) {
+	var (
+		startTime          time.Time     // time of most recent start/restart
+		exponentialBackoff = time.Second // exponential backoff cooldown
+	)
+
+	for {
+		cmd := exec.Command(binary)
+		pipe, err := cmd.StdoutPipe()
+		if err != nil {
+			return err
+		}
+		err = cmd.Start()
+		if err != nil {
+			return err
+		}
+
+		startTime = time.Now()
+		go func() {
+			br := bufio.NewReader(pipe)
+			var (
+				raw      []byte
+				isPrefix bool
+				inMulti  bool
+				line     string
+			)
+			for {
+				raw, isPrefix, err = br.ReadLine()
+				if err != nil {
+					break
+				}
+
+				if isPrefix {
+					if !inMulti {
+						inMulti = true
+						line = string(raw)
+						continue
+					} else {
+						line += string(raw)
+					}
+				} else if inMulti {
+					inMulti = false
+				} else {
+					line = string(raw)
+				}
+
+				log.Println(line)
+			}
+		}()
+
+		err = cmd.Wait()
+
+		runTime := time.Since(startTime)
+		if runTime < time.Minute {
+			exponentialBackoff *= 2
+		} else {
+			exponentialBackoff = time.Second
+		}
+
+		if exponentialBackoff > time.Second*15 {
+			return errors.Errorf("too many crashloops, last error: %v", err)
+		}
+
+		fmt.Printf("crash loop exponential backoff: %s: %v\n", exponentialBackoff, err)
+		time.Sleep(exponentialBackoff)
+	}
 }
