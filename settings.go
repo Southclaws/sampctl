@@ -63,29 +63,30 @@ type Config struct {
 // NewConfigFromEnvironment creates a Config from the given environment which includes a directory which
 // searched for a `samp.json` file and environment variable versions of the config parameters.
 func NewConfigFromEnvironment(dir string) (cfg Config, err error) {
-	cfg.LoadEnvironmentVariables()
-
 	jsonFile := filepath.Join(dir, "samp.json")
 	_, err = os.Stat(jsonFile)
 	if os.IsNotExist(err) {
 		err = nil
-		return
 	} else if err != nil {
 		err = errors.Wrap(err, "failed to stat samp.json")
 		return
+	} else {
+		var contents []byte
+		contents, err = ioutil.ReadFile(jsonFile)
+		if err != nil {
+			err = errors.Wrap(err, "failed to stat samp.json")
+			return
+		}
+
+		err = json.Unmarshal(contents, &cfg)
+		if err != nil {
+			err = errors.Wrap(err, "failed to unmarshal samp.json")
+			return
+		}
 	}
 
-	contents, err := ioutil.ReadFile(jsonFile)
-	if err != nil {
-		err = errors.Wrap(err, "failed to stat samp.json")
-		return
-	}
-
-	err = json.Unmarshal(contents, &cfg)
-	if err != nil {
-		err = errors.Wrap(err, "failed to unmarshal samp.json")
-		return
-	}
+	// Environment variables override samp.json
+	cfg.LoadEnvironmentVariables()
 
 	return
 }
@@ -183,8 +184,12 @@ func (cfg *Config) GenerateServerCfg(dir string) (err error) {
 		fieldval := v.Field(i)
 		stype := t.Field(i)
 
-		name := stype.Tag.Get("json")
 		required := stype.Tag.Get("required") == "1"
+		if !required && fieldval.IsNil() {
+			continue
+		}
+
+		name := stype.Tag.Get("json")
 		defaultValue := stype.Tag.Get("default")
 
 		line := ""
