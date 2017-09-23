@@ -19,14 +19,17 @@ static_windows:
 	CGO_ENABLED=0 GOOS=windows go build -a -installsuffix cgo -o sampctl.exe .
 
 build: static
-	docker build -t southclaws/sampctl .
+	docker build -t southclaws/sampctl:$(VERSION) .
+
+push: build
+	docker push southclaws/sampctl:$(VERSION)
 
 run:
 	-docker rm sampctl-test
-	docker run --name sampctl-test southclaws/sampctl
+	docker run --name sampctl-test southclaws/sampctl:$(VERSION)
 
 enter:
-	docker run -it --entrypoint=bash southclaws/sampctl
+	docker run -it --entrypoint=bash southclaws/sampctl:$(VERSION)
 
 clean:
 	-rm sampctl

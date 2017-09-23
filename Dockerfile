@@ -1,16 +1,7 @@
-# for compiling inside a container:
-# FROM golang AS compile
+FROM debian:jessie
 
-# RUN go get -u github.com/Southclaws/sampctl && \
-#     cd $GOPATH/src/github.com/Southclaws/sampctl && \
-#     make sampctl
+COPY sampctl /bin/sampctl
+RUN mkdir samp
+WORKDIR /samp
 
-# FROM ubuntu
-
-# COPY --from=compile /go/src/github.com/Southclaws/sampctl/sampctl /sampctl
-
-FROM ubuntu
-
-COPY sampctl /sampctl
-
-ENTRYPOINT ["/sampctl"]
+ENTRYPOINT ["sampctl"]
