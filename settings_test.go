@@ -21,7 +21,7 @@ func TestServer_GenerateServerCfg(t *testing.T) {
 				// Port:         &[]int{8080}[0],
 				// RCON:         &[]bool{true}[0],
 				// Language:     &[]string{"English"}[0],
-				Gamemode: []string{
+				Gamemodes: []string{
 					"rivershell",
 					"baserace",
 				},
