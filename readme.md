@@ -12,6 +12,8 @@ A small utility for starting and managing SA:MP servers with better settings han
 
 `sampctl download` Just downloads the binaries to the current directory.
 
+`sampctl init` Initialises a server folder by asking some basic questions about the server, mainly for newcomers to SA:MP server hosting.
+
 ## Config
 
 If your current directory has a JSON file named `samp.json`, the values will be used to generate a `server.cfg` file. The setting names are the same.
