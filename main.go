@@ -40,6 +40,29 @@ func main() {
 
 	app.Commands = []cli.Command{
 		{
+			Name:    "init",
+			Aliases: []string{"i"},
+			Usage:   "initialise a sa-mp server folder with a few questions, uses the cwd if --dir is not set",
+			Action: func(c *cli.Context) error {
+				endpoint := c.String("endpoint")
+				version := c.String("version")
+				dir := c.String("dir")
+
+				err := InitialiseServer(version, dir)
+				if err != nil {
+					return errors.Wrap(err, "failed to initialise server")
+				}
+
+				err = GetPackage(endpoint, version, dir)
+				if err != nil {
+					return errors.Wrap(err, "failed to get package")
+				}
+
+				return nil
+			},
+			Flags: app.Flags,
+		},
+		{
 			Name:    "run",
 			Aliases: []string{"r"},
 			Usage:   "run a sa-mp server, uses the cwd if --dir is not set",
