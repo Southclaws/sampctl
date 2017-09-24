@@ -14,9 +14,79 @@ A small utility for starting and managing SA:MP servers with better settings han
 
 `sampctl init` Initialises a server folder by asking some basic questions about the server, mainly for newcomers to SA:MP server hosting.
 
-## Config
+## An Easier Way To Configure via `samp.json`
 
-If your current directory has a JSON file named `samp.json`, the values will be used to generate a `server.cfg` file. The setting names are the same.
+Everybody loves JSON! An I've always hated the `server.cfg` structure, so no longer will you need to edit this file by hand! You can work with a modern, structured, JSON format instead.
+
+If your current directory has a JSON file named `samp.json`, the values will be used to generate a `server.cfg` file.
+
+The setting key names are the exact same as [the `server.cfg` settings](http://wiki.sa-mp.com/wiki/Server.cfg) the only difference is how the `gamemode` settings are handled.
+
+In `server.cfg` for multiple gamemodes, you have multiple `gamemode#` entries, like:
+
+```ini
+gamemode0 sumo
+gamemode1 golf
+gamemode2 tdm
+```
+
+But in JSON-land, this looks like:
+
+```json
+{
+    "gamemodes": [
+        "sumo",
+        "golf",
+        "tdm"
+    ]
+}
+```
+
+Currently, there's no way to set the number of times each gamemode will repeat. If there is demand for this feature, I will implement it.
+
+| key                 | value type       |
+|---------------------|------------------|
+| `gamemodes`         | array of strings |
+| `gamemode`          | string           |
+| `rcon_password`     | string           |
+| `announce`          | bool             |
+| `maxplayers`        | int              |
+| `port`              | int              |
+| `lanmode`           | bool             |
+| `query`             | bool             |
+| `rcon`              | bool             |
+| `logqueries`        | bool             |
+| `stream_rate`       | int              |
+| `stream_distance`   | float            |
+| `sleep`             | string           |
+| `maxnpc`            | int              |
+| `onfoot_rate`       | int              |
+| `incar_rate`        | int              |
+| `weapon_rate`       | int              |
+| `chatlogging`       | bool             |
+| `timestamp`         | bool             |
+| `bind`              | string           |
+| `password`          | string           |
+| `hostname`          | string           |
+| `language`          | string           |
+| `mapname`           | string           |
+| `weburl`            | string           |
+| `gamemodetext`      | string           |
+| `filterscripts`     | array of strings |
+| `plugins`           | array of strings |
+| `nosign`            | string           |
+| `logtimeformat`     | string           |
+| `messageholelimit`  | int              |
+| `messageslimit`     | int              |
+| `ackslimit`         | int              |
+| `playertimeout`     | int              |
+| `minconnectiontime` | int              |
+| `lagcompmode`       | int              |
+| `connseedtime`      | int              |
+| `db_logging`        | bool             |
+| `db_log_queries`    | bool             |
+| `conncookies`       | bool             |
+| `cookielogging`     | bool             |
 
 You can also use environment variables to configure, just prefix them with `SAMP_` and uppercase the rest.
 
