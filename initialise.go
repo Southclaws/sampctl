@@ -62,7 +62,7 @@ func InitialiseServer(version, dir string) (err error) {
 		questions = append(questions, &survey.Question{
 			Name: "Gamemodes",
 			Prompt: &survey.MultiSelect{
-				Message: "Choose one or more gamemodes:",
+				Message: "Choose one or more gamemodes - Arrow keys to navigate, Space to select, Enter to continue",
 				Options: gamemodesList,
 			},
 			Validate: survey.Required,
@@ -73,7 +73,7 @@ func InitialiseServer(version, dir string) (err error) {
 		questions = append(questions, &survey.Question{
 			Name: "Filterscripts",
 			Prompt: &survey.MultiSelect{
-				Message: "Choose zero or more filterscripts:",
+				Message: "Choose zero or more filterscripts - Arrow keys to navigate, Space to select, Enter to continue",
 				Options: filterscriptsList,
 			},
 		})
@@ -83,7 +83,7 @@ func InitialiseServer(version, dir string) (err error) {
 		questions = append(questions, &survey.Question{
 			Name: "Plugins",
 			Prompt: &survey.MultiSelect{
-				Message: "Choose zero or more plugins:",
+				Message: "Choose zero or more plugins - Arrow keys to navigate, Space to select, Enter to continue",
 				Options: pluginsList,
 			},
 		})
