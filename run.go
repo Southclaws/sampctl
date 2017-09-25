@@ -10,8 +10,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Execute handles the actual running of the server process - it collects log output too
-func Execute(endpoint, version, dir string) (err error) {
+// Run handles the actual running of the server process - it collects log output too
+func Run(endpoint, version, dir string) (err error) {
 	empty, errs := validate(dir, version)
 	if errs != nil {
 		return errors.Errorf("directory in invalid state: %v", errs)

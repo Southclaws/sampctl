@@ -9,7 +9,7 @@ func Test_fromNet(t *testing.T) {
 		endpoint string
 		cacheDir string
 		version  string
-		cwd      string
+		dir      string
 	}
 	tests := []struct {
 		name    string
@@ -29,7 +29,7 @@ func Test_fromNet(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := fromNet(tt.args.endpoint, tt.args.cacheDir, tt.args.version, tt.args.cwd); (err != nil) != tt.wantErr {
+			if err := fromNet(tt.args.endpoint, tt.args.cacheDir, tt.args.version, tt.args.dir); (err != nil) != tt.wantErr {
 				t.Errorf("fromNet() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -40,7 +40,7 @@ func Test_fromCache(t *testing.T) {
 	type args struct {
 		cacheDir string
 		version  string
-		cwd      string
+		dir      string
 	}
 	tests := []struct {
 		name    string
@@ -62,7 +62,7 @@ func Test_fromCache(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotHit, err := fromCache(tt.args.cacheDir, tt.args.version, tt.args.cwd)
+			gotHit, err := fromCache(tt.args.cacheDir, tt.args.version, tt.args.dir)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("fromCache() error = %v, wantErr %v", err, tt.wantErr)
 				return

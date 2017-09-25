@@ -71,13 +71,7 @@ func main() {
 				endpoint := c.String("endpoint")
 				version := c.String("version")
 				dir := c.String("dir")
-
-				err := GetPackage(endpoint, version, dir)
-				if err != nil {
-					return errors.Wrap(err, "failed to get package")
-				}
-
-				return Execute(endpoint, version, dir)
+				return Run(endpoint, version, dir)
 			},
 			Flags: app.Flags,
 		},
@@ -89,7 +83,6 @@ func main() {
 				endpoint := c.String("endpoint")
 				version := c.String("version")
 				dir := c.String("dir")
-				fmt.Printf("Downloading package %s from endpoint %s into %s\n", version, endpoint, dir)
 				return GetPackage(endpoint, version, dir)
 			},
 			Flags: app.Flags,

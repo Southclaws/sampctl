@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -21,14 +22,16 @@ import (
 // download.go handles downloading and extracting sa-mp server versions.
 // Packages are cached in ~/.samp to avoid unnecessary downloads.
 
-// GetPackage checks if a cached package is available and if not, downloads it to the cwd
-func GetPackage(endpoint, version, cwd string) (err error) {
+// GetPackage checks if a cached package is available and if not, downloads it to dir
+func GetPackage(endpoint, version, dir string) (err error) {
+	fmt.Printf("Downloading package %s from endpoint %s into %s\n", version, endpoint, dir)
+
 	cacheDir, err := getCacheDir()
 	if err != nil {
 		return err
 	}
 
-	hit, err := fromCache(cacheDir, version, cwd)
+	hit, err := fromCache(cacheDir, version, dir)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get package %s from cache", version)
 	}
@@ -36,7 +39,7 @@ func GetPackage(endpoint, version, cwd string) (err error) {
 		return
 	}
 
-	err = fromNet(endpoint, cacheDir, version, cwd)
+	err = fromNet(endpoint, cacheDir, version, dir)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get package %s from net", version)
 	}
@@ -54,7 +57,7 @@ func getCacheDir() (string, error) {
 	return filepath.Join(home, ".samp"), nil
 }
 
-func fromCache(cacheDir, version, cwd string) (hit bool, err error) {
+func fromCache(cacheDir, version, dir string) (hit bool, err error) {
 	var filename string
 	var method func(string, string) error
 
@@ -78,12 +81,12 @@ func fromCache(cacheDir, version, cwd string) (hit bool, err error) {
 		return false, nil
 	}
 
-	err = method(filename, cwd)
+	err = method(filename, dir)
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to unzip package %s", filename)
 	}
 
-	empty, errs := validate(cwd, version)
+	empty, errs := validate(dir, version)
 	if errs != nil {
 		return false, errors.Errorf("validation errors: %#v", errs)
 	}
@@ -95,7 +98,7 @@ func fromCache(cacheDir, version, cwd string) (hit bool, err error) {
 }
 
 // fromNet downloads a server package to the cache, then calls fromCache to finish the job
-func fromNet(endpoint, cacheDir, version, cwd string) (err error) {
+func fromNet(endpoint, cacheDir, version, dir string) (err error) {
 	var filename string
 	var method func(string, string) error
 
@@ -115,10 +118,10 @@ func fromNet(endpoint, cacheDir, version, cwd string) (err error) {
 		return
 	}
 
-	if !exists(cwd) {
-		err := os.MkdirAll(cwd, 0755)
+	if !exists(dir) {
+		err := os.MkdirAll(dir, 0755)
 		if err != nil {
-			return errors.Wrapf(err, "failed to create dir %s", cwd)
+			return errors.Wrapf(err, "failed to create dir %s", dir)
 		}
 	}
 
@@ -141,12 +144,12 @@ func fromNet(endpoint, cacheDir, version, cwd string) (err error) {
 		return errors.Wrap(err, "failed to write package to cache")
 	}
 
-	err = method(fullPath, cwd)
+	err = method(fullPath, dir)
 	if err != nil {
 		return errors.Wrapf(err, "failed to unzip package %s", filename)
 	}
 
-	empty, errs := validate(cwd, version)
+	empty, errs := validate(dir, version)
 	if errs != nil {
 		return errors.Errorf("validation errors: %v", errs)
 	}
@@ -180,24 +183,24 @@ func downloadPackage(endpoint, filename string) (content []byte, err error) {
 	return ioutil.ReadAll(resp.Body)
 }
 
-// validate ensures the cwd has all the necessary files to run a server, it also performs an MD5
+// validate ensures the dir has all the necessary files to run a server, it also performs an MD5
 // checksum against the binary to prevent running anything unwanted.
-func validate(cwd, version string) (empty bool, errs []error) {
+func validate(dir, version string) (empty bool, errs []error) {
 	missing := 0
-	if !exists(filepath.Join(cwd, getNpcBinary())) {
+	if !exists(filepath.Join(dir, getNpcBinary())) {
 		errs = append(errs, errors.New("missing npc binary"))
 		missing++
 	}
-	if !exists(filepath.Join(cwd, getAnnounceBinary())) {
+	if !exists(filepath.Join(dir, getAnnounceBinary())) {
 		errs = append(errs, errors.New("missing announce binary"))
 		missing++
 	}
-	if !exists(filepath.Join(cwd, getServerBinary())) {
+	if !exists(filepath.Join(dir, getServerBinary())) {
 		errs = append(errs, errors.New("missing server binary"))
 		missing++
 	} else {
 		// now perform an md5 on the server
-		ok, err := matchesChecksum(filepath.Join(cwd, getServerBinary()), version)
+		ok, err := matchesChecksum(filepath.Join(dir, getServerBinary()), version)
 		if err != nil {
 			errs = append(errs, errors.New("failed to match checksum"))
 		} else if !ok {
@@ -205,11 +208,11 @@ func validate(cwd, version string) (empty bool, errs []error) {
 		}
 	}
 
-	if !exists(filepath.Join(cwd, "gamemodes")) {
+	if !exists(filepath.Join(dir, "gamemodes")) {
 		errs = append(errs, errors.New("missing gamemodes dir"))
 		missing++
 	}
-	if !exists(filepath.Join(cwd, "filterscripts")) {
+	if !exists(filepath.Join(dir, "filterscripts")) {
 		errs = append(errs, errors.New("missing gamemodes dir"))
 		missing++
 	}
@@ -370,11 +373,11 @@ func Unzip(src, dest string) error {
 }
 
 // createDirs simply creates the necessary gamemodes and filterscripts directories
-func createDirs(cwd string) (err error) {
-	err = os.MkdirAll(filepath.Join(cwd, "gamemodes"), 0755)
+func createDirs(dir string) (err error) {
+	err = os.MkdirAll(filepath.Join(dir, "gamemodes"), 0755)
 	if err != nil {
 		return
 	}
-	err = os.MkdirAll(filepath.Join(cwd, "filterscripts"), 0755)
+	err = os.MkdirAll(filepath.Join(dir, "filterscripts"), 0755)
 	return
 }
