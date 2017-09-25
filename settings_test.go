@@ -145,3 +145,61 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 		})
 	}
 }
+
+func TestConfig_ValidateWorkspace(t *testing.T) {
+	type args struct {
+		dir string
+	}
+	tests := []struct {
+		name     string
+		config   Config
+		args     args
+		wantErrs bool
+	}{
+		{
+			"minimal",
+			Config{
+				Gamemodes: []string{
+					"rivershell",
+				},
+				RCONPassword: &[]string{"changed"}[0],
+				Port:         &[]int{8080}[0],
+				Hostname:     &[]string{"Test"}[0],
+				MaxPlayers:   &[]int{32}[0],
+				Language:     &[]string{"English"}[0],
+				Announce:     &[]bool{true}[0],
+				RCON:         &[]bool{true}[0],
+			},
+			args{"./testspace"},
+			false,
+		},
+		{
+			"minimal_fail",
+			Config{
+				Gamemodes: []string{
+					"rivershell",
+					"baserace",
+				},
+				RCONPassword: &[]string{"changed"}[0],
+				Port:         &[]int{8080}[0],
+				Hostname:     &[]string{"Test"}[0],
+				MaxPlayers:   &[]int{32}[0],
+				Language:     &[]string{"English"}[0],
+				Announce:     &[]bool{true}[0],
+				RCON:         &[]bool{true}[0],
+			},
+			args{"./testspace"},
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := tt.config.ValidateWorkspace(tt.args.dir)
+			if tt.wantErrs {
+				assert.NotEmpty(t, errs)
+			} else {
+				assert.Empty(t, errs)
+			}
+		})
+	}
+}

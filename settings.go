@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -164,6 +165,39 @@ func (cfg *Config) LoadEnvironmentVariables() {
 			panic(fmt.Sprintf("unknown kind '%s'", stype.Type.String()))
 		}
 	}
+}
+
+// ValidateWorkspace compares a Config to a directory and checks that all the declared gamemodes,
+// filterscripts and plugins are present.
+func (cfg Config) ValidateWorkspace(dir string) (errs []error) {
+	for _, gamemode := range cfg.Gamemodes {
+		fullpath := filepath.Join(dir, "gamemodes", gamemode+".amx")
+		if !exists(fullpath) {
+			errs = append(errs, errors.Errorf("gamemode '%s' is missing its .amx file from the gamemodes directory", gamemode))
+		}
+	}
+	for _, filterscript := range cfg.Filterscripts {
+		fullpath := filepath.Join(dir, "filterscripts", filterscript+".amx")
+		if !exists(fullpath) {
+			errs = append(errs, errors.Errorf("filterscript '%s' is missing its .amx file from the filterscripts directory", filterscript))
+		}
+	}
+	var ext string
+	switch runtime.GOOS {
+	case "windows":
+		ext = ".dll"
+	case "linux":
+		ext = ".so"
+	default:
+		errs = append(errs, errors.New("unsupported platform"))
+	}
+	for _, plugin := range cfg.Plugins {
+		fullpath := filepath.Join(dir, plugin, ext)
+		if !exists(fullpath) {
+			errs = append(errs, errors.Errorf("plugin '%s' is missing its %s file from the plugins directory", plugin, ext))
+		}
+	}
+	return
 }
 
 // GenerateServerCfg creates a settings file in the SA:MP "server.cfg" format at the specified location
