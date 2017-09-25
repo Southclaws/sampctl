@@ -2,6 +2,7 @@ package main
 
 import (
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -98,6 +99,49 @@ func TestConfig_GenerateJSON(t *testing.T) {
 			assert.NoError(t, err)
 
 			assert.Equal(t, string(tt.want), string(contents))
+		})
+	}
+}
+
+func TestNewConfigFromEnvironment(t *testing.T) {
+	type args struct {
+		dir string
+	}
+	tests := []struct {
+		name    string
+		env     map[string]string
+		args    args
+		wantCfg Config
+		wantErr bool
+	}{
+		{
+			"minimal",
+			map[string]string{"SAMP_RCON_PASSWORD": "changed"},
+			args{"./testspace"},
+			Config{
+				Gamemodes: []string{
+					"rivershell",
+					"baserace",
+				},
+				RCONPassword: &[]string{"changed"}[0],
+				Port:         &[]int{8080}[0],
+				Hostname:     &[]string{"Test"}[0],
+				MaxPlayers:   &[]int{32}[0],
+				Language:     &[]string{"English"}[0],
+				Announce:     &[]bool{true}[0],
+				RCON:         &[]bool{true}[0],
+			},
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for k, v := range tt.env {
+				os.Setenv(k, v)
+			}
+			gotCfg, err := NewConfigFromEnvironment(tt.args.dir)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantCfg, gotCfg)
 		})
 	}
 }

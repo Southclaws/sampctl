@@ -76,7 +76,7 @@ func NewConfigFromEnvironment(dir string) (cfg Config, err error) {
 		var contents []byte
 		contents, err = ioutil.ReadFile(jsonFile)
 		if err != nil {
-			err = errors.Wrap(err, "failed to stat samp.json")
+			err = errors.Wrap(err, "failed to read samp.json")
 			return
 		}
 
@@ -107,7 +107,7 @@ func (cfg *Config) LoadEnvironmentVariables() {
 			continue
 		}
 
-		name := "SAMP_" + strings.ToUpper(t.Field(i).Tag.Get("json"))
+		name := "SAMP_" + strings.ToUpper(strings.Split(t.Field(i).Tag.Get("json"), ",")[0])
 
 		value, ok := os.LookupEnv(name)
 		if !ok {
