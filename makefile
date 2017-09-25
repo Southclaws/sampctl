@@ -26,7 +26,7 @@ build:
 
 push: build
 	docker push southclaws/sampctl:$(VERSION)
-
+	
 run:
 	-docker rm sampctl-test
 	docker run --name sampctl-test southclaws/sampctl:$(VERSION)

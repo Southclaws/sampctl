@@ -24,7 +24,7 @@ func RunContainer(endpoint, version, dir, appVersion string) (err error) {
 	cnt, err := cli.ContainerCreate(
 		context.Background(),
 		&container.Config{
-			Image:      "southclaws/sampctl:"+appVersion,
+			Image:      "southclaws/sampctl:" + appVersion,
 			Entrypoint: strslice.StrSlice{"sampctl", "run"},
 		},
 		&container.HostConfig{
@@ -42,18 +42,13 @@ func RunContainer(endpoint, version, dir, appVersion string) (err error) {
 		panic(err)
 	}
 
+	fmt.Println("Starting container...")
 	err = cli.ContainerStart(context.Background(), cnt.ID, types.ContainerStartOptions{})
 	if err != nil {
 		panic(err)
 	}
 
-	_, errch := cli.ContainerWait(context.Background(), cnt.ID, container.WaitConditionNotRunning)
-
-	err = <-errch
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(cnt.Warnings)
+	fmt.Println("Warnings:", cnt.Warnings)
 
 	logs, err := cli.ContainerLogs(context.Background(), cnt.ID, types.ContainerLogsOptions{
 		ShowStdout: true,
@@ -63,6 +58,8 @@ func RunContainer(endpoint, version, dir, appVersion string) (err error) {
 	if err != nil {
 		panic(err)
 	}
+
+	fmt.Println("Output:")
 
 	scanner := bufio.NewScanner(logs)
 	for scanner.Scan() {
