@@ -1,7 +1,8 @@
 FROM golang AS compile
-RUN go get -v -u github.com/Southclaws/sampctl && \
-    cd $GOPATH/src/github.com/Southclaws/sampctl && \
-    make static
+WORKDIR /go/src/github.com/Southclaws/sampctl
+COPY vendor vendor
+COPY . .
+RUN make static
 
 FROM debian:jessie
 COPY --from=compile /go/src/github.com/Southclaws/sampctl/sampctl /bin/sampctl

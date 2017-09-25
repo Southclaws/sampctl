@@ -22,7 +22,7 @@ clean:
 # Docker
 
 build:
-	docker build --no-cache -t southclaws/sampctl:$(VERSION) .
+	docker build -t southclaws/sampctl:$(VERSION) .
 
 push: build
 	docker push southclaws/sampctl:$(VERSION)
