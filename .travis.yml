@@ -5,7 +5,7 @@ language: go
 jobs:
   include:
     - stage: get
-      script: go get -u
+      script: go get -v -u
     - stage: test
       script: go get github.com/stretchr/testify
       script: go test -v -race
