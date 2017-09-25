@@ -54,7 +54,8 @@ func getCacheDir() (string, error) {
 		return "", errors.Wrap(err, "failed to get home directory")
 	}
 
-	return filepath.Join(home, ".samp"), nil
+	dir := filepath.Join(home, ".samp")
+	return dir, os.MkdirAll(dir, 0755)
 }
 
 func fromCache(cacheDir, version, dir string) (hit bool, err error) {
