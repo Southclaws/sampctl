@@ -38,6 +38,10 @@ func main() {
 			Value: "http://files.sa-mp.com",
 			Usage: "endpoint to download packages from",
 		},
+		cli.BoolFlag{
+			Name:  "container",
+			Usage: "starts the server as a Linux container instead of running it in the current directory",
+		},
 	}
 
 	app.Commands = []cli.Command{
@@ -49,7 +53,6 @@ func main() {
 				endpoint := c.String("endpoint")
 				version := c.String("version")
 				dir := fullPath(c.String("dir"))
-
 				err := InitialiseServer(version, dir)
 				if err != nil {
 					return errors.Wrap(err, "failed to initialise server")
@@ -72,7 +75,16 @@ func main() {
 				endpoint := c.String("endpoint")
 				version := c.String("version")
 				dir := fullPath(c.String("dir"))
-				return Run(endpoint, version, dir)
+				container := c.Bool("container")
+
+				var err error
+				if container {
+					err = RunContainer(endpoint, version, dir, app.Version)
+				} else {
+					err = Run(endpoint, version, dir)
+				}
+
+				return err
 			},
 			Flags: app.Flags,
 		},
