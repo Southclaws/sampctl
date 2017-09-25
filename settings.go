@@ -66,7 +66,7 @@ type Config struct {
 	DBLogQueries      *bool    `default:"0"             required:"0" json:"db_log_queries,omitempty"`    // 0
 	ConnectCookies    *bool    `default:"1"             required:"0" json:"conncookies,omitempty"`       // 1
 	CookieLogging     *bool    `default:"0"             required:"0" json:"cookielogging,omitempty"`     // 1
-	Output            *bool    `default:"1"             required:"0" json:"output"`                      // 1
+	Output            *bool    `default:"1"             required:"0" json:"output,omitempty"`            // 1
 }
 
 // NewConfigFromEnvironment creates a Config from the given environment which includes a directory which

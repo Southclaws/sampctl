@@ -147,6 +147,8 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 }
 
 func TestConfig_ValidateWorkspace(t *testing.T) {
+	f, _ := os.Create("./testspace/gamemodes/rivershell.amx")
+	f.Close()
 	type args struct {
 		dir string
 	}
