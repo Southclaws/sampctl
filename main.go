@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
@@ -47,7 +48,7 @@ func main() {
 			Action: func(c *cli.Context) error {
 				endpoint := c.String("endpoint")
 				version := c.String("version")
-				dir := c.String("dir")
+				dir := fullPath(c.String("dir"))
 
 				err := InitialiseServer(version, dir)
 				if err != nil {
@@ -70,7 +71,7 @@ func main() {
 			Action: func(c *cli.Context) error {
 				endpoint := c.String("endpoint")
 				version := c.String("version")
-				dir := c.String("dir")
+				dir := fullPath(c.String("dir"))
 				return Run(endpoint, version, dir)
 			},
 			Flags: app.Flags,
@@ -82,7 +83,7 @@ func main() {
 			Action: func(c *cli.Context) error {
 				endpoint := c.String("endpoint")
 				version := c.String("version")
-				dir := c.String("dir")
+				dir := fullPath(c.String("dir"))
 				return GetPackage(endpoint, version, dir)
 			},
 			Flags: app.Flags,
@@ -104,4 +105,23 @@ func main() {
 	if err != nil {
 		fmt.Printf("Exited with error: %v\n", err)
 	}
+}
+
+func fullPath(dir string) (path string) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+
+	if dir == "." {
+		path = cwd
+	} else {
+		var err error
+		path, err = filepath.Rel(dir, cwd)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	return path
 }

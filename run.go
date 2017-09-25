@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
+	"path/filepath"
 	"time"
 
 	"github.com/pkg/errors"
@@ -39,9 +40,10 @@ func Run(endpoint, version, dir string) (err error) {
 	}
 
 	binary := "./" + getServerBinary()
-	fmt.Printf("Starting server process '%s'...\n", binary)
+	fullPath := filepath.Join(dir, binary)
+	fmt.Printf("start %s in %s\n", binary, dir)
 
-	return watchdog(binary)
+	return watchdog(fullPath)
 }
 
 func watchdog(binary string) (err error) {
