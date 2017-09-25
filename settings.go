@@ -118,8 +118,6 @@ func (cfg *Config) LoadEnvironmentVariables() {
 			}
 			fieldval.Elem().SetString(value)
 
-		case "map[int]string":
-			// todo: allow gamemode setting via env vars
 		case "[]string":
 			// todo: allow filterscripts and plugins via env vars
 			fmt.Println("cannot set gamemode via environment variables yet")
