@@ -1,6 +1,14 @@
+sudo: required
+services:
+  - docker
 language: go
-script:
-- go get -u
-- go test -v -race
+jobs:
+  include:
+    - stage: get
+      script: go get -u
+    - stage: test
+      script: go test -v -race
+    - stage: push
+      script: make push
 go:
   - 1.x

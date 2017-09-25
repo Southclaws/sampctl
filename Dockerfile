@@ -1,5 +1,5 @@
 FROM golang AS compile
-RUN go get -u github.com/Southclaws/sampctl && \
+RUN go get -v -u github.com/Southclaws/sampctl && \
     cd $GOPATH/src/github.com/Southclaws/sampctl && \
     make static
 
