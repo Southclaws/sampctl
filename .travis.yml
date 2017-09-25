@@ -6,7 +6,7 @@ jobs:
   include:
     - stage: test
       script: go test -v -race
-    - stage: push
-      script: make push
+    # - stage: push
+    #   script: make push
 go:
   - 1.x
