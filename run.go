@@ -28,6 +28,11 @@ func Run(endpoint, version, dir string) (err error) {
 		return errors.Wrap(err, "failed to generate config from environment")
 	}
 
+	errs = server.ValidateWorkspace(dir)
+	if errs != nil {
+		return errors.Errorf("%v", errs)
+	}
+
 	err = server.GenerateServerCfg(dir)
 	if err != nil {
 		return errors.Wrap(err, "failed to generate server.cfg")
