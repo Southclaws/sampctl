@@ -1,8 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
@@ -54,21 +54,19 @@ func watchdog(binary string) (err error) {
 	for {
 		cmd := exec.Command(binary)
 		cmd.Dir = filepath.Dir(binary)
-		pipe, err := cmd.StdoutPipe()
-		if err != nil {
-			return err
-		}
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 		err = cmd.Start()
 		if err != nil {
 			return err
 		}
 
 		startTime = time.Now()
-		scanner := bufio.NewScanner(pipe)
 
-		for scanner.Scan() {
-			println(scanner.Text())
-		}
+		// todo: capture output for further processing
+		// for scanner.Scan() {
+		// 	println(scanner.Text())
+		// }
 
 		err = cmd.Wait()
 
