@@ -15,7 +15,7 @@ func main() {
 	app.Author = "Southclaws"
 	app.Email = "southclaws@gmail.com"
 	app.Name = "sampctl"
-	app.Version = "1.1.5"
+	app.Version = "1.1.6"
 
 	cli.VersionFlag = cli.BoolFlag{
 		Name:  "app-version, V",

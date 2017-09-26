@@ -24,8 +24,11 @@ func RunContainer(endpoint, version, dir, appVersion string) (err error) {
 	cnt, err := cli.ContainerCreate(
 		context.Background(),
 		&container.Config{
-			Image:      "southclaws/sampctl:" + appVersion,
-			Entrypoint: strslice.StrSlice{"sampctl", "run"},
+			Image:        "southclaws/sampctl:" + appVersion,
+			Entrypoint:   strslice.StrSlice{"sampctl", "run"},
+			Tty:          true,
+			AttachStdout: true,
+			AttachStderr: true,
 		},
 		&container.HostConfig{
 			Mounts: []mount.Mount{
@@ -49,35 +52,27 @@ func RunContainer(endpoint, version, dir, appVersion string) (err error) {
 	}
 
 	fmt.Println("Warnings:", cnt.Warnings)
+	go func() {
+		reader, err := cli.ContainerLogs(context.Background(), cnt.ID, types.ContainerLogsOptions{
+			ShowStdout: true,
+			ShowStderr: true,
+			Follow:     true,
+			Timestamps: false,
+		})
+		if err != nil {
+			panic(err)
+		}
+		defer reader.Close()
 
-	reader, err := cli.ContainerLogs(context.Background(), cnt.ID, types.ContainerLogsOptions{
-		ShowStdout: true,
-		ShowStderr: true,
-		Follow:     true,
-	})
-	if err != nil {
-		panic(err)
-	}
-	defer reader.Close()
-
-	// todo: stream logs and process them live
-	// scanner := bufio.NewScanner(reader)
-	// for scanner.Scan() {
-	// 	fmt.Println(scanner.Text())
-	// }
+		scanner := bufio.NewScanner(reader)
+		for scanner.Scan() {
+			fmt.Println(scanner.Text())
+		}
+	}()
 
 	// for now, we just wait for the app to exit and prints logs afterwards
 	n, err := cli.ContainerWait(context.Background(), cnt.ID)
 	fmt.Println("container exited:", n, err)
-
-	scanner := bufio.NewScanner(reader)
-	for scanner.Scan() {
-		raw := scanner.Bytes()
-		str := string(raw[8:]) // remove the Docker logs header
-		fmt.Println(str)
-	}
-
-	reader.Close()
 
 	return
 }
