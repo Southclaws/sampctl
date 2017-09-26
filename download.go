@@ -209,16 +209,7 @@ func validate(dir, version string) (empty bool, errs []error) {
 		}
 	}
 
-	if !exists(filepath.Join(dir, "gamemodes")) {
-		errs = append(errs, errors.New("missing gamemodes dir"))
-		missing++
-	}
-	if !exists(filepath.Join(dir, "filterscripts")) {
-		errs = append(errs, errors.New("missing gamemodes dir"))
-		missing++
-	}
-
-	if missing == 5 {
+	if missing == 3 {
 		empty = true
 	}
 	return
