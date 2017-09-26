@@ -12,11 +12,9 @@ import (
 
 // Run handles the actual running of the server process - it collects log output too
 func Run(endpoint, version, dir string) (err error) {
-	empty, errs := validate(dir, version)
+	errs := ValidateServerDir(dir, version)
 	if errs != nil {
-		return errors.Errorf("directory in invalid state: %v", errs)
-	}
-	if empty {
+		fmt.Println(errs)
 		err := GetPackage(endpoint, version, dir)
 		if err != nil {
 			return errors.Wrap(err, "failed to get server package")
