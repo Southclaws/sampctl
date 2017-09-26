@@ -374,16 +374,13 @@ func fromFloat(name string, obj reflect.Value, required bool, defaultValue strin
 func adjustForOS(dir string, cfg *Config) {
 	if runtime.GOOS == "linux" {
 		actualPlugins := getPlugins(filepath.Join(dir, "plugins"))
-		fmt.Println("adjust for os", len(actualPlugins), len(cfg.Plugins))
 
 		for i, declared := range cfg.Plugins {
 			ext := filepath.Ext(declared)
 			if ext != "" {
-				fmt.Println("Warning: using explicit platform specific extension on plugin definition!")
 				declared = strings.TrimSuffix(declared, ext)
 			}
 			for _, actual := range actualPlugins {
-				fmt.Println("comparing", declared, actual)
 				// if the declared plugin matches the found plugin case-insensitively but does match
 				// case sensitively...
 				if strings.EqualFold(declared, actual) && declared != actual {
