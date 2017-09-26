@@ -219,6 +219,8 @@ func (cfg *Config) GenerateServerCfg(dir string) (err error) {
 		}
 	}()
 
+	// make some minor changes to the cfg before using it
+	adjustForOS(dir, cfg)
 	cfg.Echo = &echoMessage
 
 	v := reflect.ValueOf(*cfg)
@@ -366,6 +368,33 @@ func fromFloat(name string, obj reflect.Value, required bool, defaultValue strin
 	}
 
 	return fmt.Sprintf("%s %f\n", name, value), nil
+}
+
+// adjustForOS quickly does some tweaks depending on the OS such as .so plugin extension on linux
+func adjustForOS(dir string, cfg *Config) {
+	if runtime.GOOS == "linux" {
+		actualPlugins := getPlugins(filepath.Join(dir, "plugins"))
+		fmt.Println("adjust for os", len(actualPlugins), len(cfg.Plugins))
+
+		for i, declared := range cfg.Plugins {
+			ext := filepath.Ext(declared)
+			if ext != "" {
+				fmt.Println("Warning: using explicit platform specific extension on plugin definition!")
+				declared = strings.TrimSuffix(declared, ext)
+			}
+			for _, actual := range actualPlugins {
+				fmt.Println("comparing", declared, actual)
+				// if the declared plugin matches the found plugin case-insensitively but does match
+				// case sensitively...
+				if strings.EqualFold(declared, actual) && declared != actual {
+					// update the array index to use the actual filename
+					declared = actual
+					break
+				}
+			}
+			cfg.Plugins[i] = declared + ".so"
+		}
+	}
 }
 
 // GenerateJSON simply marshals the data to a samp.json file in dir
