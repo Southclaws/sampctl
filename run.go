@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os/exec"
 	"path/filepath"
 	"time"
@@ -54,6 +53,7 @@ func watchdog(binary string) (err error) {
 
 	for {
 		cmd := exec.Command(binary)
+		cmd.Dir = filepath.Dir(binary)
 		pipe, err := cmd.StdoutPipe()
 		if err != nil {
 			return err
@@ -64,37 +64,11 @@ func watchdog(binary string) (err error) {
 		}
 
 		startTime = time.Now()
-		go func() {
-			br := bufio.NewReader(pipe)
-			var (
-				raw      []byte
-				isPrefix bool
-				inMulti  bool
-				line     string
-			)
-			for {
-				raw, isPrefix, err = br.ReadLine()
-				if err != nil {
-					break
-				}
+		scanner := bufio.NewScanner(pipe)
 
-				if isPrefix {
-					if !inMulti {
-						inMulti = true
-						line = string(raw)
-						continue
-					} else {
-						line += string(raw)
-					}
-				} else if inMulti {
-					inMulti = false
-				} else {
-					line = string(raw)
-				}
-
-				log.Println(line)
-			}
-		}()
+		for scanner.Scan() {
+			println(scanner.Text())
+		}
 
 		err = cmd.Wait()
 
