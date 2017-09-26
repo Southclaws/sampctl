@@ -15,7 +15,7 @@ func main() {
 	app.Author = "Southclaws"
 	app.Email = "southclaws@gmail.com"
 	app.Name = "sampctl"
-	app.Version = "1.1.3"
+	app.Version = "1.1.4"
 
 	cli.VersionFlag = cli.BoolFlag{
 		Name:  "app-version, V",
@@ -128,11 +128,7 @@ func fullPath(dir string) (path string) {
 	if dir == "." {
 		path = cwd
 	} else {
-		var err error
-		path, err = filepath.Rel(dir, cwd)
-		if err != nil {
-			panic(err)
-		}
+		path = filepath.Join(cwd, dir)
 	}
 
 	return path
