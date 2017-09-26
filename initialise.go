@@ -39,7 +39,7 @@ func InitialiseServer(version, dir string) (err error) {
 	if !exists(pluginsDir) {
 		fmt.Println("This directory does not appear to have a plugins directory")
 	} else {
-		pluginsList = getPlugins(gamemodesDir)
+		pluginsList = getPlugins(pluginsDir)
 	}
 
 	var questions = []*survey.Question{
@@ -55,6 +55,10 @@ func InitialiseServer(version, dir string) (err error) {
 		{
 			Name:   "Port",
 			Prompt: &survey.Input{Message: "Server Port", Default: "7777"},
+		},
+		{
+			Name:   "MaxPlayers",
+			Prompt: &survey.Input{Message: "Max Players", Default: "32"},
 		},
 	}
 
@@ -93,6 +97,7 @@ func InitialiseServer(version, dir string) (err error) {
 		Hostname      string
 		RCONPassword  string
 		Port          int
+		MaxPlayers    int
 		Gamemodes     []string
 		Filterscripts []string
 		Plugins       []string
@@ -115,6 +120,7 @@ func InitialiseServer(version, dir string) (err error) {
 		Hostname:      &answers.Hostname,
 		RCONPassword:  &answers.RCONPassword,
 		Port:          &answers.Port,
+		MaxPlayers:    &answers.MaxPlayers,
 		Gamemodes:     answers.Gamemodes,
 		Filterscripts: answers.Filterscripts,
 		Plugins:       answers.Plugins,

@@ -198,7 +198,7 @@ func (cfg Config) ValidateWorkspace(dir string) (errs []error) {
 		errs = append(errs, errors.New("unsupported platform"))
 	}
 	for _, plugin := range cfg.Plugins {
-		fullpath := filepath.Join(dir, plugin, ext)
+		fullpath := filepath.Join(dir, "plugins", plugin+ext)
 		if !exists(fullpath) {
 			errs = append(errs, errors.Errorf("plugin '%s' is missing its %s file from the plugins directory", plugin, ext))
 		}
