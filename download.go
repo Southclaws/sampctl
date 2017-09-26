@@ -218,7 +218,7 @@ func validate(dir, version string) (empty bool, errs []error) {
 		missing++
 	}
 
-	if missing == 3 {
+	if missing == 5 {
 		empty = true
 	}
 	return
