@@ -42,7 +42,7 @@ type Config struct {
 	Query      *bool   `default:"0"             required:"0" json:"query,omitempty"`      // 0
 	RCON       *bool   `default:"0"             required:"0" json:"rcon,omitempty"`       // 0
 	LogQueries *bool   `default:"0"             required:"0" json:"logqueries,omitempty"` // 0
-	Sleep      *string `default:"5"             required:"0" json:"sleep,omitempty"`      // 5
+	Sleep      *int    `default:"5"             required:"0" json:"sleep,omitempty"`      // 5
 	MaxNPC     *int    `default:"0"             required:"0" json:"maxnpc,omitempty"`     // 0
 
 	// Rates and performance
