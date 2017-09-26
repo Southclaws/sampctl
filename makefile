@@ -33,3 +33,6 @@ run:
 
 enter:
 	docker run -it --entrypoint=bash southclaws/sampctl:$(VERSION)
+
+enter-mount:
+	docker run -v $(shell pwd)/testspace:/samp -it --entrypoint=bash southclaws/sampctl:$(VERSION)

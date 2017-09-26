@@ -50,7 +50,7 @@ func RunContainer(endpoint, version, dir, appVersion string) (err error) {
 
 	fmt.Println("Warnings:", cnt.Warnings)
 
-	logs, err := cli.ContainerLogs(context.Background(), cnt.ID, types.ContainerLogsOptions{
+	reader, err := cli.ContainerLogs(context.Background(), cnt.ID, types.ContainerLogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 		Follow:     true,
@@ -58,15 +58,26 @@ func RunContainer(endpoint, version, dir, appVersion string) (err error) {
 	if err != nil {
 		panic(err)
 	}
+	defer reader.Close()
 
-	fmt.Println("Output:")
+	// todo: stream logs and process them live
+	// scanner := bufio.NewScanner(reader)
+	// for scanner.Scan() {
+	// 	fmt.Println(scanner.Text())
+	// }
 
-	scanner := bufio.NewScanner(logs)
+	// for now, we just wait for the app to exit and prints logs afterwards
+	n, err := cli.ContainerWait(context.Background(), cnt.ID)
+	fmt.Println("container exited:", n, err)
+
+	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
-		fmt.Println(scanner.Text())
+		raw := scanner.Bytes()
+		str := string(raw[8:]) // remove the Docker logs header
+		fmt.Println(str)
 	}
 
-	fmt.Println("container exited")
+	reader.Close()
 
 	return
 }
