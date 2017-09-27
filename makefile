@@ -1,5 +1,6 @@
 VERSION := $(shell cat VERSION)
 
+.PHONY: version
 
 install:
 	go install
