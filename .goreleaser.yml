@@ -1,0 +1,41 @@
+project_name: sampctl
+release:
+  github:
+    owner: Southclaws
+    name: sampctl
+builds:
+  - binary: sampctl
+    goos:
+      - windows
+      - darwin
+      - linux
+    goarch:
+      - 386
+    env:
+      - CGO_ENABLED=0
+brew:
+  install: bin.install "sampctl"
+dockers:
+  -
+    image: southclaws/sampctl
+    goos: linux
+    goarch: amd64
+    binary: sampctl
+    dockerfile: Dockerfile
+    latest: true
+archive:
+  format: tar.gz
+  name_template: '{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
+  files:
+  - licence*
+  - LICENCE*
+  - license*
+  - LICENSE*
+  - readme*
+  - README*
+  - changelog*
+  - CHANGELOG*
+snapshot:
+  name_template: SNAPSHOT-{{ .Commit }}
+checksum:
+  name_template: '{{ .ProjectName }}_{{ .Version }}_checksums.txt'

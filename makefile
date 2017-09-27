@@ -9,7 +9,7 @@ fast:
 	go build -o sampctl
 
 version:
-	git tag -a $(VERSION)
+	git tag $(VERSION)
 	git push origin $(VERSION)
 
 static:
