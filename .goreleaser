@@ -8,3 +8,5 @@ builds:
       - 386
     env:
       - CGO_ENABLED=0
+dockers:
+  - image: southclaws/sampctl
