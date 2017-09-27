@@ -9,4 +9,10 @@ builds:
     env:
       - CGO_ENABLED=0
 dockers:
-  - image: southclaws/sampctl
+  -
+    image: southclaws/sampctl
+    goos: linux
+    goarch: amd64
+    binary: sampctl
+    dockerfile: Dockerfile
+    latest: true
