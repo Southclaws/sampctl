@@ -1,0 +1,10 @@
+builds:
+  - binary: sampctl
+    goos:
+      - windows
+      - darwin
+      - linux
+    goarch:
+      - 386
+    env:
+      - CGO_ENABLED=0

@@ -7,8 +7,9 @@ install:
 fast:
 	go build -o sampctl
 
-dist:
-	gox -os="windows linux" -arch="386"
+version:
+	git tag -a $(VERSION)
+	git push origin $(VERSION)
 
 static:
 	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o sampctl .
