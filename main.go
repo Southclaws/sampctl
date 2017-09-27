@@ -122,15 +122,9 @@ func main() {
 }
 
 func fullPath(dir string) (path string) {
-	cwd, err := os.Getwd()
+	path, err := filepath.Abs(dir)
 	if err != nil {
 		panic(err)
-	}
-
-	if dir == "." {
-		path = cwd
-	} else {
-		path = filepath.Join(cwd, dir)
 	}
 
 	return path
