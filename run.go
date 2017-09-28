@@ -12,21 +12,12 @@ import (
 
 // Run handles the actual running of the server process - it collects log output too
 func Run(endpoint, version, dir string) (err error) {
-	errs := ValidateServerDir(dir, version)
-	if errs != nil {
-		fmt.Println(errs)
-		err := GetPackage(endpoint, version, dir)
-		if err != nil {
-			return errors.Wrap(err, "failed to get server package")
-		}
-	}
-
 	server, err := NewConfigFromEnvironment(dir)
 	if err != nil {
 		return errors.Wrap(err, "failed to generate config from environment")
 	}
 
-	errs = server.ValidateWorkspace(dir)
+	errs := server.ValidateWorkspace(dir)
 	if errs != nil {
 		return errors.Errorf("%v", errs)
 	}

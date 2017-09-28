@@ -78,6 +78,15 @@ func main() {
 				container := c.Bool("container")
 
 				var err error
+				errs := ValidateServerDir(dir, version)
+				if errs != nil {
+					fmt.Println(errs)
+					err = GetPackage(endpoint, version, dir)
+					if err != nil {
+						return errors.Wrap(err, "failed to get server package")
+					}
+				}
+
 				if container {
 					err = RunContainer(endpoint, version, dir, app.Version)
 				} else {
@@ -97,6 +106,43 @@ func main() {
 				version := c.String("version")
 				dir := fullPath(c.String("dir"))
 				return GetPackage(endpoint, version, dir)
+			},
+			Flags: app.Flags,
+		},
+		{
+			Name:      "exec",
+			Aliases:   []string{"e"},
+			Usage:     "execute an amx file as a SA:MP gamemode for quick testing in a temporary server installation",
+			ArgsUsage: "",
+			Action: func(c *cli.Context) error {
+				if c.NArg() != 1 {
+					return errors.New("argument required: file to execute")
+				}
+
+				file := c.Args().First()
+				endpoint := c.String("endpoint")
+				version := c.String("version")
+				container := c.Bool("container")
+				cacheDir, err := getCacheDir()
+				if err != nil {
+					return err
+				}
+				dir := filepath.Join(cacheDir, "runtime", version)
+
+				filePath := fullPath(file)
+
+				err = prepareTemporaryServer(endpoint, version, dir, filePath)
+				if err != nil {
+					return err
+				}
+
+				if container {
+					err = RunContainer(endpoint, version, dir, app.Version)
+				} else {
+					err = Run(endpoint, version, dir)
+				}
+
+				return err
 			},
 			Flags: app.Flags,
 		},
