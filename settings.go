@@ -373,23 +373,25 @@ func fromFloat(name string, obj reflect.Value, required bool, defaultValue strin
 // adjustForOS quickly does some tweaks depending on the OS such as .so plugin extension on linux
 func adjustForOS(dir string, cfg *Config) {
 	if runtime.GOOS == "linux" {
-		actualPlugins := getPlugins(filepath.Join(dir, "plugins"))
+		if len(cfg.Plugins) > 0 {
+			actualPlugins := getPlugins(filepath.Join(dir, "plugins"))
 
-		for i, declared := range cfg.Plugins {
-			ext := filepath.Ext(declared)
-			if ext != "" {
-				declared = strings.TrimSuffix(declared, ext)
-			}
-			for _, actual := range actualPlugins {
-				// if the declared plugin matches the found plugin case-insensitively but does match
-				// case sensitively...
-				if strings.EqualFold(declared, actual) && declared != actual {
-					// update the array index to use the actual filename
-					declared = actual
-					break
+			for i, declared := range cfg.Plugins {
+				ext := filepath.Ext(declared)
+				if ext != "" {
+					declared = strings.TrimSuffix(declared, ext)
 				}
+				for _, actual := range actualPlugins {
+					// if the declared plugin matches the found plugin case-insensitively but does match
+					// case sensitively...
+					if strings.EqualFold(declared, actual) && declared != actual {
+						// update the array index to use the actual filename
+						declared = actual
+						break
+					}
+				}
+				cfg.Plugins[i] = declared + ".so"
 			}
-			cfg.Plugins[i] = declared + ".so"
 		}
 	}
 }
@@ -397,6 +399,12 @@ func adjustForOS(dir string, cfg *Config) {
 // GenerateJSON simply marshals the data to a samp.json file in dir
 func (cfg Config) GenerateJSON(dir string) (err error) {
 	path := filepath.Join(dir, "samp.json")
+
+	if exists(path) {
+		if err := os.Remove(path); err != nil {
+			panic(err)
+		}
+	}
 
 	fh, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0755)
 	if err != nil {

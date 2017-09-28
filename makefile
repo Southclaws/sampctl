@@ -1,5 +1,6 @@
 VERSION := $(shell cat VERSION)
 
+.PHONY: version
 
 install:
 	go install
@@ -7,8 +8,9 @@ install:
 fast:
 	go build -o sampctl
 
-dist:
-	gox -os="windows linux" -arch="386"
+version:
+	git tag $(VERSION)
+	git push origin $(VERSION)
 
 static:
 	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o sampctl .
