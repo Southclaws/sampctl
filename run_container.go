@@ -62,7 +62,11 @@ func RunContainer(endpoint, version, dir, appVersion string) (err error) {
 		if err != nil {
 			panic(err)
 		}
-		defer reader.Close()
+		defer func() {
+			if err := reader.Close(); err != nil {
+				panic(err)
+			}
+		}()
 
 		scanner := bufio.NewScanner(reader)
 		for scanner.Scan() {

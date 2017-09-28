@@ -137,7 +137,7 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			for k, v := range tt.env {
-				os.Setenv(k, v)
+				os.Setenv(k, v) // nolint
 			}
 			gotCfg, err := NewConfigFromEnvironment(tt.args.dir)
 			assert.NoError(t, err)
@@ -148,7 +148,7 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 
 func TestConfig_ValidateWorkspace(t *testing.T) {
 	f, _ := os.Create("./testspace/gamemodes/rivershell.amx")
-	f.Close()
+	f.Close() // nolint
 	type args struct {
 		dir string
 	}
