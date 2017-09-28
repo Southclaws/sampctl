@@ -1,22 +1,17 @@
 VERSION := $(shell cat VERSION)
+LDFLAGS := -ldflags "-X main.version=$(VERSION)"
 
 .PHONY: version
 
-install:
-	go install
-
 fast:
-	go build -o sampctl
+	go build $(LDFLAGS) -o sampctl
+
+install:
+	go install $(LDFLAGS)
 
 version:
 	git tag $(VERSION)
 	git push origin $(VERSION)
-
-static:
-	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o sampctl .
-
-static_windows:
-	CGO_ENABLED=0 GOOS=windows go build -a -installsuffix cgo -o sampctl.exe .
 
 clean:
 	-rm sampctl
