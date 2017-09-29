@@ -10,19 +10,18 @@ builds:
       - darwin
       - linux
     goarch:
-      - 386
+      - "386"
     env:
       - CGO_ENABLED=0
 brew:
   install: bin.install "sampctl"
 dockers:
-  -
-    image: southclaws/sampctl
+  - image: southclaws/sampctl
     goos: linux
-    goarch: amd64
+    goarch: "386"
     binary: sampctl
     dockerfile: Dockerfile
-    latest: true
+    latest: false
 archive:
   format: tar.gz
   name_template: '{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
