@@ -14,7 +14,7 @@ install:
 
 version:
 	git tag $(VERSION)
-	git push origin $(VERSION)
+	git push --follow-tags
 
 clean:
 	-rm sampctl
