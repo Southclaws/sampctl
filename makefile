@@ -6,6 +6,9 @@ LDFLAGS := -ldflags "-X main.version=$(VERSION)"
 fast:
 	go build $(LDFLAGS) -o sampctl
 
+static:
+	CGO_ENABLED=0 GOOS=linux go build -a $(LDFLAGS) -o sampctl .
+
 install:
 	go install $(LDFLAGS)
 

@@ -4,7 +4,7 @@ COPY vendor vendor
 COPY . .
 RUN make static
 
-FROM debian:jessie
+FROM ubuntu
 COPY --from=compile /go/src/github.com/Southclaws/sampctl/sampctl /bin/sampctl
 RUN mkdir samp && \
     dpkg --add-architecture i386 && \
