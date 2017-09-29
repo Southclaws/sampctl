@@ -37,9 +37,9 @@ type Config struct {
 	// Network and technical config
 	Bind       *string `                        required:"0" json:"bind,omitempty"`       //
 	Password   *string `                        required:"0" json:"password,omitempty"`   //
-	Announce   *bool   `default:"0"             required:"0" json:"announce,omitempty"`   // 0
+	Announce   *bool   `default:"1"             required:"0" json:"announce,omitempty"`   // 0
 	LANMode    *bool   `default:"0"             required:"0" json:"lanmode,omitempty"`    // 0
-	Query      *bool   `default:"0"             required:"0" json:"query,omitempty"`      // 0
+	Query      *bool   `default:"1"             required:"0" json:"query,omitempty"`      // 0
 	RCON       *bool   `default:"0"             required:"0" json:"rcon,omitempty"`       // 0
 	LogQueries *bool   `default:"0"             required:"0" json:"logqueries,omitempty"` // 0
 	Sleep      *int    `default:"5"             required:"0" json:"sleep,omitempty"`      // 5
