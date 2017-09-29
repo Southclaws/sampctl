@@ -9,8 +9,7 @@ language: go
 jobs:
   include:
     - stage: dependencies
-      script: go get -u github.com/golang/dep/cmd/dep
-      script: dep ensure -update
+      script: go get -u github.com/golang/dep/cmd/dep && dep ensure -update
     - stage: test
       script: go test -v -race
 after_success:
