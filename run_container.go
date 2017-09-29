@@ -11,7 +11,9 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/client"
+	"github.com/docker/go-connections/nat"
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 )
 
 // RunContainer does what Run does but inside a Linux container
@@ -20,6 +22,12 @@ func RunContainer(endpoint, version, dir, appVersion string) (err error) {
 	if err != nil {
 		panic(err)
 	}
+
+	config, err := NewConfigFromEnvironment(dir)
+	if err != nil {
+		return errors.Wrap(err, "failed to load config from directory")
+	}
+	port := fmt.Sprint(*config.Port)
 
 	cnt, err := cli.ContainerCreate(
 		context.Background(),
@@ -38,6 +46,12 @@ func RunContainer(endpoint, version, dir, appVersion string) (err error) {
 					Target: "/samp",
 				},
 			},
+			PortBindings: nat.PortMap{
+				nat.Port(port): []nat.PortBinding{
+					{HostIP: "0.0.0.0", HostPort: port},
+				},
+			},
+			SecurityOpt: []string{"seccomp=unconfined"},
 		},
 		&network.NetworkingConfig{},
 		"sampctl-"+uuid.New().String())
