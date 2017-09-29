@@ -8,11 +8,9 @@ addons:
 language: go
 jobs:
   include:
-    - stage: dependencies
-      script: go get -u github.com/golang/dep/cmd/dep && dep ensure
     - stage: test
       script: go test -v -race
 after_success:
-  - test -n "$TRAVIS_TAG" && curl -sL https://git.io/goreleaser | bash
+  - curl -sL https://git.io/goreleaser | bash
 go:
   - 1.x
