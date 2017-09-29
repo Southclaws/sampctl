@@ -1,9 +1,10 @@
 FROM golang AS compile
+# just a builder so no need to optimise layers, also makes errors easier to read
+RUN go get github.com/golang/dep/cmd/dep
+RUN go get github.com/Southclaws/sampctl
 WORKDIR /go/src/github.com/Southclaws/sampctl
-RUN go get github.com/golang/dep/cmd/dep && \
-    go get github.com/Southclaws/sampctl && \
-    dep ensure && \
-    make static
+RUN dep ensure
+RUN make static
 
 FROM ubuntu
 COPY --from=compile /go/src/github.com/Southclaws/sampctl/sampctl /bin/sampctl
