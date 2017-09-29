@@ -1,8 +1,9 @@
 FROM golang AS compile
 WORKDIR /go/src/github.com/Southclaws/sampctl
-COPY vendor vendor
 COPY . .
-RUN make static
+RUN go get github.com/golang/dep && \
+    dep ensure -update && \
+    make static
 
 FROM ubuntu
 COPY --from=compile /go/src/github.com/Southclaws/sampctl/sampctl /bin/sampctl
