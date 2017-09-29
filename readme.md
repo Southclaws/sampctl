@@ -20,7 +20,7 @@ Everybody loves JSON! An I've always hated the `server.cfg` structure, so no lon
 
 If your current directory has a JSON file named `samp.json`, the values will be used to generate a `server.cfg` file.
 
-The setting key names are the exact same as [the `server.cfg` settings](http://wiki.sa-mp.com/wiki/Server.cfg) the only difference is how the `gamemode` settings are handled.
+The setting key names are the exact same as [the `server.cfg` settings](http://wiki.sa-mp.com/wiki/Server.cfg) the only difference is how the `gamemodes` settings are handled.
 
 In `server.cfg` for multiple gamemodes, you have multiple `gamemode#` entries, like:
 
@@ -47,7 +47,6 @@ Currently, there's no way to set the number of times each gamemode will repeat. 
 | key                 | value type       |
 |---------------------|------------------|
 | `gamemodes`         | array of strings |
-| `gamemode`          | string           |
 | `rcon_password`     | string           |
 | `announce`          | bool             |
 | `maxplayers`        | int              |
