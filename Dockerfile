@@ -1,7 +1,7 @@
 FROM golang AS compile
 WORKDIR /go/src/github.com/Southclaws/sampctl
-RUN go get -u github.com/golang/dep/cmd/dep && \
-    go get -u github.com/Southclaws/sampctl && \
+RUN go get github.com/golang/dep/cmd/dep && \
+    go get github.com/Southclaws/sampctl && \
     dep ensure && \
     make static
 
