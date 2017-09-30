@@ -75,7 +75,8 @@ func NewConfigFromEnvironment(dir string) (cfg Config, err error) {
 	jsonFile := filepath.Join(dir, "samp.json")
 	_, err = os.Stat(jsonFile)
 	if os.IsNotExist(err) {
-		err = nil
+		err = errors.Wrap(err, "directory does not contain a samp.json file")
+		return
 	} else if err != nil {
 		err = errors.Wrap(err, "failed to stat samp.json")
 		return
