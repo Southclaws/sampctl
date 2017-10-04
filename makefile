@@ -25,6 +25,9 @@ clean:
 build:
 	docker build -t southclaws/sampctl:$(VERSION) .
 
+build-dev: static
+	docker build -t southclaws/sampctl:$(VERSION) -f Dockerfile.dev .
+
 push: build
 	docker push southclaws/sampctl:$(VERSION)
 	
@@ -36,4 +39,8 @@ enter:
 	docker run -it --entrypoint=bash southclaws/sampctl:$(VERSION)
 
 enter-mount:
-	docker run -v $(shell pwd)/testspace:/samp -it --entrypoint=bash southclaws/sampctl:$(VERSION)
+	docker run \
+		-v $(shell pwd)/testspace:/samp \
+		-it --entrypoint=bash \
+		--security-opt='seccomp=unconfined' \
+		southclaws/sampctl:$(VERSION)
