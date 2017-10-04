@@ -38,3 +38,12 @@ snapshot:
   name_template: SNAPSHOT-{{ .Commit }}
 checksum:
   name_template: '{{ .ProjectName }}_{{ .Version }}_checksums.txt'
+fpm:
+  vendor: Southclaws
+  homepage: https://github.com/Southclaws/sampctl
+  maintainer: Southclaws <hello@southcla.ws>
+  description: A small utility for starting and managing SA:MP servers with better settings handling and crash resiliency.
+  license: GPLv3
+  formats:
+    - deb
+    - rpm
