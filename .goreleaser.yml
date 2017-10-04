@@ -13,15 +13,6 @@ builds:
       - "386"
     env:
       - CGO_ENABLED=0
-brew:
-  install: bin.install "sampctl"
-dockers:
-  - image: southclaws/sampctl
-    goos: linux
-    goarch: "386"
-    binary: sampctl
-    dockerfile: Dockerfile
-    latest: false
 archive:
   format: tar.gz
   name_template: '{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
@@ -38,6 +29,13 @@ snapshot:
   name_template: SNAPSHOT-{{ .Commit }}
 checksum:
   name_template: '{{ .ProjectName }}_{{ .Version }}_checksums.txt'
+dockers:
+  - image: southclaws/sampctl
+    goos: linux
+    goarch: "386"
+    binary: sampctl
+    dockerfile: Dockerfile
+    latest: false
 fpm:
   vendor: Southclaws
   homepage: https://github.com/Southclaws/sampctl
@@ -47,3 +45,9 @@ fpm:
   formats:
     - deb
     - rpm
+brew:
+  github:
+    owner: Southclaws
+    name: sampctl
+  homepage: https://github.com/Southclaws/sampctl
+  description: A small utility for starting and managing SA:MP servers with better settings handling and crash resiliency.
