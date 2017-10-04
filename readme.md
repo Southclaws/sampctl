@@ -1,5 +1,7 @@
 # sampctl
 
+[![Build Status](https://travis-ci.org/Southclaws/sampctl.svg?branch=master)](https://travis-ci.org/Southclaws/sampctl)
+
 A small utility for starting and managing SA:MP servers with better settings handling and crash resiliency.
 
 - auto download of binary packages for either platform
