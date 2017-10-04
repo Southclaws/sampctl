@@ -52,6 +52,7 @@ func RunContainer(endpoint, version, dir, appVersion string) (err error) {
 				},
 			},
 			SecurityOpt: []string{"seccomp=unconfined"},
+			Privileged:  true,
 		},
 		&network.NetworkingConfig{},
 		"sampctl-"+uuid.New().String())
