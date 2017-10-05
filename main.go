@@ -17,6 +17,7 @@ func main() {
 	app.Author = "Southclaws"
 	app.Email = "southclaws@gmail.com"
 	app.Name = "sampctl"
+	app.Description = "A small utility for starting and managing SA:MP servers with better settings handling and crash resiliency."
 	app.Version = version
 
 	cli.VersionFlag = cli.BoolFlag{
