@@ -24,28 +24,6 @@ func main() {
 		Usage: "show the app version number",
 	}
 
-	app.Flags = []cli.Flag{
-		cli.StringFlag{
-			Name:  "version",
-			Value: "0.3.7",
-			Usage: "server version - corresponds to http://files.sa-mp.com packages without the .tar.gz",
-		},
-		cli.StringFlag{
-			Name:  "dir",
-			Value: ".",
-			Usage: "working directory for the server - by default, uses the current directory",
-		},
-		cli.StringFlag{
-			Name:  "endpoint",
-			Value: "http://files.sa-mp.com",
-			Usage: "endpoint to download packages from",
-		},
-		cli.BoolFlag{
-			Name:  "container",
-			Usage: "starts the server as a Linux container instead of running it in the current directory",
-		},
-	}
-
 	app.Commands = []cli.Command{
 		{
 			Name:    "init",
@@ -67,7 +45,23 @@ func main() {
 
 				return nil
 			},
-			Flags: app.Flags,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "version",
+					Value: "0.3.7",
+					Usage: "server version - corresponds to http://files.sa-mp.com packages without the .tar.gz",
+				},
+				cli.StringFlag{
+					Name:  "dir",
+					Value: ".",
+					Usage: "working directory for the server - by default, uses the current directory",
+				},
+				cli.StringFlag{
+					Name:  "endpoint",
+					Value: "http://files.sa-mp.com",
+					Usage: "endpoint to download packages from",
+				},
+			},
 		},
 		{
 			Name:    "run",
@@ -97,7 +91,27 @@ func main() {
 
 				return err
 			},
-			Flags: app.Flags,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "version",
+					Value: "0.3.7",
+					Usage: "server version - corresponds to http://files.sa-mp.com packages without the .tar.gz",
+				},
+				cli.StringFlag{
+					Name:  "dir",
+					Value: ".",
+					Usage: "working directory for the server - by default, uses the current directory",
+				},
+				cli.StringFlag{
+					Name:  "endpoint",
+					Value: "http://files.sa-mp.com",
+					Usage: "endpoint to download packages from",
+				},
+				cli.BoolFlag{
+					Name:  "container",
+					Usage: "starts the server as a Linux container instead of running it in the current directory",
+				},
+			},
 		},
 		{
 			Name:    "download",
@@ -109,7 +123,23 @@ func main() {
 				dir := fullPath(c.String("dir"))
 				return GetPackage(endpoint, version, dir)
 			},
-			Flags: app.Flags,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "version",
+					Value: "0.3.7",
+					Usage: "server version - corresponds to http://files.sa-mp.com packages without the .tar.gz",
+				},
+				cli.StringFlag{
+					Name:  "dir",
+					Value: ".",
+					Usage: "working directory for the server - by default, uses the current directory",
+				},
+				cli.StringFlag{
+					Name:  "endpoint",
+					Value: "http://files.sa-mp.com",
+					Usage: "endpoint to download packages from",
+				},
+			},
 		},
 		{
 			Name:      "exec",
@@ -146,7 +176,36 @@ func main() {
 
 				return err
 			},
-			Flags: app.Flags,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "version",
+					Value: "0.3.7",
+					Usage: "server version - corresponds to http://files.sa-mp.com packages without the .tar.gz",
+				},
+				cli.StringFlag{
+					Name:  "dir",
+					Value: ".",
+					Usage: "working directory for the server - by default, uses the current directory",
+				},
+				cli.StringFlag{
+					Name:  "endpoint",
+					Value: "http://files.sa-mp.com",
+					Usage: "endpoint to download packages from",
+				},
+				cli.BoolFlag{
+					Name:  "container",
+					Usage: "starts the server as a Linux container instead of running it in the current directory",
+				},
+			},
+		},
+		{
+			Name:  "docgen",
+			Usage: "generate documentation - mainly just for CI usage, the readme file will always be up to date.",
+			Action: func(c *cli.Context) error {
+				docs := GenerateDocs(c.App)
+				fmt.Print(docs)
+				return nil
+			},
 		},
 	}
 
