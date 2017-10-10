@@ -156,7 +156,7 @@ func main() {
 				endpoint := c.String("endpoint")
 				version := c.String("version")
 				container := c.Bool("container")
-				cacheDir, err := getCacheDir()
+				cacheDir, err := GetCacheDir()
 				if err != nil {
 					return err
 				}
@@ -210,7 +210,7 @@ func main() {
 		},
 	}
 
-	cacheDir, err := getCacheDir()
+	cacheDir, err := GetCacheDir()
 	if err != nil {
 		fmt.Println("Failed to retrieve cache directory path (attempted <user folder>/.samp) ", err)
 		return
