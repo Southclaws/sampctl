@@ -2,9 +2,11 @@ package main
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func Test_fromNet(t *testing.T) {
+func Test_serverFromNet(t *testing.T) {
 	type args struct {
 		endpoint string
 		cacheDir string
@@ -29,14 +31,13 @@ func Test_fromNet(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := fromNet(tt.args.endpoint, tt.args.cacheDir, tt.args.version, tt.args.dir); (err != nil) != tt.wantErr {
-				t.Errorf("fromNet() error = %v, wantErr %v", err, tt.wantErr)
-			}
+			err := serverFromNet(tt.args.endpoint, tt.args.cacheDir, tt.args.version, tt.args.dir)
+			assert.NoError(t, err)
 		})
 	}
 }
 
-func Test_fromCache(t *testing.T) {
+func Test_serverFromCache(t *testing.T) {
 	type args struct {
 		cacheDir string
 		version  string
@@ -62,14 +63,9 @@ func Test_fromCache(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotHit, err := fromCache(tt.args.cacheDir, tt.args.version, tt.args.dir)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("fromCache() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if gotHit != tt.wantHit {
-				t.Errorf("fromCache() = %v, want %v", gotHit, tt.wantHit)
-			}
+			gotHit, err := serverFromCache(tt.args.cacheDir, tt.args.version, tt.args.dir)
+			assert.NoError(t, err)
+			assert.Equal(t, gotHit, tt.wantHit)
 		})
 	}
 }

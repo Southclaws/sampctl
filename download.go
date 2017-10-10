@@ -22,8 +22,8 @@ import (
 // download.go handles downloading and extracting sa-mp server versions.
 // Packages are cached in ~/.samp to avoid unnecessary downloads.
 
-// GetPackage checks if a cached package is available and if not, downloads it to dir
-func GetPackage(endpoint, version, dir string) (err error) {
+// GetServerPackage checks if a cached package is available and if not, downloads it to dir
+func GetServerPackage(endpoint, version, dir string) (err error) {
 	fmt.Printf("Downloading package %s from endpoint %s into %s\n", version, endpoint, dir)
 
 	cacheDir, err := getCacheDir()
@@ -31,7 +31,7 @@ func GetPackage(endpoint, version, dir string) (err error) {
 		return err
 	}
 
-	hit, err := fromCache(cacheDir, version, dir)
+	hit, err := serverFromCache(cacheDir, version, dir)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get package %s from cache", version)
 	}
@@ -39,7 +39,32 @@ func GetPackage(endpoint, version, dir string) (err error) {
 		return
 	}
 
-	err = fromNet(endpoint, cacheDir, version, dir)
+	err = serverFromNet(endpoint, cacheDir, version, dir)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get package %s from net", version)
+	}
+
+	return
+}
+
+// GetCompilerPackage downloads and installs a Pawn compiler to a user directory
+func GetCompilerPackage(version, dir string) (err error) {
+	fmt.Printf("Downloading compiler package\n")
+
+	cacheDir, err := getCacheDir()
+	if err != nil {
+		return err
+	}
+
+	hit, err := compilerFromCache(cacheDir, version, dir)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get package %s from cache", version)
+	}
+	if hit {
+		return
+	}
+
+	err = compilerFromNet(cacheDir, version, dir)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get package %s from net", version)
 	}
@@ -58,7 +83,7 @@ func getCacheDir() (string, error) {
 	return dir, os.MkdirAll(dir, 0755)
 }
 
-func fromCache(cacheDir, version, dir string) (hit bool, err error) {
+func serverFromCache(cacheDir, version, dir string) (hit bool, err error) {
 	var filename string
 	var method func(string, string) error
 
@@ -68,23 +93,19 @@ func fromCache(cacheDir, version, dir string) (hit bool, err error) {
 	}
 
 	if runtime.GOOS == "windows" {
-		filename = filepath.Join(cacheDir, pkg.Win32)
+		filename = pkg.Win32
 		method = Unzip
 	} else if runtime.GOOS == "linux" {
-		filename = filepath.Join(cacheDir, pkg.Linux)
+		filename = pkg.Linux
 		method = Untar
 	} else {
 		err = errors.Errorf("unsupported OS %s", runtime.GOOS)
 		return
 	}
 
-	if !exists(filename) {
-		return false, nil
-	}
-
-	err = method(filename, dir)
-	if err != nil {
-		return false, errors.Wrapf(err, "failed to unzip package %s", filename)
+	hit, err = fromCache(cacheDir, filename, dir, method)
+	if !hit {
+		return
 	}
 
 	errs := ValidateServerDir(dir, version)
@@ -95,8 +116,54 @@ func fromCache(cacheDir, version, dir string) (hit bool, err error) {
 	return true, nil
 }
 
-// fromNet downloads a server package to the cache, then calls fromCache to finish the job
-func fromNet(endpoint, cacheDir, version, dir string) (err error) {
+func compilerFromCache(cacheDir, version, dir string) (hit bool, err error) {
+	var (
+		filename string
+		method   func(string, string) error
+	)
+
+	if runtime.GOOS == "windows" {
+		_, filename = compilerURL(pawnWin32, version)
+		method = Unzip
+	} else if runtime.GOOS == "linux" {
+		_, filename = compilerURL(pawnLinux, version)
+		method = Untar
+	} else if runtime.GOOS == "darwin" {
+		_, filename = compilerURL(pawnMacOS, version)
+		method = Unzip
+	} else {
+		err = errors.Errorf("unsupported OS %s", runtime.GOOS)
+		return
+	}
+
+	hit, err = fromCache(cacheDir, filename, dir, method)
+	if !hit {
+		return false, nil
+	}
+
+	return
+}
+
+// fromCache first checks if a file is cached, then
+func fromCache(cacheDir, filename, dir string, method func(string, string) error) (hit bool, err error) {
+	fullPath := filepath.Join(cacheDir, filename)
+
+	if !exists(fullPath) {
+		hit = false
+		return
+	}
+
+	err = method(fullPath, dir)
+	if err != nil {
+		hit = false
+		err = errors.Wrapf(err, "failed to unzip package %s", fullPath)
+	}
+
+	return
+}
+
+// serverFromNet downloads a server package to the cache, then calls fromCache to finish the job
+func serverFromNet(endpoint, cacheDir, version, dir string) (err error) {
 	var filename string
 	var method func(string, string) error
 
@@ -130,16 +197,16 @@ func fromNet(endpoint, cacheDir, version, dir string) (err error) {
 		}
 	}
 
-	content, err := downloadPackage(endpoint, filename)
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		err = errors.Wrapf(err, "failed to parse endpoint %s", endpoint)
+		return
+	}
+	u.Path = path.Join(u.Path, filename)
+
+	fullPath, err := fromNet(u.String(), cacheDir, filename)
 	if err != nil {
 		return errors.Wrap(err, "failed to download package")
-	}
-
-	fullPath := filepath.Join(cacheDir, filename)
-
-	err = ioutil.WriteFile(fullPath, content, 0655)
-	if err != nil {
-		return errors.Wrap(err, "failed to write package to cache")
 	}
 
 	err = method(fullPath, dir)
@@ -155,16 +222,62 @@ func fromNet(endpoint, cacheDir, version, dir string) (err error) {
 	return
 }
 
-// downloadPackage downloads the server package by filename from the specified endpoint
-func downloadPackage(endpoint, filename string) (content []byte, err error) {
-	u, err := url.Parse(endpoint)
-	if err != nil {
-		err = errors.Wrapf(err, "failed to parse endpoint %s", endpoint)
+func compilerFromNet(cacheDir, version, dir string) (err error) {
+	var (
+		rawurl   string
+		filename string
+		method   func(string, string) error
+	)
+
+	if runtime.GOOS == "windows" {
+		rawurl, filename = compilerURL(pawnWin32, version)
+		method = Unzip
+	} else if runtime.GOOS == "linux" {
+		rawurl, filename = compilerURL(pawnLinux, version)
+		method = Untar
+	} else if runtime.GOOS == "darwin" {
+		rawurl, filename = compilerURL(pawnMacOS, version)
+		method = Unzip
+	} else {
+		err = errors.Errorf("unsupported OS %s", runtime.GOOS)
 		return
 	}
-	u.Path = path.Join(u.Path, filename)
 
-	resp, err := http.Get(u.String())
+	if !exists(dir) {
+		err := os.MkdirAll(dir, 0755)
+		if err != nil {
+			return errors.Wrapf(err, "failed to create dir %s", dir)
+		}
+	}
+
+	if !exists(cacheDir) {
+		err := os.MkdirAll(cacheDir, 0755)
+		if err != nil {
+			return errors.Wrapf(err, "failed to create cache %s", cacheDir)
+		}
+	}
+
+	path, err := fromNet(rawurl, cacheDir, filename)
+	if err != nil {
+		return errors.Wrap(err, "failed to download package")
+	}
+
+	err = method(path, dir)
+	if err != nil {
+		return errors.Wrapf(err, "failed to unzip package %s", path)
+	}
+
+	errs := ValidateServerDir(dir, version)
+	if errs != nil {
+		return errors.Errorf("validation errors: %v", errs)
+	}
+
+	return
+}
+
+// fromNet downloads the server package by filename from the specified endpoint
+func fromNet(url, cacheDir, filename string) (result string, err error) {
+	resp, err := http.Get(url)
 	if err != nil {
 		err = errors.Wrap(err, "failed to download package")
 		return
@@ -175,7 +288,21 @@ func downloadPackage(endpoint, filename string) (content []byte, err error) {
 		}
 	}()
 
-	return ioutil.ReadAll(resp.Body)
+	content, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		err = errors.Wrap(err, "failed to read download contents")
+		return
+	}
+
+	result = filepath.Join(cacheDir, filename)
+
+	err = ioutil.WriteFile(filename, content, 0655)
+	if err != nil {
+		err = errors.Wrap(err, "failed to write package to cache")
+		return
+	}
+
+	return
 }
 
 // ValidateServerDir ensures the dir has all the necessary files to run a server, it also performs an MD5

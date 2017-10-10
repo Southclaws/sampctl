@@ -17,7 +17,7 @@ func prepareTemporaryServer(endpoint, version, dir, filePath string) (err error)
 	errs := ValidateServerDir(dir, version)
 	if errs != nil {
 		fmt.Println(errs)
-		err = GetPackage(endpoint, version, dir)
+		err = GetServerPackage(endpoint, version, dir)
 		if err != nil {
 			return errors.Wrap(err, "failed to get server package")
 		}
