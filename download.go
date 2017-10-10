@@ -104,7 +104,7 @@ func serverFromCache(cacheDir, version, dir string) (hit bool, err error) {
 	}
 
 	hit, err = fromCache(cacheDir, filename, dir, method)
-	if !hit {
+	if !hit || err != nil {
 		return
 	}
 
@@ -146,20 +146,20 @@ func compilerFromCache(cacheDir, version, dir string) (hit bool, err error) {
 
 // fromCache first checks if a file is cached, then
 func fromCache(cacheDir, filename, dir string, method func(string, string) error) (hit bool, err error) {
-	fullPath := filepath.Join(cacheDir, filename)
+	path := filepath.Join(cacheDir, filename)
 
-	if !exists(fullPath) {
+	if !exists(path) {
 		hit = false
 		return
 	}
 
-	err = method(fullPath, dir)
+	err = method(path, dir)
 	if err != nil {
 		hit = false
-		err = errors.Wrapf(err, "failed to unzip package %s", fullPath)
+		err = errors.Wrapf(err, "failed to unzip package %s", path)
 	}
 
-	return
+	return true, nil
 }
 
 // serverFromNet downloads a server package to the cache, then calls fromCache to finish the job
@@ -296,7 +296,7 @@ func fromNet(url, cacheDir, filename string) (result string, err error) {
 
 	result = filepath.Join(cacheDir, filename)
 
-	err = ioutil.WriteFile(filename, content, 0655)
+	err = ioutil.WriteFile(result, content, 0655)
 	if err != nil {
 		err = errors.Wrap(err, "failed to write package to cache")
 		return

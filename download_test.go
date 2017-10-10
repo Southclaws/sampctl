@@ -64,7 +64,11 @@ func Test_serverFromCache(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			gotHit, err := serverFromCache(tt.args.cacheDir, tt.args.version, tt.args.dir)
-			assert.NoError(t, err)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
 			assert.Equal(t, gotHit, tt.wantHit)
 		})
 	}
