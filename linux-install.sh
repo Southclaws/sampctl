@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# a simple install script for sampctl
+
+ARCH=$(uname -p)
+PATTERN="browser_download_url.*386\.deb"
+
+if [ $ARCH = "x86" ]
+then 
+    PATTERN="browser_download_url.*amd64\.deb"
+fi
+
+curl -s https://api.github.com/repos/Southclaws/sampctl/releases/latest \
+| grep $PATTERN \
+| cut -d : -f 2,3 \
+| tr -d \" \
+| wget -qi -O tmp.deb -
+dpkg tmp.deb
+rm tmp.deb
