@@ -101,17 +101,7 @@ func Test_CompilerFromCache(t *testing.T) {
 		wantHit bool
 		wantErr bool
 	}{
-		{"valid", args{"./testcache", "0.4a-RC1", "./testspace"}, false, true},
-		{"valid", args{"./testcache", "latest", "./testspace"}, true, false},
-		{"valid", args{"./testcache", "0.3.7", "./testspace"}, true, false},
-		{"valid", args{"./testcache", "0.3.7-R2-2-1", "./testspace"}, true, false},
-		{"valid", args{"./testcache", "0.3.7-R2-1", "./testspace"}, true, false},
-		{"valid", args{"./testcache", "0.3z", "./testspace"}, true, false},
-		{"valid", args{"./testcache", "0.3z-R4", "./testspace"}, true, false},
-		{"valid", args{"./testcache", "0.3z-R3", "./testspace"}, true, false},
-		{"valid", args{"./testcache", "0.3z-R2-2", "./testspace"}, true, false},
-		{"valid", args{"./testcache", "0.3z-R1", "./testspace"}, true, false},
-		{"valid", args{"./testcache", "0.3z-R1-2", "./testspace"}, true, false},
+		{"valid", args{"./testcache", "3.10.2", "./testcompiler"}, true, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
