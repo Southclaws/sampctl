@@ -42,6 +42,7 @@ func FromCache(cacheDir, filename, dir string, method func(string, string, []str
 	if err != nil {
 		hit = false
 		err = errors.Wrapf(err, "failed to unzip package %s", path)
+		return
 	}
 
 	return true, nil
