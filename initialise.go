@@ -166,7 +166,7 @@ func getPlugins(dir string) (result []string) {
 	var ext string
 	if runtime.GOOS == "windows" {
 		ext = ".dll"
-	} else if runtime.GOOS == "linux" {
+	} else if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
 		ext = ".so"
 	} else {
 		panic(errors.Errorf("unsupported OS %s", runtime.GOOS))

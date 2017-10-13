@@ -87,7 +87,7 @@ func isBinary(filename string) bool {
 		case "samp-server.exe", "announce.exe", "samp-npc.exe":
 			return true
 		}
-	case "linux":
+	case "linux", "darwin":
 		switch filename {
 		case "samp03svr", "announce", "samp-npc":
 			return true
@@ -100,7 +100,7 @@ func getServerBinary() string {
 	switch runtime.GOOS {
 	case "windows":
 		return "samp-server.exe"
-	case "linux":
+	case "linux", "darwin":
 		return "samp03svr"
 	default:
 		return ""
@@ -111,7 +111,7 @@ func getNpcBinary() string {
 	switch runtime.GOOS {
 	case "windows":
 		return "samp-npc.exe"
-	case "linux":
+	case "linux", "darwin":
 		return "samp-npc"
 	default:
 		return ""
@@ -122,7 +122,7 @@ func getAnnounceBinary() string {
 	switch runtime.GOOS {
 	case "windows":
 		return "announce.exe"
-	case "linux":
+	case "linux", "darwin":
 		return "announce"
 	default:
 		return ""
@@ -144,7 +144,7 @@ func matchesChecksum(src, version string) (bool, error) {
 	switch runtime.GOOS {
 	case "windows":
 		want = pkg.Win32Checksum
-	case "linux":
+	case "linux", "darwin":
 		want = pkg.LinuxChecksum
 	default:
 		return false, errors.New("platform not supported")

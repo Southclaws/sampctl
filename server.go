@@ -49,7 +49,7 @@ func ServerFromCache(cacheDir, version, dir string) (hit bool, err error) {
 	if runtime.GOOS == "windows" {
 		filename = pkg.Win32
 		method = Unzip
-	} else if runtime.GOOS == "linux" {
+	} else if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
 		filename = pkg.Linux
 		method = Untar
 	} else {
@@ -87,7 +87,7 @@ func ServerFromNet(endpoint, cacheDir, version, dir string) (err error) {
 	if runtime.GOOS == "windows" {
 		filename = pkg.Win32
 		method = Unzip
-	} else if runtime.GOOS == "linux" {
+	} else if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
 		filename = pkg.Linux
 		method = Untar
 	} else {

@@ -193,7 +193,7 @@ func (cfg Config) ValidateWorkspace(dir string) (errs []error) {
 	switch runtime.GOOS {
 	case "windows":
 		ext = ".dll"
-	case "linux":
+	case "linux", "darwin":
 		ext = ".so"
 	default:
 		errs = append(errs, errors.New("unsupported platform"))
