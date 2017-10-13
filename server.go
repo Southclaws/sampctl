@@ -39,7 +39,7 @@ func GetServerPackage(endpoint, version, dir string) (err error) {
 // ServerFromCache tries to grab a server package from cache, `hit` indicates if it was successful
 func ServerFromCache(cacheDir, version, dir string) (hit bool, err error) {
 	var filename string
-	var method func(string, string, []string) error
+	var method ExtractFunc
 
 	pkg, ok := Packages[version]
 	if !ok {
@@ -57,10 +57,10 @@ func ServerFromCache(cacheDir, version, dir string) (hit bool, err error) {
 		return
 	}
 
-	hit, err = FromCache(cacheDir, filename, dir, method, []string{
-		getServerBinary(),
-		getAnnounceBinary(),
-		getNpcBinary(),
+	hit, err = FromCache(cacheDir, filename, dir, method, map[string]string{
+		getServerBinary():   filepath.Join(cacheDir, getServerBinary()),
+		getAnnounceBinary(): filepath.Join(cacheDir, getAnnounceBinary()),
+		getNpcBinary():      filepath.Join(cacheDir, getNpcBinary()),
 	})
 	if !hit || err != nil {
 		return
@@ -77,7 +77,7 @@ func ServerFromCache(cacheDir, version, dir string) (hit bool, err error) {
 // ServerFromNet downloads a server package to the cache, then calls FromCache to finish the job
 func ServerFromNet(endpoint, cacheDir, version, dir string) (err error) {
 	var filename string
-	var method func(string, string, []string) error
+	var method ExtractFunc
 
 	pkg, ok := Packages[version]
 	if !ok {
@@ -121,10 +121,10 @@ func ServerFromNet(endpoint, cacheDir, version, dir string) (err error) {
 		return errors.Wrap(err, "failed to download package")
 	}
 
-	err = method(fullPath, dir, []string{
-		getServerBinary(),
-		getAnnounceBinary(),
-		getNpcBinary(),
+	err = method(fullPath, dir, map[string]string{
+		getServerBinary():   filepath.Join(cacheDir, getServerBinary()),
+		getAnnounceBinary(): filepath.Join(cacheDir, getAnnounceBinary()),
+		getNpcBinary():      filepath.Join(cacheDir, getNpcBinary()),
 	})
 	if err != nil {
 		return errors.Wrapf(err, "failed to unzip package %s", filename)

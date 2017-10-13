@@ -24,20 +24,12 @@ func Test_GetCompilerPackageInfo(t *testing.T) {
 			CompilerPackage{
 				URL:    "https://github.com/Zeex/pawn/releases/download/v3.10.2/pawnc-3.10.2-darwin.zip",
 				Method: Unzip,
-				Paths:  []string{"pawnc-3.10.2-darwin/bin/pawncc", "pawnc-3.10.2-darwin/lib/libpawnc.dylib"},
+				Paths: map[string]string{
+					"pawnc-3.10.2-darwin/bin/pawncc":         "pawncc",
+					"pawnc-3.10.2-darwin/lib/libpawnc.dylib": "libpawnc.dylib",
+				},
 			},
 			"pawnc-3.10.2-darwin.zip",
-			false,
-		},
-		{
-			"v windows",
-			args{"windows", "3.10.2"},
-			CompilerPackage{
-				URL:    "https://github.com/Zeex/pawn/releases/download/v3.10.2/pawnc-3.10.2-windows.zip",
-				Method: Unzip,
-				Paths:  []string{"pawnc-3.10.2-windows/bin/pawncc.exe", "pawnc-3.10.2-windows/bin/pawnc.dll"},
-			},
-			"pawnc-3.10.2-windows.zip",
 			false,
 		},
 		{
@@ -46,9 +38,26 @@ func Test_GetCompilerPackageInfo(t *testing.T) {
 			CompilerPackage{
 				URL:    "https://github.com/Zeex/pawn/releases/download/v3.10.2/pawnc-3.10.2-linux.tar.gz",
 				Method: Untar,
-				Paths:  []string{"pawnc-3.10.2-linux/bin/pawncc", "pawnc-3.10.2-linux/lib/libpawnc.so"},
+				Paths: map[string]string{
+					"pawnc-3.10.2-linux/bin/pawncc":      "pawncc",
+					"pawnc-3.10.2-linux/lib/libpawnc.so": "libpawnc.so",
+				},
 			},
 			"pawnc-3.10.2-linux.tar.gz",
+			false,
+		},
+		{
+			"v windows",
+			args{"windows", "3.10.2"},
+			CompilerPackage{
+				URL:    "https://github.com/Zeex/pawn/releases/download/v3.10.2/pawnc-3.10.2-windows.zip",
+				Method: Unzip,
+				Paths: map[string]string{
+					"pawnc-3.10.2-windows/bin/pawncc.exe": "pawncc.exe",
+					"pawnc-3.10.2-windows/bin/pawnc.dll":  "pawnc.dll",
+				},
+			},
+			"pawnc-3.10.2-windows.zip",
 			false,
 		},
 	}
@@ -60,10 +69,10 @@ func Test_GetCompilerPackageInfo(t *testing.T) {
 			} else {
 				assert.NoError(t, gotErr)
 			}
-			assert.Equal(t, gotPkg.URL, tt.wantPkg.URL)
-			// assert.Equal(t, gotPkg.Method, tt.wantPkg.Method) // function address assert does not work
-			assert.Equal(t, gotPkg.Paths, tt.wantPkg.Paths)
-			assert.Equal(t, gotFilename, tt.wantFilename)
+			assert.Equal(t, tt.wantPkg.URL, gotPkg.URL)
+			// assert.Equal(t, tt.wantPkg.Method, gotPkg.Method) // function address assert does not work
+			assert.Equal(t, tt.wantPkg.Paths, gotPkg.Paths)
+			assert.Equal(t, tt.wantFilename, gotFilename)
 		})
 	}
 }
@@ -85,6 +94,7 @@ func Test_CompilerFromNet(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := CompilerFromNet(tt.args.cacheDir, tt.args.version, tt.args.dir)
 			assert.NoError(t, err)
+			// todo: assert.True(t, exists("./testcompiler/pawncc")) but for all platforms
 		})
 	}
 }

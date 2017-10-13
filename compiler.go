@@ -14,26 +14,35 @@ import (
 
 // CompilerPackage represents a compiler package for a specific OS
 type CompilerPackage struct {
-	URL    string                               // the URL template to get the package from
-	Method func(string, string, []string) error // the extraction method
-	Paths  []string                             // the files in the package to extract
+	URL    string            // the URL template to get the package from
+	Method ExtractFunc       // the extraction method
+	Paths  map[string]string // map of files to their target locations
 }
 
 var (
 	pawnMacOS = CompilerPackage{
 		"https://github.com/Zeex/pawn/releases/download/v{{.Version}}/pawnc-{{.Version}}-darwin.zip",
 		Unzip,
-		[]string{"pawnc-{{.Version}}-darwin/bin/pawncc", "pawnc-{{.Version}}-darwin/lib/libpawnc.dylib"},
+		map[string]string{
+			"pawnc-{{.Version}}-darwin/bin/pawncc":         "pawncc",
+			"pawnc-{{.Version}}-darwin/lib/libpawnc.dylib": "libpawnc.dylib",
+		},
 	}
 	pawnLinux = CompilerPackage{
 		"https://github.com/Zeex/pawn/releases/download/v{{.Version}}/pawnc-{{.Version}}-linux.tar.gz",
 		Untar,
-		[]string{"pawnc-{{.Version}}-linux/bin/pawncc", "pawnc-{{.Version}}-linux/lib/libpawnc.so"},
+		map[string]string{
+			"pawnc-{{.Version}}-linux/bin/pawncc":      "pawncc",
+			"pawnc-{{.Version}}-linux/lib/libpawnc.so": "libpawnc.so",
+		},
 	}
 	pawnWin32 = CompilerPackage{
 		"https://github.com/Zeex/pawn/releases/download/v{{.Version}}/pawnc-{{.Version}}-windows.zip",
 		Unzip,
-		[]string{"pawnc-{{.Version}}-windows/bin/pawncc.exe", "pawnc-{{.Version}}-windows/bin/pawnc.dll"},
+		map[string]string{
+			"pawnc-{{.Version}}-windows/bin/pawncc.exe": "pawncc.exe",
+			"pawnc-{{.Version}}-windows/bin/pawnc.dll":  "pawnc.dll",
+		},
 	}
 )
 
@@ -83,15 +92,25 @@ func GetCompilerPackageInfo(os, version string) (pkg CompilerPackage, filename s
 	}
 	pkg.URL = wr.String()
 
-	for i := range pkg.Paths {
-		tmpl := template.Must(template.New("tmp2").Parse(pkg.Paths[i]))
-		twr := &bytes.Buffer{}
-		err = tmpl.Execute(twr, struct{ Version string }{version})
+	newPaths := make(map[string]string)
+	for source, target := range pkg.Paths {
+		sourceTmpl := template.Must(template.New("tmp2").Parse(source))
+		sourceWriter := &bytes.Buffer{}
+		err = sourceTmpl.Execute(sourceWriter, struct{ Version string }{version})
 		if err != nil {
 			panic(err)
 		}
-		pkg.Paths[i] = twr.String()
+
+		targetTmpl := template.Must(template.New("tmp2").Parse(target))
+		targetWriter := &bytes.Buffer{}
+		err = targetTmpl.Execute(targetWriter, struct{ Version string }{version})
+		if err != nil {
+			panic(err)
+		}
+
+		newPaths[sourceWriter.String()] = targetWriter.String()
 	}
+	pkg.Paths = newPaths
 
 	u, err := url.Parse(pkg.URL)
 	if err != nil {
@@ -123,6 +142,7 @@ func CompilerFromNet(cacheDir, version, dir string) (err error) {
 	if err != nil {
 		return errors.Wrap(err, "package info mismatch")
 	}
+	fmt.Println(pkg.Paths)
 
 	if !exists(dir) {
 		err := os.MkdirAll(dir, 0755)

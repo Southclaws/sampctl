@@ -4,12 +4,12 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/minio/go-homedir"
 	"github.com/pkg/errors"
@@ -17,6 +17,11 @@ import (
 
 // download.go handles downloading and extracting sa-mp server versions.
 // Packages are cached in ~/.samp to avoid unnecessary downloads.
+
+// ExtractFunc represents a function responsible for extracting a set of files from an archive to
+// a directory. The map argument contains a map of source files in the archive to target file
+// locations on the host filesystem (absolute paths).
+type ExtractFunc func(string, string, map[string]string) error
 
 // GetCacheDir returns the full path to the user's cache directory
 func GetCacheDir() (string, error) {
@@ -30,7 +35,7 @@ func GetCacheDir() (string, error) {
 }
 
 // FromCache first checks if a file is cached, then
-func FromCache(cacheDir, filename, dir string, method func(string, string, []string) error, paths []string) (hit bool, err error) {
+func FromCache(cacheDir, filename, dir string, method ExtractFunc, paths map[string]string) (hit bool, err error) {
 	path := filepath.Join(cacheDir, filename)
 
 	if !exists(path) {
@@ -92,7 +97,7 @@ func exists(path string) bool {
 // Untar takes a destination path and a reader; a tar reader loops over the tarfile
 // creating the file structure at 'dst' along the way, and writing any files
 // from https://medium.com/@skdomino/taring-untaring-files-in-go-6b07cf56bc07
-func Untar(src, dst string, paths []string) (err error) {
+func Untar(src, dst string, paths map[string]string) (err error) {
 	r, err := os.Open(src)
 	if err != nil {
 		return err
@@ -102,15 +107,6 @@ func Untar(src, dst string, paths []string) (err error) {
 			panic(err)
 		}
 	}()
-
-	wantPath := func(path string) bool {
-		for _, want := range paths {
-			if path == want {
-				return true
-			}
-		}
-		return false
-	}
 
 	gzr, err := gzip.NewReader(r)
 	if err != nil {
@@ -140,19 +136,19 @@ loop:
 			continue
 		}
 
-		var headerName string
-		if strings.HasPrefix(header.Name, "samp03") {
-			headerName = header.Name[7:]
-		} else {
-			headerName = header.Name
-		}
+		// todo: run this test on linux
+		fmt.Println("checking ", header.Name)
 
-		if !wantPath(headerName) {
+		target, ok := paths[header.Name]
+		if ok {
+			fmt.Println("skipping ", header.Name)
 			continue
 		}
-
-		// the target location where the dir/file should be created - trimming off "samp03"
-		target := filepath.Join(dst, headerName)
+		// if the target is not absolute, make relative to destination dir
+		if !filepath.IsAbs(target) {
+			target = filepath.Join(dst, target)
+		}
+		fmt.Println("extracting ", header.Name, " to ", target)
 
 		// the following switch could also be done using fi.Mode(), not sure if there
 		// a benefit of using one vs. the other.
@@ -178,12 +174,12 @@ loop:
 	if err != nil {
 		return
 	}
-	return createDirs(dst)
+	return
 }
 
 // Unzip will un-compress a zip archive, moving all files and folders to an output directory.
 // from: https://golangcode.com/unzip-files-in-go/
-func Unzip(src, dest string, paths []string) error {
+func Unzip(src, dst string, paths map[string]string) (err error) {
 	r, err := zip.OpenReader(src)
 	if err != nil {
 		return err
@@ -194,18 +190,14 @@ func Unzip(src, dest string, paths []string) error {
 		}
 	}()
 
-	wantPath := func(path string) bool {
-		for _, want := range paths {
-			if path == want {
-				return true
-			}
-		}
-		return false
-	}
-
 	for _, f := range r.File {
-		if !wantPath(f.Name) {
+		target, ok := paths[f.Name]
+		if !ok {
 			continue
+		}
+		// if the target is not absolute, make relative to destination dir
+		if !filepath.IsAbs(target) {
+			target = filepath.Join(dst, target)
 		}
 
 		rc, err := f.Open()
@@ -218,15 +210,13 @@ func Unzip(src, dest string, paths []string) error {
 			}
 		}()
 
-		fpath := filepath.Join(dest, f.Name)
-
 		if !f.FileInfo().IsDir() {
-			err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm)
+			err = os.MkdirAll(filepath.Dir(target), os.ModePerm)
 			if err != nil {
 				return err
 			}
 
-			f, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+			f, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
 			if err != nil {
 				return err
 			}
@@ -242,7 +232,7 @@ func Unzip(src, dest string, paths []string) error {
 			}
 		}
 	}
-	return createDirs(dest)
+	return
 }
 
 // createDirs simply creates the necessary gamemodes and filterscripts directories
