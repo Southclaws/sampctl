@@ -12,7 +12,7 @@ import (
 )
 
 // GetServerPackage checks if a cached package is available and if not, downloads it to dir
-func GetServerPackage(endpoint, version, dir string) (err error) {
+func GetServerPackage(endpoint, version, dir string, getCompiler bool) (err error) {
 	fmt.Printf("Downloading package %s from endpoint %s into %s\n", version, endpoint, dir)
 
 	cacheDir, err := GetCacheDir()
@@ -20,7 +20,7 @@ func GetServerPackage(endpoint, version, dir string) (err error) {
 		return err
 	}
 
-	hit, err := ServerFromCache(cacheDir, version, dir)
+	hit, err := ServerFromCache(cacheDir, version, dir, getCompiler)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get package %s from cache", version)
 	}
@@ -28,7 +28,7 @@ func GetServerPackage(endpoint, version, dir string) (err error) {
 		return
 	}
 
-	err = ServerFromNet(endpoint, cacheDir, version, dir)
+	err = ServerFromNet(endpoint, cacheDir, version, dir, getCompiler)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get package %s from net", version)
 	}
@@ -37,9 +37,11 @@ func GetServerPackage(endpoint, version, dir string) (err error) {
 }
 
 // ServerFromCache tries to grab a server package from cache, `hit` indicates if it was successful
-func ServerFromCache(cacheDir, version, dir string) (hit bool, err error) {
+func ServerFromCache(cacheDir, version, dir string, getCompiler bool) (hit bool, err error) {
 	var filename string
 	var method ExtractFunc
+	var paths map[string]string
+	var subdir string
 
 	pkg, ok := Packages[version]
 	if !ok {
@@ -49,19 +51,22 @@ func ServerFromCache(cacheDir, version, dir string) (hit bool, err error) {
 	if runtime.GOOS == "windows" {
 		filename = pkg.Win32
 		method = Unzip
+		paths = pkg.Win32Paths
 	} else if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
 		filename = pkg.Linux
 		method = Untar
+		paths = pkg.LinuxPaths
+		subdir = "samp03"
 	} else {
 		err = errors.Errorf("unsupported OS %s", runtime.GOOS)
 		return
 	}
 
-	hit, err = FromCache(cacheDir, filename, dir, method, map[string]string{
-		getServerBinary():   filepath.Join(cacheDir, getServerBinary()),
-		getAnnounceBinary(): filepath.Join(cacheDir, getAnnounceBinary()),
-		getNpcBinary():      filepath.Join(cacheDir, getNpcBinary()),
-	})
+	if getCompiler {
+		paths[filepath.Join(subdir, "pawno", "include")] = "pawn/include"
+	}
+
+	hit, err = FromCache(cacheDir, filename, dir, method, paths)
 	if !hit || err != nil {
 		return
 	}
@@ -75,9 +80,11 @@ func ServerFromCache(cacheDir, version, dir string) (hit bool, err error) {
 }
 
 // ServerFromNet downloads a server package to the cache, then calls FromCache to finish the job
-func ServerFromNet(endpoint, cacheDir, version, dir string) (err error) {
+func ServerFromNet(endpoint, cacheDir, version, dir string, getCompiler bool) (err error) {
 	var filename string
 	var method ExtractFunc
+	var paths map[string]string
+	var subdir string
 
 	pkg, ok := Packages[version]
 	if !ok {
@@ -87,9 +94,12 @@ func ServerFromNet(endpoint, cacheDir, version, dir string) (err error) {
 	if runtime.GOOS == "windows" {
 		filename = pkg.Win32
 		method = Unzip
+		paths = pkg.Win32Paths
 	} else if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
 		filename = pkg.Linux
 		method = Untar
+		paths = pkg.LinuxPaths
+		subdir = "samp03"
 	} else {
 		err = errors.Errorf("unsupported OS %s", runtime.GOOS)
 		return
@@ -121,11 +131,12 @@ func ServerFromNet(endpoint, cacheDir, version, dir string) (err error) {
 		return errors.Wrap(err, "failed to download package")
 	}
 
-	err = method(fullPath, dir, map[string]string{
-		getServerBinary():   filepath.Join(cacheDir, getServerBinary()),
-		getAnnounceBinary(): filepath.Join(cacheDir, getAnnounceBinary()),
-		getNpcBinary():      filepath.Join(cacheDir, getNpcBinary()),
-	})
+	if getCompiler {
+		paths[filepath.Join(subdir, "pawno", "include")] = "pawn/include"
+	}
+	fmt.Println(paths)
+
+	err = method(fullPath, dir, paths)
 	if err != nil {
 		return errors.Wrapf(err, "failed to unzip package %s", filename)
 	}

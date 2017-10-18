@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
@@ -31,15 +32,15 @@ func main() {
 			Aliases: []string{"i"},
 			Usage:   "initialise a sa-mp server folder with a few questions, uses the cwd if --dir is not set",
 			Action: func(c *cli.Context) error {
-				endpoint := c.String("endpoint")
 				version := c.String("version")
 				dir := fullPath(c.String("dir"))
+				endpoint := c.String("endpoint")
 				err := InitialiseServer(version, dir)
 				if err != nil {
 					return errors.Wrap(err, "failed to initialise server")
 				}
 
-				err = GetServerPackage(endpoint, version, dir)
+				err = GetServerPackage(endpoint, version, dir, false)
 				if err != nil {
 					return errors.Wrap(err, "failed to get package")
 				}
@@ -69,16 +70,16 @@ func main() {
 			Aliases: []string{"r"},
 			Usage:   "run a sa-mp server, uses the cwd if --dir is not set",
 			Action: func(c *cli.Context) error {
-				endpoint := c.String("endpoint")
 				version := c.String("version")
 				dir := fullPath(c.String("dir"))
+				endpoint := c.String("endpoint")
 				container := c.Bool("container")
 
 				var err error
 				errs := ValidateServerDir(dir, version)
 				if errs != nil {
 					fmt.Println(errs)
-					err = GetServerPackage(endpoint, version, dir)
+					err = GetServerPackage(endpoint, version, dir, false)
 					if err != nil {
 						return errors.Wrap(err, "failed to get server package")
 					}
@@ -119,10 +120,10 @@ func main() {
 			Aliases: []string{"d"},
 			Usage:   "download a version of the server, uses latest if --version is not specified",
 			Action: func(c *cli.Context) error {
-				endpoint := c.String("endpoint")
 				version := c.String("version")
 				dir := fullPath(c.String("dir"))
-				return GetServerPackage(endpoint, version, dir)
+				endpoint := c.String("endpoint")
+				return GetServerPackage(endpoint, version, dir, false)
 			},
 			Flags: []cli.Flag{
 				cli.StringFlag{
@@ -143,19 +144,18 @@ func main() {
 			},
 		},
 		{
-			Name:      "exec",
-			Aliases:   []string{"e"},
-			Usage:     "execute an amx file as a SA:MP gamemode for quick testing in a temporary server installation",
-			ArgsUsage: "",
+			Name:    "exec",
+			Aliases: []string{"e"},
+			Usage:   "execute an amx file as a SA:MP gamemode for quick testing in a temporary server installation",
 			Action: func(c *cli.Context) error {
 				if c.NArg() != 1 {
 					return errors.New("argument required: file to execute")
 				}
 
 				file := c.Args().First()
-				endpoint := c.String("endpoint")
 				version := c.String("version")
 				container := c.Bool("container")
+				endpoint := c.String("endpoint")
 				cacheDir, err := GetCacheDir()
 				if err != nil {
 					return err
@@ -164,7 +164,12 @@ func main() {
 
 				filePath := fullPath(file)
 
-				err = prepareTemporaryServer(endpoint, version, dir, filePath)
+				err = PrepareRuntime(endpoint, version, dir)
+				if err != nil {
+					return err
+				}
+
+				err = CopyFileToRuntime(cacheDir, version, filePath)
 				if err != nil {
 					return err
 				}
@@ -184,11 +189,6 @@ func main() {
 					Usage: "server version - corresponds to http://files.sa-mp.com packages without the .tar.gz",
 				},
 				cli.StringFlag{
-					Name:  "dir",
-					Value: ".",
-					Usage: "working directory for the server - by default, uses the current directory",
-				},
-				cli.StringFlag{
 					Name:  "endpoint",
 					Value: "http://files.sa-mp.com",
 					Usage: "endpoint to download packages from",
@@ -196,6 +196,40 @@ func main() {
 				cli.BoolFlag{
 					Name:  "container",
 					Usage: "starts the server as a Linux container instead of running it in the current directory",
+				},
+			},
+		},
+		{
+			Name:    "compile",
+			Aliases: []string{"c"},
+			Usage:   "compile a .pwn file to an .amx file in the same directory",
+			Action: func(c *cli.Context) error {
+				if c.NArg() != 1 {
+					return errors.New("argument required: file to compile")
+				}
+
+				pawnccVersion := c.String("pawncc-version")
+				inputFile := fullPath(c.Args().First())
+				outputFile := strings.TrimSuffix(inputFile, filepath.Ext(inputFile)) + ".amx"
+
+				if !exists(inputFile) {
+					return errors.Errorf("source file '%s' does not exist", inputFile)
+				}
+
+				cacheDir, err := GetCacheDir()
+				if err != nil {
+					return err
+				}
+
+				err = CompileSource(inputFile, outputFile, cacheDir, pawnccVersion)
+
+				return err
+			},
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "pawncc-version",
+					Value: "3.10.2",
+					Usage: "server version - corresponds to http://files.sa-mp.com packages without the .tar.gz",
 				},
 			},
 		},

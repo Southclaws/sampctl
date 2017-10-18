@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 
@@ -16,6 +17,7 @@ import (
 type CompilerPackage struct {
 	URL    string            // the URL template to get the package from
 	Method ExtractFunc       // the extraction method
+	Binary string            // execution binary
 	Paths  map[string]string // map of files to their target locations
 }
 
@@ -23,6 +25,7 @@ var (
 	pawnMacOS = CompilerPackage{
 		"https://github.com/Zeex/pawn/releases/download/v{{.Version}}/pawnc-{{.Version}}-darwin.zip",
 		Unzip,
+		"pawncc",
 		map[string]string{
 			"pawnc-{{.Version}}-darwin/bin/pawncc":         "pawncc",
 			"pawnc-{{.Version}}-darwin/lib/libpawnc.dylib": "libpawnc.dylib",
@@ -31,6 +34,7 @@ var (
 	pawnLinux = CompilerPackage{
 		"https://github.com/Zeex/pawn/releases/download/v{{.Version}}/pawnc-{{.Version}}-linux.tar.gz",
 		Untar,
+		"pawncc",
 		map[string]string{
 			"pawnc-{{.Version}}-linux/bin/pawncc":      "pawncc",
 			"pawnc-{{.Version}}-linux/lib/libpawnc.so": "libpawnc.so",
@@ -39,6 +43,7 @@ var (
 	pawnWin32 = CompilerPackage{
 		"https://github.com/Zeex/pawn/releases/download/v{{.Version}}/pawnc-{{.Version}}-windows.zip",
 		Unzip,
+		"pawncc.exe",
 		map[string]string{
 			"pawnc-{{.Version}}-windows/bin/pawncc.exe": "pawncc.exe",
 			"pawnc-{{.Version}}-windows/bin/pawnc.dll":  "pawnc.dll",
@@ -166,6 +171,35 @@ func CompilerFromNet(cacheDir, version, dir string) (err error) {
 	err = pkg.Method(path, dir, pkg.Paths)
 	if err != nil {
 		return errors.Wrapf(err, "failed to unzip package %s", path)
+	}
+
+	return
+}
+
+// CompileSource compiles a given input script to the specified output path using compiler version
+func CompileSource(input, output, cacheDir, version string) (err error) {
+	fmt.Printf("Compiling source: '%s'...\n", input)
+
+	dir := filepath.Join(cacheDir, "pawn", version)
+	err = GetCompilerPackage(version, dir)
+	if err != nil {
+		return
+	}
+
+	pkg, _, err := GetCompilerPackageInfo(runtime.GOOS, version)
+	if err != nil {
+		return
+	}
+
+	binary := filepath.Join(cacheDir, "pawn", version, pkg.Binary)
+
+	cmd := exec.Command(binary, input, "-;+", "-(+", "-d3", "-Z+", "-o"+output)
+	cmd.Dir = filepath.Dir(binary)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	if err != nil {
+		return
 	}
 
 	return

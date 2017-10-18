@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -136,19 +135,14 @@ loop:
 			continue
 		}
 
-		// todo: run this test on linux
-		fmt.Println("checking ", header.Name)
-
 		target, ok := paths[header.Name]
-		if ok {
-			fmt.Println("skipping ", header.Name)
+		if !ok {
 			continue
 		}
 		// if the target is not absolute, make relative to destination dir
 		if !filepath.IsAbs(target) {
 			target = filepath.Join(dst, target)
 		}
-		fmt.Println("extracting ", header.Name, " to ", target)
 
 		// the following switch could also be done using fi.Mode(), not sure if there
 		// a benefit of using one vs. the other.

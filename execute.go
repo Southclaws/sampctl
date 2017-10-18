@@ -9,7 +9,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-func prepareTemporaryServer(endpoint, version, dir, filePath string) (err error) {
+// PrepareRuntime sets up a directory in ~/.samp that contains the server runtime and a compiler
+func PrepareRuntime(endpoint, serverVersion, dir string) (err error) {
 	err = os.MkdirAll(dir, 0755)
 	if err != nil {
 		return errors.Wrap(err, "failed to create temporary directory")
@@ -17,15 +18,22 @@ func prepareTemporaryServer(endpoint, version, dir, filePath string) (err error)
 	errs := ValidateServerDir(dir, version)
 	if errs != nil {
 		fmt.Println(errs)
-		err = GetServerPackage(endpoint, version, dir)
+		err = GetServerPackage(endpoint, version, dir, true)
 		if err != nil {
 			return errors.Wrap(err, "failed to get server package")
 		}
 	}
 
+	return
+}
+
+// CopyFileToRuntime copies a specific file to execute to the specified version's runtime directory
+func CopyFileToRuntime(cacheDir, version, filePath string) (err error) {
 	fileName := filepath.Base(filePath)
 	ext := filepath.Ext(filePath)
 	justName := strings.TrimSuffix(fileName, ext)
+
+	dir := filepath.Join(cacheDir, "runtime", version)
 
 	if ext == ".pwn" {
 		// compile
