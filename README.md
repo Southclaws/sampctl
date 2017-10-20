@@ -14,7 +14,7 @@ A small utility for starting and managing SA:MP servers with better settings han
 - [Windows](https://github.com/Southclaws/sampctl/wiki/Windows)
 - [Mac](https://github.com/Southclaws/sampctl/wiki/Mac)
 
-# `sampctl`
+## `sampctl`
 1.2.6-R3 - Southclaws <southclaws@gmail.com>
 
 A small utility for starting and managing SA:MP servers with better settings handling and crash resiliency.
