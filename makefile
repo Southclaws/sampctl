@@ -20,6 +20,9 @@ version:
 clean:
 	-rm sampctl
 
+docs: fast
+	./docgen.sh
+
 # Docker
 
 build:
