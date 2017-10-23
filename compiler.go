@@ -194,11 +194,12 @@ func CompileSource(input, output, cacheDir, version string) (err error) {
 		return
 	}
 
-	binary := filepath.Join(cacheDir, "pawn", version, pkg.Binary)
+	binary := filepath.Join(dir, pkg.Binary)
 
 	cmd := exec.Command(binary, input, "-;+", "-(+", "-d3", "-Z+", "-o"+output)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Env = []string{fmt.Sprintf("LD_LIBRARY_PATH=%s", dir)}
 	err = cmd.Run()
 	if err != nil {
 		return
