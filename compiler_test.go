@@ -140,7 +140,7 @@ func TestCompileSource(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{"valid", args{"./tests/compile/compile_test.pwn", "./tests/compile/compile_test.amx", "./tests/cache", "3.10.2"}, false},
+		{"valid", args{"./tests/compile/compile_test.pwn", "./tests/compile/compile_test.amx", fullPath("./tests/cache"), "3.10.2"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
