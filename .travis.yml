@@ -1,6 +1,8 @@
 sudo: required
 services:
   - docker
+before_install:
+  - if [ `uname -m` = x86_64 ]; then sudo apt-get install -qq --force-yes gcc-multilib > /dev/null; fi
 addons:
   apt:
     packages:
