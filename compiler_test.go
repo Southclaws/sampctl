@@ -88,13 +88,15 @@ func Test_CompilerFromNet(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{"valid", args{"./testcache", "3.10.2", "./testcompiler"}, false},
+		{"valid", args{"./tests/cache", "3.10.2", "./tests/compiler"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := CompilerFromNet(tt.args.cacheDir, tt.args.version, tt.args.dir)
 			assert.NoError(t, err)
-			// todo: assert.True(t, exists("./testcompiler/pawncc")) but for all platforms
+
+			// assumes the tests are being run in linux/darwin (sorry!)
+			assert.True(t, exists("./tests/compiler/pawncc"))
 		})
 	}
 }
@@ -111,7 +113,7 @@ func Test_CompilerFromCache(t *testing.T) {
 		wantHit bool
 		wantErr bool
 	}{
-		{"valid", args{"./testcache", "3.10.2", "./testcompiler"}, true, false},
+		{"valid", args{"./tests/cache", "3.10.2", "./tests/compiler"}, true, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

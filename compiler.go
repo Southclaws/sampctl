@@ -149,7 +149,6 @@ func CompilerFromNet(cacheDir, version, dir string) (err error) {
 	if err != nil {
 		return errors.Wrap(err, "package info mismatch")
 	}
-	fmt.Println(pkg.Paths)
 
 	if !exists(dir) {
 		err := os.MkdirAll(dir, 0755)

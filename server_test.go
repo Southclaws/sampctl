@@ -18,16 +18,16 @@ func Test_ServerFromNet(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{"valid", args{"http://files.sa-mp.com", "./testcache", "latest", "./testspace"}, false},
-		{"valid", args{"http://files.sa-mp.com", "./testcache", "0.3.7", "./testspace"}, false},
-		{"valid", args{"http://files.sa-mp.com", "./testcache", "0.3.7-R2-2-1", "./testspace"}, false},
-		{"valid", args{"http://files.sa-mp.com", "./testcache", "0.3.7-R2-1", "./testspace"}, false},
-		{"valid", args{"http://files.sa-mp.com", "./testcache", "0.3z", "./testspace"}, false},
-		{"valid", args{"http://files.sa-mp.com", "./testcache", "0.3z-R4", "./testspace"}, false},
-		{"valid", args{"http://files.sa-mp.com", "./testcache", "0.3z-R3", "./testspace"}, false},
-		{"valid", args{"http://files.sa-mp.com", "./testcache", "0.3z-R2-2", "./testspace"}, false},
-		{"valid", args{"http://files.sa-mp.com", "./testcache", "0.3z-R1", "./testspace"}, false},
-		{"valid", args{"http://files.sa-mp.com", "./testcache", "0.3z-R1-2", "./testspace"}, false},
+		{"valid", args{"http://files.sa-mp.com", "./tests/cache", "latest", "./tests/server-dir"}, false},
+		{"valid", args{"http://files.sa-mp.com", "./tests/cache", "0.3.7", "./tests/server-dir"}, false},
+		{"valid", args{"http://files.sa-mp.com", "./tests/cache", "0.3.7-R2-2-1", "./tests/server-dir"}, false},
+		{"valid", args{"http://files.sa-mp.com", "./tests/cache", "0.3.7-R2-1", "./tests/server-dir"}, false},
+		{"valid", args{"http://files.sa-mp.com", "./tests/cache", "0.3z", "./tests/server-dir"}, false},
+		{"valid", args{"http://files.sa-mp.com", "./tests/cache", "0.3z-R4", "./tests/server-dir"}, false},
+		{"valid", args{"http://files.sa-mp.com", "./tests/cache", "0.3z-R3", "./tests/server-dir"}, false},
+		{"valid", args{"http://files.sa-mp.com", "./tests/cache", "0.3z-R2-2", "./tests/server-dir"}, false},
+		{"valid", args{"http://files.sa-mp.com", "./tests/cache", "0.3z-R1", "./tests/server-dir"}, false},
+		{"valid", args{"http://files.sa-mp.com", "./tests/cache", "0.3z-R1-2", "./tests/server-dir"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -49,18 +49,18 @@ func Test_ServerFromCache(t *testing.T) {
 		wantHit bool
 		wantErr bool
 	}{
-		{"valid", args{"./testcache", "0.4a-RC1", "./testspace"}, false, true},
-		{"valid", args{"./testcache", "latest", "./testspace"}, true, false},
-		{"valid", args{"./testcache", "0.3.7", "./testspace"}, true, false},
-		{"valid", args{"./testcache", "0.3.7-R2-2-1", "./testspace"}, true, false},
-		{"valid", args{"./testcache", "0.3.7-R2-1", "./testspace"}, true, false},
-		{"valid", args{"./testcache", "0.3z", "./testspace"}, true, false},
-		{"valid", args{"./testcache", "0.3z-R4", "./testspace"}, true, false},
-		{"valid", args{"./testcache", "0.3z-R3", "./testspace"}, true, false},
-		{"valid", args{"./testcache", "0.3z-R2-2", "./testspace"}, true, false},
-		{"valid", args{"./testcache", "0.3z-R1", "./testspace"}, true, false},
-		{"valid", args{"./testcache", "0.3z-R1-2", "./testspace"}, true, false},
-		{"valid", args{"./testcache", "latest", "./testspace"}, true, false},
+		{"valid", args{"./tests/cache", "0.4a-RC1", "./tests/server-dir"}, false, true},
+		{"valid", args{"./tests/cache", "latest", "./tests/server-dir"}, true, false},
+		{"valid", args{"./tests/cache", "0.3.7", "./tests/server-dir"}, true, false},
+		{"valid", args{"./tests/cache", "0.3.7-R2-2-1", "./tests/server-dir"}, true, false},
+		{"valid", args{"./tests/cache", "0.3.7-R2-1", "./tests/server-dir"}, true, false},
+		{"valid", args{"./tests/cache", "0.3z", "./tests/server-dir"}, true, false},
+		{"valid", args{"./tests/cache", "0.3z-R4", "./tests/server-dir"}, true, false},
+		{"valid", args{"./tests/cache", "0.3z-R3", "./tests/server-dir"}, true, false},
+		{"valid", args{"./tests/cache", "0.3z-R2-2", "./tests/server-dir"}, true, false},
+		{"valid", args{"./tests/cache", "0.3z-R1", "./tests/server-dir"}, true, false},
+		{"valid", args{"./tests/cache", "0.3z-R1-2", "./tests/server-dir"}, true, false},
+		{"valid", args{"./tests/cache", "latest", "./tests/server-dir"}, true, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

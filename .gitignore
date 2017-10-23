@@ -10,16 +10,7 @@
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
-# Project-local glide cache, RE: https://github.com/Masterminds/glide/issues/736
-.glide/
-
 sampctl
-config.json
-config.yaml
-
-testcache/
-testspace/
-testcompiler/
 
 # the one thing I hate about mac...
 .DS_Store
