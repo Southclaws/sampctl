@@ -195,7 +195,6 @@ func CompileSource(input, output, cacheDir, version string) (err error) {
 	binary := filepath.Join(cacheDir, "pawn", version, pkg.Binary)
 
 	cmd := exec.Command(binary, input, "-;+", "-(+", "-d3", "-Z+", "-o"+output)
-	cmd.Dir = filepath.Dir(binary)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()

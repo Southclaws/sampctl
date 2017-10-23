@@ -127,3 +127,27 @@ func Test_CompilerFromCache(t *testing.T) {
 		})
 	}
 }
+
+func TestCompileSource(t *testing.T) {
+	type args struct {
+		input    string
+		output   string
+		cacheDir string
+		version  string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{"valid", args{"./tests/compile/compile_test.pwn", "./tests/compile/compile_test.amx", "./tests/cache", "3.10.2"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := CompileSource(tt.args.input, tt.args.output, tt.args.cacheDir, tt.args.version); (err != nil) != tt.wantErr {
+				t.Errorf("CompileSource() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			assert.True(t, exists("./tests/compile/compile_test.amx"))
+		})
+	}
+}
