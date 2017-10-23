@@ -192,6 +192,7 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 }
 
 func TestConfig_ValidateWorkspace(t *testing.T) {
+	os.MkdirAll("./testspace/gamemodes", 0755)
 	f, _ := os.Create("./testspace/gamemodes/rivershell.amx")
 	f.Close() // nolint
 	type args struct {
