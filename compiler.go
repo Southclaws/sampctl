@@ -181,6 +181,8 @@ func CompilerFromNet(cacheDir, version, dir string) (err error) {
 func CompileSource(input, output, cacheDir, version string) (err error) {
 	fmt.Printf("Compiling source: '%s'...\n", input)
 
+	cacheDir = fullPath(cacheDir)
+
 	dir := filepath.Join(cacheDir, "pawn", version)
 	err = GetCompilerPackage(version, dir)
 	if err != nil {
