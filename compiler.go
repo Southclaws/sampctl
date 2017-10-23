@@ -53,8 +53,6 @@ var (
 
 // GetCompilerPackage downloads and installs a Pawn compiler to a user directory
 func GetCompilerPackage(version, dir string) (err error) {
-	fmt.Printf("Downloading compiler package\n")
-
 	cacheDir, err := GetCacheDir()
 	if err != nil {
 		return err
@@ -128,6 +126,8 @@ func GetCompilerPackageInfo(os, version string) (pkg CompilerPackage, filename s
 
 // CompilerFromCache attempts to get a compiler package from the cache, `hit` represents success
 func CompilerFromCache(cacheDir, version, dir string) (hit bool, err error) {
+	fmt.Printf("Using cached package for %s\n", version)
+
 	pkg, filename, err := GetCompilerPackageInfo(runtime.GOOS, version)
 	if err != nil {
 		return false, err
@@ -143,6 +143,8 @@ func CompilerFromCache(cacheDir, version, dir string) (hit bool, err error) {
 
 // CompilerFromNet downloads a compiler package to the cache
 func CompilerFromNet(cacheDir, version, dir string) (err error) {
+	fmt.Printf("Downloading compiler package %s\n", version)
+
 	pkg, filename, err := GetCompilerPackageInfo(runtime.GOOS, version)
 	if err != nil {
 		return errors.Wrap(err, "package info mismatch")

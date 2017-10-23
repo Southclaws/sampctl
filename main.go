@@ -40,7 +40,7 @@ func main() {
 					return errors.Wrap(err, "failed to initialise server")
 				}
 
-				err = GetServerPackage(endpoint, version, dir, false)
+				err = GetServerPackage(endpoint, version, dir)
 				if err != nil {
 					return errors.Wrap(err, "failed to get package")
 				}
@@ -79,7 +79,7 @@ func main() {
 				errs := ValidateServerDir(dir, version)
 				if errs != nil {
 					fmt.Println(errs)
-					err = GetServerPackage(endpoint, version, dir, false)
+					err = GetServerPackage(endpoint, version, dir)
 					if err != nil {
 						return errors.Wrap(err, "failed to get server package")
 					}
@@ -123,7 +123,7 @@ func main() {
 				version := c.String("version")
 				dir := fullPath(c.String("dir"))
 				endpoint := c.String("endpoint")
-				return GetServerPackage(endpoint, version, dir, false)
+				return GetServerPackage(endpoint, version, dir)
 			},
 			Flags: []cli.Flag{
 				cli.StringFlag{

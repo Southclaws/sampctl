@@ -18,7 +18,7 @@ func PrepareRuntime(endpoint, serverVersion, dir string) (err error) {
 	errs := ValidateServerDir(dir, version)
 	if errs != nil {
 		fmt.Println(errs)
-		err = GetServerPackage(endpoint, version, dir, true)
+		err = GetServerPackage(endpoint, version, dir)
 		if err != nil {
 			return errors.Wrap(err, "failed to get server package")
 		}

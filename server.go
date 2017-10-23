@@ -12,15 +12,13 @@ import (
 )
 
 // GetServerPackage checks if a cached package is available and if not, downloads it to dir
-func GetServerPackage(endpoint, version, dir string, getCompiler bool) (err error) {
-	fmt.Printf("Downloading package %s from endpoint %s into %s\n", version, endpoint, dir)
-
+func GetServerPackage(endpoint, version, dir string) (err error) {
 	cacheDir, err := GetCacheDir()
 	if err != nil {
 		return err
 	}
 
-	hit, err := ServerFromCache(cacheDir, version, dir, getCompiler)
+	hit, err := ServerFromCache(cacheDir, version, dir)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get package %s from cache", version)
 	}
@@ -28,7 +26,7 @@ func GetServerPackage(endpoint, version, dir string, getCompiler bool) (err erro
 		return
 	}
 
-	err = ServerFromNet(endpoint, cacheDir, version, dir, getCompiler)
+	err = ServerFromNet(endpoint, cacheDir, version, dir)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get package %s from net", version)
 	}
@@ -37,11 +35,14 @@ func GetServerPackage(endpoint, version, dir string, getCompiler bool) (err erro
 }
 
 // ServerFromCache tries to grab a server package from cache, `hit` indicates if it was successful
-func ServerFromCache(cacheDir, version, dir string, getCompiler bool) (hit bool, err error) {
-	var filename string
-	var method ExtractFunc
-	var paths map[string]string
-	var subdir string
+func ServerFromCache(cacheDir, version, dir string) (hit bool, err error) {
+	fmt.Printf("Using cached package for %s\n", version)
+
+	var (
+		filename string
+		method   ExtractFunc
+		paths    map[string]string
+	)
 
 	pkg, ok := Packages[version]
 	if !ok {
@@ -56,14 +57,9 @@ func ServerFromCache(cacheDir, version, dir string, getCompiler bool) (hit bool,
 		filename = pkg.Linux
 		method = Untar
 		paths = pkg.LinuxPaths
-		subdir = "samp03"
 	} else {
 		err = errors.Errorf("unsupported OS %s", runtime.GOOS)
 		return
-	}
-
-	if getCompiler {
-		paths[filepath.Join(subdir, "pawno", "include")] = "pawn/include"
 	}
 
 	hit, err = FromCache(cacheDir, filename, dir, method, paths)
@@ -80,11 +76,14 @@ func ServerFromCache(cacheDir, version, dir string, getCompiler bool) (hit bool,
 }
 
 // ServerFromNet downloads a server package to the cache, then calls FromCache to finish the job
-func ServerFromNet(endpoint, cacheDir, version, dir string, getCompiler bool) (err error) {
-	var filename string
-	var method ExtractFunc
-	var paths map[string]string
-	var subdir string
+func ServerFromNet(endpoint, cacheDir, version, dir string) (err error) {
+	fmt.Printf("Downloading package %s from endpoint %s into %s\n", version, endpoint, dir)
+
+	var (
+		filename string
+		method   ExtractFunc
+		paths    map[string]string
+	)
 
 	pkg, ok := Packages[version]
 	if !ok {
@@ -99,7 +98,6 @@ func ServerFromNet(endpoint, cacheDir, version, dir string, getCompiler bool) (e
 		filename = pkg.Linux
 		method = Untar
 		paths = pkg.LinuxPaths
-		subdir = "samp03"
 	} else {
 		err = errors.Errorf("unsupported OS %s", runtime.GOOS)
 		return
@@ -130,11 +128,6 @@ func ServerFromNet(endpoint, cacheDir, version, dir string, getCompiler bool) (e
 	if err != nil {
 		return errors.Wrap(err, "failed to download package")
 	}
-
-	if getCompiler {
-		paths[filepath.Join(subdir, "pawno", "include")] = "pawn/include"
-	}
-	fmt.Println(paths)
 
 	err = method(fullPath, dir, paths)
 	if err != nil {
