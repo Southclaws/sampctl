@@ -9,8 +9,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// package stores a map of version strings to filenames for each OS.
-
 // Package represents a SA:MP server version, it stores both platform filenames and a checksum
 type Package struct {
 	Linux         string
