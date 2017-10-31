@@ -90,7 +90,7 @@ func Test_CompilerFromNet(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{"valid", args{"tests/compiler", "3.10.2", "tests/compiler"}, false},
+		{"valid", args{"tests/cache", "3.10.2", "tests/compiler"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
