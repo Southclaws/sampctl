@@ -11,7 +11,7 @@ language: go
 jobs:
   include:
     - stage: test
-      script: go test -v -race
+      script: make test
 after_success:
   - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
   - apt-get install ruby ruby-dev rubygems build-essential

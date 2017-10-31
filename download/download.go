@@ -1,4 +1,5 @@
-package main
+// Package download handles downloading and extracting sa-mp server versions. Packages are cached in ~/.samp to avoid unnecessary downloads.
+package download
 
 import (
 	"archive/tar"
@@ -12,10 +13,9 @@ import (
 
 	"github.com/minio/go-homedir"
 	"github.com/pkg/errors"
-)
 
-// download.go handles downloading and extracting sa-mp server versions.
-// Packages are cached in ~/.samp to avoid unnecessary downloads.
+	"github.com/Southclaws/sampctl/util"
+)
 
 // ExtractFunc represents a function responsible for extracting a set of files from an archive to
 // a directory. The map argument contains a map of source files in the archive to target file
@@ -37,7 +37,7 @@ func GetCacheDir() (string, error) {
 func FromCache(cacheDir, filename, dir string, method ExtractFunc, paths map[string]string) (hit bool, err error) {
 	path := filepath.Join(cacheDir, filename)
 
-	if !exists(path) {
+	if !util.Exists(path) {
 		hit = false
 		return
 	}
@@ -80,17 +80,6 @@ func FromNet(url, cacheDir, filename string) (result string, err error) {
 	}
 
 	return
-}
-
-func exists(path string) bool {
-	_, err := os.Stat(path)
-	if os.IsNotExist(err) {
-		return false
-	}
-	if err != nil {
-		panic(err)
-	}
-	return true
 }
 
 // Untar takes a destination path and a reader; a tar reader loops over the tarfile
@@ -226,15 +215,5 @@ func Unzip(src, dst string, paths map[string]string) (err error) {
 			}
 		}
 	}
-	return
-}
-
-// createDirs simply creates the necessary gamemodes and filterscripts directories
-func createDirs(dir string) (err error) {
-	err = os.MkdirAll(filepath.Join(dir, "gamemodes"), 0755)
-	if err != nil {
-		return
-	}
-	err = os.MkdirAll(filepath.Join(dir, "filterscripts"), 0755)
 	return
 }

@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"fmt"
@@ -9,16 +9,19 @@ import (
 	"runtime"
 
 	"github.com/pkg/errors"
+
+	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/util"
 )
 
 // GetServerPackage checks if a cached package is available and if not, downloads it to dir
 func GetServerPackage(endpoint, version, dir string) (err error) {
-	cacheDir, err := GetCacheDir()
+	cacheDir, err := download.GetCacheDir()
 	if err != nil {
 		return err
 	}
 
-	hit, err := ServerFromCache(cacheDir, version, dir)
+	hit, err := FromCache(cacheDir, version, dir)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get package %s from cache", version)
 	}
@@ -26,7 +29,7 @@ func GetServerPackage(endpoint, version, dir string) (err error) {
 		return
 	}
 
-	err = ServerFromNet(endpoint, cacheDir, version, dir)
+	err = FromNet(endpoint, cacheDir, version, dir)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get package %s from net", version)
 	}
@@ -34,13 +37,13 @@ func GetServerPackage(endpoint, version, dir string) (err error) {
 	return
 }
 
-// ServerFromCache tries to grab a server package from cache, `hit` indicates if it was successful
-func ServerFromCache(cacheDir, version, dir string) (hit bool, err error) {
+// FromCache tries to grab a server package from cache, `hit` indicates if it was successful
+func FromCache(cacheDir, version, dir string) (hit bool, err error) {
 	fmt.Printf("Using cached package for %s\n", version)
 
 	var (
 		filename string
-		method   ExtractFunc
+		method   download.ExtractFunc
 		paths    map[string]string
 	)
 
@@ -51,18 +54,18 @@ func ServerFromCache(cacheDir, version, dir string) (hit bool, err error) {
 
 	if runtime.GOOS == "windows" {
 		filename = pkg.Win32
-		method = Unzip
+		method = download.Unzip
 		paths = pkg.Win32Paths
 	} else if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
 		filename = pkg.Linux
-		method = Untar
+		method = download.Untar
 		paths = pkg.LinuxPaths
 	} else {
 		err = errors.Errorf("unsupported OS %s", runtime.GOOS)
 		return
 	}
 
-	hit, err = FromCache(cacheDir, filename, dir, method, paths)
+	hit, err = download.FromCache(cacheDir, filename, dir, method, paths)
 	if !hit || err != nil {
 		return
 	}
@@ -75,13 +78,13 @@ func ServerFromCache(cacheDir, version, dir string) (hit bool, err error) {
 	return true, nil
 }
 
-// ServerFromNet downloads a server package to the cache, then calls FromCache to finish the job
-func ServerFromNet(endpoint, cacheDir, version, dir string) (err error) {
+// FromNet downloads a server package to the cache, then calls FromCache to finish the job
+func FromNet(endpoint, cacheDir, version, dir string) (err error) {
 	fmt.Printf("Downloading package %s from endpoint %s into %s\n", version, endpoint, dir)
 
 	var (
 		filename string
-		method   ExtractFunc
+		method   download.ExtractFunc
 		paths    map[string]string
 	)
 
@@ -92,25 +95,25 @@ func ServerFromNet(endpoint, cacheDir, version, dir string) (err error) {
 
 	if runtime.GOOS == "windows" {
 		filename = pkg.Win32
-		method = Unzip
+		method = download.Unzip
 		paths = pkg.Win32Paths
 	} else if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
 		filename = pkg.Linux
-		method = Untar
+		method = download.Untar
 		paths = pkg.LinuxPaths
 	} else {
 		err = errors.Errorf("unsupported OS %s", runtime.GOOS)
 		return
 	}
 
-	if !exists(dir) {
+	if !util.Exists(dir) {
 		err := os.MkdirAll(dir, 0755)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create dir %s", dir)
 		}
 	}
 
-	if !exists(cacheDir) {
+	if !util.Exists(cacheDir) {
 		err := os.MkdirAll(cacheDir, 0755)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create cache %s", cacheDir)
@@ -124,7 +127,7 @@ func ServerFromNet(endpoint, cacheDir, version, dir string) (err error) {
 	}
 	u.Path = path.Join(u.Path, filename)
 
-	fullPath, err := FromNet(u.String(), cacheDir, filename)
+	fullPath, err := download.FromNet(u.String(), cacheDir, filename)
 	if err != nil {
 		return errors.Wrap(err, "failed to download package")
 	}
@@ -145,13 +148,13 @@ func ServerFromNet(endpoint, cacheDir, version, dir string) (err error) {
 // ValidateServerDir ensures the dir has all the necessary files to run a server, it also performs an MD5
 // checksum against the binary to prevent running anything unwanted.
 func ValidateServerDir(dir, version string) (errs []error) {
-	if !exists(filepath.Join(dir, getNpcBinary())) {
+	if !util.Exists(filepath.Join(dir, getNpcBinary())) {
 		errs = append(errs, errors.New("missing npc binary"))
 	}
-	if !exists(filepath.Join(dir, getAnnounceBinary())) {
+	if !util.Exists(filepath.Join(dir, getAnnounceBinary())) {
 		errs = append(errs, errors.New("missing announce binary"))
 	}
-	if !exists(filepath.Join(dir, getServerBinary())) {
+	if !util.Exists(filepath.Join(dir, getServerBinary())) {
 		errs = append(errs, errors.New("missing server binary"))
 	} else {
 		// now perform an md5 on the server
@@ -163,5 +166,15 @@ func ValidateServerDir(dir, version string) (errs []error) {
 		}
 	}
 
+	return
+}
+
+// CreateServerDirectories simply creates the necessary gamemodes and filterscripts directories
+func CreateServerDirectories(dir string) (err error) {
+	err = os.MkdirAll(filepath.Join(dir, "gamemodes"), 0755)
+	if err != nil {
+		return
+	}
+	err = os.MkdirAll(filepath.Join(dir, "filterscripts"), 0755)
 	return
 }

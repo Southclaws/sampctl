@@ -1,4 +1,4 @@
-package main
+package settings
 
 import (
 	"encoding/json"
@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Southclaws/sampctl/util"
 	"github.com/pkg/errors"
 )
 
@@ -179,13 +180,13 @@ func (cfg *Config) LoadEnvironmentVariables() {
 func (cfg Config) ValidateWorkspace(dir string) (errs []error) {
 	for _, gamemode := range cfg.Gamemodes {
 		fullpath := filepath.Join(dir, "gamemodes", gamemode+".amx")
-		if !exists(fullpath) {
+		if !util.Exists(fullpath) {
 			errs = append(errs, errors.Errorf("gamemode '%s' is missing its .amx file from the gamemodes directory", gamemode))
 		}
 	}
 	for _, filterscript := range cfg.Filterscripts {
 		fullpath := filepath.Join(dir, "filterscripts", filterscript+".amx")
-		if !exists(fullpath) {
+		if !util.Exists(fullpath) {
 			errs = append(errs, errors.Errorf("filterscript '%s' is missing its .amx file from the filterscripts directory", filterscript))
 		}
 	}
@@ -200,7 +201,7 @@ func (cfg Config) ValidateWorkspace(dir string) (errs []error) {
 	}
 	for _, plugin := range cfg.Plugins {
 		fullpath := filepath.Join(dir, "plugins", plugin+ext)
-		if !exists(fullpath) {
+		if !util.Exists(fullpath) {
 			errs = append(errs, errors.Errorf("plugin '%s' is missing its %s file from the plugins directory", plugin, ext))
 		}
 	}
@@ -401,7 +402,7 @@ func adjustForOS(dir string, cfg *Config) {
 func (cfg Config) GenerateJSON(dir string) (err error) {
 	path := filepath.Join(dir, "samp.json")
 
-	if exists(path) {
+	if util.Exists(path) {
 		if err := os.Remove(path); err != nil {
 			panic(err)
 		}

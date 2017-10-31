@@ -1,9 +1,10 @@
-package main
+package util
 
 import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 )
 
 // CopyFile copies a file from src to dst. If src and dst files exist, and are
@@ -15,8 +16,7 @@ func CopyFile(src, dst string) (err error) {
 		return
 	}
 	if !sfi.Mode().IsRegular() {
-		// cannot copy non-regular files (e.g., directories,
-		// symlinks, devices, etc.)
+		// cannot copy non-regular files (e.g., directories, symlinks, devices, etc.)
 		return fmt.Errorf("CopyFile: non-regular source file %s (%q)", sfi.Name(), sfi.Mode().String())
 	}
 	dfi, err := os.Stat(dst)
@@ -64,4 +64,26 @@ func copyFileContents(src, dst string) (err error) {
 	}
 	err = out.Sync()
 	return
+}
+
+// FullPath wraps filepath.Abs and panics on error
+func FullPath(dir string) (path string) {
+	path, err := filepath.Abs(dir)
+	if err != nil {
+		panic(err)
+	}
+
+	return path
+}
+
+// Exists simply checks if a path exists and panics on error
+func Exists(path string) bool {
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false
+	}
+	if err != nil {
+		panic(err)
+	}
+	return true
 }

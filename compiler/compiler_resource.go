@@ -1,4 +1,4 @@
-package main
+package compiler
 
 import (
 	"bytes"
@@ -8,38 +8,40 @@ import (
 	"runtime"
 
 	"github.com/pkg/errors"
+
+	"github.com/Southclaws/sampctl/download"
 )
 
-// CompilerPackage represents a compiler package for a specific OS
-type CompilerPackage struct {
-	URL    string            // the URL template to get the package from
-	Method ExtractFunc       // the extraction method
-	Binary string            // execution binary
-	Paths  map[string]string // map of files to their target locations
+// Package represents a compiler package for a specific OS
+type Package struct {
+	URL    string               // the URL template to get the package from
+	Method download.ExtractFunc // the extraction method
+	Binary string               // execution binary
+	Paths  map[string]string    // map of files to their target locations
 }
 
 var (
-	pawnMacOS = CompilerPackage{
+	pawnMacOS = Package{
 		"https://github.com/Zeex/pawn/releases/download/v{{.Version}}/pawnc-{{.Version}}-darwin.zip",
-		Unzip,
+		download.Unzip,
 		"pawncc",
 		map[string]string{
 			"pawnc-{{.Version}}-darwin/bin/pawncc":         "pawncc",
 			"pawnc-{{.Version}}-darwin/lib/libpawnc.dylib": "libpawnc.dylib",
 		},
 	}
-	pawnLinux = CompilerPackage{
+	pawnLinux = Package{
 		"https://github.com/Zeex/pawn/releases/download/v{{.Version}}/pawnc-{{.Version}}-linux.tar.gz",
-		Untar,
+		download.Untar,
 		"pawncc",
 		map[string]string{
 			"pawnc-{{.Version}}-linux/bin/pawncc":      "pawncc",
 			"pawnc-{{.Version}}-linux/lib/libpawnc.so": "libpawnc.so",
 		},
 	}
-	pawnWin32 = CompilerPackage{
+	pawnWin32 = Package{
 		"https://github.com/Zeex/pawn/releases/download/v{{.Version}}/pawnc-{{.Version}}-windows.zip",
-		Unzip,
+		download.Unzip,
 		"pawncc.exe",
 		map[string]string{
 			"pawnc-{{.Version}}-windows/bin/pawncc.exe": "pawncc.exe",
@@ -50,12 +52,12 @@ var (
 
 // GetCompilerPackage downloads and installs a Pawn compiler to a user directory
 func GetCompilerPackage(version, dir string) (err error) {
-	cacheDir, err := GetCacheDir()
+	cacheDir, err := download.GetCacheDir()
 	if err != nil {
 		return err
 	}
 
-	hit, err := CompilerFromCache(cacheDir, version, dir)
+	hit, err := FromCache(cacheDir, version, dir)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get package %s from cache", version)
 	}
@@ -63,7 +65,7 @@ func GetCompilerPackage(version, dir string) (err error) {
 		return
 	}
 
-	err = CompilerFromNet(cacheDir, version, dir)
+	err = FromNet(cacheDir, version, dir)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get package %s from net", version)
 	}
@@ -72,7 +74,7 @@ func GetCompilerPackage(version, dir string) (err error) {
 }
 
 // GetCompilerPackageInfo returns the URL for a specific compiler version
-func GetCompilerPackageInfo(os, version string) (pkg CompilerPackage, filename string, err error) {
+func GetCompilerPackageInfo(os, version string) (pkg Package, filename string, err error) {
 	if os == "windows" {
 		pkg = pawnWin32
 	} else if os == "linux" {

@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"fmt"
@@ -6,11 +6,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Southclaws/sampctl/settings"
+	"github.com/Southclaws/sampctl/util"
 	"github.com/pkg/errors"
 )
 
 // PrepareRuntime sets up a directory in ~/.samp that contains the server runtime and a compiler
-func PrepareRuntime(endpoint, serverVersion, dir string) (err error) {
+func PrepareRuntime(endpoint, version, dir string) (err error) {
 	err = os.MkdirAll(dir, 0755)
 	if err != nil {
 		return errors.Wrap(err, "failed to create temporary directory")
@@ -39,13 +41,13 @@ func CopyFileToRuntime(cacheDir, version, filePath string) (err error) {
 		// compile
 		// set filePath to output amx location
 	} else if ext == ".amx" {
-		err := CopyFile(filePath, filepath.Join(dir, "gamemodes", fileName))
+		err := util.CopyFile(filePath, filepath.Join(dir, "gamemodes", fileName))
 		if err != nil {
 			return errors.Wrap(err, "failed to copy AMX to temporary runtime area")
 		}
 	}
 
-	config := Config{
+	config := settings.Config{
 		Gamemodes:    []string{justName},
 		RCONPassword: &[]string{"temp"}[0],
 	}

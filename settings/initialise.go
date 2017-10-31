@@ -1,4 +1,4 @@
-package main
+package settings
 
 import (
 	"fmt"
@@ -11,6 +11,8 @@ import (
 	zxcvbn "github.com/nbutton23/zxcvbn-go"
 	"github.com/pkg/errors"
 	"gopkg.in/AlecAivazis/survey.v1"
+
+	"github.com/Southclaws/sampctl/util"
 )
 
 // InitialiseServer creates a samp.json by asking the user a series of questions
@@ -24,19 +26,19 @@ func InitialiseServer(version, dir string) (err error) {
 		pluginsList       []string
 	)
 
-	if !exists(gamemodesDir) {
+	if !util.Exists(gamemodesDir) {
 		fmt.Println("This directory does not appear to have a gamemodes directory, you must add at least one gamemode to run a server")
 	} else {
 		gamemodesList = getAmxFiles(gamemodesDir)
 	}
 
-	if !exists(filterscriptsDir) {
+	if !util.Exists(filterscriptsDir) {
 		fmt.Println("This directory does not appear to have a filterscripts directory")
 	} else {
 		filterscriptsList = getAmxFiles(filterscriptsDir)
 	}
 
-	if !exists(pluginsDir) {
+	if !util.Exists(pluginsDir) {
 		fmt.Println("This directory does not appear to have a plugins directory")
 	} else {
 		pluginsList = getPlugins(pluginsDir)

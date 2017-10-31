@@ -1,4 +1,5 @@
-package main
+// Package compiler provides an API for acquiring the compiler binaries and compiling Pawn code
+package compiler
 
 import (
 	"fmt"
@@ -7,11 +8,13 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/util"
 	"github.com/pkg/errors"
 )
 
-// CompilerFromCache attempts to get a compiler package from the cache, `hit` represents success
-func CompilerFromCache(cacheDir, version, dir string) (hit bool, err error) {
+// FromCache attempts to get a compiler package from the cache, `hit` represents success
+func FromCache(cacheDir, version, dir string) (hit bool, err error) {
 	fmt.Printf("Using cached package for %s\n", version)
 
 	pkg, filename, err := GetCompilerPackageInfo(runtime.GOOS, version)
@@ -19,7 +22,7 @@ func CompilerFromCache(cacheDir, version, dir string) (hit bool, err error) {
 		return false, err
 	}
 
-	hit, err = FromCache(cacheDir, filename, dir, pkg.Method, pkg.Paths)
+	hit, err = download.FromCache(cacheDir, filename, dir, pkg.Method, pkg.Paths)
 	if !hit {
 		return false, nil
 	}
@@ -27,8 +30,8 @@ func CompilerFromCache(cacheDir, version, dir string) (hit bool, err error) {
 	return
 }
 
-// CompilerFromNet downloads a compiler package to the cache
-func CompilerFromNet(cacheDir, version, dir string) (err error) {
+// FromNet downloads a compiler package to the cache
+func FromNet(cacheDir, version, dir string) (err error) {
 	fmt.Printf("Downloading compiler package %s\n", version)
 
 	pkg, filename, err := GetCompilerPackageInfo(runtime.GOOS, version)
@@ -36,21 +39,21 @@ func CompilerFromNet(cacheDir, version, dir string) (err error) {
 		return errors.Wrap(err, "package info mismatch")
 	}
 
-	if !exists(dir) {
+	if !util.Exists(dir) {
 		err := os.MkdirAll(dir, 0755)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create dir %s", dir)
 		}
 	}
 
-	if !exists(cacheDir) {
+	if !util.Exists(cacheDir) {
 		err := os.MkdirAll(cacheDir, 0755)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create cache %s", cacheDir)
 		}
 	}
 
-	path, err := FromNet(pkg.URL, cacheDir, filename)
+	path, err := download.FromNet(pkg.URL, cacheDir, filename)
 	if err != nil {
 		return errors.Wrap(err, "failed to download package")
 	}
@@ -67,7 +70,7 @@ func CompilerFromNet(cacheDir, version, dir string) (err error) {
 func CompileSource(input, output, cacheDir, version string) (err error) {
 	fmt.Printf("Compiling source: '%s'...\n", input)
 
-	cacheDir = fullPath(cacheDir)
+	cacheDir = util.FullPath(cacheDir)
 
 	dir := filepath.Join(cacheDir, "pawn", version)
 	err = GetCompilerPackage(version, dir)

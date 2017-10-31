@@ -8,6 +8,12 @@ import (
 
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
+
+	"github.com/Southclaws/sampctl/compiler"
+	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/server"
+	"github.com/Southclaws/sampctl/settings"
+	"github.com/Southclaws/sampctl/util"
 )
 
 var version = "master"
@@ -33,14 +39,14 @@ func main() {
 			Usage:   "initialise a sa-mp server folder with a few questions, uses the cwd if --dir is not set",
 			Action: func(c *cli.Context) error {
 				version := c.String("version")
-				dir := fullPath(c.String("dir"))
+				dir := util.FullPath(c.String("dir"))
 				endpoint := c.String("endpoint")
-				err := InitialiseServer(version, dir)
+				err := settings.InitialiseServer(version, dir)
 				if err != nil {
 					return errors.Wrap(err, "failed to initialise server")
 				}
 
-				err = GetServerPackage(endpoint, version, dir)
+				err = server.GetServerPackage(endpoint, version, dir)
 				if err != nil {
 					return errors.Wrap(err, "failed to get package")
 				}
@@ -71,24 +77,24 @@ func main() {
 			Usage:   "run a sa-mp server, uses the cwd if --dir is not set",
 			Action: func(c *cli.Context) error {
 				version := c.String("version")
-				dir := fullPath(c.String("dir"))
+				dir := util.FullPath(c.String("dir"))
 				endpoint := c.String("endpoint")
 				container := c.Bool("container")
 
 				var err error
-				errs := ValidateServerDir(dir, version)
+				errs := server.ValidateServerDir(dir, version)
 				if errs != nil {
 					fmt.Println(errs)
-					err = GetServerPackage(endpoint, version, dir)
+					err = server.GetServerPackage(endpoint, version, dir)
 					if err != nil {
 						return errors.Wrap(err, "failed to get server package")
 					}
 				}
 
 				if container {
-					err = RunContainer(endpoint, version, dir, app.Version)
+					err = server.RunContainer(endpoint, version, dir, app.Version)
 				} else {
-					err = Run(endpoint, version, dir)
+					err = server.Run(endpoint, version, dir)
 				}
 
 				return err
@@ -121,9 +127,9 @@ func main() {
 			Usage:   "download a version of the server, uses latest if --version is not specified",
 			Action: func(c *cli.Context) error {
 				version := c.String("version")
-				dir := fullPath(c.String("dir"))
+				dir := util.FullPath(c.String("dir"))
 				endpoint := c.String("endpoint")
-				return GetServerPackage(endpoint, version, dir)
+				return server.GetServerPackage(endpoint, version, dir)
 			},
 			Flags: []cli.Flag{
 				cli.StringFlag{
@@ -156,28 +162,28 @@ func main() {
 				version := c.String("version")
 				container := c.Bool("container")
 				endpoint := c.String("endpoint")
-				cacheDir, err := GetCacheDir()
+				cacheDir, err := download.GetCacheDir()
 				if err != nil {
 					return err
 				}
 				dir := filepath.Join(cacheDir, "runtime", version)
 
-				filePath := fullPath(file)
+				filePath := util.FullPath(file)
 
-				err = PrepareRuntime(endpoint, version, dir)
+				err = server.PrepareRuntime(endpoint, version, dir)
 				if err != nil {
 					return err
 				}
 
-				err = CopyFileToRuntime(cacheDir, version, filePath)
+				err = server.CopyFileToRuntime(cacheDir, version, filePath)
 				if err != nil {
 					return err
 				}
 
 				if container {
-					err = RunContainer(endpoint, version, dir, app.Version)
+					err = server.RunContainer(endpoint, version, dir, app.Version)
 				} else {
-					err = Run(endpoint, version, dir)
+					err = server.Run(endpoint, version, dir)
 				}
 
 				return err
@@ -209,19 +215,19 @@ func main() {
 				}
 
 				pawnccVersion := c.String("pawncc-version")
-				inputFile := fullPath(c.Args().First())
+				inputFile := util.FullPath(c.Args().First())
 				outputFile := strings.TrimSuffix(inputFile, filepath.Ext(inputFile)) + ".amx"
 
-				if !exists(inputFile) {
+				if !util.Exists(inputFile) {
 					return errors.Errorf("source file '%s' does not exist", inputFile)
 				}
 
-				cacheDir, err := GetCacheDir()
+				cacheDir, err := download.GetCacheDir()
 				if err != nil {
 					return err
 				}
 
-				err = CompileSource(inputFile, outputFile, cacheDir, pawnccVersion)
+				err = compiler.CompileSource(inputFile, outputFile, cacheDir, pawnccVersion)
 
 				return err
 			},
@@ -244,7 +250,7 @@ func main() {
 		},
 	}
 
-	cacheDir, err := GetCacheDir()
+	cacheDir, err := download.GetCacheDir()
 	if err != nil {
 		fmt.Println("Failed to retrieve cache directory path (attempted <user folder>/.samp) ", err)
 		return
@@ -259,13 +265,4 @@ func main() {
 	if err != nil {
 		fmt.Printf("Exited with error: %v\n", err)
 	}
-}
-
-func fullPath(dir string) (path string) {
-	path, err := filepath.Abs(dir)
-	if err != nil {
-		panic(err)
-	}
-
-	return path
 }

@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"testing"
@@ -31,11 +31,13 @@ func Test_ServerFromNet(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ServerFromNet(tt.args.endpoint, tt.args.cacheDir, tt.args.version, tt.args.dir)
+			err := FromNet(tt.args.endpoint, tt.args.cacheDir, tt.args.version, tt.args.dir)
 			assert.NoError(t, err)
 		})
 	}
 }
+
+// Note: this test assumes the previous test has run and the packages are already cached
 
 func Test_ServerFromCache(t *testing.T) {
 	type args struct {
@@ -64,7 +66,7 @@ func Test_ServerFromCache(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotHit, err := ServerFromCache(tt.args.cacheDir, tt.args.version, tt.args.dir)
+			gotHit, err := FromCache(tt.args.cacheDir, tt.args.version, tt.args.dir)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

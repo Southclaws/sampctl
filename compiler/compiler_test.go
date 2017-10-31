@@ -1,8 +1,10 @@
-package main
+package compiler
 
 import (
 	"testing"
 
+	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -14,16 +16,16 @@ func Test_GetCompilerPackageInfo(t *testing.T) {
 	tests := []struct {
 		name         string
 		args         args
-		wantPkg      CompilerPackage
+		wantPkg      Package
 		wantFilename string
 		wantErr      bool
 	}{
 		{
 			"v darwin",
 			args{"darwin", "3.10.2"},
-			CompilerPackage{
+			Package{
 				URL:    "https://github.com/Zeex/pawn/releases/download/v3.10.2/pawnc-3.10.2-darwin.zip",
-				Method: Unzip,
+				Method: download.Unzip,
 				Paths: map[string]string{
 					"pawnc-3.10.2-darwin/bin/pawncc":         "pawncc",
 					"pawnc-3.10.2-darwin/lib/libpawnc.dylib": "libpawnc.dylib",
@@ -35,9 +37,9 @@ func Test_GetCompilerPackageInfo(t *testing.T) {
 		{
 			"v linux",
 			args{"linux", "3.10.2"},
-			CompilerPackage{
+			Package{
 				URL:    "https://github.com/Zeex/pawn/releases/download/v3.10.2/pawnc-3.10.2-linux.tar.gz",
-				Method: Untar,
+				Method: download.Untar,
 				Paths: map[string]string{
 					"pawnc-3.10.2-linux/bin/pawncc":      "pawncc",
 					"pawnc-3.10.2-linux/lib/libpawnc.so": "libpawnc.so",
@@ -49,9 +51,9 @@ func Test_GetCompilerPackageInfo(t *testing.T) {
 		{
 			"v windows",
 			args{"windows", "3.10.2"},
-			CompilerPackage{
+			Package{
 				URL:    "https://github.com/Zeex/pawn/releases/download/v3.10.2/pawnc-3.10.2-windows.zip",
-				Method: Unzip,
+				Method: download.Unzip,
 				Paths: map[string]string{
 					"pawnc-3.10.2-windows/bin/pawncc.exe": "pawncc.exe",
 					"pawnc-3.10.2-windows/bin/pawnc.dll":  "pawnc.dll",
@@ -88,15 +90,15 @@ func Test_CompilerFromNet(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{"valid", args{"./tests/cache", "3.10.2", "./tests/compiler"}, false},
+		{"valid", args{"tests/compiler", "3.10.2", "tests/compiler"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := CompilerFromNet(tt.args.cacheDir, tt.args.version, tt.args.dir)
+			err := FromNet(tt.args.cacheDir, tt.args.version, tt.args.dir)
 			assert.NoError(t, err)
 
 			// assumes the tests are being run in linux/darwin (sorry!)
-			assert.True(t, exists("./tests/compiler/pawncc"))
+			assert.True(t, util.Exists("./tests/compiler/pawncc"))
 		})
 	}
 }
@@ -117,7 +119,7 @@ func Test_CompilerFromCache(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotHit, err := CompilerFromCache(tt.args.cacheDir, tt.args.version, tt.args.dir)
+			gotHit, err := FromCache(tt.args.cacheDir, tt.args.version, tt.args.dir)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -140,14 +142,14 @@ func TestCompileSource(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{"valid", args{"./tests/compile/compile_test.pwn", "./tests/compile/compile_test.amx", fullPath("./tests/cache"), "3.10.2"}, false},
+		{"valid", args{"./tests/compile/compile_test.pwn", "./tests/compile/compile_test.amx", util.FullPath("./tests/cache"), "3.10.2"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := CompileSource(tt.args.input, tt.args.output, tt.args.cacheDir, tt.args.version); (err != nil) != tt.wantErr {
 				t.Errorf("CompileSource() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			assert.True(t, exists("./tests/compile/compile_test.amx"))
+			assert.True(t, util.Exists("./tests/compile/compile_test.amx"))
 		})
 	}
 }
