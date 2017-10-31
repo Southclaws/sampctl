@@ -11,6 +11,8 @@ import (
 
 func TestMain(m *testing.M) {
 	os.MkdirAll("./tests/server-dir/gamemodes", 0755)
+
+	os.Exit(m.Run())
 }
 
 func TestServer_GenerateServerCfg(t *testing.T) {
