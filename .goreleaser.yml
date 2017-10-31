@@ -48,7 +48,7 @@ fpm:
 brew:
   github:
     owner: Southclaws
-    name: sampctl
+    name: homebrew-sampctl
   homepage: https://github.com/Southclaws/sampctl
   description: A small utility for starting and managing SA:MP servers with better settings handling and crash resiliency.
 scoop:
