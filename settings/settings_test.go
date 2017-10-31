@@ -9,6 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestMain(m *testing.M) {
+	os.MkdirAll("./tests/server-dir/gamemodes", 0755)
+}
+
 func TestServer_GenerateServerCfg(t *testing.T) {
 	type args struct {
 		path string
@@ -192,7 +196,6 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 }
 
 func TestConfig_ValidateWorkspace(t *testing.T) {
-	os.MkdirAll("./tests/server-dir/gamemodes", 0755)
 	f, _ := os.Create("./tests/server-dir/gamemodes/rivershell.amx")
 	f.Close() // nolint
 	type args struct {
