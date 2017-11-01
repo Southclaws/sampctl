@@ -7,6 +7,7 @@ test:
 	go test -race -v -p 4 \
 		./compiler \
 		./download \
+		./rook \
 		./server \
 		./settings \
 		./util
