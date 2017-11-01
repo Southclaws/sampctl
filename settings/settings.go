@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/Southclaws/sampctl/util"
+	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 )
 
@@ -70,34 +71,71 @@ type Config struct {
 	Output            *bool    `default:"1"             required:"0" json:"output,omitempty"`            // 1
 }
 
-// NewConfigFromEnvironment creates a Config from the given environment which includes a directory which
-// searched for a `samp.json` file and environment variable versions of the config parameters.
+// NewConfigFromEnvironment creates a Config from the given environment which includes a directory
+// which is seached for either `samp.json` or `samp.yaml` and environment variable versions of the
+// config parameters.
 func NewConfigFromEnvironment(dir string) (cfg Config, err error) {
-	jsonFile := filepath.Join(dir, "samp.json")
-	_, err = os.Stat(jsonFile)
-	if os.IsNotExist(err) {
-		err = errors.Wrap(err, "directory does not contain a samp.json file")
+	cfg, err = ConfigFromDirectory(dir)
+	if err != nil {
 		return
-	} else if err != nil {
-		err = errors.Wrap(err, "failed to stat samp.json")
-		return
-	} else {
-		var contents []byte
-		contents, err = ioutil.ReadFile(jsonFile)
-		if err != nil {
-			err = errors.Wrap(err, "failed to read samp.json")
-			return
-		}
-
-		err = json.Unmarshal(contents, &cfg)
-		if err != nil {
-			err = errors.Wrap(err, "failed to unmarshal samp.json")
-			return
-		}
 	}
 
 	// Environment variables override samp.json
 	cfg.LoadEnvironmentVariables()
+
+	return
+}
+
+// ConfigFromDirectory creates a config from a directory by searching for a JSON or YAML file to
+// read settings from. If both exist, the JSON file takes precedence.
+func ConfigFromDirectory(dir string) (cfg Config, err error) {
+	jsonFile := filepath.Join(dir, "samp.json")
+	if util.Exists(jsonFile) {
+		cfg, err = ConfigFromJSON(jsonFile)
+	} else {
+		yamlFile := filepath.Join(dir, "samp.yaml")
+		if util.Exists(yamlFile) {
+			cfg, err = ConfigFromYAML(yamlFile)
+		} else {
+			err = errors.New("directory does not contain a samp.json or samp.yaml file")
+		}
+	}
+
+	return
+}
+
+// ConfigFromJSON creates a config from a JSON file
+func ConfigFromJSON(file string) (cfg Config, err error) {
+	var contents []byte
+	contents, err = ioutil.ReadFile(file)
+	if err != nil {
+		err = errors.Wrap(err, "failed to read samp.json")
+		return
+	}
+
+	err = json.Unmarshal(contents, &cfg)
+	if err != nil {
+		err = errors.Wrap(err, "failed to unmarshal samp.json")
+		return
+	}
+
+	return
+}
+
+// ConfigFromYAML creates a config from a YAML file
+func ConfigFromYAML(file string) (cfg Config, err error) {
+	var contents []byte
+	contents, err = ioutil.ReadFile(file)
+	if err != nil {
+		err = errors.Wrap(err, "failed to read samp.json")
+		return
+	}
+
+	err = yaml.Unmarshal(contents, &cfg)
+	if err != nil {
+		err = errors.Wrap(err, "failed to unmarshal samp.json")
+		return
+	}
 
 	return
 }
