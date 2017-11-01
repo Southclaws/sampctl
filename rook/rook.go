@@ -4,6 +4,10 @@
 // SHA1 hash is used.
 package rook
 
+import (
+	"fmt"
+)
+
 // Package represents a definition for a Pawn package and can either be used to define a build or
 // as a description of a package in a repository. This is akin to npm's package.json and combines
 // a project's dependencies with a description of that project.
@@ -31,4 +35,9 @@ type Package struct {
 	// Functional
 	Include      []string     `json:"incude"`       // list of paths that contain the package library source files if they do not exist in the repository's root
 	Dependencies []Dependency `json:"dependencies"` // list of packages that the package depends on
+}
+
+// GetURL generates a GitHub URL for a package - it does not test the validity of the URL
+func (pkg Package) GetURL() string {
+	return fmt.Sprintf("https://github.com/%s/%s", pkg.user, pkg.repo)
 }
