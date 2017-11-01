@@ -13,7 +13,8 @@ import (
 func Test(t *testing.T) { TestingT(t) }
 
 type ClientSuite struct {
-	Endpoint transport.Endpoint
+	Endpoint  transport.Endpoint
+	EmptyAuth transport.AuthMethod
 }
 
 var _ = Suite(&ClientSuite{})
@@ -26,7 +27,7 @@ func (s *ClientSuite) SetUpSuite(c *C) {
 	c.Assert(err, IsNil)
 }
 
-func (s *FetchPackSuite) TestNewClient(c *C) {
+func (s *UploadPackSuite) TestNewClient(c *C) {
 	roundTripper := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
@@ -50,7 +51,11 @@ func (s *ClientSuite) TestNewErrOK(c *C) {
 }
 
 func (s *ClientSuite) TestNewErrUnauthorized(c *C) {
-	s.testNewHTTPError(c, http.StatusUnauthorized, "authorization required")
+	s.testNewHTTPError(c, http.StatusUnauthorized, "authentication required")
+}
+
+func (s *ClientSuite) TestNewErrForbidden(c *C) {
+	s.testNewHTTPError(c, http.StatusForbidden, "authorization failed")
 }
 
 func (s *ClientSuite) TestNewErrNotFound(c *C) {
@@ -76,10 +81,9 @@ func (s *ClientSuite) testNewHTTPError(c *C, code int, msg string) {
 
 func (s *ClientSuite) TestSetAuth(c *C) {
 	auth := &BasicAuth{}
-	r, err := DefaultClient.NewFetchPackSession(s.Endpoint)
+	r, err := DefaultClient.NewUploadPackSession(s.Endpoint, auth)
 	c.Assert(err, IsNil)
-	r.SetAuth(auth)
-	c.Assert(auth, Equals, r.(*fetchPackSession).auth)
+	c.Assert(auth, Equals, r.(*upSession).auth)
 }
 
 type mockAuth struct{}
@@ -88,7 +92,6 @@ func (*mockAuth) Name() string   { return "" }
 func (*mockAuth) String() string { return "" }
 
 func (s *ClientSuite) TestSetAuthWrongType(c *C) {
-	r, err := DefaultClient.NewFetchPackSession(s.Endpoint)
-	c.Assert(err, IsNil)
-	c.Assert(r.SetAuth(&mockAuth{}), Equals, transport.ErrInvalidAuthMethod)
+	_, err := DefaultClient.NewUploadPackSession(s.Endpoint, &mockAuth{})
+	c.Assert(err, Equals, transport.ErrInvalidAuthMethod)
 }
