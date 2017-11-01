@@ -1,7 +1,10 @@
 package rook
 
-import "testing"
-import "github.com/stretchr/testify/assert"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestDependency_Validate(t *testing.T) {
 	tests := []struct {
