@@ -1,12 +1,15 @@
 package rook
 
 import (
+	"os"
 	"testing"
 
 	"github.com/Southclaws/sampctl/util"
 )
 
 func TestPackage_EnsureDependencies(t *testing.T) {
+	os.MkdirAll("./tests/deps-sif", 0755) //nolint
+
 	tests := []struct {
 		name    string
 		pkg     Package
