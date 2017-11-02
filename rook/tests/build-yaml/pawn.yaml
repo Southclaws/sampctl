@@ -1,0 +1,8 @@
+entry: gamemodes/test.pwn
+output: gamemodes/test.amx
+dependencies:
+- Southclaws/samp-stdlib:0.3.7-R2-2-1
+- Southclaws/SIF:1.6.2
+- Misiur/YSI-Includes
+- samp-incognito/samp-streamer-plugin:2.9.1
+- Zeex/amx_assembly
