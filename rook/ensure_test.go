@@ -13,7 +13,7 @@ func TestMain(m *testing.M) {
 	os.MkdirAll("./tests", 0755)
 
 	// Make sure our test dir is empty before running tests
-	err := os.RemoveAll("./tests")
+	err := os.RemoveAll("./tests/SIF*")
 	if err != nil {
 		panic(err)
 	}

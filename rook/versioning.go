@@ -50,3 +50,29 @@ func (d Dependency) Validate() (bool, error) {
 
 	return true, nil
 }
+
+// Explode does a similar job to Validate - splits the specified dependency string into it's
+// component parts and validates it, this function returns the component parts.
+func (d Dependency) Explode() (user, repo, version string, err error) {
+	if !dependencyPattern.MatchString(string(d)) {
+		err = errors.New("dependency string does not match pattern")
+		return
+	}
+
+	captures := dependencyPattern.FindStringSubmatch(string(d))
+	if len(captures) != 5 {
+		err = errors.New("dependency pattern match count != 5")
+		return
+	}
+
+	if captures[1] == "" {
+		user = captures[2]
+		repo = captures[3]
+		version = captures[4]
+	} else {
+		user = captures[1]
+		repo = captures[2]
+		version = captures[3]
+	}
+	return
+}
