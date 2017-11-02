@@ -42,6 +42,8 @@ type Package struct {
 	Website      string   `json:"website"`      // website or forum topic associated with the package
 
 	// Functional, set by the package author to declare relevant files and dependencies
+	Entry        string       `json:"entry"`        // entry point script to compile the project
+	Output       string       `json:"output"`       // output amx file
 	Include      []string     `json:"incude"`       // list of paths that contain the package library source files if they do not exist in the repository's root
 	Dependencies []Dependency `json:"dependencies"` // list of packages that the package depends on
 }
