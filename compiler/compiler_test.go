@@ -134,6 +134,7 @@ func TestCompileSource(t *testing.T) {
 	type args struct {
 		input    string
 		output   string
+		includes []string
 		cacheDir string
 		version  string
 	}
@@ -142,11 +143,16 @@ func TestCompileSource(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{"valid", args{"./tests/compile/compile_test.pwn", "./tests/compile/compile_test.amx", util.FullPath("./tests/cache"), "3.10.2"}, false},
+		{"valid", args{
+			"./tests/compile/compile_test.pwn",
+			"./tests/compile/compile_test.amx",
+			[]string{},
+			util.FullPath("./tests/cache"),
+			"3.10.2"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := CompileSource(tt.args.input, tt.args.output, tt.args.cacheDir, tt.args.version); (err != nil) != tt.wantErr {
+			if err := CompileSource(tt.args.input, tt.args.output, tt.args.includes, tt.args.cacheDir, tt.args.version); (err != nil) != tt.wantErr {
 				t.Errorf("CompileSource() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			assert.True(t, util.Exists("./tests/compile/compile_test.amx"))

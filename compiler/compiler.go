@@ -67,7 +67,7 @@ func FromNet(cacheDir, version, dir string) (err error) {
 }
 
 // CompileSource compiles a given input script to the specified output path using compiler version
-func CompileSource(input, output, cacheDir, version string) (err error) {
+func CompileSource(input, output string, includes []string, cacheDir, version string) (err error) {
 	fmt.Printf("Compiling source: '%s'...\n", input)
 
 	cacheDir = util.FullPath(cacheDir)
@@ -83,9 +83,22 @@ func CompileSource(input, output, cacheDir, version string) (err error) {
 		return
 	}
 
+	args := []string{
+		input,
+		"-;+",
+		"-(+",
+		"-d3",
+		"-Z+",
+		"-o" + output,
+	}
+
+	for _, inc := range includes {
+		args = append(args, "-i"+inc)
+	}
+
 	binary := filepath.Join(dir, pkg.Binary)
 
-	cmd := exec.Command(binary, input, "-;+", "-(+", "-d3", "-Z+", "-o"+output)
+	cmd := exec.Command(binary, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Env = []string{fmt.Sprintf("LD_LIBRARY_PATH=%s", dir)}
