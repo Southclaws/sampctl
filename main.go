@@ -219,7 +219,7 @@ func main() {
 					Aliases: []string{"b"},
 					Usage:   "builds a project defined by a pawn.json or pawn.yaml file",
 					Action: func(c *cli.Context) error {
-						// version := c.String("version")
+						version := c.String("version")
 						dir := util.FullPath(c.String("dir"))
 
 						pkg, err := rook.PackageFromDir(dir)
@@ -229,9 +229,14 @@ func main() {
 
 						fmt.Println("building", pkg)
 
-						// err, output= pkg.Build(version)
+						output, err := pkg.Build(version)
+						if err != nil {
+							return err
+						}
 
-						return err
+						fmt.Println("successfully built project to", output)
+
+						return nil
 					},
 					Flags: []cli.Flag{
 						cli.StringFlag{
