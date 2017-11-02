@@ -8,6 +8,7 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/rook"
 	"github.com/Southclaws/sampctl/server"
 	"github.com/Southclaws/sampctl/settings"
 	"github.com/Southclaws/sampctl/util"
@@ -159,15 +160,19 @@ func main() {
 						// version := c.String("version")
 						// container := c.Bool("container")
 						// endpoint := c.String("endpoint")
-						// cacheDir, err := download.GetCacheDir()
-						// if err != nil {
-						// 	return err
-						// }
-						// dir := filepath.Join(cacheDir, "runtime", version)
+						// endpoint := c.String("endpoint")
+						dir := util.FullPath(c.String("dir"))
 
-						// todo: compile as a build job then copy resultant .amx to runtime
-						//
-						// filePath := util.FullPath(file)
+						pkg, err := rook.PackageFromDir(dir)
+						if err != nil {
+							return errors.Wrap(err, "failed to interpret directory as Pawn package")
+						}
+
+						fmt.Println("building", pkg)
+
+						// err, output = pkg.Build(version)
+
+						// filePath := util.FullPath(output)
 
 						// err = server.PrepareRuntime(endpoint, version, dir)
 						// if err != nil {
@@ -202,35 +207,42 @@ func main() {
 							Name:  "container",
 							Usage: "starts the server as a Linux container instead of running it in the current directory",
 						},
+						cli.StringFlag{
+							Name:  "dir",
+							Value: ".",
+							Usage: "working directory for the server - by default, uses the current directory",
+						},
 					},
 				},
 				{
 					Name:    "build",
-					Aliases: []string{"c"},
+					Aliases: []string{"b"},
 					Usage:   "builds a project defined by a pawn.json or pawn.yaml file",
 					Action: func(c *cli.Context) error {
 						// version := c.String("version")
-						// inputFile := util.FullPath(c.Args().First())
-						// outputFile := strings.TrimSuffix(inputFile, filepath.Ext(inputFile)) + ".amx"
+						dir := util.FullPath(c.String("dir"))
 
-						// if !util.Exists(inputFile) {
-						// 	return errors.Errorf("source file '%s' does not exist", inputFile)
-						// }
+						pkg, err := rook.PackageFromDir(dir)
+						if err != nil {
+							return errors.Wrap(err, "failed to interpret directory as Pawn package")
+						}
 
-						// cacheDir, err := download.GetCacheDir()
-						// if err != nil {
-						// 	return err
-						// }
+						fmt.Println("building", pkg)
 
-						// err = rook.BuildProject(inputFile, outputFile, cacheDir, version, includes)
+						// err, output= pkg.Build(version)
 
-						return nil
+						return err
 					},
 					Flags: []cli.Flag{
 						cli.StringFlag{
-							Name:  "pawncc-version",
+							Name:  "version",
 							Value: "3.10.2",
 							Usage: "server version - corresponds to http://files.sa-mp.com packages without the .tar.gz",
+						},
+						cli.StringFlag{
+							Name:  "dir",
+							Value: ".",
+							Usage: "working directory for the server - by default, uses the current directory",
 						},
 					},
 				},
