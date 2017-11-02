@@ -3,13 +3,10 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Southclaws/sampctl/compiler"
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/server"
 	"github.com/Southclaws/sampctl/settings"
@@ -150,92 +147,92 @@ func main() {
 			},
 		},
 		{
-			Name:    "exec",
-			Aliases: []string{"e"},
-			Usage:   "execute an amx file as a SA:MP gamemode for quick testing in a temporary server installation",
-			Action: func(c *cli.Context) error {
-				if c.NArg() != 1 {
-					return errors.New("argument required: file to execute")
-				}
+			Name:    "project",
+			Aliases: []string{"p"},
+			Usage:   "project level commands for managing packages and gamemodes",
+			Subcommands: []cli.Command{
+				{
+					Name:    "run",
+					Aliases: []string{"r"},
+					Usage:   "compiles and runs a project defined by a pawn.json or pawn.yaml file",
+					Action: func(c *cli.Context) error {
+						// version := c.String("version")
+						// container := c.Bool("container")
+						// endpoint := c.String("endpoint")
+						// cacheDir, err := download.GetCacheDir()
+						// if err != nil {
+						// 	return err
+						// }
+						// dir := filepath.Join(cacheDir, "runtime", version)
 
-				file := c.Args().First()
-				version := c.String("version")
-				container := c.Bool("container")
-				endpoint := c.String("endpoint")
-				cacheDir, err := download.GetCacheDir()
-				if err != nil {
-					return err
-				}
-				dir := filepath.Join(cacheDir, "runtime", version)
+						// todo: compile as a build job then copy resultant .amx to runtime
+						//
+						// filePath := util.FullPath(file)
 
-				filePath := util.FullPath(file)
+						// err = server.PrepareRuntime(endpoint, version, dir)
+						// if err != nil {
+						// 	return err
+						// }
 
-				err = server.PrepareRuntime(endpoint, version, dir)
-				if err != nil {
-					return err
-				}
+						// err = server.CopyFileToRuntime(cacheDir, version, filePath)
+						// if err != nil {
+						// 	return err
+						// }
 
-				err = server.CopyFileToRuntime(cacheDir, version, filePath)
-				if err != nil {
-					return err
-				}
+						// if container {
+						// 	err = server.RunContainer(endpoint, version, dir, app.Version)
+						// } else {
+						// 	err = server.Run(endpoint, version, dir)
+						// }
 
-				if container {
-					err = server.RunContainer(endpoint, version, dir, app.Version)
-				} else {
-					err = server.Run(endpoint, version, dir)
-				}
-
-				return err
-			},
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "version",
-					Value: "0.3.7",
-					Usage: "server version - corresponds to http://files.sa-mp.com packages without the .tar.gz",
+						return nil
+					},
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:  "version",
+							Value: "0.3.7",
+							Usage: "server version - corresponds to http://files.sa-mp.com packages without the .tar.gz",
+						},
+						cli.StringFlag{
+							Name:  "endpoint",
+							Value: "http://files.sa-mp.com",
+							Usage: "endpoint to download packages from",
+						},
+						cli.BoolFlag{
+							Name:  "container",
+							Usage: "starts the server as a Linux container instead of running it in the current directory",
+						},
+					},
 				},
-				cli.StringFlag{
-					Name:  "endpoint",
-					Value: "http://files.sa-mp.com",
-					Usage: "endpoint to download packages from",
-				},
-				cli.BoolFlag{
-					Name:  "container",
-					Usage: "starts the server as a Linux container instead of running it in the current directory",
-				},
-			},
-		},
-		{
-			Name:    "compile",
-			Aliases: []string{"c"},
-			Usage:   "compile a .pwn file to an .amx file in the same directory",
-			Action: func(c *cli.Context) error {
-				if c.NArg() != 1 {
-					return errors.New("argument required: file to compile")
-				}
+				{
+					Name:    "build",
+					Aliases: []string{"c"},
+					Usage:   "builds a project defined by a pawn.json or pawn.yaml file",
+					Action: func(c *cli.Context) error {
+						// version := c.String("version")
+						// inputFile := util.FullPath(c.Args().First())
+						// outputFile := strings.TrimSuffix(inputFile, filepath.Ext(inputFile)) + ".amx"
 
-				pawnccVersion := c.String("pawncc-version")
-				inputFile := util.FullPath(c.Args().First())
-				outputFile := strings.TrimSuffix(inputFile, filepath.Ext(inputFile)) + ".amx"
+						// if !util.Exists(inputFile) {
+						// 	return errors.Errorf("source file '%s' does not exist", inputFile)
+						// }
 
-				if !util.Exists(inputFile) {
-					return errors.Errorf("source file '%s' does not exist", inputFile)
-				}
+						// cacheDir, err := download.GetCacheDir()
+						// if err != nil {
+						// 	return err
+						// }
 
-				cacheDir, err := download.GetCacheDir()
-				if err != nil {
-					return err
-				}
+						// err = rook.BuildProject(inputFile, outputFile, cacheDir, version, includes)
 
-				err = compiler.CompileSource(inputFile, outputFile, cacheDir, pawnccVersion)
-
-				return err
-			},
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "pawncc-version",
-					Value: "3.10.2",
-					Usage: "server version - corresponds to http://files.sa-mp.com packages without the .tar.gz",
+						return nil
+					},
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:  "pawncc-version",
+							Value: "3.10.2",
+							Usage: "server version - corresponds to http://files.sa-mp.com packages without the .tar.gz",
+						},
+					},
 				},
 			},
 		},
