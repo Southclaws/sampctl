@@ -13,7 +13,7 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 		wantErr bool
 	}{
 		{"valid", Package{
-			local: util.FullPath("./tests/server-with-deps"),
+			local: util.FullPath("./tests/deps-sif"),
 			Dependencies: []Dependency{
 				Dependency("Southclaws/SIF:1.6.2"),
 			}}, false},
