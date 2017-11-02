@@ -14,10 +14,10 @@ func TestDependency_Validate(t *testing.T) {
 		wantErr   bool
 	}{
 		// Unversioned
-		{"v u https url", Dependency("https://github.com/user/repo"), true, false},
-		{"v u http url", Dependency("http://github.com/user/repo"), true, false},
-		{"v u naked url", Dependency("github.com/user/repo"), true, false},
-		{"v u user/repo", Dependency("user/repo"), true, false},
+		{"v u https url", Dependency("https://github.com/user/repo_name"), true, false},
+		{"v u http url", Dependency("http://github.com/user/repo_name"), true, false},
+		{"v u naked url", Dependency("github.com/user/repo_name"), true, false},
+		{"v u user/repo", Dependency("user/repo_name"), true, false},
 
 		// Versioned - semver
 		{"v v https url", Dependency("https://github.com/user/repo:1.2.3"), true, false},
