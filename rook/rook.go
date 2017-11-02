@@ -52,6 +52,23 @@ func (pkg Package) String() string {
 	return fmt.Sprintf("%s/%s:%s", pkg.user, pkg.repo, pkg.version)
 }
 
+// Validate checks a package for missing fields
+func (pkg Package) Validate() (err error) {
+	if pkg.Entry == "" {
+		return errors.New("package does not define an entry point")
+	}
+
+	if pkg.Output == "" {
+		return errors.New("package does not define an output file")
+	}
+
+	if pkg.Entry == pkg.Output {
+		return errors.New("package entry and output point to the same file")
+	}
+
+	return
+}
+
 // GetURL generates a GitHub URL for a package - it does not test the validity of the URL
 func (pkg Package) GetURL() string {
 	return fmt.Sprintf("https://github.com/%s/%s", pkg.user, pkg.repo)
@@ -60,12 +77,6 @@ func (pkg Package) GetURL() string {
 // PackageFromDep creates a Package object from a Dependency String
 func PackageFromDep(dep Dependency) (pkg Package, err error) {
 	pkg.user, pkg.repo, pkg.version, err = dep.Explode()
-	return
-}
-
-// PackageFromDir attempts to parse a directory as a Package by looking for a `pawn.json` or
-// `pawn.yaml` file and unmarshalling it.
-func PackageFromDir(dir string) (pkg Package, err error) {
 	return
 }
 
