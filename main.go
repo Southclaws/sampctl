@@ -32,6 +32,10 @@ func main() {
 
 	app.Commands = []cli.Command{
 		{
+			Name:   "version",
+			Action: cli.VersionPrinter,
+		},
+		{
 			Name:    "init",
 			Aliases: []string{"i"},
 			Usage:   "initialise a sa-mp server folder with a few questions, uses the cwd if --dir is not set",
