@@ -1,6 +1,6 @@
 # sampctl
 
-[![Build Status](https://travis-ci.org/Southclaws/sampctl.svg?branch=master)](https://travis-ci.org/Southclaws/sampctl)
+[![Build Status](https://travis-ci.org/Southclaws/sampctl.svg?branch=master)](https://travis-ci.org/Southclaws/sampctl)[![Go Report Card](https://goreportcard.com/badge/github.com/Southclaws/sampctl)](https://goreportcard.com/report/github.com/Southclaws/sampctl)
 
 A small utility for starting and managing SA:MP servers with better settings handling and crash resiliency.
 
@@ -15,7 +15,7 @@ A small utility for starting and managing SA:MP servers with better settings han
 - [Mac](https://github.com/Southclaws/sampctl/wiki/Mac)
 
 ## `sampctl`
-1.2.6-R3 - Southclaws <southclaws@gmail.com>
+1.3.0-RC1 - Southclaws <southclaws@gmail.com>
 
 A small utility for starting and managing SA:MP servers with better settings handling and crash resiliency.
 
@@ -55,25 +55,9 @@ download a version of the server, uses latest if --version is not specified
 - `--endpoint`
 
 
-### `exec`
+### `project`
 
-execute an amx file as a SA:MP gamemode for quick testing in a temporary server installation
-
-#### Flags
-
-- `--version`
-- `--endpoint`
-- `--container`
-
-
-### `compile`
-
-compile a .pwn file to an .amx file in the same directory
-
-#### Flags
-
-- `--pawncc-version`
-
+project level commands for managing packages and gamemodes
 
 ### `docgen`
 
