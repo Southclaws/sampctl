@@ -98,10 +98,10 @@
   revision = "b8bc1bf767474819792c23f32d8286a45736f1c6"
 
 [[projects]]
-  branch = "master"
   name = "github.com/nbutton23/zxcvbn-go"
   packages = [".","adjacency","data","entropy","frequency","match","matching","scoring","utils/math"]
-  revision = "9e2737e8c38cd3467672e2ac8ed17705fb5aa78e"
+  revision = "eafdab6b0663b4b528c35975c8b0e78be6e25261"
+  version = "v0.1"
 
 [[projects]]
   name = "github.com/pkg/errors"
@@ -149,19 +149,19 @@
   branch = "master"
   name = "golang.org/x/net"
   packages = ["context","context/ctxhttp","proxy"]
-  revision = "c73622c77280266305273cb545f54516ced95b93"
+  revision = "01c190206fbdffa42f334f4b2bf2220f50e64920"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix","windows"]
-  revision = "95c6576299259db960f6c5b9b69ea52422860fce"
+  revision = "4fe5d7925040acd225bf9c7cee65e82d07f06bff"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/text"
   packages = ["internal/gen","internal/triegen","internal/ucd","transform","unicode/cldr","unicode/norm"]
-  revision = "7d4e23b25beca3bc3b804ab134f0b12b4ca909d1"
+  revision = "88f656faf3f37f690df1a32515b479415e1a6769"
 
 [[projects]]
   name = "gopkg.in/AlecAivazis/survey.v1"
@@ -202,6 +202,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "7e962f9c9f3756a9e55d90bded0df9fd98b2736892d69b314a1a4d164518af20"
+  inputs-digest = "c44c6d9f2c26631921a090066f76f1eec04a7a4208459eb63fd4bc9effa7f2dc"
   solver-name = "gps-cdcl"
   solver-version = 1
