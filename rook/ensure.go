@@ -73,6 +73,7 @@ func EnsurePackage(vendorDirectory string, pkg Package) (err error) {
 
 		tagVersion, err := semver.NewVersion(tag)
 		if err != nil {
+			fmt.Println(pkg, "skipping non-semver tag:", tag)
 			return nil
 		}
 
@@ -88,12 +89,12 @@ func EnsurePackage(vendorDirectory string, pkg Package) (err error) {
 		tag := allRefs[version.String()]
 
 		if constraint.Check(version) {
-			fmt.Println(pkg, "discovered tag", tag, "that matches constraint", pkg.version, tag.Hash().String())
+			fmt.Println(pkg, "discovered tag", tag, "that matches constraint", pkg.version)
 			ref = tag
 			break
 		}
 
-		fmt.Println(pkg, "incompatible tag", tag, "does not satisfy constraint", pkg.version, tag.Hash().String())
+		fmt.Println(pkg, "incompatible tag", tag, "does not satisfy constraint", pkg.version)
 	}
 
 	if ref == nil {
