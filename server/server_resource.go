@@ -20,6 +20,22 @@ type Package struct {
 }
 
 var (
+	v038rc1 = &Package{
+		"samp038svr_RC1.tar.gz",
+		"samp038_svr_RC1_win32.zip",
+		"",
+		"",
+		map[string]string{
+			"samp03/samp03svr": "samp03svr",
+			"samp03/announce":  "announce",
+			"samp03/samp-npc":  "samp-npc",
+		},
+		map[string]string{
+			"samp-server.exe": "samp-server.exe",
+			"announce.exe":    "announce.exe",
+			"samp-npc.exe":    "samp-npc.exe",
+		},
+	}
 	v037r221 = &Package{
 		"samp037svr_R2-2-1.tar.gz",
 		"samp037_svr_R2-2-1_win32.zip",
