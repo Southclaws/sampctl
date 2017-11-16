@@ -1,6 +1,6 @@
 ## An Easier Way To Configure via `samp.json`
 
-Everybody loves JSON! An I've always hated the `server.cfg` structure, so no longer will you need to edit this file by hand! You can work with a modern, structured, JSON format instead.
+Everybody loves JSON! I've always hated the `server.cfg` structure, so no longer will you need to edit this file by hand! You can work with a modern, structured, JSON format instead.
 
 If your current directory has a JSON file named `samp.json`, the values will be used to generate a `server.cfg` file.
 
