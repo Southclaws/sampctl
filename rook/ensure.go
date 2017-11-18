@@ -64,20 +64,13 @@ func EnsurePackage(vendorDirectory string, pkg Package) (err error) {
 		}
 	}
 
-	constraint, err := semver.NewConstraint(pkg.version)
-	if err != nil {
-		// todo: support non-semver versioning by just using tag
-		return errors.Wrap(err, "package version constraint is not valid")
-	}
-
 	versionedTags, err := getPackageRepoTags(repo)
 	if err != nil {
 		return errors.Wrap(err, "failed to get package repository tags")
 	}
 
-	ref := getRefFromConstraint(pkg, versionedTags, constraint)
-	if ref == nil {
-		err = errors.Errorf("failed to satisfy constraint, no tag found by that name, available tags: %v", versionedTags)
+	ref, err := getRefFromConstraint(pkg, versionedTags, pkg.version)
+	if err != nil {
 		return
 	}
 
@@ -132,7 +125,14 @@ func getPackageRepoTags(repo *git.Repository) (versionedTags VersionedTags, err 
 	return
 }
 
-func getRefFromConstraint(pkg Package, versionedTags VersionedTags, constraint *semver.Constraints) (ref *plumbing.Reference) {
+func getRefFromConstraint(pkg Package, versionedTags VersionedTags, version string) (ref *plumbing.Reference, err error) {
+	constraint, err := semver.NewConstraint(version)
+	if err != nil {
+		// todo: support non-semver versioning by just using tag
+		err = errors.Wrap(err, "package version constraint is not valid")
+		return
+	}
+
 	sort.Sort(sort.Reverse(versionedTags))
 
 	for _, version := range versionedTags {
@@ -142,8 +142,10 @@ func getRefFromConstraint(pkg Package, versionedTags VersionedTags, constraint *
 			return
 		}
 
+		// these messages will be removed in future versions
 		fmt.Println(pkg, "incompatible tag", version.Tag, "does not satisfy constraint", pkg.version)
 	}
+	err = errors.Errorf("failed to satisfy constraint, no tag found by that name, available tags: %v", versionedTags)
 	return
 }
 
