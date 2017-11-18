@@ -36,7 +36,7 @@ func TestEnsurePackage(t *testing.T) {
 		{"SIF latest", args{"./tests/deps", Package{
 			user: "Southclaws",
 			repo: "SIF",
-		}}, "b1db5430428fe89f1cdbcb8267fe8f9f9b78df92", false, false},
+		}}, "b1db5430428fe89f1cdbcb8267fe8f9f9b78df92", false, true},
 		{"SIF 1.3.x", args{"./tests/deps", Package{
 			user:    "Southclaws",
 			repo:    "SIF",
@@ -45,8 +45,17 @@ func TestEnsurePackage(t *testing.T) {
 		{"SIF 1.4.x", args{"./tests/deps", Package{
 			user:    "Southclaws",
 			repo:    "SIF",
+			version: "1.4.x",
+		}}, "706daf942e2aa4c2460ecacb459c354ba6951fd0", false, true},
+		{"SIF latest nodelete", args{"./tests/deps", Package{
+			user: "Southclaws",
+			repo: "SIF",
+		}}, "b1db5430428fe89f1cdbcb8267fe8f9f9b78df92", false, false},
+		{"SIF 1.3.x downgrade", args{"./tests/deps", Package{
+			user:    "Southclaws",
+			repo:    "SIF",
 			version: "1.3.x",
-		}}, "706daf942e2aa4c2460ecacb459c354ba6951fd0", false, false},
+		}}, "433fc17e9c6bf66bdf7ef3b82b70eea1c34af43f", false, true},
 		// {"crashdetect latest", args{"./tests/deps", Package{
 		// 	user: "Zeex",
 		// 	repo: "samp-plugin-crashdetect",
@@ -55,7 +64,16 @@ func TestEnsurePackage(t *testing.T) {
 		// 	user:    "Zeex",
 		// 	repo:    "samp-plugin-crashdetect",
 		// 	version: "4.15.x",
-		// }}, "b4d4abd02bfc7052a73af27ca5d828c8ec057481", false, false},
+		// }}, "f28bbc0fb252d2b0a68dbd643a93adf771e47971", false, true},
+		// {"crashdetect latest nodelete", args{"./tests/deps", Package{
+		// 	user: "Zeex",
+		// 	repo: "samp-plugin-crashdetect",
+		// }}, "722f3e80e47b74ff694fd1805b9d2922c2c15ce0", false, false},
+		// {"crashdetect 4.15 downgrade", args{"./tests/deps", Package{
+		// 	user:    "Zeex",
+		// 	repo:    "samp-plugin-crashdetect",
+		// 	version: "4.15.x",
+		// }}, "f28bbc0fb252d2b0a68dbd643a93adf771e47971", false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

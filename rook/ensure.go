@@ -14,6 +14,15 @@ import (
 
 // ensure.go contains functions to install, update and validate dependencies of a project.
 
+// VersionedTag represents a git tag ref with a valid semantic version number as a tag
+type VersionedTag struct {
+	Ref *plumbing.Reference
+	Tag *semver.Version
+}
+
+// VersionedTags is just for implementing the Sort interface
+type VersionedTags []VersionedTag
+
 // EnsurePackage will make sure a vendor directory contains the specified package.
 // If the package is not present, it will clone it at the correct version tag, sha1 or HEAD
 // If the package is present, it will ensure the directory contains the correct version
@@ -21,23 +30,24 @@ func EnsurePackage(vendorDirectory string, pkg Package) (err error) {
 	pkgPath := filepath.Join(util.FullPath(vendorDirectory), pkg.repo)
 
 	repo, err := git.PlainOpen(pkgPath)
-	if err != nil {
-		if err == git.ErrRepositoryNotExists {
-			fmt.Println(pkg, "package does not exist at", pkgPath, "cloning new copy")
+	if err != nil && err != git.ErrRepositoryNotExists {
+		err = errors.Wrap(err, "failed to open dependency repository")
+		return
+	}
 
-			repo, err = git.PlainClone(pkgPath, false, &git.CloneOptions{
-				URL: pkg.GetURL(),
-			})
-			if err != nil {
-				err = errors.Wrap(err, "failed to clone dependency repository")
-				return
-			}
-		} else {
-			err = errors.Wrap(err, "failed to open dependency repository")
+	if err == git.ErrRepositoryNotExists {
+		fmt.Println(pkg, "package does not exist at", pkgPath, "cloning new copy")
+
+		repo, err = git.PlainClone(pkgPath, false, &git.CloneOptions{
+			URL: pkg.GetURL(),
+		})
+		if err != nil {
+			err = errors.Wrap(err, "failed to clone dependency repository")
 			return
 		}
 	} else {
-		fmt.Println(pkg, "package already exists, ensuring local copy matches version constraint")
+		head, _ := repo.Head()
+		fmt.Println(pkg, "package already exists at", head)
 	}
 
 	if pkg.version == "" {
@@ -50,6 +60,7 @@ func EnsurePackage(vendorDirectory string, pkg Package) (err error) {
 			return
 		} else {
 			fmt.Println(pkg, "package does not have version constraint and the latest copy has been cloned")
+			return
 		}
 	}
 
@@ -59,44 +70,12 @@ func EnsurePackage(vendorDirectory string, pkg Package) (err error) {
 		return errors.Wrap(err, "package version constraint is not valid")
 	}
 
-	tags, err := repo.Tags()
+	versionedTags, err := getPackageRepoTags(repo)
 	if err != nil {
-		return errors.Wrap(err, "failed to get repo tags")
-	}
-	defer tags.Close()
-
-	var ref *plumbing.Reference
-	versionedTags := semver.Collection{}
-	allRefs := make(map[string]*plumbing.Reference)
-	tags.ForEach(func(pr *plumbing.Reference) error {
-		tag := pr.Name().Short()
-
-		tagVersion, err := semver.NewVersion(tag)
-		if err != nil {
-			fmt.Println(pkg, "skipping non-semver tag:", tag)
-			return nil
-		}
-
-		versionedTags = append(versionedTags, tagVersion)
-		allRefs[tagVersion.String()] = pr
-
-		return nil
-	})
-
-	sort.Sort(sort.Reverse(versionedTags))
-
-	for _, version := range versionedTags {
-		tag := allRefs[version.String()]
-
-		if constraint.Check(version) {
-			fmt.Println(pkg, "discovered tag", tag, "that matches constraint", pkg.version)
-			ref = tag
-			break
-		}
-
-		fmt.Println(pkg, "incompatible tag", tag, "does not satisfy constraint", pkg.version)
+		return errors.Wrap(err, "failed to get package repository tags")
 	}
 
+	ref := getRefFromConstraint(pkg, versionedTags, constraint)
 	if ref == nil {
 		err = errors.Errorf("failed to satisfy constraint, no tag found by that name, available tags: %v", versionedTags)
 		return
@@ -117,8 +96,74 @@ func EnsurePackage(vendorDirectory string, pkg Package) (err error) {
 		return
 	}
 
-	head, _ := repo.Head()
+	head, err := repo.Head()
+	if err != nil {
+		return
+	}
 	fmt.Println(pkg, "successfully checked out to", head.Hash().String())
 
 	return
+}
+
+func getPackageRepoTags(repo *git.Repository) (versionedTags VersionedTags, err error) {
+	tags, err := repo.Tags()
+	if err != nil {
+		err = errors.Wrap(err, "failed to get repo tags")
+		return
+	}
+	defer tags.Close()
+
+	tags.ForEach(func(pr *plumbing.Reference) error {
+		tag := pr.Name().Short()
+
+		tagVersion, err := semver.NewVersion(tag)
+		if err != nil {
+			return nil
+		}
+
+		versionedTags = append(versionedTags, VersionedTag{
+			Ref: pr,
+			Tag: tagVersion,
+		})
+
+		return nil
+	})
+
+	return
+}
+
+func getRefFromConstraint(pkg Package, versionedTags VersionedTags, constraint *semver.Constraints) (ref *plumbing.Reference) {
+	sort.Sort(sort.Reverse(versionedTags))
+
+	for _, version := range versionedTags {
+		if constraint.Check(version.Tag) {
+			fmt.Println(pkg, "discovered tag", version.Tag, "that matches constraint", pkg.version)
+			ref = version.Ref
+			return
+		}
+
+		fmt.Println(pkg, "incompatible tag", version.Tag, "does not satisfy constraint", pkg.version)
+	}
+	return
+}
+
+// Implements the sort interface on collections of VersionedTags - code copied from semver because
+// VersionedTags is just a copy of semver.Collection with the added git ref field
+
+// Len returns the length of a collection. The number of Version instances
+// on the slice.
+func (c VersionedTags) Len() int {
+	return len(c)
+}
+
+// Less is needed for the sort interface to compare two Version objects on the
+// slice. If checks if one is less than the other.
+func (c VersionedTags) Less(i, j int) bool {
+	return c[i].Tag.LessThan(c[j].Tag)
+}
+
+// Swap is needed for the sort interface to replace the Version objects
+// at two different positions in the slice.
+func (c VersionedTags) Swap(i, j int) {
+	c[i], c[j] = c[j], c[i]
 }
