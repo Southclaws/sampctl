@@ -26,6 +26,7 @@ func TestPackageFromDir(t *testing.T) {
 				DependencyString("Misiur/YSI-Includes"),
 				DependencyString("samp-incognito/samp-streamer-plugin:2.9.1"),
 				DependencyString("Zeex/amx_assembly"),
+				DependencyString("Zeex/samp-plugin-crashdetect/include"),
 			}},
 			false},
 		{"build-yaml", args{"./tests/build-yaml"}, Package{

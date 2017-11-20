@@ -33,46 +33,46 @@ func TestEnsurePackage(t *testing.T) {
 		wantErr bool
 		delete  bool
 	}{
-		{"SIF latest", args{"./tests/deps", Package{
-			user: "Southclaws",
-			repo: "SIF",
-		}}, "b1db5430428fe89f1cdbcb8267fe8f9f9b78df92", false, true},
-		{"SIF 1.3.x", args{"./tests/deps", Package{
-			user:    "Southclaws",
-			repo:    "SIF",
-			version: "1.3.x",
-		}}, "433fc17e9c6bf66bdf7ef3b82b70eea1c34af43f", false, true},
-		{"SIF 1.4.x", args{"./tests/deps", Package{
-			user:    "Southclaws",
-			repo:    "SIF",
-			version: "1.4.x",
-		}}, "706daf942e2aa4c2460ecacb459c354ba6951fd0", false, true},
-		{"SIF latest nodelete", args{"./tests/deps", Package{
-			user: "Southclaws",
-			repo: "SIF",
-		}}, "b1db5430428fe89f1cdbcb8267fe8f9f9b78df92", false, false},
-		{"SIF 1.3.x downgrade", args{"./tests/deps", Package{
-			user:    "Southclaws",
-			repo:    "SIF",
-			version: "1.3.x",
-		}}, "433fc17e9c6bf66bdf7ef3b82b70eea1c34af43f", false, true},
+		{"SIF latest", args{"./tests/deps", Package{Dependency: Dependency{
+			User: "Southclaws",
+			Repo: "SIF",
+		}}}, "b1db5430428fe89f1cdbcb8267fe8f9f9b78df92", false, true},
+		{"SIF 1.3.x", args{"./tests/deps", Package{Dependency: Dependency{
+			User:    "Southclaws",
+			Repo:    "SIF",
+			Version: "1.3.x",
+		}}}, "433fc17e9c6bf66bdf7ef3b82b70eea1c34af43f", false, true},
+		{"SIF 1.4.x", args{"./tests/deps", Package{Dependency: Dependency{
+			User:    "Southclaws",
+			Repo:    "SIF",
+			Version: "1.4.x",
+		}}}, "706daf942e2aa4c2460ecacb459c354ba6951fd0", false, true},
+		{"SIF latest nodelete", args{"./tests/deps", Package{Dependency: Dependency{
+			User: "Southclaws",
+			Repo: "SIF",
+		}}}, "b1db5430428fe89f1cdbcb8267fe8f9f9b78df92", false, false},
+		{"SIF 1.3.x downgrade", args{"./tests/deps", Package{Dependency: Dependency{
+			User:    "Southclaws",
+			Repo:    "SIF",
+			Version: "1.3.x",
+		}}}, "433fc17e9c6bf66bdf7ef3b82b70eea1c34af43f", false, true},
 		// {"crashdetect latest", args{"./tests/deps", Package{
-		// 	user: "Zeex",
-		// 	repo: "samp-plugin-crashdetect",
+		// 	User: "Zeex",
+		// 	Repo: "samp-plugin-crashdetect",
 		// }}, "722f3e80e47b74ff694fd1805b9d2922c2c15ce0", false, true},
 		// {"crashdetect 4.15", args{"./tests/deps", Package{
-		// 	user:    "Zeex",
-		// 	repo:    "samp-plugin-crashdetect",
-		// 	version: "4.15.x",
+		// 	User:    "Zeex",
+		// 	Repo:    "samp-plugin-crashdetect",
+		// 	Version: "4.15.x",
 		// }}, "f28bbc0fb252d2b0a68dbd643a93adf771e47971", false, true},
 		// {"crashdetect latest nodelete", args{"./tests/deps", Package{
-		// 	user: "Zeex",
-		// 	repo: "samp-plugin-crashdetect",
+		// 	User: "Zeex",
+		// 	Repo: "samp-plugin-crashdetect",
 		// }}, "722f3e80e47b74ff694fd1805b9d2922c2c15ce0", false, false},
 		// {"crashdetect 4.15 downgrade", args{"./tests/deps", Package{
-		// 	user:    "Zeex",
-		// 	repo:    "samp-plugin-crashdetect",
-		// 	version: "4.15.x",
+		// 	User:    "Zeex",
+		// 	Repo:    "samp-plugin-crashdetect",
+		// 	Version: "4.15.x",
 		// }}, "f28bbc0fb252d2b0a68dbd643a93adf771e47971", false, false},
 	}
 	for _, tt := range tests {
@@ -84,13 +84,13 @@ func TestEnsurePackage(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			repo, _ := git.PlainOpen(filepath.Join("./tests/deps", tt.args.pkg.repo)) //nolint
-			ref, _ := repo.Head()
+			Repo, _ := git.PlainOpen(filepath.Join("./tests/deps", tt.args.pkg.Repo)) //nolint
+			ref, _ := Repo.Head()
 			assert.Equal(t, tt.wantSha, ref.Hash().String())
 
 			// cleanup
 			if tt.delete {
-				err = os.RemoveAll(filepath.Join("./tests/deps", tt.args.pkg.repo))
+				err = os.RemoveAll(filepath.Join("./tests/deps", tt.args.pkg.Repo))
 				if err != nil {
 					panic(err)
 				}

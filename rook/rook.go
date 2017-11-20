@@ -33,9 +33,7 @@ type Package struct {
 	local string
 
 	// Inferred metadata, not explicitly set via JSON/YAML but inferred from the dependency path
-	user    string // github username
-	repo    string // github repository
-	version string // either git sha1 or git tag
+	Dependency
 
 	// Metadata, set by the package author to describe the package
 	Contributors []string `json:"contributors"` // list of contributors
@@ -49,7 +47,7 @@ type Package struct {
 }
 
 func (pkg Package) String() string {
-	return fmt.Sprintf("%s/%s:%s", pkg.user, pkg.repo, pkg.version)
+	return fmt.Sprintf("%s/%s:%s", pkg.User, pkg.Repo, pkg.Version)
 }
 
 // Validate checks a package for missing fields
@@ -71,13 +69,13 @@ func (pkg Package) Validate() (err error) {
 
 // GetURL generates a GitHub URL for a package - it does not test the validity of the URL
 func (pkg Package) GetURL() string {
-	return fmt.Sprintf("https://github.com/%s/%s", pkg.user, pkg.repo)
+	return fmt.Sprintf("https://github.com/%s/%s", pkg.User, pkg.Repo)
 }
 
 // PackageFromDep creates a Package object from a Dependency String
 func PackageFromDep(depString DependencyString) (pkg Package, err error) {
 	dep, err := depString.Explode()
-	pkg.user, pkg.repo, pkg.version = dep.User, dep.Repo, dep.Version
+	pkg.User, pkg.Repo, pkg.Path, pkg.Version = dep.User, dep.Repo, dep.Path, dep.Version
 	return
 }
 

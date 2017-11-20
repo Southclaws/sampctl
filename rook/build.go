@@ -24,7 +24,7 @@ func (pkg Package) Build(version string) (output string, err error) {
 			return "", errors.Errorf("package dependency '%s' is invalid: %v", depStr, err)
 		}
 
-		includes = append(includes, filepath.Join(pkg.local, "dependencies", dep.repo))
+		includes = append(includes, filepath.Join(pkg.local, "dependencies", dep.Repo, dep.Path))
 	}
 
 	cacheDir, err := download.GetCacheDir()

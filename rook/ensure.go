@@ -27,7 +27,7 @@ type VersionedTags []VersionedTag
 // If the package is not present, it will clone it at the correct version tag, sha1 or HEAD
 // If the package is present, it will ensure the directory contains the correct version
 func EnsurePackage(vendorDirectory string, pkg Package) (err error) {
-	pkgPath := filepath.Join(util.FullPath(vendorDirectory), pkg.repo)
+	pkgPath := filepath.Join(util.FullPath(vendorDirectory), pkg.Repo)
 
 	repo, err := git.PlainOpen(pkgPath)
 	if err != nil && err != git.ErrRepositoryNotExists {
@@ -50,7 +50,7 @@ func EnsurePackage(vendorDirectory string, pkg Package) (err error) {
 		fmt.Println(pkg, "package already exists at", head)
 	}
 
-	if pkg.version == "" {
+	if pkg.Version == "" {
 		err = repo.Fetch(&git.FetchOptions{})
 		if err == git.NoErrAlreadyUpToDate {
 			fmt.Println(pkg, "package does not have version constraint and the latest copy is already present")
@@ -69,7 +69,7 @@ func EnsurePackage(vendorDirectory string, pkg Package) (err error) {
 		return errors.Wrap(err, "failed to get package repository tags")
 	}
 
-	ref, err := getRefFromConstraint(pkg, versionedTags, pkg.version)
+	ref, err := getRefFromConstraint(pkg, versionedTags, pkg.Version)
 	if err != nil {
 		return
 	}
@@ -137,13 +137,13 @@ func getRefFromConstraint(pkg Package, versionedTags VersionedTags, version stri
 
 	for _, version := range versionedTags {
 		if constraint.Check(version.Tag) {
-			fmt.Println(pkg, "discovered tag", version.Tag, "that matches constraint", pkg.version)
+			fmt.Println(pkg, "discovered tag", version.Tag, "that matches constraint", pkg.Version)
 			ref = version.Ref
 			return
 		}
 
 		// these messages will be removed in future versions
-		fmt.Println(pkg, "incompatible tag", version.Tag, "does not satisfy constraint", pkg.version)
+		fmt.Println(pkg, "incompatible tag", version.Tag, "does not satisfy constraint", pkg.Version)
 	}
 	err = errors.Errorf("failed to satisfy constraint, no tag found by that name, available tags: %v", versionedTags)
 	return
