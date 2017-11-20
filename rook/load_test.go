@@ -20,24 +20,24 @@ func TestPackageFromDir(t *testing.T) {
 			local:  "./tests/build-json",
 			Entry:  "gamemodes/test.pwn",
 			Output: "gamemodes/test.amx",
-			Dependencies: []Dependency{
-				Dependency("Southclaws/samp-stdlib:0.3.7-R2-2-1"),
-				Dependency("Southclaws/SIF:1.6.2"),
-				Dependency("Misiur/YSI-Includes"),
-				Dependency("samp-incognito/samp-streamer-plugin:2.9.1"),
-				Dependency("Zeex/amx_assembly"),
+			Dependencies: []DependencyString{
+				DependencyString("Southclaws/samp-stdlib:0.3.7-R2-2-1"),
+				DependencyString("Southclaws/SIF:1.6.2"),
+				DependencyString("Misiur/YSI-Includes"),
+				DependencyString("samp-incognito/samp-streamer-plugin:2.9.1"),
+				DependencyString("Zeex/amx_assembly"),
 			}},
 			false},
 		{"build-yaml", args{"./tests/build-yaml"}, Package{
 			local:  "./tests/build-yaml",
 			Entry:  "gamemodes/test.pwn",
 			Output: "gamemodes/test.amx",
-			Dependencies: []Dependency{
-				Dependency("Southclaws/samp-stdlib:0.3.7-R2-2-1"),
-				Dependency("Southclaws/SIF:1.6.2"),
-				Dependency("Misiur/YSI-Includes"),
-				Dependency("samp-incognito/samp-streamer-plugin:2.9.1"),
-				Dependency("Zeex/amx_assembly"),
+			Dependencies: []DependencyString{
+				DependencyString("Southclaws/samp-stdlib:0.3.7-R2-2-1"),
+				DependencyString("Southclaws/SIF:1.6.2"),
+				DependencyString("Misiur/YSI-Includes"),
+				DependencyString("samp-incognito/samp-streamer-plugin:2.9.1"),
+				DependencyString("Zeex/amx_assembly"),
 			}},
 			false},
 	}

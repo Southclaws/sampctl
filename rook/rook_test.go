@@ -17,8 +17,8 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 	}{
 		{"valid", Package{
 			local: util.FullPath("./tests/deps-sif"),
-			Dependencies: []Dependency{
-				Dependency("Southclaws/SIF:1.6.2"),
+			Dependencies: []DependencyString{
+				DependencyString("Southclaws/SIF:1.6.2"),
 			}}, false},
 	}
 	for _, tt := range tests {

@@ -42,10 +42,10 @@ type Package struct {
 	Website      string   `json:"website"`      // website or forum topic associated with the package
 
 	// Functional, set by the package author to declare relevant files and dependencies
-	Entry        string       `json:"entry"`        // entry point script to compile the project
-	Output       string       `json:"output"`       // output amx file
-	Include      []string     `json:"incude"`       // list of paths that contain the package library source files if they do not exist in the repository's root
-	Dependencies []Dependency `json:"dependencies"` // list of packages that the package depends on
+	Entry        string             `json:"entry"`        // entry point script to compile the project
+	Output       string             `json:"output"`       // output amx file
+	Include      []string           `json:"incude"`       // list of paths that contain the package library source files if they do not exist in the repository's root
+	Dependencies []DependencyString `json:"dependencies"` // list of packages that the package depends on
 }
 
 func (pkg Package) String() string {
@@ -75,8 +75,9 @@ func (pkg Package) GetURL() string {
 }
 
 // PackageFromDep creates a Package object from a Dependency String
-func PackageFromDep(dep Dependency) (pkg Package, err error) {
-	pkg.user, pkg.repo, pkg.version, err = dep.Explode()
+func PackageFromDep(depString DependencyString) (pkg Package, err error) {
+	dep, err := depString.Explode()
+	pkg.user, pkg.repo, pkg.version = dep.User, dep.Repo, dep.Version
 	return
 }
 
