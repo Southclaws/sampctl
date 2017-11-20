@@ -145,7 +145,7 @@ func TestCompileSource(t *testing.T) {
 		wantErr bool
 	}{
 		{"valid", args{
-			"",
+			".",
 			"./tests/compile/compile_test.pwn",
 			"./tests/compile/compile_test.amx",
 			[]string{},
