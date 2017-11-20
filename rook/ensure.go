@@ -46,7 +46,10 @@ func EnsurePackage(vendorDirectory string, pkg Package) (err error) {
 			return
 		}
 	} else {
-		head, _ := repo.Head()
+		head, err := repo.Head()
+		if err != nil {
+			return errors.Wrap(err, "failed to get repository HEAD")
+		}
 		fmt.Println(pkg, "package already exists at", head)
 	}
 
