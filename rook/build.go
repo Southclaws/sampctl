@@ -7,6 +7,7 @@ import (
 
 	"github.com/Southclaws/sampctl/compiler"
 	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/util"
 )
 
 // Build compiles a package, dependencies are ensured and a list of paths are sent to the compiler.
@@ -33,6 +34,7 @@ func (pkg Package) Build(version string) (output string, err error) {
 	}
 
 	err = compiler.CompileSource(
+		filepath.Dir(util.FullPath(pkg.Entry)),
 		filepath.Join(pkg.local, pkg.Entry),
 		filepath.Join(pkg.local, pkg.Output),
 		includes,

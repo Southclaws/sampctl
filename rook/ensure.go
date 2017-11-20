@@ -2,6 +2,7 @@ package rook
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 
@@ -35,9 +36,27 @@ func EnsurePackage(vendorDirectory string, pkg Package) (err error) {
 		return
 	}
 
+	needToClone := false
+
 	if err == git.ErrRepositoryNotExists {
 		fmt.Println(pkg, "package does not exist at", pkgPath, "cloning new copy")
+		needToClone = true
+	} else {
+		head, err := repo.Head()
+		if err != nil {
+			fmt.Println(pkg, "package already exists but failed to get repository HEAD:", err)
+			needToClone = true
+			err = os.RemoveAll(pkgPath)
+			if err != nil {
+				return errors.Wrap(err, "failed to temporarily remove possibly corrupted dependency repo")
+			}
+		} else {
+			fmt.Println(pkg, "package already exists at", head)
+		}
+	}
 
+	if needToClone {
+		fmt.Println(pkg, "cloning dependency package:", pkg)
 		repo, err = git.PlainClone(pkgPath, false, &git.CloneOptions{
 			URL: pkg.GetURL(),
 		})
@@ -45,24 +64,19 @@ func EnsurePackage(vendorDirectory string, pkg Package) (err error) {
 			err = errors.Wrap(err, "failed to clone dependency repository")
 			return
 		}
-	} else {
-		head, err := repo.Head()
-		if err != nil {
-			return errors.Wrap(err, "failed to get repository HEAD")
-		}
-		fmt.Println(pkg, "package already exists at", head)
 	}
 
 	if pkg.Version == "" {
+		fmt.Println(pkg, "package does not have version constraint, fetching latest...")
 		err = repo.Fetch(&git.FetchOptions{})
 		if err == git.NoErrAlreadyUpToDate {
-			fmt.Println(pkg, "package does not have version constraint and the latest copy is already present")
+			fmt.Println(pkg, "latest copy is already present")
 			return nil
 		} else if err != nil {
 			err = errors.Wrap(err, "failed to fetch latest package")
 			return
 		} else {
-			fmt.Println(pkg, "package does not have version constraint and the latest copy has been cloned")
+			fmt.Println(pkg, "latest copy has been fetched")
 			return
 		}
 	}

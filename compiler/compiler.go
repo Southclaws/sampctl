@@ -67,8 +67,12 @@ func FromNet(cacheDir, version, dir string) (err error) {
 }
 
 // CompileSource compiles a given input script to the specified output path using compiler version
-func CompileSource(input, output string, includes []string, cacheDir, version string) (err error) {
+func CompileSource(workingDir, input, output string, includes []string, cacheDir, version string) (err error) {
 	fmt.Printf("Compiling source: '%s'...\n", input)
+
+	if workingDir == "" {
+		workingDir = filepath.Dir(input)
+	}
 
 	cacheDir = util.FullPath(cacheDir)
 
@@ -85,6 +89,7 @@ func CompileSource(input, output string, includes []string, cacheDir, version st
 
 	args := []string{
 		input,
+		"-D" + workingDir,
 		"-;+",
 		"-(+",
 		"-d3",
