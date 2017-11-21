@@ -1,6 +1,7 @@
 package rook
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"github.com/pkg/errors"
@@ -11,12 +12,7 @@ import (
 )
 
 // Build compiles a package, dependencies are ensured and a list of paths are sent to the compiler.
-func (pkg Package) Build(version string) (output string, err error) {
-	err = pkg.EnsureDependencies()
-	if err != nil {
-		return
-	}
-
+func (pkg Package) Build(version compiler.Version) (output string, err error) {
 	includes := make([]string, len(pkg.Dependencies))
 
 	for _, depStr := range pkg.Dependencies {
@@ -32,6 +28,8 @@ func (pkg Package) Build(version string) (output string, err error) {
 	if err != nil {
 		return
 	}
+
+	fmt.Println("building", pkg, "with", version)
 
 	err = compiler.CompileSource(
 		filepath.Dir(util.FullPath(pkg.Entry)),

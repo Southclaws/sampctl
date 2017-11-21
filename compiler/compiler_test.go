@@ -11,7 +11,7 @@ import (
 func Test_GetCompilerPackageInfo(t *testing.T) {
 	type args struct {
 		os      string
-		version string
+		version Version
 	}
 	tests := []struct {
 		name         string
@@ -82,7 +82,7 @@ func Test_GetCompilerPackageInfo(t *testing.T) {
 func Test_CompilerFromNet(t *testing.T) {
 	type args struct {
 		cacheDir string
-		version  string
+		version  Version
 		dir      string
 	}
 	tests := []struct {
@@ -106,7 +106,7 @@ func Test_CompilerFromNet(t *testing.T) {
 func Test_CompilerFromCache(t *testing.T) {
 	type args struct {
 		cacheDir string
-		version  string
+		version  Version
 		dir      string
 	}
 	tests := []struct {
@@ -137,7 +137,7 @@ func TestCompileSource(t *testing.T) {
 		output     string
 		includes   []string
 		cacheDir   string
-		version    string
+		version    Version
 	}
 	tests := []struct {
 		name    string

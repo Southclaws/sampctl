@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Southclaws/sampctl/compiler"
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/rook"
 	"github.com/Southclaws/sampctl/server"
@@ -28,6 +29,17 @@ func main() {
 	cli.VersionFlag = cli.BoolFlag{
 		Name:  "app-version, V",
 		Usage: "show the app version number",
+	}
+
+	cacheDir, err := download.GetCacheDir()
+	if err != nil {
+		fmt.Println("Failed to retrieve cache directory path (attempted <user folder>/.samp) ", err)
+		return
+	}
+	err = os.MkdirAll(cacheDir, 0665)
+	if err != nil {
+		fmt.Println("Failed to create cache directory at ", cacheDir, ": ", err)
+		return
 	}
 
 	app.Commands = []cli.Command{
@@ -161,40 +173,48 @@ func main() {
 					Aliases: []string{"r"},
 					Usage:   "compiles and runs a project defined by a pawn.json or pawn.yaml file",
 					Action: func(c *cli.Context) error {
-						// version := c.String("version")
-						// container := c.Bool("container")
-						// endpoint := c.String("endpoint")
-						// endpoint := c.String("endpoint")
-						dir := util.FullPath(c.String("dir"))
+						version := c.String("version")
+						compilerVersion := compiler.Version(c.String("compiler-version"))
+						container := c.Bool("container")
+						endpoint := c.String("endpoint")
+						projectDir := util.FullPath(c.String("dir"))
 
-						pkg, err := rook.PackageFromDir(dir)
+						pkg, err := rook.PackageFromDir(projectDir)
 						if err != nil {
 							return errors.Wrap(err, "failed to interpret directory as Pawn package")
 						}
 
-						fmt.Println("building", pkg)
+						err = server.PrepareRuntime(cacheDir, endpoint, version)
+						if err != nil {
+							return err
+						}
 
-						// err, output = pkg.Build(version)
+						filename := util.FullPath(pkg.Output)
+						if !util.Exists(filename) {
+							filename, err = pkg.Build(compilerVersion)
+							if err != nil {
+								return err
+							}
+						}
 
-						// filePath := util.FullPath(output)
+						err = server.CopyFileToRuntime(cacheDir, version, filename)
+						if err != nil {
+							return err
+						}
 
-						// err = server.PrepareRuntime(endpoint, version, dir)
-						// if err != nil {
-						// 	return err
-						// }
+						cacheDir, err := download.GetCacheDir()
+						if err != nil {
+							return err
+						}
+						runtimeDir := server.GetRuntimePath(cacheDir, version)
 
-						// err = server.CopyFileToRuntime(cacheDir, version, filePath)
-						// if err != nil {
-						// 	return err
-						// }
+						if container {
+							err = server.RunContainer(endpoint, version, runtimeDir, app.Version)
+						} else {
+							err = server.Run(endpoint, version, runtimeDir)
+						}
 
-						// if container {
-						// 	err = server.RunContainer(endpoint, version, dir, app.Version)
-						// } else {
-						// 	err = server.Run(endpoint, version, dir)
-						// }
-
-						return nil
+						return err
 					},
 					Flags: []cli.Flag{
 						cli.StringFlag{
@@ -219,11 +239,10 @@ func main() {
 					},
 				},
 				{
-					Name:    "build",
-					Aliases: []string{"b"},
-					Usage:   "builds a project defined by a pawn.json or pawn.yaml file",
+					Name:    "ensure",
+					Aliases: []string{"e"},
+					Usage:   "ensures dependencies are up to date from the dependencies field in pawn.json",
 					Action: func(c *cli.Context) error {
-						version := c.String("version")
 						dir := util.FullPath(c.String("dir"))
 
 						pkg, err := rook.PackageFromDir(dir)
@@ -231,9 +250,37 @@ func main() {
 							return errors.Wrap(err, "failed to interpret directory as Pawn package")
 						}
 
-						fmt.Println("building", pkg)
+						err = pkg.EnsureDependencies()
+						if err != nil {
+							return err
+						}
 
-						output, err := pkg.Build(version)
+						fmt.Println("successfully ensured dependencies for project")
+
+						return nil
+					},
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:  "dir",
+							Value: ".",
+							Usage: "working directory for the project - by default, uses the current directory",
+						},
+					},
+				},
+				{
+					Name:    "build",
+					Aliases: []string{"b"},
+					Usage:   "builds a project defined by a pawn.json or pawn.yaml file",
+					Action: func(c *cli.Context) error {
+						compilerVersion := compiler.Version(c.String("compiler-version"))
+						dir := util.FullPath(c.String("dir"))
+
+						pkg, err := rook.PackageFromDir(dir)
+						if err != nil {
+							return errors.Wrap(err, "failed to interpret directory as Pawn package")
+						}
+
+						output, err := pkg.Build(compilerVersion)
 						if err != nil {
 							return err
 						}
@@ -251,7 +298,7 @@ func main() {
 						cli.StringFlag{
 							Name:  "dir",
 							Value: ".",
-							Usage: "working directory for the server - by default, uses the current directory",
+							Usage: "working directory for the project - by default, uses the current directory",
 						},
 					},
 				},
@@ -266,17 +313,6 @@ func main() {
 				return nil
 			},
 		},
-	}
-
-	cacheDir, err := download.GetCacheDir()
-	if err != nil {
-		fmt.Println("Failed to retrieve cache directory path (attempted <user folder>/.samp) ", err)
-		return
-	}
-	err = os.MkdirAll(cacheDir, 0665)
-	if err != nil {
-		fmt.Println("Failed to create cache directory at ", cacheDir, ": ", err)
-		return
 	}
 
 	err = app.Run(os.Args)

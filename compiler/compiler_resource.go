@@ -51,7 +51,7 @@ var (
 )
 
 // GetCompilerPackage downloads and installs a Pawn compiler to a user directory
-func GetCompilerPackage(version, dir string) (err error) {
+func GetCompilerPackage(version Version, dir string) (err error) {
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
 		return err
@@ -74,7 +74,7 @@ func GetCompilerPackage(version, dir string) (err error) {
 }
 
 // GetCompilerPackageInfo returns the URL for a specific compiler version
-func GetCompilerPackageInfo(os, version string) (pkg Package, filename string, err error) {
+func GetCompilerPackageInfo(os string, version Version) (pkg Package, filename string, err error) {
 	if os == "windows" {
 		pkg = pawnWin32
 	} else if os == "linux" {
@@ -88,7 +88,7 @@ func GetCompilerPackageInfo(os, version string) (pkg Package, filename string, e
 
 	tmpl := template.Must(template.New("tmp1").Parse(pkg.URL))
 	wr := &bytes.Buffer{}
-	err = tmpl.Execute(wr, struct{ Version string }{version})
+	err = tmpl.Execute(wr, struct{ Version Version }{version})
 	if err != nil {
 		panic(err)
 	}
@@ -98,14 +98,14 @@ func GetCompilerPackageInfo(os, version string) (pkg Package, filename string, e
 	for source, target := range pkg.Paths {
 		sourceTmpl := template.Must(template.New("tmp2").Parse(source))
 		sourceWriter := &bytes.Buffer{}
-		err = sourceTmpl.Execute(sourceWriter, struct{ Version string }{version})
+		err = sourceTmpl.Execute(sourceWriter, struct{ Version Version }{version})
 		if err != nil {
 			panic(err)
 		}
 
 		targetTmpl := template.Must(template.New("tmp2").Parse(target))
 		targetWriter := &bytes.Buffer{}
-		err = targetTmpl.Execute(targetWriter, struct{ Version string }{version})
+		err = targetTmpl.Execute(targetWriter, struct{ Version Version }{version})
 		if err != nil {
 			panic(err)
 		}

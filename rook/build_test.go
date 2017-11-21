@@ -3,12 +3,13 @@ package rook
 import (
 	"testing"
 
+	"github.com/Southclaws/sampctl/compiler"
 	"github.com/Southclaws/sampctl/util"
 )
 
 func TestPackage_Build(t *testing.T) {
 	type args struct {
-		version string
+		version compiler.Version
 	}
 	tests := []struct {
 		name       string

@@ -13,8 +13,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Version represents a compiler version number
+type Version string
+
 // FromCache attempts to get a compiler package from the cache, `hit` represents success
-func FromCache(cacheDir, version, dir string) (hit bool, err error) {
+func FromCache(cacheDir string, version Version, dir string) (hit bool, err error) {
 	fmt.Printf("Using cached package for %s\n", version)
 
 	pkg, filename, err := GetCompilerPackageInfo(runtime.GOOS, version)
@@ -31,7 +34,7 @@ func FromCache(cacheDir, version, dir string) (hit bool, err error) {
 }
 
 // FromNet downloads a compiler package to the cache
-func FromNet(cacheDir, version, dir string) (err error) {
+func FromNet(cacheDir string, version Version, dir string) (err error) {
 	fmt.Printf("Downloading compiler package %s\n", version)
 
 	pkg, filename, err := GetCompilerPackageInfo(runtime.GOOS, version)
@@ -67,7 +70,7 @@ func FromNet(cacheDir, version, dir string) (err error) {
 }
 
 // CompileSource compiles a given input script to the specified output path using compiler version
-func CompileSource(workingDir, input, output string, includes []string, cacheDir, version string) (err error) {
+func CompileSource(workingDir, input, output string, includes []string, cacheDir string, version Version) (err error) {
 	fmt.Printf("Compiling source: '%s'...\n", input)
 
 	if workingDir == "" {
@@ -76,7 +79,7 @@ func CompileSource(workingDir, input, output string, includes []string, cacheDir
 
 	cacheDir = util.FullPath(cacheDir)
 
-	dir := filepath.Join(cacheDir, "pawn", version)
+	dir := filepath.Join(cacheDir, "pawn", string(version))
 	err = GetCompilerPackage(version, dir)
 	if err != nil {
 		return
