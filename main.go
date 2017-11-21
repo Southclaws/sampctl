@@ -71,7 +71,7 @@ func main() {
 				cli.StringFlag{
 					Name:  "version",
 					Value: "0.3.7",
-					Usage: "server version - corresponds to http://files.sa-mp.com packages without the .tar.gz",
+					Usage: "the SA:MP server version to use",
 				},
 				cli.StringFlag{
 					Name:  "dir",
@@ -88,7 +88,7 @@ func main() {
 		{
 			Name:    "run",
 			Aliases: []string{"r"},
-			Usage:   "run a sa-mp server, uses the cwd if --dir is not set",
+			Usage:   "runs a SA:MP server using the samp.json configuration",
 			Action: func(c *cli.Context) error {
 				version := c.String("version")
 				dir := util.FullPath(c.String("dir"))
@@ -117,7 +117,7 @@ func main() {
 				cli.StringFlag{
 					Name:  "version",
 					Value: "0.3.7",
-					Usage: "server version - corresponds to http://files.sa-mp.com packages without the .tar.gz",
+					Usage: "the SA:MP server version to use",
 				},
 				cli.StringFlag{
 					Name:  "dir",
@@ -149,7 +149,7 @@ func main() {
 				cli.StringFlag{
 					Name:  "version",
 					Value: "0.3.7",
-					Usage: "server version - corresponds to http://files.sa-mp.com packages without the .tar.gz",
+					Usage: "the SA:MP server version to use",
 				},
 				cli.StringFlag{
 					Name:  "dir",
@@ -174,9 +174,11 @@ func main() {
 					Usage:   "compiles and runs a project defined by a pawn.json or pawn.yaml file",
 					Action: func(c *cli.Context) error {
 						version := c.String("version")
-						compilerVersion := compiler.Version(c.String("compiler-version"))
+						compilerVersion := compiler.Version(c.String("compilerVersion"))
 						container := c.Bool("container")
 						endpoint := c.String("endpoint")
+						forceBuild := c.Bool("forceBuild")
+						forceEnsure := c.Bool("forceEnsure")
 						projectDir := util.FullPath(c.String("dir"))
 
 						pkg, err := rook.PackageFromDir(projectDir)
@@ -190,8 +192,8 @@ func main() {
 						}
 
 						filename := util.FullPath(pkg.Output)
-						if !util.Exists(filename) {
-							filename, err = pkg.Build(compilerVersion)
+						if !util.Exists(filename) || forceBuild {
+							filename, err = pkg.Build(compilerVersion, forceEnsure)
 							if err != nil {
 								return err
 							}
@@ -220,7 +222,12 @@ func main() {
 						cli.StringFlag{
 							Name:  "version",
 							Value: "0.3.7",
-							Usage: "server version - corresponds to http://files.sa-mp.com packages without the .tar.gz",
+							Usage: "the SA:MP server version to use",
+						},
+						cli.StringFlag{
+							Name:  "compilerVersion",
+							Value: "3.10.2",
+							Usage: "the Pawn compiler version to use, from https://github.com/Zeex/pawn/releases",
 						},
 						cli.StringFlag{
 							Name:  "endpoint",
@@ -235,6 +242,14 @@ func main() {
 							Name:  "dir",
 							Value: ".",
 							Usage: "working directory for the server - by default, uses the current directory",
+						},
+						cli.BoolFlag{
+							Name:  "forceBuild",
+							Usage: "forces a build to run before executing the server",
+						},
+						cli.BoolFlag{
+							Name:  "forceEnsure",
+							Usage: "forces dependency ensure before build if --forceBuild is set",
 						},
 					},
 				},
@@ -272,15 +287,16 @@ func main() {
 					Aliases: []string{"b"},
 					Usage:   "builds a project defined by a pawn.json or pawn.yaml file",
 					Action: func(c *cli.Context) error {
-						compilerVersion := compiler.Version(c.String("compiler-version"))
+						compilerVersion := compiler.Version(c.String("compilerVersion"))
 						dir := util.FullPath(c.String("dir"))
+						forceEnsure := c.Bool("forceEnsure")
 
 						pkg, err := rook.PackageFromDir(dir)
 						if err != nil {
 							return errors.Wrap(err, "failed to interpret directory as Pawn package")
 						}
 
-						output, err := pkg.Build(compilerVersion)
+						output, err := pkg.Build(compilerVersion, forceEnsure)
 						if err != nil {
 							return err
 						}
@@ -291,14 +307,18 @@ func main() {
 					},
 					Flags: []cli.Flag{
 						cli.StringFlag{
-							Name:  "version",
+							Name:  "compilerVersion",
 							Value: "3.10.2",
-							Usage: "server version - corresponds to http://files.sa-mp.com packages without the .tar.gz",
+							Usage: "the Pawn compiler version to use, from https://github.com/Zeex/pawn/releases",
 						},
 						cli.StringFlag{
 							Name:  "dir",
 							Value: ".",
 							Usage: "working directory for the project - by default, uses the current directory",
+						},
+						cli.BoolFlag{
+							Name:  "forceEnsure",
+							Usage: "forces dependency ensure before build if --forceBuild is set",
 						},
 					},
 				},

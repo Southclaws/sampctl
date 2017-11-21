@@ -12,7 +12,15 @@ import (
 )
 
 // Build compiles a package, dependencies are ensured and a list of paths are sent to the compiler.
-func (pkg Package) Build(version compiler.Version) (output string, err error) {
+func (pkg Package) Build(version compiler.Version, ensure bool) (output string, err error) {
+	if ensure {
+		err = pkg.EnsureDependencies()
+		if err != nil {
+			err = errors.Wrap(err, "failed to ensure dependencies before build")
+			return
+		}
+	}
+
 	includes := make([]string, len(pkg.Dependencies))
 
 	for _, depStr := range pkg.Dependencies {

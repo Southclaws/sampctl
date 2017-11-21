@@ -18,8 +18,6 @@ type Version string
 
 // FromCache attempts to get a compiler package from the cache, `hit` represents success
 func FromCache(cacheDir string, version Version, dir string) (hit bool, err error) {
-	fmt.Printf("Using cached package for %s\n", version)
-
 	pkg, filename, err := GetCompilerPackageInfo(runtime.GOOS, version)
 	if err != nil {
 		return false, err
@@ -29,6 +27,8 @@ func FromCache(cacheDir string, version Version, dir string) (hit bool, err erro
 	if !hit {
 		return false, nil
 	}
+
+	fmt.Printf("Using cached package for %s\n", version)
 
 	return
 }

@@ -39,8 +39,6 @@ func GetServerPackage(endpoint, version, dir string) (err error) {
 
 // FromCache tries to grab a server package from cache, `hit` indicates if it was successful
 func FromCache(cacheDir, version, dir string) (hit bool, err error) {
-	fmt.Printf("Using cached package for %s\n", version)
-
 	var (
 		filename string
 		method   download.ExtractFunc
@@ -74,6 +72,8 @@ func FromCache(cacheDir, version, dir string) (hit bool, err error) {
 	if errs != nil {
 		return false, errors.Errorf("validation errors: %#v", errs)
 	}
+
+	fmt.Printf("Using cached package for %s\n", version)
 
 	return true, nil
 }
