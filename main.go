@@ -7,7 +7,6 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Southclaws/sampctl/compiler"
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/rook"
 	"github.com/Southclaws/sampctl/server"
@@ -174,12 +173,12 @@ func main() {
 					Usage:   "compiles and runs a project defined by a pawn.json or pawn.yaml file",
 					Action: func(c *cli.Context) error {
 						version := c.String("version")
-						compilerVersion := compiler.Version(c.String("compilerVersion"))
 						container := c.Bool("container")
+						projectDir := util.FullPath(c.String("dir"))
 						endpoint := c.String("endpoint")
+						build := c.String("build")
 						forceBuild := c.Bool("forceBuild")
 						forceEnsure := c.Bool("forceEnsure")
-						projectDir := util.FullPath(c.String("dir"))
 
 						pkg, err := rook.PackageFromDir(projectDir)
 						if err != nil {
@@ -193,7 +192,7 @@ func main() {
 
 						filename := util.FullPath(pkg.Output)
 						if !util.Exists(filename) || forceBuild {
-							filename, err = pkg.Build(compilerVersion, forceEnsure)
+							filename, err = pkg.Build(build, forceEnsure)
 							if err != nil {
 								return err
 							}
@@ -225,11 +224,6 @@ func main() {
 							Usage: "the SA:MP server version to use",
 						},
 						cli.StringFlag{
-							Name:  "compilerVersion",
-							Value: "3.10.2",
-							Usage: "the Pawn compiler version to use, from https://github.com/Zeex/pawn/releases",
-						},
-						cli.StringFlag{
 							Name:  "endpoint",
 							Value: "http://files.sa-mp.com",
 							Usage: "endpoint to download packages from",
@@ -242,6 +236,11 @@ func main() {
 							Name:  "dir",
 							Value: ".",
 							Usage: "working directory for the server - by default, uses the current directory",
+						},
+						cli.StringFlag{
+							Name:  "build",
+							Value: "",
+							Usage: "build configuration to use if --forceBuild is set",
 						},
 						cli.BoolFlag{
 							Name:  "forceBuild",
@@ -287,8 +286,8 @@ func main() {
 					Aliases: []string{"b"},
 					Usage:   "builds a project defined by a pawn.json or pawn.yaml file",
 					Action: func(c *cli.Context) error {
-						compilerVersion := compiler.Version(c.String("compilerVersion"))
 						dir := util.FullPath(c.String("dir"))
+						build := c.String("build")
 						forceEnsure := c.Bool("forceEnsure")
 
 						pkg, err := rook.PackageFromDir(dir)
@@ -296,7 +295,7 @@ func main() {
 							return errors.Wrap(err, "failed to interpret directory as Pawn package")
 						}
 
-						output, err := pkg.Build(compilerVersion, forceEnsure)
+						output, err := pkg.Build(build, forceEnsure)
 						if err != nil {
 							return err
 						}
@@ -307,14 +306,14 @@ func main() {
 					},
 					Flags: []cli.Flag{
 						cli.StringFlag{
-							Name:  "compilerVersion",
-							Value: "3.10.2",
-							Usage: "the Pawn compiler version to use, from https://github.com/Zeex/pawn/releases",
-						},
-						cli.StringFlag{
 							Name:  "dir",
 							Value: ".",
 							Usage: "working directory for the project - by default, uses the current directory",
+						},
+						cli.StringFlag{
+							Name:  "build",
+							Value: "",
+							Usage: "build configuration to use if --forceBuild is set",
 						},
 						cli.BoolFlag{
 							Name:  "forceEnsure",

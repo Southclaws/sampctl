@@ -16,6 +16,18 @@ import (
 // Version represents a compiler version number
 type Version string
 
+// Config represents a configuration for compiling a file
+type Config struct {
+	Name       string            `json:"name"`       // name of the configuration
+	Args       []string          `json:"args"`       // list of arguments to pass to the compiler
+	Constants  map[string]string `json:"constants"`  // set of constant definitions to pass to the compiler
+	Version    Version           `json:"version"`    // compiler version to use for this build
+	WorkingDir string            `json:"workingDir"` // working directory for the -D flag
+	Input      string            `json:"input"`      // input .pwn file
+	Output     string            `json:"output"`     // output .amx file
+	Includes   []string          `json:"includes"`   // list of include files to include in compilation via -i flags
+}
+
 // FromCache attempts to get a compiler package from the cache, `hit` represents success
 func FromCache(cacheDir string, version Version, dir string) (hit bool, err error) {
 	pkg, filename, err := GetCompilerPackageInfo(runtime.GOOS, version)
@@ -28,7 +40,7 @@ func FromCache(cacheDir string, version Version, dir string) (hit bool, err erro
 		return false, nil
 	}
 
-	fmt.Printf("Using cached package for %s\n", version)
+	fmt.Printf("Using cached package %s\n", filename)
 
 	return
 }
@@ -70,46 +82,50 @@ func FromNet(cacheDir string, version Version, dir string) (err error) {
 }
 
 // CompileSource compiles a given input script to the specified output path using compiler version
-func CompileSource(workingDir, input, output string, includes []string, cacheDir string, version Version) (err error) {
-	fmt.Printf("Compiling source: '%s'...\n", input)
+func CompileSource(cacheDir string, config Config) (err error) {
+	fmt.Printf("Compiling source: '%s' with compiler %s...\n", config.Input, config.Version)
 
-	if workingDir == "" {
-		workingDir = filepath.Dir(input)
+	if config.WorkingDir == "" {
+		config.WorkingDir = filepath.Dir(config.Input)
 	}
 
 	cacheDir = util.FullPath(cacheDir)
 
-	dir := filepath.Join(cacheDir, "pawn", string(version))
-	err = GetCompilerPackage(version, dir)
+	runtimeDir := filepath.Join(cacheDir, "pawn", string(config.Version))
+	err = GetCompilerPackage(config.Version, runtimeDir)
 	if err != nil {
 		return
 	}
 
-	pkg, _, err := GetCompilerPackageInfo(runtime.GOOS, version)
+	pkg, _, err := GetCompilerPackageInfo(runtime.GOOS, config.Version)
 	if err != nil {
 		return
 	}
 
 	args := []string{
-		input,
-		"-D" + workingDir,
+		config.Input,
+		"-D" + config.WorkingDir,
 		"-;+",
 		"-(+",
-		"-d3",
 		"-Z+",
-		"-o" + output,
+		"-o" + config.Output,
 	}
+	args = append(args, config.Args...)
 
-	for _, inc := range includes {
+	for _, inc := range config.Includes {
 		args = append(args, "-i"+inc)
 	}
 
-	binary := filepath.Join(dir, pkg.Binary)
+	for name, value := range config.Constants {
+		args = append(args, fmt.Sprintf("%s=%s", name, value))
+	}
+
+	binary := filepath.Join(runtimeDir, pkg.Binary)
 
 	cmd := exec.Command(binary, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Env = []string{fmt.Sprintf("LD_LIBRARY_PATH=%s", dir)}
+	cmd.Env = []string{fmt.Sprintf("LD_LIBRARY_PATH=%s", runtimeDir)}
 	err = cmd.Run()
 	if err != nil {
 		return

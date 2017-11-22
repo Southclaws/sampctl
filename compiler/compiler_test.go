@@ -22,44 +22,44 @@ func Test_GetCompilerPackageInfo(t *testing.T) {
 	}{
 		{
 			"v darwin",
-			args{"darwin", "3.10.2"},
+			args{"darwin", "3.10.4"},
 			Package{
-				URL:    "https://github.com/Zeex/pawn/releases/download/v3.10.2/pawnc-3.10.2-darwin.zip",
+				URL:    "https://github.com/Zeex/pawn/releases/download/v3.10.4/pawnc-3.10.4-darwin.zip",
 				Method: download.Unzip,
 				Paths: map[string]string{
-					"pawnc-3.10.2-darwin/bin/pawncc":         "pawncc",
-					"pawnc-3.10.2-darwin/lib/libpawnc.dylib": "libpawnc.dylib",
+					"pawnc-3.10.4-darwin/bin/pawncc":         "pawncc",
+					"pawnc-3.10.4-darwin/lib/libpawnc.dylib": "libpawnc.dylib",
 				},
 			},
-			"pawnc-3.10.2-darwin.zip",
+			"pawnc-3.10.4-darwin.zip",
 			false,
 		},
 		{
 			"v linux",
-			args{"linux", "3.10.2"},
+			args{"linux", "3.10.4"},
 			Package{
-				URL:    "https://github.com/Zeex/pawn/releases/download/v3.10.2/pawnc-3.10.2-linux.tar.gz",
+				URL:    "https://github.com/Zeex/pawn/releases/download/v3.10.4/pawnc-3.10.4-linux.tar.gz",
 				Method: download.Untar,
 				Paths: map[string]string{
-					"pawnc-3.10.2-linux/bin/pawncc":      "pawncc",
-					"pawnc-3.10.2-linux/lib/libpawnc.so": "libpawnc.so",
+					"pawnc-3.10.4-linux/bin/pawncc":      "pawncc",
+					"pawnc-3.10.4-linux/lib/libpawnc.so": "libpawnc.so",
 				},
 			},
-			"pawnc-3.10.2-linux.tar.gz",
+			"pawnc-3.10.4-linux.tar.gz",
 			false,
 		},
 		{
 			"v windows",
-			args{"windows", "3.10.2"},
+			args{"windows", "3.10.4"},
 			Package{
-				URL:    "https://github.com/Zeex/pawn/releases/download/v3.10.2/pawnc-3.10.2-windows.zip",
+				URL:    "https://github.com/Zeex/pawn/releases/download/v3.10.4/pawnc-3.10.4-windows.zip",
 				Method: download.Unzip,
 				Paths: map[string]string{
-					"pawnc-3.10.2-windows/bin/pawncc.exe": "pawncc.exe",
-					"pawnc-3.10.2-windows/bin/pawnc.dll":  "pawnc.dll",
+					"pawnc-3.10.4-windows/bin/pawncc.exe": "pawncc.exe",
+					"pawnc-3.10.4-windows/bin/pawnc.dll":  "pawnc.dll",
 				},
 			},
-			"pawnc-3.10.2-windows.zip",
+			"pawnc-3.10.4-windows.zip",
 			false,
 		},
 	}
@@ -90,7 +90,7 @@ func Test_CompilerFromNet(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{"valid", args{"tests/cache", "3.10.2", "tests/compiler"}, false},
+		{"valid", args{"tests/cache", "3.10.4", "tests/compiler"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -115,7 +115,7 @@ func Test_CompilerFromCache(t *testing.T) {
 		wantHit bool
 		wantErr bool
 	}{
-		{"valid", args{"./tests/cache", "3.10.2", "./tests/compiler"}, true, false},
+		{"valid", args{"./tests/cache", "3.10.4", "./tests/compiler"}, true, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -132,12 +132,8 @@ func Test_CompilerFromCache(t *testing.T) {
 
 func TestCompileSource(t *testing.T) {
 	type args struct {
-		workingDir string
-		input      string
-		output     string
-		includes   []string
-		cacheDir   string
-		version    Version
+		cacheDir string
+		config   Config
 	}
 	tests := []struct {
 		name    string
@@ -145,16 +141,18 @@ func TestCompileSource(t *testing.T) {
 		wantErr bool
 	}{
 		{"valid", args{
-			".",
-			"./tests/compile/compile_test.pwn",
-			"./tests/compile/compile_test.amx",
-			[]string{},
 			util.FullPath("./tests/cache"),
-			"3.10.2"}, false},
+			Config{
+				WorkingDir: ".",
+				Input:      "./tests/compile/compile_test.pwn",
+				Output:     "./tests/compile/compile_test.amx",
+				Includes:   []string{},
+				Version:    "3.10.4",
+			}}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := CompileSource(tt.args.workingDir, tt.args.input, tt.args.output, tt.args.includes, tt.args.cacheDir, tt.args.version); (err != nil) != tt.wantErr {
+			if err := CompileSource(tt.args.cacheDir, tt.args.config); (err != nil) != tt.wantErr {
 				t.Errorf("CompileSource() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			assert.True(t, util.Exists("./tests/compile/compile_test.amx"))

@@ -9,8 +9,8 @@ import (
 
 func TestPackage_Build(t *testing.T) {
 	type args struct {
-		version compiler.Version
-		ensure  bool
+		build  string
+		ensure bool
 	}
 	tests := []struct {
 		name       string
@@ -30,11 +30,14 @@ func TestPackage_Build(t *testing.T) {
 				DependencyString("samp-incognito/samp-streamer-plugin:2.9.1"),
 				DependencyString("Zeex/amx_assembly"),
 			},
-		}, args{"3.10.3", true}, "gamemodes/test.amx", false},
+			Builds: []compiler.Config{
+				{Name: "build", Version: "3.10.4"},
+			},
+		}, args{"build", true}, "gamemodes/test.amx", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotOutput, err := tt.pkg.Build(tt.args.version, tt.args.ensure)
+			gotOutput, err := tt.pkg.Build(tt.args.build, tt.args.ensure)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Package.Build() error = %v, wantErr %v", err, tt.wantErr)
 				return

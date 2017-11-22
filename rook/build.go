@@ -12,7 +12,17 @@ import (
 )
 
 // Build compiles a package, dependencies are ensured and a list of paths are sent to the compiler.
-func (pkg Package) Build(version compiler.Version, ensure bool) (output string, err error) {
+func (pkg Package) Build(build string, ensure bool) (output string, err error) {
+	config, err := pkg.GetBuildConfig(build)
+	if err != nil {
+		err = errors.Wrap(err, "failed to get build config")
+		return
+	}
+
+	config.WorkingDir = filepath.Dir(util.FullPath(pkg.Entry))
+	config.Input = filepath.Join(pkg.local, pkg.Entry)
+	config.Output = filepath.Join(pkg.local, pkg.Output)
+
 	if ensure {
 		err = pkg.EnsureDependencies()
 		if err != nil {
@@ -21,15 +31,15 @@ func (pkg Package) Build(version compiler.Version, ensure bool) (output string, 
 		}
 	}
 
-	includes := make([]string, len(pkg.Dependencies))
-
 	for _, depStr := range pkg.Dependencies {
 		dep, err := PackageFromDep(depStr)
 		if err != nil {
 			return "", errors.Errorf("package dependency '%s' is invalid: %v", depStr, err)
 		}
 
-		includes = append(includes, filepath.Join(pkg.local, "dependencies", dep.Repo, dep.Path))
+		includePath := filepath.Join(pkg.local, "dependencies", dep.Repo, dep.Path)
+
+		config.Includes = append(config.Includes, includePath)
 	}
 
 	cacheDir, err := download.GetCacheDir()
@@ -37,21 +47,41 @@ func (pkg Package) Build(version compiler.Version, ensure bool) (output string, 
 		return
 	}
 
-	fmt.Println("building", pkg, "with", version)
+	fmt.Println("building", pkg, "with", config.Version)
 
-	err = compiler.CompileSource(
-		filepath.Dir(util.FullPath(pkg.Entry)),
-		filepath.Join(pkg.local, pkg.Entry),
-		filepath.Join(pkg.local, pkg.Output),
-		includes,
-		cacheDir,
-		version,
-	)
+	err = compiler.CompileSource(cacheDir, config)
 	if err != nil {
 		return
 	}
 
 	output = pkg.Output
+
+	return
+}
+
+// GetBuildConfig returns a matching build by name from the package build list. If no name is
+// specified, the first build is returned. If the package has no build definitions, a default
+// configuration is returned.
+func (pkg Package) GetBuildConfig(name string) (config compiler.Config, err error) {
+	if len(pkg.Builds) == 0 {
+		return compiler.Config{
+			Args:    []string{"-d3"},
+			Version: "3.10.4",
+		}, nil
+	}
+
+	if name == "" {
+		config = pkg.Builds[0]
+		return
+	}
+
+	for _, cfg := range pkg.Builds {
+		if cfg.Name == name {
+			return cfg, nil
+		}
+	}
+
+	err = errors.Errorf("build '%s' not found in config", name)
 
 	return
 }
