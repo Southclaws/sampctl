@@ -15,64 +15,134 @@ A small utility for starting and managing SA:MP servers with better settings han
 - [Mac](https://github.com/Southclaws/sampctl/wiki/Mac)
 
 ## `sampctl`
-1.3.0-RC3 - Southclaws <southclaws@gmail.com>
+
+1.4.0-RC1 - Southclaws <southclaws@gmail.com>
 
 A small utility for starting and managing SA:MP servers with better settings handling and crash resiliency.
 
-## Subcommands
+## Commands (5)
 
-### `version`
+### `sampctl server`
 
-### `init`
+Usage: `sampctl server <subcommand>`
 
-initialise a sa-mp server folder with a few questions, uses the cwd if --dir is not set
+For managing servers and runtime configurations.
 
-#### Flags
+#### Subcommands (3)
 
-- `--version`
-- `--dir`
-- `--endpoint`
+### `sampctl server init`
 
+Usage: `sampctl server init`
 
-### `run`
-
-run a sa-mp server, uses the cwd if --dir is not set
+Bootstrap a new SA:MP server and generates a `samp.json` configuration based on user input. If `gamemodes`, `filterscripts` or `plugins` directories are present, you will be prompted to select relevant files.
 
 #### Flags
 
-- `--version`
-- `--dir`
-- `--endpoint`
-- `--container`
+- `--version value`: the SA:MP server version to use (default: "0.3.7")
+- `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
+- `--endpoint value`: endpoint to download packages from (default: "http://files.sa-mp.com")
 
+### `sampctl server download`
 
-### `download`
+Usage: `sampctl server download`
 
-download a version of the server, uses latest if --version is not specified
+Downloads the files necessary to run a SA:MP server to the current directory (unless `--dir` specified). Will download the latest stable (non RC) server version unless `--version` is specified.
 
 #### Flags
 
-- `--version`
-- `--dir`
-- `--endpoint`
+- `--version value`: the SA:MP server version to use (default: "0.3.7")
+- `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
+- `--endpoint value`: endpoint to download packages from (default: "http://files.sa-mp.com")
+
+### `sampctl server run`
+
+Usage: `sampctl server run`
+
+Generates a `server.cfg` file based on the configuration inside `samp.json` then executes the server process and automatically restarts it on crashes.
+
+#### Flags
+
+- `--version value`: the SA:MP server version to use (default: "0.3.7")
+- `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
+- `--endpoint value`: endpoint to download packages from (default: "http://files.sa-mp.com")
+- `--container`: starts the server as a Linux container instead of running it in the current directory
 
 
-### `project`
+---
 
-project level commands for managing packages and gamemodes
+### `sampctl package`
 
-### `docgen`
+Usage: `sampctl package <subcommand>`
 
-generate documentation - mainly just for CI usage, the readme file will always be up to date.
+For managing Pawn packages such as gamemodes and libraries.
 
-### `help`
+#### Subcommands (3)
 
-Shows a list of commands or help for one command
+### `sampctl package ensure`
+
+Usage: `sampctl package ensure`
+
+Ensures dependencies are up to date based on the `dependencies` field in `pawn.json`.
+
+#### Flags
+
+- `--dir value`: working directory for the project - by default, uses the current directory (default: ".")
+
+### `sampctl package build`
+
+Usage: `sampctl package build`
+
+Builds a package defined by a `pawn.json` or `pawn.yaml` file.
+
+#### Flags
+
+- `--dir value`: working directory for the project - by default, uses the current directory (default: ".")
+- `--build --forceBuild`: build configuration to use if --forceBuild is set
+- `--forceEnsure --forceBuild`: forces dependency ensure before build if --forceBuild is set
+
+### `sampctl package run`
+
+Usage: `sampctl package run`
+
+Compiles and runs a package defined by a `pawn.json` or `pawn.yaml` file.
+
+#### Flags
+
+- `--version value`: the SA:MP server version to use (default: "0.3.7")
+- `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
+- `--endpoint value`: endpoint to download packages from (default: "http://files.sa-mp.com")
+- `--container`: starts the server as a Linux container instead of running it in the current directory
+- `--build --forceBuild`: build configuration to use if --forceBuild is set
+- `--forceBuild`: forces a build to run before executing the server
+- `--forceEnsure --forceBuild`: forces dependency ensure before build if --forceBuild is set
+
+
+---
+
+### `sampctl version`
+
+Show version number - this is also the version of the container image that will be used for `--container` runtimes.
+
+---
+
+### `sampctl docs`
+
+Usage: `sampctl docs > documentation.md`
+
+Generate documentation in markdown format and print to standard out.
+
+---
+
+### `sampctl help`
+
+Usage: `Shows a list of commands or help for one command`
+
+---
 
 ## Global Flags
 
-- `--help, h`
-- `--app-version, V`
+- `--help, -h`: show help
+- `--appVersion, -V`: sampctl version
 
 ## An Easier Way To Configure via `samp.json`
 

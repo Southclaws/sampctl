@@ -4,14 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
-	"github.com/Southclaws/sampctl/rook"
-	"github.com/Southclaws/sampctl/server"
-	"github.com/Southclaws/sampctl/settings"
-	"github.com/Southclaws/sampctl/util"
 )
 
 var version = "master"
@@ -26,8 +21,8 @@ func main() {
 	app.Version = version
 
 	cli.VersionFlag = cli.BoolFlag{
-		Name:  "app-version, V",
-		Usage: "show the app version number",
+		Name:  "appVersion, V",
+		Usage: "sampctl version",
 	}
 
 	cacheDir, err := download.GetCacheDir()
@@ -43,289 +38,72 @@ func main() {
 
 	app.Commands = []cli.Command{
 		{
-			Name:   "version",
-			Action: cli.VersionPrinter,
-		},
-		{
-			Name:    "init",
-			Aliases: []string{"i"},
-			Usage:   "initialise a sa-mp server folder with a few questions, uses the cwd if --dir is not set",
-			Action: func(c *cli.Context) error {
-				version := c.String("version")
-				dir := util.FullPath(c.String("dir"))
-				endpoint := c.String("endpoint")
-				err := settings.InitialiseServer(version, dir)
-				if err != nil {
-					return errors.Wrap(err, "failed to initialise server")
-				}
-
-				err = server.GetServerPackage(endpoint, version, dir)
-				if err != nil {
-					return errors.Wrap(err, "failed to get package")
-				}
-
-				return nil
-			},
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "version",
-					Value: "0.3.7",
-					Usage: "the SA:MP server version to use",
-				},
-				cli.StringFlag{
-					Name:  "dir",
-					Value: ".",
-					Usage: "working directory for the server - by default, uses the current directory",
-				},
-				cli.StringFlag{
-					Name:  "endpoint",
-					Value: "http://files.sa-mp.com",
-					Usage: "endpoint to download packages from",
-				},
-			},
-		},
-		{
-			Name:    "run",
-			Aliases: []string{"r"},
-			Usage:   "runs a SA:MP server using the samp.json configuration",
-			Action: func(c *cli.Context) error {
-				version := c.String("version")
-				dir := util.FullPath(c.String("dir"))
-				endpoint := c.String("endpoint")
-				container := c.Bool("container")
-
-				var err error
-				errs := server.ValidateServerDir(dir, version)
-				if errs != nil {
-					fmt.Println(errs)
-					err = server.GetServerPackage(endpoint, version, dir)
-					if err != nil {
-						return errors.Wrap(err, "failed to get server package")
-					}
-				}
-
-				if container {
-					err = server.RunContainer(endpoint, version, dir, app.Version)
-				} else {
-					err = server.Run(endpoint, version, dir)
-				}
-
-				return err
-			},
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "version",
-					Value: "0.3.7",
-					Usage: "the SA:MP server version to use",
-				},
-				cli.StringFlag{
-					Name:  "dir",
-					Value: ".",
-					Usage: "working directory for the server - by default, uses the current directory",
-				},
-				cli.StringFlag{
-					Name:  "endpoint",
-					Value: "http://files.sa-mp.com",
-					Usage: "endpoint to download packages from",
-				},
-				cli.BoolFlag{
-					Name:  "container",
-					Usage: "starts the server as a Linux container instead of running it in the current directory",
-				},
-			},
-		},
-		{
-			Name:    "download",
-			Aliases: []string{"d"},
-			Usage:   "download a version of the server, uses latest if --version is not specified",
-			Action: func(c *cli.Context) error {
-				version := c.String("version")
-				dir := util.FullPath(c.String("dir"))
-				endpoint := c.String("endpoint")
-				return server.GetServerPackage(endpoint, version, dir)
-			},
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "version",
-					Value: "0.3.7",
-					Usage: "the SA:MP server version to use",
-				},
-				cli.StringFlag{
-					Name:  "dir",
-					Value: ".",
-					Usage: "working directory for the server - by default, uses the current directory",
-				},
-				cli.StringFlag{
-					Name:  "endpoint",
-					Value: "http://files.sa-mp.com",
-					Usage: "endpoint to download packages from",
-				},
-			},
-		},
-		{
-			Name:    "project",
-			Aliases: []string{"p"},
-			Usage:   "project level commands for managing packages and gamemodes",
+			Name:        "server",
+			Aliases:     []string{"s"},
+			Usage:       "sampctl server <subcommand>",
+			Description: "For managing servers and runtime configurations.",
 			Subcommands: []cli.Command{
 				{
-					Name:    "run",
-					Aliases: []string{"r"},
-					Usage:   "compiles and runs a project defined by a pawn.json or pawn.yaml file",
-					Action: func(c *cli.Context) error {
-						version := c.String("version")
-						container := c.Bool("container")
-						projectDir := util.FullPath(c.String("dir"))
-						endpoint := c.String("endpoint")
-						build := c.String("build")
-						forceBuild := c.Bool("forceBuild")
-						forceEnsure := c.Bool("forceEnsure")
-
-						pkg, err := rook.PackageFromDir(projectDir)
-						if err != nil {
-							return errors.Wrap(err, "failed to interpret directory as Pawn package")
-						}
-
-						err = server.PrepareRuntime(cacheDir, endpoint, version)
-						if err != nil {
-							return err
-						}
-
-						filename := util.FullPath(pkg.Output)
-						if !util.Exists(filename) || forceBuild {
-							filename, err = pkg.Build(build, forceEnsure)
-							if err != nil {
-								return err
-							}
-						}
-
-						err = server.CopyFileToRuntime(cacheDir, version, filename)
-						if err != nil {
-							return err
-						}
-
-						cacheDir, err := download.GetCacheDir()
-						if err != nil {
-							return err
-						}
-						runtimeDir := server.GetRuntimePath(cacheDir, version)
-
-						if container {
-							err = server.RunContainer(endpoint, version, runtimeDir, app.Version)
-						} else {
-							err = server.Run(endpoint, version, runtimeDir)
-						}
-
-						return err
-					},
-					Flags: []cli.Flag{
-						cli.StringFlag{
-							Name:  "version",
-							Value: "0.3.7",
-							Usage: "the SA:MP server version to use",
-						},
-						cli.StringFlag{
-							Name:  "endpoint",
-							Value: "http://files.sa-mp.com",
-							Usage: "endpoint to download packages from",
-						},
-						cli.BoolFlag{
-							Name:  "container",
-							Usage: "starts the server as a Linux container instead of running it in the current directory",
-						},
-						cli.StringFlag{
-							Name:  "dir",
-							Value: ".",
-							Usage: "working directory for the server - by default, uses the current directory",
-						},
-						cli.StringFlag{
-							Name:  "build",
-							Value: "",
-							Usage: "build configuration to use if --forceBuild is set",
-						},
-						cli.BoolFlag{
-							Name:  "forceBuild",
-							Usage: "forces a build to run before executing the server",
-						},
-						cli.BoolFlag{
-							Name:  "forceEnsure",
-							Usage: "forces dependency ensure before build if --forceBuild is set",
-						},
-					},
+					Name:        "init",
+					Usage:       "sampctl server init",
+					Description: "Bootstrap a new SA:MP server and generates a `samp.json` configuration based on user input. If `gamemodes`, `filterscripts` or `plugins` directories are present, you will be prompted to select relevant files.",
+					Action:      serverInit,
+					Flags:       serverInitFlags,
 				},
 				{
-					Name:    "ensure",
-					Aliases: []string{"e"},
-					Usage:   "ensures dependencies are up to date from the dependencies field in pawn.json",
-					Action: func(c *cli.Context) error {
-						dir := util.FullPath(c.String("dir"))
-
-						pkg, err := rook.PackageFromDir(dir)
-						if err != nil {
-							return errors.Wrap(err, "failed to interpret directory as Pawn package")
-						}
-
-						err = pkg.EnsureDependencies()
-						if err != nil {
-							return err
-						}
-
-						fmt.Println("successfully ensured dependencies for project")
-
-						return nil
-					},
-					Flags: []cli.Flag{
-						cli.StringFlag{
-							Name:  "dir",
-							Value: ".",
-							Usage: "working directory for the project - by default, uses the current directory",
-						},
-					},
+					Name:        "download",
+					Usage:       "sampctl server download",
+					Description: "Downloads the files necessary to run a SA:MP server to the current directory (unless `--dir` specified). Will download the latest stable (non RC) server version unless `--version` is specified.",
+					Action:      serverDownload,
+					Flags:       serverDownloadFlags,
 				},
 				{
-					Name:    "build",
-					Aliases: []string{"b"},
-					Usage:   "builds a project defined by a pawn.json or pawn.yaml file",
-					Action: func(c *cli.Context) error {
-						dir := util.FullPath(c.String("dir"))
-						build := c.String("build")
-						forceEnsure := c.Bool("forceEnsure")
-
-						pkg, err := rook.PackageFromDir(dir)
-						if err != nil {
-							return errors.Wrap(err, "failed to interpret directory as Pawn package")
-						}
-
-						output, err := pkg.Build(build, forceEnsure)
-						if err != nil {
-							return err
-						}
-
-						fmt.Println("successfully built project to", output)
-
-						return nil
-					},
-					Flags: []cli.Flag{
-						cli.StringFlag{
-							Name:  "dir",
-							Value: ".",
-							Usage: "working directory for the project - by default, uses the current directory",
-						},
-						cli.StringFlag{
-							Name:  "build",
-							Value: "",
-							Usage: "build configuration to use if --forceBuild is set",
-						},
-						cli.BoolFlag{
-							Name:  "forceEnsure",
-							Usage: "forces dependency ensure before build if --forceBuild is set",
-						},
-					},
+					Name:        "run",
+					Usage:       "sampctl server run",
+					Description: "Generates a `server.cfg` file based on the configuration inside `samp.json` then executes the server process and automatically restarts it on crashes.",
+					Action:      serverRun,
+					Flags:       serverRunFlags,
 				},
 			},
 		},
 		{
-			Name:  "docgen",
-			Usage: "generate documentation - mainly just for CI usage, the readme file will always be up to date.",
+			Name:        "package",
+			Aliases:     []string{"p"},
+			Usage:       "sampctl package <subcommand>",
+			Description: "For managing Pawn packages such as gamemodes and libraries.",
+			Subcommands: []cli.Command{
+				{
+					Name:        "ensure",
+					Usage:       "sampctl package ensure",
+					Description: "Ensures dependencies are up to date based on the `dependencies` field in `pawn.json`.",
+					Action:      packageEnsure,
+					Flags:       packageEnsureFlags,
+				},
+				{
+					Name:        "build",
+					Usage:       "sampctl package build",
+					Description: "Builds a package defined by a `pawn.json` or `pawn.yaml` file.",
+					Action:      packageBuild,
+					Flags:       packageBuildFlags,
+				},
+				{
+					Name:        "run",
+					Usage:       "sampctl package run",
+					Description: "Compiles and runs a package defined by a `pawn.json` or `pawn.yaml` file.",
+					Action:      packageRun,
+					Flags:       packageRunFlags,
+				},
+			},
+		},
+		{
+			Name:        "version",
+			Description: "Show version number - this is also the version of the container image that will be used for `--container` runtimes.",
+			Action:      cli.VersionPrinter,
+		},
+		{
+			Name:        "docs",
+			Usage:       "sampctl docs > documentation.md",
+			Description: "Generate documentation in markdown format and print to standard out.",
 			Action: func(c *cli.Context) error {
 				docs := GenerateDocs(c.App)
 				fmt.Print(docs)
