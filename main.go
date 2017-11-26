@@ -17,7 +17,8 @@ func main() {
 	app.Author = "Southclaws"
 	app.Email = "southclaws@gmail.com"
 	app.Name = "sampctl"
-	app.Description = "A small utility for starting and managing SA:MP servers with better settings handling and crash resiliency."
+	app.Usage = "The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer."
+	app.Description = "Compiles server configuration JSON to server.cfg format. Executes the server and monitors it for crashes, restarting if necessary. Provides a way to quickly download server binaries of a specified version. Provides dependency management and package build tools for library maintainers and gamemode writers alike."
 	app.Version = version
 
 	cli.VersionFlag = cli.BoolFlag{

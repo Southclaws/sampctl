@@ -27,9 +27,9 @@ Package management and dependency tools:
 
 ## `sampctl`
 
-1.4.0-RC1 - Southclaws <southclaws@gmail.com>
+1.4.0-RC2 - Southclaws <southclaws@gmail.com>
 
-A small utility for starting and managing SA:MP servers with better settings handling and crash resiliency.
+Compiles server configuration JSON to server.cfg format. Executes the server and monitors it for crashes, restarting if necessary. Provides a way to quickly download server binaries of a specified version. Provides dependency management and package build tools for library maintainers and gamemode writers alike.
 
 ## Commands (5)
 
@@ -212,4 +212,37 @@ Write your quick test code:
 
 main() {
     new str[128];
-    formatex(str, sizeof str, "
+    formatex(str, sizeof str, "%v", 400); // should print "Landstalker"
+    print(str);
+}
+```
+
+And run it!
+
+```bash
+sampctl package run
+```
+
+## Crashloops and Exponential Backoff
+
+Crashes, crashloops and backoff timing is handled by the app. If the server
+crashes, it will be restarted. If it crashes repeatedly, it will be restarted
+with an exponentially increasing amount of time between tries - in case it's
+waiting for a database to spin up or something. Once the backoff time reaches
+15s, it quits.
+
+## Development
+
+Grab the code:
+
+```bash
+go get github.com/Southclaws/sampctl
+```
+
+Grab the dependencies:
+
+```bash
+dep ensure -update
+```
+
+Hack away!
