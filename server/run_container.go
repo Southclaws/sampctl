@@ -34,7 +34,7 @@ func RunContainer(endpoint, version, dir, appVersion string) (err error) {
 		context.Background(),
 		&container.Config{
 			Image:        "southclaws/sampctl:" + appVersion,
-			Entrypoint:   strslice.StrSlice{"sampctl", "run"},
+			Entrypoint:   strslice.StrSlice{"sampctl", "server", "run"},
 			Tty:          true,
 			AttachStdout: true,
 			AttachStderr: true,
