@@ -2,17 +2,28 @@
 
 [![Build Status](https://travis-ci.org/Southclaws/sampctl.svg?branch=master)](https://travis-ci.org/Southclaws/sampctl)[![Go Report Card](https://goreportcard.com/badge/github.com/Southclaws/sampctl)](https://goreportcard.com/report/github.com/Southclaws/sampctl)
 
-A small utility for starting and managing SA:MP servers with better settings handling and crash resiliency.
+The Swiss Army Knife of SA:MP - vital tools for any server owner or library
+maintainer.
 
-- manage your server settings in JSON format (compiles to server.cfg)
-- automatically restarts after crashes and prevents crashloops
-- auto download of binary packages for either platform
+## Overview
+
+Server management and configuration tools:
+
+* Manage your server settings in JSON format (compiles to server.cfg)
+* Run the server from `sampctl` and let it worry about automatic restarts
+* Automatically download Windows/Linux server binaries when you need them
+
+Package management and dependency tools:
+
+* Always have the libraries you need at the versions to specify
+* No more copies of the Pawn compiler or includes, let `sampctl` handle it
+* Easily write and run tests for libraries or quickly run arbitrary code
 
 ## Installation
 
-- [Linux (Debian/Ubuntu)](https://github.com/Southclaws/sampctl/wiki/Linux)
-- [Windows](https://github.com/Southclaws/sampctl/wiki/Windows)
-- [Mac](https://github.com/Southclaws/sampctl/wiki/Mac)
+* [Linux (Debian/Ubuntu)](https://github.com/Southclaws/sampctl/wiki/Linux)
+* [Windows](https://github.com/Southclaws/sampctl/wiki/Windows)
+* [Mac](https://github.com/Southclaws/sampctl/wiki/Mac)
 
 ## `sampctl`
 
@@ -146,24 +157,22 @@ Usage: `Shows a list of commands or help for one command`
 
 ## An Easier Way To Configure via `samp.json`
 
-Everybody loves JSON! I've always hated the `server.cfg` structure, so no longer will you need to edit this file by hand! You can work with a modern, structured, JSON format instead.
+Everybody loves JSON! I've always hated the `server.cfg` structure, so no longer
+will you need to edit this file by hand! You can work with a modern, structured,
+JSON format instead.
 
-If your current directory has a JSON file named `samp.json`, the values will be used to generate a `server.cfg` file.
+If your `samp.json` looks like this:
 
 ```json
 {
-	"gamemodes": [
-		"rivershell"
-	],
-	"plugins": [
-		"filemanager"
-	],
-	"rcon_password": "test",
-	"port": 8080,
+    "gamemodes": ["rivershell"],
+    "plugins": ["filemanager"],
+    "rcon_password": "test",
+    "port": 8080
 }
 ```
 
-Becomes (On Linux - the `.so` extension is automatically added for Linux and omitted on Windows)
+It compiles to this:
 
 ```conf
 gamemode0 rivershell
@@ -173,37 +182,34 @@ port 8080
 (... and the rest of the settings which have default values)
 ```
 
+Note that the plugins line turned `filemanager` into `filemanager.so` because
+this example was run on a Linux machine.
+
 [See documentation for more info.](https://github.com/Southclaws/sampctl/wiki/samp.json-Reference)
 
-## Crashloops and Exponential Backoff
+## Write libraries like it's npm with `pawn.json`
 
-Crashes, crashloops and backoff timing is handled by the app. If the server crashes, it will be restarted. If it crashes repeatedly, it will be restarted with an exponentially increasing amount of time between tries - in case it's waiting for a database to spin up or something. Once the backoff time reaches 15s, it quits.
+Not writing a gamemode? If you're a Pawn library maintainer, you know it's
+awkward to set up unit tests for libraries. Even if you just want to quickly
+test some code, you have to provision a server, set the gamemode in the
+server.cfg, write and compile code using the correct compiler.
 
-## Development
+Forget all that. Just make a `pawn.json` in your project directory:
 
-Grab the code:
-
-```bash
-go get github.com/Southclaws/sampctl
+```json
+{
+    "entry": "test.pwn",
+    "output": "test.amx",
+    "dependencies": ["Southclaws/samp-stdlib", "Southclaws/formatex"]
+}
 ```
 
-Grab the dependencies:
+Write your quick test code:
 
-```bash
-dep ensure -update
-```
+```pawn
+#include <a_samp>
+#include <formatex>
 
-Hack away!
-
-## Roadmap
-
-The main focus of this project was to bring SA:MP server management into the present with a modern system `*ctl` tool (think systemd, kubectl, caddy, etc).
-
-Another primary focus was to ease the use of SA:MP in a Docker container, via the `--container` flag this is now extremely easy!
-
-The future will include:
-
-- automatic log management and rotation
-- sending error/warning alerts to services such as Discord and IRC
-- a RESTful API to control the server that's better than RCON in every possible way
-- auto-restart when gamemode .amx files are updated - JavaScript style!
+main() {
+    new str[128];
+    formatex(str, sizeof str, "
