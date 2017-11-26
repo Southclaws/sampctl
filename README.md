@@ -27,7 +27,7 @@ Package management and dependency tools:
 
 ## `sampctl`
 
-1.4.0-RC2 - Southclaws <southclaws@gmail.com>
+1.4.0-RC3 - Southclaws <southclaws@gmail.com>
 
 Compiles server configuration JSON to server.cfg format. Executes the server and monitors it for crashes, restarting if necessary. Provides a way to quickly download server binaries of a specified version. Provides dependency management and package build tools for library maintainers and gamemode writers alike.
 
@@ -212,7 +212,7 @@ Write your quick test code:
 
 main() {
     new str[128];
-    formatex(str, sizeof str, "%v", 400); // should print "Landstalker"
+    formatex(str, sizeof str, "My favourite vehicle is: '%v'!", 400); // should print "Landstalker"
     print(str);
 }
 ```
@@ -221,7 +221,42 @@ And run it!
 
 ```bash
 sampctl package run
+Using cached package for 0.3.7
+building /: with 3.10.4
+Compiling source: '/tmp/test.pwn' with compiler 3.10.4...
+Using cached package pawnc-3.10.4-darwin.zip
+Pawn compiler 3.10.2                    Copyright (c) 1997-2006, ITB CompuPhase
+
+Header size:            480 bytes
+Code size:             5960 bytes
+Data size:            15876 bytes
+Stack/heap size:      16384 bytes; estimated max. usage=300 cells (1200 bytes)
+Total requirements:   38700 bytes
+Starting server...
+
+Server Plugins
+--------------
+ Loaded 0 plugins.
+
+
+Started server on port: 7777, with maxplayers: 50 lanmode is OFF.
+
+
+Filterscripts
+---------------
+  Loaded 0 filterscripts.
+
+My favourite vehicle is: 'Landstalker'!
 ```
+
+You get the compiler output and the server output without ever needing to:
+
+* visit sa-mp.com/download.php
+* unzip a server package
+* worry about Windows or Linux
+* set up the Pawn compiler
+* make sure the Pawn compiler is reading the correct includes
+* download the formatex include
 
 ## Crashloops and Exponential Backoff
 
