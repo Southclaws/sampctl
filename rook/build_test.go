@@ -1,6 +1,9 @@
 package rook
 
 import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/Southclaws/sampctl/compiler"
@@ -14,13 +17,29 @@ func TestPackage_Build(t *testing.T) {
 	}
 	tests := []struct {
 		name       string
+		sourceCode []byte
 		pkg        Package
 		args       args
 		wantOutput string
 		wantErr    bool
 	}{
-		{"basic", Package{
-			local:  util.FullPath("./tests/build"),
+		{"stdlib", []byte(`#include <a_samp>
+			main() {print("hi");}
+			`), Package{
+			local:  util.FullPath("./tests/build-auto-stdlib"),
+			Entry:  "gamemodes/test.pwn",
+			Output: "gamemodes/test.amx",
+			Dependencies: []DependencyString{
+				DependencyString("Southclaws/samp-stdlib:0.3.7-R2-2-1"),
+			},
+			Builds: []compiler.Config{
+				{Name: "build", Version: "3.10.4"},
+			},
+		}, args{"build", true}, "gamemodes/test.amx", false},
+		{"sif", []byte(`#include <SIF/Item.pwn>
+			main() {DefineItemType("name[]", "uname[]", 1, 1);}
+			`), Package{
+			local:  util.FullPath("./tests/build-auto-sif"),
 			Entry:  "gamemodes/test.pwn",
 			Output: "gamemodes/test.amx",
 			Dependencies: []DependencyString{
@@ -34,8 +53,33 @@ func TestPackage_Build(t *testing.T) {
 				{Name: "build", Version: "3.10.4"},
 			},
 		}, args{"build", true}, "gamemodes/test.amx", false},
+		{"ysf", []byte(`#include <a_samp>
+			#include <YSF>
+			main() {}
+			`), Package{
+			local:  util.FullPath("./tests/build-auto-ysf"),
+			Entry:  "gamemodes/test.pwn",
+			Output: "gamemodes/test.amx",
+			Dependencies: []DependencyString{
+				DependencyString("Southclaws/samp-stdlib:0.3.7-R2-2-1"),
+				DependencyString("kurta999/YSF/sampsvr_files/pawno/include"),
+			},
+			Builds: []compiler.Config{
+				{Name: "build", Version: "3.10.4"},
+			},
+		}, args{"build", true}, "gamemodes/test.amx", false},
 	}
 	for _, tt := range tests {
+		err := os.MkdirAll(filepath.Join(tt.pkg.local, "gamemodes"), 0755)
+		if err != nil {
+			panic(err)
+		}
+
+		err = ioutil.WriteFile(filepath.Join(tt.pkg.local, tt.pkg.Entry), tt.sourceCode, 0755)
+		if err != nil {
+			panic(err)
+		}
+
 		t.Run(tt.name, func(t *testing.T) {
 			gotOutput, err := tt.pkg.Build(tt.args.build, tt.args.ensure)
 			if (err != nil) != tt.wantErr {

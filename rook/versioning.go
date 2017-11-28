@@ -18,7 +18,7 @@ type Dependency struct {
 	Version string `json:"version"` // Version string (git tag, preferably a semantic version)
 }
 
-var dependencyPattern = regexp.MustCompile(`^((?:http(?:s)?:\/\/)?github.com\/)?([a-zA-Z0-9-]*)\/([a-zA-Z0-9-_]*)(?:\/)?([a-zA-Z0-9-_$\[\]{}().,]*)?(?:\:)?(.*)?$`)
+var dependencyPattern = regexp.MustCompile(`^((?:http(?:s)?:\/\/)?github.com\/)?([a-zA-Z0-9-]*)\/([a-zA-Z0-9-_]*)(?:\/)?([a-zA-Z0-9-_$\[\]{}().,\/]*)?(?:\:)?(.*)?$`)
 
 // Validate checks if a dependency is of a valid pattern
 // a valid pattern is either a GitHub URL or just a user/repo combination followed by an optional
