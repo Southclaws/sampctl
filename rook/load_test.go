@@ -1,6 +1,7 @@
 package rook
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -21,12 +22,12 @@ func TestPackageFromDir(t *testing.T) {
 			Entry:  "gamemodes/test.pwn",
 			Output: "gamemodes/test.amx",
 			Dependencies: []DependencyString{
-				DependencyString("Southclaws/samp-stdlib:0.3.7-R2-2-1"),
-				DependencyString("Southclaws/SIF:1.6.2"),
-				DependencyString("Misiur/YSI-Includes"),
-				DependencyString("samp-incognito/samp-streamer-plugin:2.9.1"),
-				DependencyString("Zeex/amx_assembly"),
-				DependencyString("Zeex/samp-plugin-crashdetect/include"),
+				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
+				"Southclaws/SIF:1.6.2",
+				"Misiur/YSI-Includes",
+				"samp-incognito/samp-streamer-plugin:2.9.1",
+				"Zeex/amx_assembly",
+				"Zeex/samp-plugin-crashdetect/include",
 			}},
 			false},
 		{"build-yaml", args{"./tests/build-yaml"}, Package{
@@ -34,11 +35,11 @@ func TestPackageFromDir(t *testing.T) {
 			Entry:  "gamemodes/test.pwn",
 			Output: "gamemodes/test.amx",
 			Dependencies: []DependencyString{
-				DependencyString("Southclaws/samp-stdlib:0.3.7-R2-2-1"),
-				DependencyString("Southclaws/SIF:1.6.2"),
-				DependencyString("Misiur/YSI-Includes"),
-				DependencyString("samp-incognito/samp-streamer-plugin:2.9.1"),
-				DependencyString("Zeex/amx_assembly"),
+				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
+				"Southclaws/SIF:1.6.2",
+				"Misiur/YSI-Includes",
+				"samp-incognito/samp-streamer-plugin:2.9.1",
+				"Zeex/amx_assembly",
 			}},
 			false},
 	}
@@ -50,6 +51,8 @@ func TestPackageFromDir(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
+
+			fmt.Println(gotPkg.Dependencies)
 
 			assert.Equal(t, tt.wantPkg, gotPkg)
 		})

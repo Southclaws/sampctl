@@ -30,7 +30,7 @@ func TestPackage_Build(t *testing.T) {
 			Entry:  "gamemodes/test.pwn",
 			Output: "gamemodes/test.amx",
 			Dependencies: []DependencyString{
-				DependencyString("Southclaws/samp-stdlib:0.3.7-R2-2-1"),
+				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
 			},
 			Builds: []compiler.Config{
 				{Name: "build", Version: "3.10.4"},
@@ -43,11 +43,11 @@ func TestPackage_Build(t *testing.T) {
 			Entry:  "gamemodes/test.pwn",
 			Output: "gamemodes/test.amx",
 			Dependencies: []DependencyString{
-				DependencyString("Southclaws/samp-stdlib:0.3.7-R2-2-1"),
-				DependencyString("Southclaws/SIF:1.6.2"),
-				DependencyString("Misiur/YSI-Includes"),
-				DependencyString("samp-incognito/samp-streamer-plugin:2.9.1"),
-				DependencyString("Zeex/amx_assembly"),
+				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
+				"Southclaws/SIF:1.6.2",
+				"Misiur/YSI-Includes",
+				"samp-incognito/samp-streamer-plugin:2.9.1",
+				"Zeex/amx_assembly",
 			},
 			Builds: []compiler.Config{
 				{Name: "build", Version: "3.10.4"},
@@ -61,8 +61,8 @@ func TestPackage_Build(t *testing.T) {
 			Entry:  "gamemodes/test.pwn",
 			Output: "gamemodes/test.amx",
 			Dependencies: []DependencyString{
-				DependencyString("Southclaws/samp-stdlib:0.3.7-R2-2-1"),
-				DependencyString("kurta999/YSF/sampsvr_files/pawno/include"),
+				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
+				"kurta999/YSF/sampsvr_files/pawno/include",
 			},
 			Builds: []compiler.Config{
 				{Name: "build", Version: "3.10.4"},

@@ -33,8 +33,8 @@ type Package struct {
 	// If this field is not set, then the Package is just an in-memory pointer to a remote package.
 	local string
 
-	// Inferred metadata, not explicitly set via JSON/YAML but inferred from the dependency path
-	Dependency
+	// Inferred metadata, not always explicitly set via JSON/YAML but inferred from the dependency path
+	PackageMeta
 
 	// Metadata, set by the package author to describe the package
 	Contributors []string `json:"contributors"` // list of contributors
@@ -45,6 +45,25 @@ type Package struct {
 	Output       string             `json:"output"`       // output amx file
 	Dependencies []DependencyString `json:"dependencies"` // list of packages that the package depends on
 	Builds       []compiler.Config  `json:"builds"`       // list of build configurations
+	Resources    []Resource         `json:"resources"`    // list of additional resources associated with the package
+}
+
+// PackageMeta represents all the components required to locate a package version
+type PackageMeta struct {
+	User    string `json:"user"`    // Owner of the project repository
+	Repo    string `json:"repo"`    // GitHub repository name
+	Path    string `json:"path"`    // Subdirectory that contains .inc files (if any)
+	Version string `json:"version"` // Version string (git tag, preferably a semantic version)
+}
+
+// Resource represents a resource associated with a package
+type Resource struct {
+	Name     string            `json:"name"`     // filename pattern of the resource
+	Platform string            `json:"platform"` // target platform, if empty the resource is always used but if this is set and does not match the runtime OS, the resource is ignored
+	Archive  bool              `json:"release"`  // is this resource an archive file or just a single file?
+	Includes []string          `json:"includes"` // if archive: paths to directories containing .inc files for the compiler
+	Plugins  []string          `json:"plugins"`  // if archive: paths to plugin binaries, either .so or .dll
+	Files    map[string]string `json:"files"`    // if archive: path-to-path map of any other files, keys are paths inside the archive and values are extraction paths relative to the sampctl working directory
 }
 
 func (pkg Package) String() string {
@@ -92,15 +111,15 @@ func (pkg Package) EnsureDependencies() (err error) {
 
 	vendorDir := filepath.Join(pkg.local, "dependencies")
 
-	for _, depStr := range pkg.Dependencies {
-		dep, err := PackageFromDep(depStr)
+	for _, depString := range pkg.Dependencies {
+		dep, err := PackageFromDep(depString)
 		if err != nil {
-			return errors.Errorf("package dependency '%s' is invalid: %v", depStr, err)
+			return errors.Errorf("package dependency '%s' is invalid: %v", depString, err)
 		}
 
 		err = EnsurePackage(vendorDir, dep)
 		if err != nil {
-			return errors.Wrapf(err, "failed to ensure package %s", depStr)
+			return errors.Wrapf(err, "failed to ensure package %s", dep)
 		}
 	}
 	return
