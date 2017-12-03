@@ -60,13 +60,13 @@ func PackageFromYAML(file string) (pkg Package, err error) {
 	var contents []byte
 	contents, err = ioutil.ReadFile(file)
 	if err != nil {
-		err = errors.Wrap(err, "failed to read pawn.json")
+		err = errors.Wrap(err, "failed to read pawn.yaml")
 		return
 	}
 
 	err = yaml.Unmarshal(contents, &pkg)
 	if err != nil {
-		err = errors.Wrap(err, "failed to unmarshal pawn.json")
+		err = errors.Wrap(err, "failed to unmarshal pawn.yaml")
 		return
 	}
 
