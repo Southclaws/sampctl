@@ -68,6 +68,19 @@ func TestPackage_Build(t *testing.T) {
 				{Name: "build", Version: "3.10.4"},
 			},
 		}, args{"build", true}, "gamemodes/test.amx", false},
+		{"spaces", []byte(`#include <a_samp>
+			main() {}
+			`), Package{
+			local:  util.FullPath("./tests/build-auto- spaces"),
+			Entry:  "gamemodes/test.pwn",
+			Output: "gamemodes/test.amx",
+			Dependencies: []DependencyString{
+				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
+			},
+			Builds: []compiler.Config{
+				{Name: "build", Version: "3.10.4"},
+			},
+		}, args{"build", true}, "gamemodes/test.amx", false},
 	}
 	for _, tt := range tests {
 		err := os.MkdirAll(filepath.Join(tt.pkg.local, "gamemodes"), 0755)
