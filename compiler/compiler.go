@@ -28,6 +28,14 @@ type Config struct {
 	Includes   []string          `json:"includes"`   // list of include files to include in compilation via -i flags
 }
 
+// GetDefaultConfig defines and returns a default compiler configuration
+func GetDefaultConfig() Config {
+	return Config{
+		Args:    []string{"-d3", "-;+", "-(+", "-Z+"},
+		Version: "3.10.4",
+	}
+}
+
 // FromCache attempts to get a compiler package from the cache, `hit` represents success
 func FromCache(cacheDir string, version Version, dir string) (hit bool, err error) {
 	pkg, filename, err := GetCompilerPackageInfo(runtime.GOOS, version)
@@ -105,9 +113,6 @@ func CompileSource(cacheDir string, config Config) (err error) {
 	args := []string{
 		config.Input,
 		"-D" + config.WorkingDir,
-		"-;+",
-		"-(+",
-		"-Z+",
 		"-o" + config.Output,
 	}
 	args = append(args, config.Args...)

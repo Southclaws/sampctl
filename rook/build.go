@@ -64,10 +64,7 @@ func (pkg Package) Build(build string, ensure bool) (output string, err error) {
 // configuration is returned.
 func (pkg Package) GetBuildConfig(name string) (config compiler.Config, err error) {
 	if len(pkg.Builds) == 0 {
-		return compiler.Config{
-			Args:    []string{"-d3"},
-			Version: "3.10.4",
-		}, nil
+		return compiler.GetDefaultConfig(), nil
 	}
 
 	if name == "" {
