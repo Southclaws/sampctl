@@ -64,17 +64,17 @@ func (pkg Package) Build(build string, ensure bool) (output string, err error) {
 // configuration is returned.
 func (pkg Package) GetBuildConfig(name string) (config compiler.Config, err error) {
 	if len(pkg.Builds) == 0 {
-		return compiler.GetDefaultConfig(), nil
+		config = compiler.GetDefaultConfig()
+		return
 	}
 
 	if name == "" {
-		config = pkg.Builds[0]
-		return
+		return compiler.MergeDefault(pkg.Builds[0]), nil
 	}
 
 	for _, cfg := range pkg.Builds {
 		if cfg.Name == name {
-			return cfg, nil
+			return compiler.MergeDefault(cfg), nil
 		}
 	}
 

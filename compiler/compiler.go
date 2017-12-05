@@ -19,13 +19,13 @@ type Version string
 // Config represents a configuration for compiling a file
 type Config struct {
 	Name       string            `json:"name"`       // name of the configuration
-	Args       []string          `json:"args"`       // list of arguments to pass to the compiler
-	Constants  map[string]string `json:"constants"`  // set of constant definitions to pass to the compiler
 	Version    Version           `json:"version"`    // compiler version to use for this build
 	WorkingDir string            `json:"workingDir"` // working directory for the -D flag
+	Args       []string          `json:"args"`       // list of arguments to pass to the compiler
 	Input      string            `json:"input"`      // input .pwn file
 	Output     string            `json:"output"`     // output .amx file
 	Includes   []string          `json:"includes"`   // list of include files to include in compilation via -i flags
+	Constants  map[string]string `json:"constants"`  // set of constant definitions to pass to the compiler
 }
 
 // GetDefaultConfig defines and returns a default compiler configuration
@@ -34,6 +34,41 @@ func GetDefaultConfig() Config {
 		Args:    []string{"-d3", "-;+", "-(+", "-Z+"},
 		Version: "3.10.4",
 	}
+}
+
+// MergeDefault returns a default config with the specified config merged on top
+func MergeDefault(config Config) (result Config) {
+	result = GetDefaultConfig()
+
+	result.Name = config.Name
+
+	if config.Version != "" {
+		result.Version = config.Version
+	}
+
+	result.WorkingDir = config.WorkingDir
+
+	if len(config.Args) > 0 {
+		args := make(map[string]struct{})
+		for _, defaultArg := range result.Args {
+			args[defaultArg] = struct{}{}
+		}
+		for _, configArg := range config.Args {
+			args[configArg] = struct{}{}
+		}
+		argsList := make([]string, len(args))
+		for arg := range args {
+			argsList = append(argsList, arg)
+		}
+		result.Args = argsList
+	}
+
+	result.Input = config.Input
+	result.Output = config.Output
+	result.Includes = config.Includes
+	result.Constants = config.Constants
+
+	return
 }
 
 // FromCache attempts to get a compiler package from the cache, `hit` represents success
@@ -118,6 +153,7 @@ func CompileSource(cacheDir string, config Config) (err error) {
 	args = append(args, config.Args...)
 
 	for _, inc := range config.Includes {
+		fmt.Println("- using include path", inc)
 		args = append(args, "-i"+inc)
 	}
 
