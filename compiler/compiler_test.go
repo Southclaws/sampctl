@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/Southclaws/sampctl/download"
@@ -177,6 +178,8 @@ func TestMergeDefault(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			gotResult := MergeDefault(tt.args.config)
+			sort.Strings(tt.wantResult.Args)
+			sort.Strings(gotResult.Args)
 			assert.Equal(t, tt.wantResult, gotResult)
 		})
 	}
