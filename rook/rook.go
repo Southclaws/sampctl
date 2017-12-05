@@ -6,14 +6,11 @@ package rook
 
 import (
 	"fmt"
-	"path/filepath"
 
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/compiler"
-	"github.com/Southclaws/sampctl/server"
 	"github.com/Southclaws/sampctl/settings"
-	"github.com/Southclaws/sampctl/util"
 )
 
 // Package represents a definition for a Pawn package and can either be used to define a build or
@@ -100,62 +97,5 @@ func (pkg Package) GetURL() string {
 func PackageFromDep(depString DependencyString) (pkg Package, err error) {
 	dep, err := depString.Explode()
 	pkg.User, pkg.Repo, pkg.Path, pkg.Version = dep.User, dep.Repo, dep.Path, dep.Version
-	return
-}
-
-// EnsureDependencies traverses package dependencies and ensures they are up to date in `Package.local`/vendor
-func (pkg Package) EnsureDependencies() (err error) {
-	if pkg.local == "" {
-		return errors.New("package does not represent a locally stored package")
-	}
-
-	if !util.Exists(pkg.local) {
-		return errors.New("package local path does not exist")
-	}
-
-	vendorDir := filepath.Join(pkg.local, "dependencies")
-
-	for _, depString := range pkg.Dependencies {
-		dep, err := PackageFromDep(depString)
-		if err != nil {
-			return errors.Errorf("package dependency '%s' is invalid: %v", depString, err)
-		}
-
-		err = EnsurePackage(vendorDir, dep)
-		if err != nil {
-			return errors.Wrapf(err, "failed to ensure package %s", dep)
-		}
-	}
-	return
-}
-
-// Run will create a temporary server runtime and run the package output AMX as a gamemode using the
-// runtime configuration in the package info.
-func (pkg Package) Run(cacheDir, endpoint, version, appVersion, build string, container, forceBuild, forceEnsure bool) (err error) {
-	err = server.PrepareRuntime(cacheDir, endpoint, version)
-	if err != nil {
-		return err
-	}
-
-	filename := util.FullPath(pkg.Output)
-	if !util.Exists(filename) || forceBuild {
-		filename, err = pkg.Build(build, forceEnsure)
-		if err != nil {
-			return err
-		}
-	}
-
-	err = server.CopyFileToRuntime(cacheDir, version, filename)
-	if err != nil {
-		return err
-	}
-
-	runtimeDir := server.GetRuntimePath(cacheDir, version)
-
-	if container {
-		err = server.RunContainer(endpoint, version, runtimeDir, appVersion)
-	} else {
-		err = server.Run(endpoint, version, runtimeDir)
-	}
 	return
 }

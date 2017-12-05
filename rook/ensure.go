@@ -24,6 +24,33 @@ type VersionedTag struct {
 // VersionedTags is just for implementing the Sort interface
 type VersionedTags []VersionedTag
 
+
+// EnsureDependencies traverses package dependencies and ensures they are up to date in `Package.local`/vendor
+func (pkg Package) EnsureDependencies() (err error) {
+	if pkg.local == "" {
+		return errors.New("package does not represent a locally stored package")
+	}
+
+	if !util.Exists(pkg.local) {
+		return errors.New("package local path does not exist")
+	}
+
+	vendorDir := filepath.Join(pkg.local, "dependencies")
+
+	for _, depString := range pkg.Dependencies {
+		dep, err := PackageFromDep(depString)
+		if err != nil {
+			return errors.Errorf("package dependency '%s' is invalid: %v", depString, err)
+		}
+
+		err = EnsurePackage(vendorDir, dep)
+		if err != nil {
+			return errors.Wrapf(err, "failed to ensure package %s", dep)
+		}
+	}
+	return
+}
+
 // EnsurePackage will make sure a vendor directory contains the specified package.
 // If the package is not present, it will clone it at the correct version tag, sha1 or HEAD
 // If the package is present, it will ensure the directory contains the correct version

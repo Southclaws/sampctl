@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
+
+	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/settings"
 	"github.com/Southclaws/sampctl/util"
-	"github.com/pkg/errors"
 )
 
-// PrepareRuntime sets up a directory in ~/.samp that contains the server runtime
-func PrepareRuntime(cacheDir, endpoint, version string) (err error) {
+// PrepareRuntimeDirectory sets up a directory in ~/.samp that contains the server runtime
+func PrepareRuntimeDirectory(cacheDir, endpoint, version string) (err error) {
 	dir := GetRuntimePath(cacheDir, version)
 
 	err = os.MkdirAll(dir, 0755)
@@ -52,29 +52,37 @@ func PrepareRuntime(cacheDir, endpoint, version string) (err error) {
 func CopyFileToRuntime(cacheDir, version, filePath string) (err error) {
 	fileName := filepath.Base(filePath)
 	ext := filepath.Ext(filePath)
-	justName := strings.TrimSuffix(fileName, ext)
-
 	dir := GetRuntimePath(cacheDir, version)
 
-	if ext == ".amx" {
-		err := util.CopyFile(filePath, filepath.Join(dir, "gamemodes", fileName))
-		if err != nil {
-			return errors.Wrap(err, "failed to copy AMX to temporary runtime area")
-		}
-	} else {
+	if ext != ".amx" {
 		return errors.New("specified file is not an .amx")
 	}
 
-	config := settings.Config{
-		Gamemodes:    []string{justName},
+	err = util.CopyFile(filePath, filepath.Join(dir, "gamemodes", fileName))
+	if err != nil {
+		return errors.Wrap(err, "failed to copy AMX to temporary runtime area")
+	}
+
+	return
+}
+
+// GetDefaultConfig returns a default config for temporary runtimes
+func GetDefaultConfig() (config settings.Config) {
+	return settings.Config{
 		RCONPassword: &[]string{"temp"}[0],
 		Port:         &[]int{7777}[0],
 	}
-	err = config.GenerateJSON(dir)
-	if err != nil {
-		return errors.Wrap(err, "failed to generate temporary samp.json")
-	}
+}
 
+// MergeDefaultConfig returns a default config with the specified config merged on top
+func MergeDefaultConfig(config settings.Config) (result settings.Config) {
+	result = GetDefaultConfig()
+	if config.RCONPassword != nil {
+		result.RCONPassword = config.RCONPassword
+	}
+	if config.Port != nil {
+		result.Port = config.Port
+	}
 	return
 }
 
