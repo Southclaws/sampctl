@@ -1,11 +1,10 @@
-package server
+package runtime
 
 import (
 	"bufio"
 	"context"
 	"fmt"
 
-	"github.com/Southclaws/sampctl/settings"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
@@ -24,7 +23,7 @@ func RunContainer(endpoint, version, dir, appVersion string) (err error) {
 		panic(err)
 	}
 
-	config, err := settings.NewConfigFromEnvironment(dir)
+	config, err := NewConfigFromEnvironment(dir)
 	if err != nil {
 		return errors.Wrap(err, "failed to load config from directory")
 	}

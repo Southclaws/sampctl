@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/compiler"
-	"github.com/Southclaws/sampctl/settings"
+	"github.com/Southclaws/sampctl/runtime"
 )
 
 // Package represents a definition for a Pawn package and can either be used to define a build or
@@ -45,7 +45,7 @@ type Package struct {
 	Output       string             `json:"output"`       // output amx file
 	Dependencies []DependencyString `json:"dependencies"` // list of packages that the package depends on
 	Builds       []compiler.Config  `json:"builds"`       // list of build configurations
-	Runtime      settings.Config    `json:"runtime"`      // runtime configuration for executing the package code
+	Runtime      runtime.Config     `json:"runtime"`      // runtime configuration for executing the package code
 	Resources    []Resource         `json:"resources"`    // list of additional resources associated with the package
 }
 

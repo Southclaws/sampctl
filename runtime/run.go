@@ -1,4 +1,4 @@
-package server
+package runtime
 
 import (
 	"fmt"
@@ -7,13 +7,12 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/Southclaws/sampctl/settings"
 	"github.com/pkg/errors"
 )
 
 // Run handles the actual running of the server process - it collects log output too
 func Run(endpoint, version, dir string) (err error) {
-	server, err := settings.NewConfigFromEnvironment(dir)
+	server, err := NewConfigFromEnvironment(dir)
 	if err != nil {
 		return errors.Wrap(err, "failed to generate config from environment")
 	}

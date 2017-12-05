@@ -1,4 +1,4 @@
-package server
+package runtime
 
 import (
 	"fmt"
@@ -7,7 +7,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/Southclaws/sampctl/settings"
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -67,15 +66,15 @@ func CopyFileToRuntime(cacheDir, version, filePath string) (err error) {
 }
 
 // GetDefaultConfig returns a default config for temporary runtimes
-func GetDefaultConfig() (config settings.Config) {
-	return settings.Config{
+func GetDefaultConfig() (config Config) {
+	return Config{
 		RCONPassword: &[]string{"temp"}[0],
 		Port:         &[]int{7777}[0],
 	}
 }
 
 // MergeDefaultConfig returns a default config with the specified config merged on top
-func MergeDefaultConfig(config settings.Config) (result settings.Config) {
+func MergeDefaultConfig(config Config) (result Config) {
 	result = GetDefaultConfig()
 	if config.RCONPassword != nil {
 		result.RCONPassword = config.RCONPassword

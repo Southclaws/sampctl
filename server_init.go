@@ -3,9 +3,8 @@ package main
 import (
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
-	
-	"github.com/Southclaws/sampctl/server"
-	"github.com/Southclaws/sampctl/settings"
+
+	"github.com/Southclaws/sampctl/runtime"
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -32,12 +31,12 @@ func serverInit(c *cli.Context) error {
 	dir := util.FullPath(c.String("dir"))
 	endpoint := c.String("endpoint")
 
-	err := settings.InitialiseServer(version, dir)
+	err := runtime.InitialiseServer(version, dir)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialise server")
 	}
 
-	err = server.GetServerPackage(endpoint, version, dir)
+	err = runtime.GetServerPackage(endpoint, version, dir)
 	if err != nil {
 		return errors.Wrap(err, "failed to get package")
 	}

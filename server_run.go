@@ -6,7 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Southclaws/sampctl/server"
+	"github.com/Southclaws/sampctl/runtime"
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -39,19 +39,19 @@ func serverRun(c *cli.Context) error {
 	container := c.Bool("container")
 
 	var err error
-	errs := server.ValidateServerDir(dir, version)
+	errs := runtime.ValidateServerDir(dir, version)
 	if errs != nil {
 		fmt.Println(errs)
-		err = server.GetServerPackage(endpoint, version, dir)
+		err = runtime.GetServerPackage(endpoint, version, dir)
 		if err != nil {
-			return errors.Wrap(err, "failed to get server package")
+			return errors.Wrap(err, "failed to get runtime package")
 		}
 	}
 
 	if container {
-		err = server.RunContainer(endpoint, version, dir, c.App.Version)
+		err = runtime.RunContainer(endpoint, version, dir, c.App.Version)
 	} else {
-		err = server.Run(endpoint, version, dir)
+		err = runtime.Run(endpoint, version, dir)
 	}
 
 	return err

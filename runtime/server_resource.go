@@ -1,4 +1,4 @@
-package server
+package runtime
 
 import (
 	"crypto/md5"

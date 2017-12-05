@@ -3,7 +3,7 @@ package main
 import (
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Southclaws/sampctl/server"
+	"github.com/Southclaws/sampctl/runtime"
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -29,5 +29,5 @@ func serverDownload(c *cli.Context) error {
 	version := c.String("version")
 	dir := util.FullPath(c.String("dir"))
 	endpoint := c.String("endpoint")
-	return server.GetServerPackage(endpoint, version, dir)
+	return runtime.GetServerPackage(endpoint, version, dir)
 }

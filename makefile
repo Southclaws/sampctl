@@ -8,8 +8,7 @@ test:
 		./compiler \
 		./download \
 		./rook \
-		./server \
-		./settings \
+		./runtime \
 		./util
 fast:
 	go build $(LDFLAGS) -o sampctl
