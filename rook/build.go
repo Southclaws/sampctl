@@ -49,7 +49,7 @@ func (pkg Package) Build(build string, ensure bool) (output string, err error) {
 
 	fmt.Println("building", pkg, "with", config.Version)
 
-	err = compiler.CompileSource(cacheDir, config)
+	err = compiler.CompileSource(pkg.local, cacheDir, config)
 	if err != nil {
 		return
 	}

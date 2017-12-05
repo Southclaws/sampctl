@@ -125,7 +125,7 @@ func FromNet(cacheDir string, version Version, dir string) (err error) {
 }
 
 // CompileSource compiles a given input script to the specified output path using compiler version
-func CompileSource(cacheDir string, config Config) (err error) {
+func CompileSource(execDir string, cacheDir string, config Config) (err error) {
 	fmt.Printf("Compiling source: '%s' with compiler %s...\n", config.Input, config.Version)
 
 	if config.WorkingDir == "" {
@@ -152,9 +152,16 @@ func CompileSource(cacheDir string, config Config) (err error) {
 	}
 	args = append(args, config.Args...)
 
+	var fullPath string
 	for _, inc := range config.Includes {
-		fmt.Println("- using include path", inc)
-		args = append(args, "-i"+inc)
+		if filepath.IsAbs(inc) {
+			fullPath = inc
+		} else {
+			fullPath = filepath.Join(execDir, inc)
+		}
+
+		fmt.Println("- using include path", fullPath)
+		args = append(args, "-i"+fullPath)
 	}
 
 	for name, value := range config.Constants {

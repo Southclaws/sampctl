@@ -81,6 +81,17 @@ func TestPackage_Build(t *testing.T) {
 				{Name: "build", Version: "3.10.4"},
 			},
 		}, args{"build", true}, "gamemodes/test.amx", false},
+		{"custominc", []byte(`#include <a_samp>
+			main() {}
+			`), Package{
+			local:        util.FullPath("./tests/build-auto-custominc"),
+			Entry:        "gamemodes/test.pwn",
+			Output:       "gamemodes/test.amx",
+			Dependencies: []DependencyString{},
+			Builds: []compiler.Config{
+				{Name: "build", Version: "3.10.4", Includes: []string{"../build-auto-ysf/dependencies/samp-stdlib"}},
+			},
+		}, args{"build", true}, "gamemodes/test.amx", false},
 	}
 	for _, tt := range tests {
 		err := os.MkdirAll(filepath.Join(tt.pkg.local, "gamemodes"), 0755)

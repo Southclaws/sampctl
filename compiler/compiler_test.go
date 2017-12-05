@@ -152,7 +152,7 @@ func TestCompileSource(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := CompileSource(tt.args.cacheDir, tt.args.config); (err != nil) != tt.wantErr {
+			if err := CompileSource(".", tt.args.cacheDir, tt.args.config); (err != nil) != tt.wantErr {
 				t.Errorf("CompileSource() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			assert.True(t, util.Exists("./tests/compile/compile_test.amx"))
