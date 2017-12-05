@@ -3,7 +3,6 @@ package settings
 import (
 	"path/filepath"
 	"runtime"
-	"strings"
 
 	"github.com/Southclaws/sampctl/util"
 	"github.com/pkg/errors"
@@ -19,7 +18,7 @@ type Config struct {
 	// Core properties
 	Gamemodes     []string `                        json:"gamemodes,omitempty" cfg:"gamemode" numbered:"1"` //
 	Filterscripts []string `                        required:"0" json:"filterscripts,omitempty"`            //
-	Plugins       []string `                        required:"0" json:"plugins,omitempty"`                  //
+	Plugins       []Plugin `                        required:"0" json:"plugins,omitempty"`                  //
 	RCONPassword  *string  `required:"1"            json:"rcon_password,omitempty"`                         // changeme
 	Port          *int     `default:"8192"          required:"0" json:"port"`                               // 8192
 	Hostname      *string  `default:"SA-MP Server"  required:"0" json:"hostname,omitempty"`                 // SA-MP Server
@@ -104,36 +103,10 @@ func (cfg Config) ValidateWorkspace(dir string) (errs []error) {
 		errs = append(errs, errors.New("unsupported platform"))
 	}
 	for _, plugin := range cfg.Plugins {
-		fullpath := filepath.Join(dir, "plugins", plugin+ext)
+		fullpath := filepath.Join(dir, "plugins", string(plugin)+ext)
 		if !util.Exists(fullpath) {
 			errs = append(errs, errors.Errorf("plugin '%s' is missing its %s file from the plugins directory", plugin, ext))
 		}
 	}
 	return
-}
-
-// adjustForOS quickly does some tweaks depending on the OS such as .so plugin extension on linux
-func adjustForOS(dir string, cfg *Config) {
-	if runtime.GOOS == "linux" {
-		if len(cfg.Plugins) > 0 {
-			actualPlugins := getPlugins(filepath.Join(dir, "plugins"))
-
-			for i, declared := range cfg.Plugins {
-				ext := filepath.Ext(declared)
-				if ext != "" {
-					declared = strings.TrimSuffix(declared, ext)
-				}
-				for _, actual := range actualPlugins {
-					// if the declared plugin matches the found plugin case-insensitively but does match
-					// case sensitively...
-					if strings.EqualFold(declared, actual) && declared != actual {
-						// update the array index to use the actual filename
-						declared = actual
-						break
-					}
-				}
-				cfg.Plugins[i] = declared + ".so"
-			}
-		}
-	}
 }

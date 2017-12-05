@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -139,6 +140,32 @@ func (cfg *Config) GenerateServerCfg(dir string) (err error) {
 	}
 
 	return
+}
+
+// adjustForOS quickly does some tweaks depending on the OS such as .so plugin extension on linux
+func adjustForOS(dir string, cfg *Config) {
+	if runtime.GOOS == "linux" {
+		if len(cfg.Plugins) > 0 {
+			actualPlugins := getPlugins(filepath.Join(dir, "plugins"))
+
+			for i, declared := range cfg.Plugins {
+				ext := filepath.Ext(string(declared))
+				if ext != "" {
+					declared = Plugin(strings.TrimSuffix(string(declared), ext))
+				}
+				for _, actual := range actualPlugins {
+					// if the declared plugin matches the found plugin case-insensitively but does match
+					// case sensitively...
+					if strings.EqualFold(string(declared), actual) && string(declared) != actual {
+						// update the array index to use the actual filename
+						declared = Plugin(actual)
+						break
+					}
+				}
+				cfg.Plugins[i] = declared + ".so"
+			}
+		}
+	}
 }
 
 func fromString(name string, obj reflect.Value, required bool, defaultValue string) (result string, err error) {

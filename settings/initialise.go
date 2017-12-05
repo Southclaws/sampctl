@@ -102,7 +102,7 @@ func InitialiseServer(version, dir string) (err error) {
 		MaxPlayers    int
 		Gamemodes     []string
 		Filterscripts []string
-		Plugins       []string
+		Plugins       []Plugin
 	}{}
 
 	err = survey.Ask(questions, &answers)
