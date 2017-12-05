@@ -8,7 +8,6 @@ import (
 
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/rook"
-	"github.com/Southclaws/sampctl/server"
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -67,31 +66,7 @@ func packageRun(c *cli.Context) error {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	err = server.PrepareRuntime(cacheDir, endpoint, version)
-	if err != nil {
-		return err
-	}
-
-	filename := util.FullPath(pkg.Output)
-	if !util.Exists(filename) || forceBuild {
-		filename, err = pkg.Build(build, forceEnsure)
-		if err != nil {
-			return err
-		}
-	}
-
-	err = server.CopyFileToRuntime(cacheDir, version, filename)
-	if err != nil {
-		return err
-	}
-
-	runtimeDir := server.GetRuntimePath(cacheDir, version)
-
-	if container {
-		err = server.RunContainer(endpoint, version, runtimeDir, c.App.Version)
-	} else {
-		err = server.Run(endpoint, version, runtimeDir)
-	}
+	err = pkg.Run(cacheDir, endpoint, version, c.App.Version, build, container, forceBuild, forceEnsure)
 
 	return err
 }
