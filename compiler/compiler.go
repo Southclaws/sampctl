@@ -56,7 +56,7 @@ func MergeDefault(config Config) (result Config) {
 		for _, configArg := range config.Args {
 			args[configArg] = struct{}{}
 		}
-		argsList := make([]string, len(args))
+		argsList := []string{}
 		for arg := range args {
 			argsList = append(argsList, arg)
 		}

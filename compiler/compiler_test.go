@@ -159,3 +159,25 @@ func TestCompileSource(t *testing.T) {
 		})
 	}
 }
+
+func TestMergeDefault(t *testing.T) {
+	type args struct {
+		config Config
+	}
+	tests := []struct {
+		name       string
+		args       args
+		wantResult Config
+	}{
+		{"valid", args{Config{Args: []string{"-l"}}}, Config{
+			Args:    []string{"-d3", "-;+", "-(+", "-Z+", "-l"},
+			Version: "3.10.4",
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotResult := MergeDefault(tt.args.config)
+			assert.Equal(t, tt.wantResult, gotResult)
+		})
+	}
+}
