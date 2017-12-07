@@ -1,6 +1,6 @@
 FROM golang AS compile
 # just a builder so no need to optimise layers, also makes errors easier to read
-RUN wget https://github.com/golang/dep/releases/download/v0.3.2/dep-linux-amd64 -O /usr/bin/dep
+RUN wget https://github.com/golang/dep/releases/download/v0.3.2/dep-linux-amd64 -O /usr/bin/dep && chmod +x /usr/bin/dep
 RUN go get github.com/Southclaws/sampctl
 WORKDIR /go/src/github.com/Southclaws/sampctl
 RUN dep ensure
