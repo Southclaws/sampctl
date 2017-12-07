@@ -1,9 +1,10 @@
 FROM golang AS compile
-RUN go get github.com/Southclaws/sampctl
-RUN wget https://github.com/golang/dep/releases/download/v0.3.2/dep-linux-amd64 -O /usr/bin/dep && chmod +x /usr/bin/dep
 WORKDIR /go/src/github.com/Southclaws/sampctl
-RUN dep ensure
-RUN make static
+RUN \
+    wget https://github.com/golang/dep/releases/download/v0.3.2/dep-linux-amd64 -o /usr/bin/dep && \
+    go get github.com/Southclaws/sampctl && \
+    dep ensure && \
+    make static
 FROM ubuntu
 COPY --from=compile /go/src/github.com/Southclaws/sampctl/sampctl /bin/sampctl
 RUN mkdir samp && \
