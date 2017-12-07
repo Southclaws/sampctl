@@ -54,3 +54,12 @@ enter-mount:
 		-it --entrypoint=bash \
 		--security-opt='seccomp=unconfined' \
 		southclaws/sampctl:$(VERSION)
+
+# CI
+
+install-dep:
+	wget https://github.com/golang/dep/releases/download/v0.3.2/dep-linux-amd64 -O /usr/bin/go
+	chmod +x /usr/bin/go
+
+deps: install-dep
+	dep ensure

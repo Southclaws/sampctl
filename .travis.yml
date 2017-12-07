@@ -11,7 +11,7 @@ language: go
 jobs:
   include:
     - stage: dependencies
-      script: dep ensure
+      script: make deps
     - stage: test
       script: make test
 after_success:
