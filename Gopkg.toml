@@ -50,8 +50,8 @@
   name = "github.com/minio/go-homedir"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/nbutton23/zxcvbn-go"
+  version = "0.1.0"
 
 [[constraint]]
   name = "github.com/pkg/errors"
@@ -63,12 +63,16 @@
 
 [[constraint]]
   name = "gopkg.in/AlecAivazis/survey.v1"
-  version = "1.4.0"
+  version = "1.4.1"
 
 [[constraint]]
   name = "gopkg.in/src-d/go-git.v4"
-  branch = "v4"
+  version = "4.0.0-rc5"
 
 [[constraint]]
   name = "gopkg.in/urfave/cli.v1"
   version = "1.20.0"
+
+[[constraint]]
+  branch = "v2"
+  name = "gopkg.in/yaml.v2"
