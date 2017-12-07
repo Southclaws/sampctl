@@ -24,7 +24,6 @@ type VersionedTag struct {
 // VersionedTags is just for implementing the Sort interface
 type VersionedTags []VersionedTag
 
-
 // EnsureDependencies traverses package dependencies and ensures they are up to date in `Package.local`/vendor
 func (pkg Package) EnsureDependencies() (err error) {
 	if pkg.local == "" {
