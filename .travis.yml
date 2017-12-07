@@ -10,6 +10,8 @@ addons:
 language: go
 jobs:
   include:
+    - stage: dependencies
+      script: dep ensure
     - stage: test
       script: make test
 after_success:
