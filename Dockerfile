@@ -1,6 +1,6 @@
 FROM golang AS compile
 WORKDIR /go/src/github.com/Southclaws/sampctl
-ADD . .
+RUN git clone https://github.com/Southclaws/sampctl .
 RUN make static
 
 FROM ubuntu

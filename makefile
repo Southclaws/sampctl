@@ -30,6 +30,15 @@ clean:
 docs: fast
 	./docgen.sh
 
+dist:
+	# for osx tar fix
+	# https://github.com/goreleaser/goreleaser/issues/409
+	PATH="/usr/local/opt/gnu-tar/libexec/gnubin:$PATH" \
+	goreleaser \
+		--skip-publish \
+		--skip-validate \
+		--rm-dist
+
 # Docker
 
 build:
