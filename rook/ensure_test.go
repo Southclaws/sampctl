@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4"
+
+	"github.com/Southclaws/sampctl/versioning"
 )
 
 func TestMain(m *testing.M) {
@@ -33,25 +35,25 @@ func TestEnsurePackage(t *testing.T) {
 		wantErr bool
 		delete  bool
 	}{
-		{"SIF latest", args{"./tests/deps", Package{PackageMeta: PackageMeta{
+		{"SIF latest", args{"./tests/deps", Package{DependencyMeta: versioning.DependencyMeta{
 			User: "Southclaws",
 			Repo: "SIF",
 		}}}, "b1db5430428fe89f1cdbcb8267fe8f9f9b78df92", false, true},
-		{"SIF 1.3.x", args{"./tests/deps", Package{PackageMeta: PackageMeta{
+		{"SIF 1.3.x", args{"./tests/deps", Package{DependencyMeta: versioning.DependencyMeta{
 			User:    "Southclaws",
 			Repo:    "SIF",
 			Version: "1.3.x",
 		}}}, "433fc17e9c6bf66bdf7ef3b82b70eea1c34af43f", false, true},
-		{"SIF 1.4.x", args{"./tests/deps", Package{PackageMeta: PackageMeta{
+		{"SIF 1.4.x", args{"./tests/deps", Package{DependencyMeta: versioning.DependencyMeta{
 			User:    "Southclaws",
 			Repo:    "SIF",
 			Version: "1.4.x",
 		}}}, "706daf942e2aa4c2460ecacb459c354ba6951fd0", false, true},
-		{"SIF latest nodelete", args{"./tests/deps", Package{PackageMeta: PackageMeta{
+		{"SIF latest nodelete", args{"./tests/deps", Package{DependencyMeta: versioning.DependencyMeta{
 			User: "Southclaws",
 			Repo: "SIF",
 		}}}, "b1db5430428fe89f1cdbcb8267fe8f9f9b78df92", false, false},
-		{"SIF 1.3.x downgrade", args{"./tests/deps", Package{PackageMeta: PackageMeta{
+		{"SIF 1.3.x downgrade", args{"./tests/deps", Package{DependencyMeta: versioning.DependencyMeta{
 			User:    "Southclaws",
 			Repo:    "SIF",
 			Version: "1.3.x",

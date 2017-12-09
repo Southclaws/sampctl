@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/Southclaws/sampctl/util"
+	"github.com/Southclaws/sampctl/versioning"
 )
 
 func TestPackage_EnsureDependencies(t *testing.T) {
@@ -17,7 +18,7 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 	}{
 		{"valid", Package{
 			local: util.FullPath("./tests/deps-sif"),
-			Dependencies: []DependencyString{
+			Dependencies: []versioning.DependencyString{
 				"Southclaws/SIF:1.6.2",
 			}}, false},
 	}

@@ -47,7 +47,7 @@ func main() {
 				{
 					Name:        "init",
 					Usage:       "sampctl server init",
-					Description: "Bootstrap a new SA:MP server and generates a `samp.json` configuration based on user input. If `gamemodes`, `filterscripts` or `plugins` directories are present, you will be prompted to select relevant files.",
+					Description: "Bootstrap a new SA:MP server and generates a `samp.json`/`samp.yaml` configuration based on user input. If `gamemodes`, `filterscripts` or `plugins` directories are present, you will be prompted to select relevant files.",
 					Action:      serverInit,
 					Flags:       serverInitFlags,
 				},
@@ -59,9 +59,16 @@ func main() {
 					Flags:       serverDownloadFlags,
 				},
 				{
+					Name:        "ensure",
+					Usage:       "sampctl server run",
+					Description: "Ensures the server environment is representative of the configuration specified in `samp.json`/`samp.yaml` - downloads server binaries and plugin files if necessary and generates a `server.cfg` file.",
+					Action:      serverEnsure,
+					Flags:       serverEnsureFlags,
+				},
+				{
 					Name:        "run",
 					Usage:       "sampctl server run",
-					Description: "Generates a `server.cfg` file based on the configuration inside `samp.json` then executes the server process and automatically restarts it on crashes.",
+					Description: "Generates a `server.cfg` file based on the configuration inside `samp.json`/`samp.yaml` then executes the server process and automatically restarts it on crashes.",
 					Action:      serverRun,
 					Flags:       serverRunFlags,
 				},

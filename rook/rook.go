@@ -11,6 +11,7 @@ import (
 
 	"github.com/Southclaws/sampctl/compiler"
 	"github.com/Southclaws/sampctl/runtime"
+	"github.com/Southclaws/sampctl/versioning"
 )
 
 // Package represents a definition for a Pawn package and can either be used to define a build or
@@ -34,27 +35,19 @@ type Package struct {
 	local string
 
 	// Inferred metadata, not always explicitly set via JSON/YAML but inferred from the dependency path
-	PackageMeta
+	versioning.DependencyMeta
 
 	// Metadata, set by the package author to describe the package
 	Contributors []string `json:"contributors"` // list of contributors
 	Website      string   `json:"website"`      // website or forum topic associated with the package
 
 	// Functional, set by the package author to declare relevant files and dependencies
-	Entry        string             `json:"entry"`        // entry point script to compile the project
-	Output       string             `json:"output"`       // output amx file
-	Dependencies []DependencyString `json:"dependencies"` // list of packages that the package depends on
-	Builds       []compiler.Config  `json:"builds"`       // list of build configurations
-	Runtime      runtime.Config     `json:"runtime"`      // runtime configuration for executing the package code
-	Resources    []Resource         `json:"resources"`    // list of additional resources associated with the package
-}
-
-// PackageMeta represents all the components required to locate a package version
-type PackageMeta struct {
-	User    string `json:"user"`    // Owner of the project repository
-	Repo    string `json:"repo"`    // GitHub repository name
-	Path    string `json:"path"`    // Subdirectory that contains .inc files (if any)
-	Version string `json:"version"` // Version string (git tag, preferably a semantic version)
+	Entry        string                        `json:"entry"`        // entry point script to compile the project
+	Output       string                        `json:"output"`       // output amx file
+	Dependencies []versioning.DependencyString `json:"dependencies"` // list of packages that the package depends on
+	Builds       []compiler.Config             `json:"builds"`       // list of build configurations
+	Runtime      runtime.Config                `json:"runtime"`      // runtime configuration for executing the package code
+	Resources    []Resource                    `json:"resources"`    // list of additional resources associated with the package
 }
 
 // Resource represents a resource associated with a package
@@ -94,7 +87,7 @@ func (pkg Package) GetURL() string {
 }
 
 // PackageFromDep creates a Package object from a Dependency String
-func PackageFromDep(depString DependencyString) (pkg Package, err error) {
+func PackageFromDep(depString versioning.DependencyString) (pkg Package, err error) {
 	dep, err := depString.Explode()
 	pkg.User, pkg.Repo, pkg.Path, pkg.Version = dep.User, dep.Repo, dep.Path, dep.Version
 	return

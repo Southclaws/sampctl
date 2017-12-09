@@ -1,4 +1,4 @@
-package rook
+package versioning
 
 import (
 	"regexp"
@@ -9,6 +9,14 @@ import (
 
 // DependencyString represents a GitHub repository via various patterns
 type DependencyString string
+
+// DependencyMeta represents all the individual components of a DependencyString
+type DependencyMeta struct {
+	User    string `json:"user"`    // Owner of the project repository
+	Repo    string `json:"repo"`    // GitHub repository name
+	Path    string `json:"path"`    // Subdirectory that contains .inc files (if any)
+	Version string `json:"version"` // Version string (git tag, preferably a semantic version)
+}
 
 var dependencyPattern = regexp.MustCompile(`^((?:http(?:s)?:\/\/)?github.com\/)?([a-zA-Z0-9-]*)\/([a-zA-Z0-9-_]*)(?:\/)?([a-zA-Z0-9-_$\[\]{}().,\/]*)?(?:\:)?(.*)?$`)
 
@@ -61,7 +69,7 @@ func (d DependencyString) Validate() (bool, error) {
 
 // Explode does a similar job to Validate - splits the specified dependency string into it's
 // component parts and validates it, this function returns the component parts.
-func (d DependencyString) Explode() (dep PackageMeta, err error) {
+func (d DependencyString) Explode() (dep DependencyMeta, err error) {
 	if !dependencyPattern.MatchString(string(d)) {
 		err = errors.New("dependency string does not match pattern")
 		return

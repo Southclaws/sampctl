@@ -8,6 +8,7 @@ import (
 
 	"github.com/Southclaws/sampctl/compiler"
 	"github.com/Southclaws/sampctl/util"
+	"github.com/Southclaws/sampctl/versioning"
 )
 
 func TestPackage_Build(t *testing.T) {
@@ -29,7 +30,7 @@ func TestPackage_Build(t *testing.T) {
 			local:  util.FullPath("./tests/build-auto-stdlib"),
 			Entry:  "gamemodes/test.pwn",
 			Output: "gamemodes/test.amx",
-			Dependencies: []DependencyString{
+			Dependencies: []versioning.DependencyString{
 				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
 			},
 			Builds: []compiler.Config{
@@ -42,7 +43,7 @@ func TestPackage_Build(t *testing.T) {
 			local:  util.FullPath("./tests/build-auto-sif"),
 			Entry:  "gamemodes/test.pwn",
 			Output: "gamemodes/test.amx",
-			Dependencies: []DependencyString{
+			Dependencies: []versioning.DependencyString{
 				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
 				"Southclaws/SIF:1.6.2",
 				"Misiur/YSI-Includes",
@@ -60,7 +61,7 @@ func TestPackage_Build(t *testing.T) {
 			local:  util.FullPath("./tests/build-auto-ysf"),
 			Entry:  "gamemodes/test.pwn",
 			Output: "gamemodes/test.amx",
-			Dependencies: []DependencyString{
+			Dependencies: []versioning.DependencyString{
 				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
 				"kurta999/YSF/sampsvr_files/pawno/include",
 			},
@@ -74,7 +75,7 @@ func TestPackage_Build(t *testing.T) {
 			local:  util.FullPath("./tests/build-auto- spaces"),
 			Entry:  "gamemodes/test.pwn",
 			Output: "gamemodes/test.amx",
-			Dependencies: []DependencyString{
+			Dependencies: []versioning.DependencyString{
 				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
 			},
 			Builds: []compiler.Config{
@@ -87,7 +88,7 @@ func TestPackage_Build(t *testing.T) {
 			local:        util.FullPath("./tests/build-auto-custominc"),
 			Entry:        "gamemodes/test.pwn",
 			Output:       "gamemodes/test.amx",
-			Dependencies: []DependencyString{},
+			Dependencies: []versioning.DependencyString{},
 			Builds: []compiler.Config{
 				{Name: "build", Version: "3.10.4", Includes: []string{"../build-auto-ysf/dependencies/samp-stdlib"}},
 			},

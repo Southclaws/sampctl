@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/Southclaws/sampctl/versioning"
 )
 
 func TestPackageFromDir(t *testing.T) {
@@ -21,7 +23,7 @@ func TestPackageFromDir(t *testing.T) {
 			local:  "./tests/build-json",
 			Entry:  "gamemodes/test.pwn",
 			Output: "gamemodes/test.amx",
-			Dependencies: []DependencyString{
+			Dependencies: []versioning.DependencyString{
 				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
 				"Southclaws/SIF:1.6.2",
 				"Misiur/YSI-Includes",
@@ -34,7 +36,7 @@ func TestPackageFromDir(t *testing.T) {
 			local:  "./tests/build-yaml",
 			Entry:  "gamemodes/test.pwn",
 			Output: "gamemodes/test.amx",
-			Dependencies: []DependencyString{
+			Dependencies: []versioning.DependencyString{
 				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
 				"Southclaws/SIF:1.6.2",
 				"Misiur/YSI-Includes",

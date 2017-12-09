@@ -9,7 +9,8 @@ test:
 		./download \
 		./rook \
 		./runtime \
-		./util
+		./util \
+		./versioning
 fast:
 	go build $(LDFLAGS) -o sampctl
 
