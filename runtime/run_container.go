@@ -4,6 +4,9 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -89,9 +92,25 @@ func RunContainer(endpoint, version, dir, appVersion string) (err error) {
 		}
 	}()
 
-	// for now, we just wait for the app to exit and prints logs afterwards
-	n, err := cli.ContainerWait(context.Background(), cnt.ID)
-	fmt.Println("container exited:", n, err)
+	finished := make(chan struct{})
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		sig := <-sigs
+		err = cli.ContainerKill(context.Background(), cnt.ID, "SIGINT")
+		fmt.Println("server killed:", sig, err)
+		finished <- struct{}{}
+	}()
+
+	go func() {
+		n, err := cli.ContainerWait(context.Background(), cnt.ID)
+		fmt.Println("container exited:", n, err)
+		finished <- struct{}{}
+	}()
+
+	<-finished
 
 	return
 }
