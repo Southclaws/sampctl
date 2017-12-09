@@ -63,3 +63,17 @@ enter-mount:
 		-it --entrypoint=bash \
 		--security-opt='seccomp=unconfined' \
 		southclaws/sampctl:$(VERSION)
+
+# Test environments
+
+ubuntu:
+	docker run \
+		-it \
+		-v$(shell pwd):/sampctl \
+		ubuntu
+
+centos:
+	docker run \
+		-it \
+		-v$(shell pwd):/sampctl \
+		centos

@@ -45,6 +45,7 @@ fpm:
   license: GPLv3
   formats:
     - deb
+    - rpm
 brew:
   github:
     owner: Southclaws
