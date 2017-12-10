@@ -51,6 +51,7 @@ func (pkg Package) Build(build string, ensure bool) (output string, err error) {
 
 	err = compiler.CompileSource(pkg.local, cacheDir, config)
 	if err != nil {
+		err = errors.Wrap(err, "failed to compile package entry")
 		return
 	}
 

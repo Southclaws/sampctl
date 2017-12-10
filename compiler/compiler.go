@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/pkg/errors"
+
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -82,12 +84,12 @@ func CompileSource(execDir string, cacheDir string, config Config) (err error) {
 	runtimeDir := filepath.Join(cacheDir, "pawn", string(config.Version))
 	err = GetCompilerPackage(config.Version, runtimeDir)
 	if err != nil {
-		return
+		return errors.Wrap(err, "failed to get compiler package")
 	}
 
 	pkg, _, err := GetCompilerPackageInfo(runtime.GOOS, config.Version)
 	if err != nil {
-		return
+		return errors.Wrap(err, "failed to get compiler package info for runtime")
 	}
 
 	args := []string{
@@ -121,7 +123,7 @@ func CompileSource(execDir string, cacheDir string, config Config) (err error) {
 	cmd.Env = []string{fmt.Sprintf("LD_LIBRARY_PATH=%s", runtimeDir)}
 	err = cmd.Run()
 	if err != nil {
-		return
+		return errors.Wrap(err, "failed to execute compiler, if you're on a 64 bit system this may be because the system is not set up to execute 32 bit binaries (yeah, descriptive error message I know...) - please enable this by allowing i386 packages and/or installing g++-multilib")
 	}
 
 	return
