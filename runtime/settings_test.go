@@ -36,6 +36,7 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 				RCON:       &[]bool{true}[0],
 			},
 			Config{
+				dir: &[]string{"./tests/from-env"}[0],
 				Gamemodes: []string{
 					"rivershell",
 					"baserace",
