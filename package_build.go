@@ -39,7 +39,7 @@ func packageBuild(c *cli.Context) error {
 
 	output, err := pkg.Build(build, forceEnsure)
 	if err != nil {
-		return err
+		return cli.NewExitError(err.Error(), 1)
 	}
 
 	fmt.Println("successfully built project to", output)
