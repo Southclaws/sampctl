@@ -9,8 +9,12 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Packages is a collection of Package objects for sorting
+type Packages []Package
+
 // Package represents a SA:MP server version, it stores both platform filenames and a checksum
 type Package struct {
+	Version       string
 	Linux         string
 	Win32         string
 	LinuxChecksum string
@@ -19,8 +23,10 @@ type Package struct {
 	Win32Paths    map[string]string
 }
 
-var (
-	v038rc1 = &Package{
+// AllPackages is a hard-coded list of packages soon to be moved to an external JSON resource
+var AllPackages = []Package{
+	Package{
+		"0.3.8-RC1",
 		"samp038svr_RC1.tar.gz",
 		"samp038_svr_RC1_win32.zip",
 		"",
@@ -35,8 +41,9 @@ var (
 			"announce.exe":    "announce.exe",
 			"samp-npc.exe":    "samp-npc.exe",
 		},
-	}
-	v037r221 = &Package{
+	},
+	Package{
+		"0.3.7-R2-2-1",
 		"samp037svr_R2-2-1.tar.gz",
 		"samp037_svr_R2-2-1_win32.zip",
 		"f20eb466306226274511b111edbadb1f",
@@ -51,8 +58,9 @@ var (
 			"announce.exe":    "announce.exe",
 			"samp-npc.exe":    "samp-npc.exe",
 		},
-	}
-	v037r21 = &Package{
+	},
+	Package{
+		"0.3.7-R2-1",
 		"samp037svr_R2-1.tar.gz",
 		"samp037_svr_R2-1-1_win32.zip",
 		"29b1da32c50d7dc0454fdc8237f8281a",
@@ -67,8 +75,9 @@ var (
 			"announce.exe":    "announce.exe",
 			"samp-npc.exe":    "samp-npc.exe",
 		},
-	}
-	v03zr4 = &Package{
+	},
+	Package{
+		"0.3z-R4",
 		"samp03zsvr_R4.tar.gz",
 		"samp03z_svr_R4_win32.zip",
 		"c4aac3c696072ad009dddcdce41c5d18",
@@ -83,8 +92,9 @@ var (
 			"announce.exe":    "announce.exe",
 			"samp-npc.exe":    "samp-npc.exe",
 		},
-	}
-	v03zr3 = &Package{
+	},
+	Package{
+		"0.3z-R3",
 		"samp03zsvr_R3.tar.gz",
 		"samp03z_svr_R3_win32.zip",
 		"964e221f6aa43c739cfe96862d4caf3b",
@@ -99,8 +109,9 @@ var (
 			"announce.exe":    "announce.exe",
 			"samp-npc.exe":    "samp-npc.exe",
 		},
-	}
-	v03zr22 = &Package{
+	},
+	Package{
+		"0.3z-R2-2",
 		"samp03zsvr_R2-2.tar.gz",
 		"samp03z_svr_R2-2_win32.zip",
 		"9f19f1df3020032a2e95e6aa93eab280",
@@ -115,8 +126,9 @@ var (
 			"announce.exe":    "announce.exe",
 			"samp-npc.exe":    "samp-npc.exe",
 		},
-	}
-	v03zr1 = &Package{
+	},
+	Package{
+		"0.3z-R1",
 		"samp03zsvr_R1.tar.gz",
 		"samp03z_svr_R1_win32.zip",
 		"60dace014f6f812e77377e24dde540af",
@@ -131,8 +143,9 @@ var (
 			"announce.exe":    "announce.exe",
 			"samp-npc.exe":    "samp-npc.exe",
 		},
-	}
-	v03zr12 = &Package{
+	},
+	Package{
+		"0.3z-R1-2",
 		"samp03zsvr_R1-2.tar.gz",
 		"samp03z_svr_R1-2_win32.zip",
 		"a84f1247d6bbf1e3ecaa634ecc5e5d1d",
@@ -147,23 +160,7 @@ var (
 			"announce.exe":    "announce.exe",
 			"samp-npc.exe":    "samp-npc.exe",
 		},
-	}
-)
-
-// Packages is a simple version-string map to all known SA:MP packages
-var Packages = map[string]*Package{
-	"latest": v037r221,
-
-	"0.3.7": v037r221,
-	"0.3z":  v03zr4,
-
-	"0.3.7-R2-2-1": v037r221,
-	"0.3.7-R2-1":   v037r21,
-	"0.3z-R4":      v03zr4,
-	"0.3z-R3":      v03zr3,
-	"0.3z-R2-2":    v03zr22,
-	"0.3z-R1":      v03zr1,
-	"0.3z-R1-2":    v03zr12,
+	},
 }
 
 func isBinary(filename string) bool {
@@ -215,10 +212,10 @@ func getAnnounceBinary() string {
 	}
 }
 
-func matchesChecksum(src, version string) (bool, error) {
-	pkg, ok := Packages[version]
-	if !ok {
-		return false, errors.Errorf("invalid server version '%s'", version)
+func matchesChecksum(src, version string) (ok bool, err error) {
+	pkg, err := FindPackage(version)
+	if err != nil {
+		return
 	}
 
 	contents, err := ioutil.ReadFile(src)
@@ -242,4 +239,14 @@ func matchesChecksum(src, version string) (bool, error) {
 	}
 
 	return hex.EncodeToString(hasher.Sum(nil)) == want, nil
+}
+
+// FindPackage returns a server resource package for the given version or nil if it's invalid
+func FindPackage(version string) (pkg Package, err error) {
+	for _, pkg = range AllPackages {
+		if pkg.Version == version {
+			return
+		}
+	}
+	return pkg, errors.Errorf("server package for '%s' not found", version)
 }

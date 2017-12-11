@@ -1,10 +1,17 @@
 package runtime
 
 import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"os"
 	"path/filepath"
-	"runtime"
+	"reflect"
+	"strconv"
+	"strings"
 
 	"github.com/Southclaws/sampctl/util"
+	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 )
 
@@ -87,35 +94,129 @@ func NewConfigFromEnvironment(dir string) (cfg Config, err error) {
 	return
 }
 
-// ValidateWorkspace compares a Config to a directory and checks that all the declared gamemodes,
-// filterscripts and plugins are present.
-func (cfg Config) ValidateWorkspace(dir string) (errs []error) {
-	for _, gamemode := range cfg.Gamemodes {
-		fullpath := filepath.Join(dir, "gamemodes", gamemode+".amx")
-		if !util.Exists(fullpath) {
-			errs = append(errs, errors.Errorf("gamemode '%s' is missing its .amx file from the gamemodes directory", gamemode))
+// ConfigFromDirectory creates a config from a directory by searching for a JSON or YAML file to
+// read settings from. If both exist, the JSON file takes precedence.
+func ConfigFromDirectory(dir string) (cfg Config, err error) {
+	jsonFile := filepath.Join(dir, "samp.json")
+	if util.Exists(jsonFile) {
+		cfg, err = ConfigFromJSON(jsonFile)
+	} else {
+		yamlFile := filepath.Join(dir, "samp.yaml")
+		if util.Exists(yamlFile) {
+			cfg, err = ConfigFromYAML(yamlFile)
+		} else {
+			err = errors.New("directory does not contain a samp.json or samp.yaml file")
 		}
 	}
-	for _, filterscript := range cfg.Filterscripts {
-		fullpath := filepath.Join(dir, "filterscripts", filterscript+".amx")
-		if !util.Exists(fullpath) {
-			errs = append(errs, errors.Errorf("filterscript '%s' is missing its .amx file from the filterscripts directory", filterscript))
-		}
-	}
-	var ext string
-	switch runtime.GOOS {
-	case "windows":
-		ext = ".dll"
-	case "linux", "darwin":
-		ext = ".so"
-	default:
-		errs = append(errs, errors.New("unsupported platform"))
-	}
-	for _, plugin := range cfg.Plugins {
-		fullpath := filepath.Join(dir, "plugins", string(plugin)+ext)
-		if !util.Exists(fullpath) {
-			errs = append(errs, errors.Errorf("plugin '%s' is missing its %s file from the plugins directory", plugin, ext))
-		}
-	}
+
 	return
+}
+
+// ConfigFromJSON creates a config from a JSON file
+func ConfigFromJSON(file string) (cfg Config, err error) {
+	var contents []byte
+	contents, err = ioutil.ReadFile(file)
+	if err != nil {
+		err = errors.Wrap(err, "failed to read samp.json")
+		return
+	}
+
+	err = json.Unmarshal(contents, &cfg)
+	if err != nil {
+		err = errors.Wrap(err, "failed to unmarshal samp.json")
+		return
+	}
+
+	return
+}
+
+// ConfigFromYAML creates a config from a YAML file
+func ConfigFromYAML(file string) (cfg Config, err error) {
+	var contents []byte
+	contents, err = ioutil.ReadFile(file)
+	if err != nil {
+		err = errors.Wrap(err, "failed to read samp.json")
+		return
+	}
+
+	err = yaml.Unmarshal(contents, &cfg)
+	if err != nil {
+		err = errors.Wrap(err, "failed to unmarshal samp.json")
+		return
+	}
+
+	return
+}
+
+// LoadEnvironmentVariables loads Config fields from environment variables - the variable names are
+// simply the `json` tag names uppercased and prefixed with `SAMP_`
+func (cfg *Config) LoadEnvironmentVariables() {
+	v := reflect.ValueOf(cfg).Elem()
+	t := v.Type()
+
+	for i := 0; i < t.NumField(); i++ {
+		fieldval := v.Field(i)
+		stype := t.Field(i)
+
+		if !fieldval.CanSet() {
+			continue
+		}
+
+		name := "SAMP_" + strings.ToUpper(strings.Split(t.Field(i).Tag.Get("json"), ",")[0])
+
+		value, ok := os.LookupEnv(name)
+		if !ok {
+			continue
+		}
+
+		switch stype.Type.String() {
+		case "*string":
+			if fieldval.IsNil() {
+				v := reflect.ValueOf(value)
+				fieldval.Set(reflect.New(v.Type()))
+			}
+			fieldval.Elem().SetString(value)
+
+		case "[]string":
+			// todo: allow filterscripts and plugins via env vars
+			fmt.Println("cannot set gamemode via environment variables yet")
+
+		case "*bool":
+			valueAsBool, err := strconv.ParseBool(value)
+			if err != nil {
+				fmt.Printf("warning: environment variable '%s' could not interpret value '%s' as boolean: %v\n", stype.Name, value, err)
+			}
+			if fieldval.IsNil() {
+				v := reflect.ValueOf(valueAsBool)
+				fieldval.Set(reflect.New(v.Type()))
+			}
+			fieldval.Elem().SetBool(valueAsBool)
+
+		case "*int":
+			valueAsInt, err := strconv.Atoi(value)
+			if err != nil {
+				fmt.Printf("warning: environment variable '%s' could not interpret value '%s' as integer: %v\n", stype.Name, value, err)
+				continue
+			}
+			if fieldval.IsNil() {
+				v := reflect.ValueOf(valueAsInt)
+				fieldval.Set(reflect.New(v.Type()))
+			}
+			fieldval.Elem().SetInt(int64(valueAsInt))
+
+		case "*float32":
+			valueAsFloat, err := strconv.ParseFloat(value, 64)
+			if err != nil {
+				fmt.Printf("warning: environment variable '%s' could not interpret value '%s' as float: %v\n", stype.Name, value, err)
+				continue
+			}
+			if fieldval.IsNil() {
+				v := reflect.ValueOf(valueAsFloat)
+				fieldval.Set(reflect.New(v.Type()))
+			}
+			fieldval.Elem().SetFloat(valueAsFloat)
+		default:
+			panic(fmt.Sprintf("unknown kind '%s'", stype.Type.String()))
+		}
+	}
 }

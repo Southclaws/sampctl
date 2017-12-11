@@ -26,10 +26,8 @@ func serverEnsure(c *cli.Context) error {
 
 	err = cfg.Ensure()
 	if err != nil {
-		return err
+		return cli.NewExitError(err, 1)
 	}
-
-	//
 
 	return nil
 }

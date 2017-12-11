@@ -5,7 +5,6 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"path/filepath"
 	"runtime"
 
 	"github.com/pkg/errors"
@@ -45,9 +44,9 @@ func FromCache(cacheDir, version, dir string) (hit bool, err error) {
 		paths    map[string]string
 	)
 
-	pkg, ok := Packages[version]
-	if !ok {
-		return false, errors.Errorf("invalid version '%s'", version)
+	pkg, err := FindPackage(version)
+	if err != nil {
+		return
 	}
 
 	if runtime.GOOS == "windows" {
@@ -88,9 +87,9 @@ func FromNet(endpoint, cacheDir, version, dir string) (err error) {
 		paths    map[string]string
 	)
 
-	pkg, ok := Packages[version]
-	if !ok {
-		return errors.Errorf("invalid version '%s'", version)
+	pkg, err := FindPackage(version)
+	if err != nil {
+		return
 	}
 
 	if runtime.GOOS == "windows" {
@@ -142,39 +141,5 @@ func FromNet(endpoint, cacheDir, version, dir string) (err error) {
 		return errors.Errorf("validation errors: %v", errs)
 	}
 
-	return
-}
-
-// ValidateServerDir ensures the dir has all the necessary files to run a server, it also performs an MD5
-// checksum against the binary to prevent running anything unwanted.
-func ValidateServerDir(dir, version string) (errs []error) {
-	if !util.Exists(filepath.Join(dir, getNpcBinary())) {
-		errs = append(errs, errors.New("missing npc binary"))
-	}
-	if !util.Exists(filepath.Join(dir, getAnnounceBinary())) {
-		errs = append(errs, errors.New("missing announce binary"))
-	}
-	if !util.Exists(filepath.Join(dir, getServerBinary())) {
-		errs = append(errs, errors.New("missing server binary"))
-	} else {
-		// now perform an md5 on the server
-		ok, err := matchesChecksum(filepath.Join(dir, getServerBinary()), version)
-		if err != nil {
-			errs = append(errs, errors.New("failed to match checksum"))
-		} else if !ok {
-			errs = append(errs, errors.Errorf("existing binary does not match checksum for version %s", version))
-		}
-	}
-
-	return
-}
-
-// CreateServerDirectories simply creates the necessary gamemodes and filterscripts directories
-func CreateServerDirectories(dir string) (err error) {
-	err = os.MkdirAll(filepath.Join(dir, "gamemodes"), 0755)
-	if err != nil {
-		return
-	}
-	err = os.MkdirAll(filepath.Join(dir, "filterscripts"), 0755)
 	return
 }
