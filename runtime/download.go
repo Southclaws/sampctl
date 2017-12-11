@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"runtime"
 
 	"github.com/pkg/errors"
@@ -65,11 +66,6 @@ func FromCache(cacheDir, version, dir string) (hit bool, err error) {
 	hit, err = download.FromCache(cacheDir, filename, dir, method, paths)
 	if !hit || err != nil {
 		return
-	}
-
-	errs := ValidateServerDir(dir, version)
-	if errs != nil {
-		return false, errors.Errorf("validation errors: %#v", errs)
 	}
 
 	fmt.Printf("Using cached package for %s\n", version)
@@ -136,9 +132,11 @@ func FromNet(endpoint, cacheDir, version, dir string) (err error) {
 		return errors.Wrapf(err, "failed to unzip package %s", filename)
 	}
 
-	errs := ValidateServerDir(dir, version)
-	if errs != nil {
-		return errors.Errorf("validation errors: %v", errs)
+	ok, err := MatchesChecksum(filepath.Join(dir, getServerBinary()), version)
+	if err != nil {
+		return errors.Wrap(err, "failed to match checksum")
+	} else if !ok {
+		return errors.Errorf("server binary does not match checksum for version %s", version)
 	}
 
 	return

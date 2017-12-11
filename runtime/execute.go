@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -17,11 +16,6 @@ func PrepareRuntimeDirectory(cacheDir, endpoint, version string) (err error) {
 	err = os.MkdirAll(dir, 0755)
 	if err != nil {
 		return errors.Wrap(err, "failed to create temporary directory")
-	}
-
-	errs := ValidateServerDir(dir, version)
-	if errs != nil {
-		fmt.Println(errs)
 	}
 
 	err = GetServerPackage(endpoint, version, dir)

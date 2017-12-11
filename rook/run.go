@@ -34,6 +34,9 @@ func (pkg Package) Run(cacheDir, endpoint, version, appVersion, build string, co
 
 	config := runtime.MergeDefaultConfig(pkg.Runtime)
 	config.Gamemodes = []string{strings.TrimSuffix(pkg.Output, ".amx")}
+	config.SetWorkingDir(pkg.local)
+	config.Version = &version
+	config.Endpoint = &endpoint
 
 	err = config.GenerateJSON(runtimeDir)
 	if err != nil {
@@ -41,9 +44,9 @@ func (pkg Package) Run(cacheDir, endpoint, version, appVersion, build string, co
 	}
 
 	if container {
-		err = runtime.RunContainer(endpoint, version, runtimeDir, appVersion)
+		err = config.RunContainer(appVersion)
 	} else {
-		err = runtime.Run(endpoint, version, runtimeDir)
+		err = config.Run()
 	}
 	return
 }

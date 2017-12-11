@@ -94,6 +94,11 @@ func NewConfigFromEnvironment(dir string) (cfg Config, err error) {
 	return
 }
 
+// SetWorkingDir sets a runtime configuration working directory - where the server will run from
+func (cfg *Config) SetWorkingDir(dir string) {
+	cfg.dir = &dir
+}
+
 // ConfigFromDirectory creates a config from a directory by searching for a JSON or YAML file to
 // read settings from. If both exist, the JSON file takes precedence.
 func ConfigFromDirectory(dir string) (cfg Config, err error) {

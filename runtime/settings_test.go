@@ -69,18 +69,15 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 }
 
 func TestConfig_ValidateWorkspace(t *testing.T) {
-	type args struct {
-		dir string
-	}
 	tests := []struct {
 		name     string
 		config   Config
-		args     args
 		wantErrs bool
 	}{
 		{
 			"minimal",
 			Config{
+				dir: &[]string{"./tests/validate"}[0],
 				Gamemodes: []string{
 					"rivershell",
 				},
@@ -92,12 +89,12 @@ func TestConfig_ValidateWorkspace(t *testing.T) {
 				Announce:     &[]bool{true}[0],
 				RCON:         &[]bool{true}[0],
 			},
-			args{"./tests/validate"},
 			false,
 		},
 		{
 			"minimal_fail",
 			Config{
+				dir: &[]string{"./tests/validate"}[0],
 				Gamemodes: []string{
 					"rivershell",
 					"baserace",
@@ -110,17 +107,16 @@ func TestConfig_ValidateWorkspace(t *testing.T) {
 				Announce:     &[]bool{true}[0],
 				RCON:         &[]bool{true}[0],
 			},
-			args{"./tests/validate"},
 			true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			errs := tt.config.ValidateWorkspace(tt.args.dir)
+			err := tt.config.ValidateWorkspace()
 			if tt.wantErrs {
-				assert.NotEmpty(t, errs)
+				assert.Error(t, err)
 			} else {
-				assert.Empty(t, errs)
+				assert.NoError(t, err)
 			}
 		})
 	}

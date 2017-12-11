@@ -16,21 +16,16 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 )
 
 // RunContainer does what Run does but inside a Linux container
-func RunContainer(endpoint, version, dir, appVersion string) (err error) {
+func (cfg Config) RunContainer(appVersion string) (err error) {
 	cli, err := client.NewEnvClient()
 	if err != nil {
 		panic(err)
 	}
 
-	config, err := NewConfigFromEnvironment(dir)
-	if err != nil {
-		return errors.Wrap(err, "failed to load config from directory")
-	}
-	port := fmt.Sprint(*config.Port)
+	port := fmt.Sprint(*cfg.Port)
 
 	cnt, err := cli.ContainerCreate(
 		context.Background(),
@@ -45,7 +40,7 @@ func RunContainer(endpoint, version, dir, appVersion string) (err error) {
 			Mounts: []mount.Mount{
 				{
 					Type:   mount.TypeBind,
-					Source: dir,
+					Source: *cfg.dir,
 					Target: "/samp",
 				},
 			},

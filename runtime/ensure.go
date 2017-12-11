@@ -17,13 +17,19 @@ import (
 // - Plugin binaries
 // and a `server.cfg` is generated based on the contents of the Config fields.
 func (cfg Config) Ensure() (err error) {
-	errs := ValidateServerDir(*cfg.dir, *cfg.Version)
-	if errs != nil {
-		fmt.Println(errs)
-		err = GetServerPackage(*cfg.Endpoint, *cfg.Version, *cfg.dir)
-		if err != nil {
-			return errors.Wrap(err, "failed to get runtime package")
-		}
+	err = cfg.EnsureBinaries()
+	if err != nil {
+		return
+	}
+
+	// err = cfg.ResolvePlugins()
+	// if err != nil {
+	// 	return
+	// }
+
+	err = cfg.ValidateWorkspace()
+	if err != nil {
+		return errors.Wrap(err, "configuration contains errors")
 	}
 
 	err = cfg.GenerateServerCfg(*cfg.dir)
@@ -36,61 +42,71 @@ func (cfg Config) Ensure() (err error) {
 
 // ValidateWorkspace compares a Config to a directory and checks that all the declared gamemodes,
 // filterscripts and plugins are present.
-func (cfg Config) ValidateWorkspace(dir string) (errs []error) {
+func (cfg Config) ValidateWorkspace() (err error) {
+	errs := []string{}
+
 	for _, gamemode := range cfg.Gamemodes {
-		fullpath := filepath.Join(dir, "gamemodes", gamemode+".amx")
+		fullpath := filepath.Join(*cfg.dir, "gamemodes", gamemode+".amx")
 		if !util.Exists(fullpath) {
-			errs = append(errs, errors.Errorf("gamemode '%s' is missing its .amx file from the gamemodes directory", gamemode))
+			errs = append(errs, fmt.Sprintf("gamemode '%s' is missing its .amx file from the gamemodes directory", gamemode))
 		}
 	}
 	for _, filterscript := range cfg.Filterscripts {
-		fullpath := filepath.Join(dir, "filterscripts", filterscript+".amx")
+		fullpath := filepath.Join(*cfg.dir, "filterscripts", filterscript+".amx")
 		if !util.Exists(fullpath) {
-			errs = append(errs, errors.Errorf("filterscript '%s' is missing its .amx file from the filterscripts directory", filterscript))
+			errs = append(errs, fmt.Sprintf("filterscript '%s' is missing its .amx file from the filterscripts directory", filterscript))
 		}
 	}
+
 	var ext string
 	switch runtime.GOOS {
 	case "windows":
 		ext = ".dll"
 	case "linux", "darwin":
 		ext = ".so"
-	default:
-		errs = append(errs, errors.New("unsupported platform"))
 	}
+
 	for _, plugin := range cfg.Plugins {
-		fullpath := filepath.Join(dir, "plugins", string(plugin)+ext)
+		fullpath := filepath.Join(*cfg.dir, "plugins", string(plugin)+ext)
 		if !util.Exists(fullpath) {
-			errs = append(errs, errors.Errorf("plugin '%s' is missing its %s file from the plugins directory", plugin, ext))
+			errs = append(errs, fmt.Sprintf("plugin '%s' is missing its %s file from the plugins directory", plugin, ext))
 		}
 	}
+
+	if len(errs) > 0 {
+		err = errors.New(strings.Join(errs, ", "))
+	}
+
 	return
 }
 
-// ValidateServerDir ensures the dir has all the necessary files to run a server, it also performs an MD5
+// EnsureBinaries ensures the dir has all the necessary files to run a server, it also performs an MD5
 // checksum against the binary to prevent running anything unwanted.
-func ValidateServerDir(dir, version string) (err error) {
-	errs := []string{}
-	if !util.Exists(filepath.Join(dir, getNpcBinary())) {
-		errs = append(errs, "missing npc binary")
+func (cfg Config) EnsureBinaries() (err error) {
+	missing := false
+
+	if !util.Exists(filepath.Join(*cfg.dir, getNpcBinary())) {
+		missing = true
 	}
-	if !util.Exists(filepath.Join(dir, getAnnounceBinary())) {
-		errs = append(errs, "missing announce binary")
+	if !util.Exists(filepath.Join(*cfg.dir, getAnnounceBinary())) {
+		missing = true
 	}
-	if !util.Exists(filepath.Join(dir, getServerBinary())) {
-		errs = append(errs, "missing server binary")
-	} else {
-		// now perform an md5 on the server
-		ok, err := matchesChecksum(filepath.Join(dir, getServerBinary()), version)
+	if !util.Exists(filepath.Join(*cfg.dir, getServerBinary())) {
+		missing = true
+	}
+
+	if missing {
+		err = GetServerPackage(*cfg.Endpoint, *cfg.Version, *cfg.dir)
 		if err != nil {
-			errs = append(errs, "failed to match checksum")
-		} else if !ok {
-			errs = append(errs, fmt.Sprintf("existing binary does not match checksum for version %s", version))
+			return errors.Wrap(err, "failed to get runtime package")
 		}
 	}
 
-	if errs != nil {
-		err = errors.New(strings.Join(errs, ", "))
+	ok, err := MatchesChecksum(filepath.Join(*cfg.dir, getServerBinary()), *cfg.Version)
+	if err != nil {
+		return errors.Wrap(err, "failed to match checksum")
+	} else if !ok {
+		return errors.Errorf("existing binary does not match checksum for version %s", *cfg.Version)
 	}
 
 	return
