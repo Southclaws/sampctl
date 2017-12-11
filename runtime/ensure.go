@@ -2,9 +2,7 @@ package runtime
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/Southclaws/sampctl/util"
@@ -22,14 +20,14 @@ func (cfg Config) Ensure() (err error) {
 		return
 	}
 
-	// err = cfg.ResolvePlugins()
-	// if err != nil {
-	// 	return
-	// }
-
-	err = cfg.ValidateWorkspace()
+	err = cfg.EnsurePlugins()
 	if err != nil {
-		return errors.Wrap(err, "configuration contains errors")
+		return
+	}
+
+	err = cfg.EnsureScripts()
+	if err != nil {
+		return
 	}
 
 	err = cfg.GenerateServerCfg(*cfg.dir)
@@ -40,48 +38,7 @@ func (cfg Config) Ensure() (err error) {
 	return
 }
 
-// ValidateWorkspace compares a Config to a directory and checks that all the declared gamemodes,
-// filterscripts and plugins are present.
-func (cfg Config) ValidateWorkspace() (err error) {
-	errs := []string{}
-
-	for _, gamemode := range cfg.Gamemodes {
-		fullpath := filepath.Join(*cfg.dir, "gamemodes", gamemode+".amx")
-		if !util.Exists(fullpath) {
-			errs = append(errs, fmt.Sprintf("gamemode '%s' is missing its .amx file from the gamemodes directory", gamemode))
-		}
-	}
-	for _, filterscript := range cfg.Filterscripts {
-		fullpath := filepath.Join(*cfg.dir, "filterscripts", filterscript+".amx")
-		if !util.Exists(fullpath) {
-			errs = append(errs, fmt.Sprintf("filterscript '%s' is missing its .amx file from the filterscripts directory", filterscript))
-		}
-	}
-
-	var ext string
-	switch runtime.GOOS {
-	case "windows":
-		ext = ".dll"
-	case "linux", "darwin":
-		ext = ".so"
-	}
-
-	for _, plugin := range cfg.Plugins {
-		fullpath := filepath.Join(*cfg.dir, "plugins", string(plugin)+ext)
-		if !util.Exists(fullpath) {
-			errs = append(errs, fmt.Sprintf("plugin '%s' is missing its %s file from the plugins directory", plugin, ext))
-		}
-	}
-
-	if len(errs) > 0 {
-		err = errors.New(strings.Join(errs, ", "))
-	}
-
-	return
-}
-
-// EnsureBinaries ensures the dir has all the necessary files to run a server, it also performs an MD5
-// checksum against the binary to prevent running anything unwanted.
+// EnsureBinaries ensures the dir has all the necessary files to run a server
 func (cfg Config) EnsureBinaries() (err error) {
 	missing := false
 
@@ -112,12 +69,36 @@ func (cfg Config) EnsureBinaries() (err error) {
 	return
 }
 
-// CreateServerDirectories simply creates the necessary gamemodes and filterscripts directories
-func CreateServerDirectories(dir string) (err error) {
-	err = os.MkdirAll(filepath.Join(dir, "gamemodes"), 0755)
-	if err != nil {
-		return
+// EnsureScripts checks that all the declared scripts are present
+func (cfg Config) EnsureScripts() (err error) {
+	errs := []string{}
+
+	for _, gamemode := range cfg.Gamemodes {
+		fullpath := filepath.Join(*cfg.dir, "gamemodes", gamemode+".amx")
+		if !util.Exists(fullpath) {
+			errs = append(errs, fmt.Sprintf("gamemode '%s' is missing its .amx file from the gamemodes directory", gamemode))
+		}
 	}
-	err = os.MkdirAll(filepath.Join(dir, "filterscripts"), 0755)
+	for _, filterscript := range cfg.Filterscripts {
+		fullpath := filepath.Join(*cfg.dir, "filterscripts", filterscript+".amx")
+		if !util.Exists(fullpath) {
+			errs = append(errs, fmt.Sprintf("filterscript '%s' is missing its .amx file from the filterscripts directory", filterscript))
+		}
+	}
+
+	if len(errs) > 0 {
+		err = errors.New(strings.Join(errs, ", "))
+	}
+
+	return
+}
+
+func pluginExtensionForOS(os string) (ext string) {
+	switch os {
+	case "windows":
+		ext = ".dll"
+	case "linux", "darwin":
+		ext = ".so"
+	}
 	return
 }

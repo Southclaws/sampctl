@@ -68,7 +68,7 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 	}
 }
 
-func TestConfig_ValidateWorkspace(t *testing.T) {
+func TestConfig_EnsureScripts(t *testing.T) {
 	tests := []struct {
 		name     string
 		config   Config
@@ -112,7 +112,7 @@ func TestConfig_ValidateWorkspace(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.config.ValidateWorkspace()
+			err := tt.config.EnsureScripts()
 			if tt.wantErrs {
 				assert.Error(t, err)
 			} else {
