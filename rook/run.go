@@ -34,13 +34,18 @@ func (pkg Package) Run(cacheDir, endpoint, version, appVersion, build string, co
 
 	config := runtime.MergeDefaultConfig(pkg.Runtime)
 	config.Gamemodes = []string{strings.TrimSuffix(pkg.Output, ".amx")}
-	config.SetWorkingDir(pkg.local)
+	config.SetWorkingDir(runtimeDir)
 	config.Version = &version
 	config.Endpoint = &endpoint
 
-	err = config.GenerateJSON(runtimeDir)
+	err = config.GenerateJSON()
 	if err != nil {
 		return errors.Wrap(err, "failed to generate temporary samp.json")
+	}
+
+	err = config.Ensure()
+	if err != nil {
+		return errors.Wrap(err, "failed to ensure temporary runtime")
 	}
 
 	if container {
