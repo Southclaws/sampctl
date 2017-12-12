@@ -22,5 +22,7 @@ func TestMain(m *testing.M) {
 func fakeServerDir(path string) {
 	os.MkdirAll(filepath.Join(path, "gamemodes"), 0755)
 	f, _ := os.Create(filepath.Join(path, "gamemodes", "rivershell.amx"))
+	f, _ := os.Create(filepath.Join(path, "filterscripts", "rivershell.amx"))
+	f, _ := os.Create(filepath.Join(path, "plugins", "rivershell.amx"))
 	f.Close() // nolint
 }
