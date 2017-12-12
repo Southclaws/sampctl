@@ -32,9 +32,7 @@ docs: fast
 	./docgen.sh
 
 deploy:
-	if [ "TRAVIS_COMMIT_MESSAGE" == "deploy" ]; then
-		curl -sL https://git.io/goreleaser | bash
-	fi
+	test "$(TRAVIS_COMMIT_MESSAGE)" = deploy && curl -sL https://git.io/goreleaser | bash
 
 dist:
 	# for osx tar fix
