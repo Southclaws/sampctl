@@ -31,6 +31,11 @@ clean:
 docs: fast
 	./docgen.sh
 
+deploy:
+	if [ "TRAVIS_COMMIT_MESSAGE" == "deploy" ]; then
+		curl -sL https://git.io/goreleaser | bash
+	fi
+
 dist:
 	# for osx tar fix
 	# https://github.com/goreleaser/goreleaser/issues/409

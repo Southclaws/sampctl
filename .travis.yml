@@ -25,7 +25,7 @@ jobs:
       script: go test -race -v -p 4 ./util
     - stage: test versioning
       script: go test -race -v -p 4 ./versioning
-after_success:
-  - test -n "$TRAVIS_TAG" && curl -sL https://git.io/goreleaser | bash
+    - stage: deploy
+      script: make deploy
 go:
   - 1.x
