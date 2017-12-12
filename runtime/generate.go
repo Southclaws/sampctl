@@ -89,7 +89,7 @@ func (cfg *Config) GenerateServerCfg(dir string) (err error) {
 	}()
 
 	// make some minor changes to the cfg before using it
-	adjustForOS(dir, cfg)
+	adjustForOS(dir, runtime.GOOS, cfg)
 	cfg.Echo = &echoMessage
 
 	v := reflect.ValueOf(*cfg)
@@ -120,6 +120,8 @@ func (cfg *Config) GenerateServerCfg(dir string) (err error) {
 			line, err = fromString(name, fieldval, required, defaultValue)
 		case "[]string":
 			line, err = fromSlice(name, fieldval, required, defaultValue, numbered)
+		case "[]runtime.Plugin":
+			line, err = fromSlice(name, fieldval, required, defaultValue, numbered)
 		case "*bool":
 			line, err = fromBool(name, fieldval, required, defaultValue)
 		case "*int":
@@ -143,8 +145,8 @@ func (cfg *Config) GenerateServerCfg(dir string) (err error) {
 }
 
 // adjustForOS quickly does some tweaks depending on the OS such as .so plugin extension on linux
-func adjustForOS(dir string, cfg *Config) {
-	if runtime.GOOS == "linux" {
+func adjustForOS(dir, os string, cfg *Config) {
+	if os == "linux" || os == "darwin" {
 		if len(cfg.Plugins) > 0 {
 			actualPlugins := getPlugins(filepath.Join(dir, "plugins"))
 

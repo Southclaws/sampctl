@@ -183,8 +183,12 @@ func (cfg *Config) LoadEnvironmentVariables() {
 			fieldval.Elem().SetString(value)
 
 		case "[]string":
-			// todo: allow filterscripts and plugins via env vars
-			fmt.Println("cannot set gamemode via environment variables yet")
+			// todo: allow filterscripts via env vars
+			fmt.Println("cannot set filterscripts via environment variables yet")
+
+		case "[]runtime.Plugin":
+			// todo: plugins via env vars
+			fmt.Println("cannot set plugins via environment variables yet")
 
 		case "*bool":
 			valueAsBool, err := strconv.ParseBool(value)
