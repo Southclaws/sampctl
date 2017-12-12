@@ -16,8 +16,8 @@ import (
 )
 
 // GenerateJSON simply marshals the data to a samp.json file in dir
-func (cfg Config) GenerateJSON(dir string) (err error) {
-	path := filepath.Join(dir, "samp.json")
+func (cfg Config) GenerateJSON() (err error) {
+	path := filepath.Join(*cfg.dir, "samp.json")
 
 	if util.Exists(path) {
 		if err := os.Remove(path); err != nil {

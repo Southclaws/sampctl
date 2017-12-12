@@ -119,6 +119,7 @@ func InitialiseServer(version, dir string) (err error) {
 	}
 
 	config := Config{
+		dir:           &dir,
 		Hostname:      &answers.Hostname,
 		RCONPassword:  &answers.RCONPassword,
 		Port:          &answers.Port,
@@ -137,7 +138,7 @@ func InitialiseServer(version, dir string) (err error) {
 	fmt.Println("Filterscripts: ", answers.Filterscripts)
 	fmt.Println("Plugins: ", answers.Plugins)
 
-	err = config.GenerateJSON(dir)
+	err = config.GenerateJSON()
 	return
 }
 
