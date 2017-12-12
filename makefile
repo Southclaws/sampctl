@@ -22,7 +22,6 @@ install:
 
 version:
 	git tag $(VERSION)
-	git push
 	git push origin $(VERSION)
 
 clean:
@@ -30,9 +29,6 @@ clean:
 
 docs: fast
 	./docgen.sh
-
-deploy:
-	test "$(TRAVIS_COMMIT_MESSAGE)" = deploy && curl -sL https://git.io/goreleaser | bash
 
 dist:
 	# for osx tar fix
