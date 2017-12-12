@@ -113,6 +113,7 @@ func ConfigFromDirectory(dir string) (cfg Config, err error) {
 			err = errors.New("directory does not contain a samp.json or samp.yaml file")
 		}
 	}
+	cfg.dir = &dir
 
 	return
 }

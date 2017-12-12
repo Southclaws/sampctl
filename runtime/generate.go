@@ -46,8 +46,8 @@ func (cfg Config) GenerateJSON() (err error) {
 }
 
 // GenerateYAML simply marshals the data to a samp.yaml file in dir
-func (cfg Config) GenerateYAML(dir string) (err error) {
-	path := filepath.Join(dir, "samp.yaml")
+func (cfg Config) GenerateYAML() (err error) {
+	path := filepath.Join(*cfg.dir, "samp.yaml")
 
 	if util.Exists(path) {
 		if err := os.Remove(path); err != nil {

@@ -144,7 +144,8 @@ func TestConfig_GenerateJSON(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.config.GenerateJSON(tt.args.dir)
+			tt.config.dir = &tt.args.dir
+			err := tt.config.GenerateJSON()
 			assert.NoError(t, err)
 
 			contents, err := ioutil.ReadFile(filepath.Join(tt.args.dir, "samp.json"))
@@ -156,19 +157,16 @@ func TestConfig_GenerateJSON(t *testing.T) {
 }
 
 func TestConfig_GenerateYAML(t *testing.T) {
-	type args struct {
-		dir string
-	}
 	tests := []struct {
 		name    string
 		config  *Config
 		want    []byte
-		args    args
 		wantErr bool
 	}{
 		{
 			"minimal",
 			&Config{
+				dir: &[]string{"./tests/generate-yaml"}[0],
 				Gamemodes: []string{
 					"rivershell",
 					"baserace",
@@ -192,16 +190,15 @@ port: 8080
 rcon: true
 rcon_password: test
 `),
-			args{"./tests/generate-yaml"},
 			false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.config.GenerateYAML(tt.args.dir)
+			err := tt.config.GenerateYAML()
 			assert.NoError(t, err)
 
-			contents, err := ioutil.ReadFile(filepath.Join(tt.args.dir, "samp.yaml"))
+			contents, err := ioutil.ReadFile(filepath.Join(*tt.config.dir, "samp.yaml"))
 			assert.NoError(t, err)
 
 			assert.Equal(t, string(tt.want), string(contents))

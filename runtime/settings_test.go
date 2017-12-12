@@ -3,7 +3,6 @@ package runtime
 import (
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,6 +25,7 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 			map[string]string{"SAMP_RCON_PASSWORD": "changed"},
 			args{"./tests/from-env"},
 			Config{
+				dir: &[]string{"./tests/from-env"}[0],
 				Gamemodes: []string{
 					"rivershell",
 					"baserace",
@@ -56,7 +56,8 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.genCfg.GenerateJSON(tt.args.dir)
+			err := tt.genCfg.GenerateJSON()
+			assert.NoError(t, err)
 
 			for k, v := range tt.env {
 				os.Setenv(k, v) // nolint
@@ -152,17 +153,18 @@ func TestConfigFromDirectory(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.wantCfg.GenerateJSON(tt.args.dir)
-			tt.wantCfg.GenerateYAML(tt.args.dir)
+			dir := tt.args.dir
+			tt.wantCfg.dir = &dir
+
+			tt.wantCfg.GenerateJSON()
+			tt.wantCfg.GenerateYAML()
 
 			gotCfg, err := ConfigFromDirectory(tt.args.dir)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ConfigFromDirectory() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(gotCfg, tt.wantCfg) {
-				t.Errorf("ConfigFromDirectory() = %v, want %v", gotCfg, tt.wantCfg)
-			}
+			assert.Equal(t, tt.wantCfg, gotCfg)
 		})
 	}
 }
@@ -197,16 +199,20 @@ func TestConfigFromJSON(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.wantCfg.GenerateJSON(filepath.Dir(tt.args.file))
+			dir := filepath.Dir(tt.args.file)
+			tt.wantCfg.dir = &dir
+			tt.wantCfg.GenerateJSON()
 
 			gotCfg, err := ConfigFromJSON(tt.args.file)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ConfigFromJSON() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(gotCfg, tt.wantCfg) {
-				t.Errorf("ConfigFromJSON() = %v, want %v", gotCfg, tt.wantCfg)
-			}
+
+			// because the ConfigFromJSON function does not know the dir
+			tt.wantCfg.dir = nil
+
+			assert.Equal(t, tt.wantCfg, gotCfg)
 		})
 	}
 }
@@ -241,16 +247,20 @@ func TestConfigFromYAML(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.wantCfg.GenerateYAML(filepath.Dir(tt.args.file))
+			dir := filepath.Dir(tt.args.file)
+			tt.wantCfg.dir = &dir
+			tt.wantCfg.GenerateYAML()
 
 			gotCfg, err := ConfigFromYAML(tt.args.file)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ConfigFromYAML() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(gotCfg, tt.wantCfg) {
-				t.Errorf("ConfigFromYAML() = %v, want %v", gotCfg, tt.wantCfg)
-			}
+
+			// because the ConfigFromJSON function does not know the dir
+			tt.wantCfg.dir = nil
+
+			assert.Equal(t, tt.wantCfg, gotCfg)
 		})
 	}
 }
