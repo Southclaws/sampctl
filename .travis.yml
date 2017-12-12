@@ -13,8 +13,18 @@ addons:
 language: go
 jobs:
   include:
-    - stage: test
-      script: make test
+    - stage: test compiler
+      script: go test -race -v -p 4 ./compiler
+    - stage: test download
+      script: go test -race -v -p 4 ./download
+    - stage: test rook
+      script: go test -race -v -p 4 ./rook
+    - stage: test runtime
+      script: go test -race -v -p 4 ./runtime
+    - stage: test util
+      script: go test -race -v -p 4 ./util
+    - stage: test versioning
+      script: go test -race -v -p 4 ./versioning
 after_success:
   - test -n "$TRAVIS_TAG" && curl -sL https://git.io/goreleaser | bash
 go:
