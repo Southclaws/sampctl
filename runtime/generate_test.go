@@ -100,19 +100,16 @@ output 1
 }
 
 func TestConfig_GenerateJSON(t *testing.T) {
-	type args struct {
-		dir string
-	}
 	tests := []struct {
 		name    string
 		config  *Config
 		want    []byte
-		args    args
 		wantErr bool
 	}{
 		{
 			"minimal",
 			&Config{
+				dir: &[]string{"./tests/generate-json"}[0],
 				Gamemodes: []string{
 					"rivershell",
 					"baserace",
@@ -138,17 +135,15 @@ func TestConfig_GenerateJSON(t *testing.T) {
 	"announce": true,
 	"rcon": true
 }`),
-			args{"./tests/generate-json"},
 			false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.config.dir = &tt.args.dir
 			err := tt.config.GenerateJSON()
 			assert.NoError(t, err)
 
-			contents, err := ioutil.ReadFile(filepath.Join(tt.args.dir, "samp.json"))
+			contents, err := ioutil.ReadFile(filepath.Join(*tt.config.dir, "samp.json"))
 			assert.NoError(t, err)
 
 			assert.Equal(t, string(tt.want), string(contents))
