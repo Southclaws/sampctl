@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/google/go-github/github"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4"
 
@@ -32,28 +31,7 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 		wantDeps []versioning.DependencyString
 		wantErr  bool
 	}{
-		{"depth1", Package{
-			local: util.FullPath("./tests/deps-ensure"),
-			Dependencies: []versioning.DependencyString{
-				"ScavengeSurvive/test-boilerplate",
-			}}, []versioning.DependencyString{
-			"ScavengeSurvive/test-boilerplate",
-			"Southclaws/samp-stdlib",
-			"Zeex/amx_assembly",
-			"Misiur/YSI-Includes",
-		}, false},
-		{"depth2", Package{
-			local: util.FullPath("./tests/deps-ensure"),
-			Dependencies: []versioning.DependencyString{
-				"ScavengeSurvive/velocity",
-			}}, []versioning.DependencyString{
-			"ScavengeSurvive/velocity",
-			"Southclaws/samp-stdlib",
-			"ScavengeSurvive/test-boilerplate",
-			"Zeex/amx_assembly",
-			"Misiur/YSI-Includes",
-		}, false},
-		{"depth3", Package{
+		{"ensure", Package{
 			local: util.FullPath("./tests/deps-ensure"),
 			Dependencies: []versioning.DependencyString{
 				"ScavengeSurvive/actions",
@@ -161,75 +139,40 @@ func TestEnsurePackage(t *testing.T) {
 	}
 }
 
-func Test_gather(t *testing.T) {
-	tests := []struct {
-		name             string
-		pkg              Package
-		wantDependencies []versioning.DependencyString
-		wantErr          bool
-	}{
-		{"basic", Package{
-			DependencyMeta: versioning.DependencyMeta{
-				User: "ScavengeSurvive",
-				Repo: "velocity",
-			},
-			Dependencies: []versioning.DependencyString{
-				"Southclaws/samp-stdlib",
-				"ScavengeSurvive/test-boilerplate",
-			}}, []versioning.DependencyString{
-			"Southclaws/samp-stdlib",
-			"ScavengeSurvive/test-boilerplate",
-			"Zeex/amx_assembly",
-			"Misiur/YSI-Includes",
-		}, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotDependencies, err := tt.pkg.gather()
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
+// commented because these tests use a lot of github api calls
+// func Test_getRemotePackage(t *testing.T) {
+// 	client := github.NewClient(nil)
 
-			assert.Equal(t, tt.wantDependencies, gotDependencies)
-		})
-	}
-}
+// 	type args struct {
+// 		client *github.Client
+// 		user   string
+// 		repo   string
+// 	}
+// 	tests := []struct {
+// 		name    string
+// 		args    args
+// 		wantPkg Package
+// 		wantErr bool
+// 	}{
+// 		{"velocity", args{client, "ScavengeSurvive", "velocity"}, Package{
+// 			Entry:  "test.pwn",
+// 			Output: "test.amx",
+// 			Dependencies: []versioning.DependencyString{
+// 				"Southclaws/samp-stdlib",
+// 				"ScavengeSurvive/test-boilerplate",
+// 			},
+// 		}, false},
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			gotPkg, err := getRemotePackage(tt.args.client, tt.args.user, tt.args.repo)
+// 			if tt.wantErr {
+// 				assert.Error(t, err)
+// 			} else {
+// 				assert.NoError(t, err)
+// 			}
 
-func Test_getRemotePackage(t *testing.T) {
-	client := github.NewClient(nil)
-
-	type args struct {
-		client *github.Client
-		user   string
-		repo   string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantPkg Package
-		wantErr bool
-	}{
-		{"velocity", args{client, "ScavengeSurvive", "velocity"}, Package{
-			Entry:  "test.pwn",
-			Output: "test.amx",
-			Dependencies: []versioning.DependencyString{
-				"Southclaws/samp-stdlib",
-				"ScavengeSurvive/test-boilerplate",
-			},
-		}, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotPkg, err := getRemotePackage(tt.args.client, tt.args.user, tt.args.repo)
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			assert.Equal(t, tt.wantPkg, gotPkg)
-		})
-	}
-}
+// 			assert.Equal(t, tt.wantPkg, gotPkg)
+// 		})
+// 	}
+// }
