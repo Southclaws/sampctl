@@ -1,19 +1,29 @@
 package rook
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
 
 	"github.com/Masterminds/semver"
-	"github.com/Southclaws/sampctl/util"
+	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
+
+	"github.com/Southclaws/sampctl/util"
+	"github.com/Southclaws/sampctl/versioning"
 )
 
 // ensure.go contains functions to install, update and validate dependencies of a project.
+
+// ErrNotRemotePackage describes a repository that does not contain a package definition file
+var ErrNotRemotePackage = errors.New("remote repository does not declare a package")
 
 // VersionedTag represents a git tag ref with a valid semantic version number as a tag
 type VersionedTag struct {
@@ -24,7 +34,7 @@ type VersionedTag struct {
 // VersionedTags is just for implementing the Sort interface
 type VersionedTags []VersionedTag
 
-// EnsureDependencies traverses package dependencies and ensures they are up to date in `Package.local`/vendor
+// EnsureDependencies traverses package dependencies and ensures they are up to date
 func (pkg Package) EnsureDependencies() (err error) {
 	if pkg.local == "" {
 		return errors.New("package does not represent a locally stored package")
@@ -34,17 +44,123 @@ func (pkg Package) EnsureDependencies() (err error) {
 		return errors.New("package local path does not exist")
 	}
 
-	vendorDir := filepath.Join(pkg.local, "dependencies")
+	pkg.vendor = filepath.Join(pkg.local, "dependencies")
 
-	for _, depString := range pkg.Dependencies {
+	dependencies, err := pkg.gather()
+	if err != nil {
+		return errors.Wrap(err, "failed to gather dependency tree")
+	}
+
+	for _, depString := range dependencies {
 		dep, err := PackageFromDep(depString)
 		if err != nil {
 			return errors.Errorf("package dependency '%s' is invalid: %v", depString, err)
 		}
 
-		err = EnsurePackage(vendorDir, dep)
+		err = EnsurePackage(pkg.vendor, dep)
 		if err != nil {
 			return errors.Wrapf(err, "failed to ensure package %s", dep)
+		}
+	}
+	return
+}
+
+// gather recursively discovers `pawn.json`/`pawn.yaml` files in dependencies to build up a list of
+// packages to ensure.
+func (pkg Package) gather() (dependencies []versioning.DependencyString, err error) {
+	client := github.NewClient(nil)
+
+	var recurse func(Package)
+
+	recurse = func(innerPkg Package) {
+		fmt.Println(innerPkg, "gathering dependencies...")
+		for _, depString := range innerPkg.Dependencies {
+			depMeta, err := depString.Explode()
+			if err != nil {
+				fmt.Println(innerPkg, "failed to parse dependency string", depString)
+				break
+			}
+
+			fmt.Println(innerPkg, "- gathered dependency", depMeta)
+
+			dependencies = append(dependencies, depString)
+
+			dependencyPkg, err := getRemotePackage(client, depMeta.User, depMeta.Repo)
+			if err != nil {
+				if err == ErrNotRemotePackage {
+					fmt.Println(innerPkg, "dependency", depMeta.Repo, "does not contain package definition")
+					continue
+				}
+				fmt.Println(depMeta, "failed to get remote package manifest")
+				break
+			}
+			fmt.Println(innerPkg, "- got dependency: ", dependencyPkg.User, dependencyPkg.Repo, dependencyPkg.Version, "%")
+
+			recurse(dependencyPkg)
+		}
+	}
+	recurse(pkg)
+
+	fmt.Println(dependencies)
+
+	dependencies = checkConflicts(dependencies)
+
+	return
+}
+
+func getRemotePackage(client *github.Client, user, repo string) (pkg Package, err error) {
+	var (
+		reader   io.Reader
+		contents []byte
+	)
+
+	reader, err = client.Repositories.DownloadContents(context.Background(), user, repo, "pawn.json", &github.RepositoryContentGetOptions{})
+	if err == nil {
+		contents, err = ioutil.ReadAll(reader)
+		if err != nil {
+			return
+		}
+
+		err = json.Unmarshal(contents, &pkg)
+		if err != nil {
+			return
+		}
+
+		pkg.User = user
+		pkg.Repo = repo
+
+		return
+	}
+
+	reader, err = client.Repositories.DownloadContents(context.Background(), pkg.User, pkg.Repo, "pawn.yaml", &github.RepositoryContentGetOptions{})
+	if err == nil {
+		contents, err = ioutil.ReadAll(reader)
+		if err != nil {
+			return
+		}
+
+		err = json.Unmarshal(contents, &pkg)
+		if err != nil {
+			return
+		}
+
+		pkg.User = user
+		pkg.Repo = repo
+
+		return
+	}
+
+	err = ErrNotRemotePackage
+
+	return
+}
+
+func checkConflicts(dependencies []versioning.DependencyString) (result []versioning.DependencyString) {
+	exists := make(map[versioning.DependencyString]bool)
+	for _, depString := range dependencies {
+		if !exists[depString] {
+			exists[depString] = true
+			result = append(result, depString)
 		}
 	}
 	return
@@ -62,13 +178,17 @@ func EnsurePackage(vendorDirectory string, pkg Package) (err error) {
 		return
 	}
 
-	needToClone := false
+	var (
+		ref           *plumbing.Reference
+		needToClone   bool
+		versionedTags VersionedTags
+	)
 
 	if err == git.ErrRepositoryNotExists {
 		fmt.Println(pkg, "package does not exist at", pkgPath, "cloning new copy")
 		needToClone = true
 	} else {
-		head, err := repo.Head()
+		ref, err = repo.Head()
 		if err != nil {
 			fmt.Println(pkg, "package already exists but failed to get repository HEAD:", err)
 			needToClone = true
@@ -77,7 +197,7 @@ func EnsurePackage(vendorDirectory string, pkg Package) (err error) {
 				return errors.Wrap(err, "failed to temporarily remove possibly corrupted dependency repo")
 			}
 		} else {
-			fmt.Println(pkg, "package already exists at", head)
+			fmt.Println(pkg, "package already exists at", ref)
 		}
 	}
 
@@ -92,44 +212,45 @@ func EnsurePackage(vendorDirectory string, pkg Package) (err error) {
 		}
 	}
 
-	if pkg.Version == "" {
-		fmt.Println(pkg, "package does not have version constraint, fetching latest...")
-		err = repo.Fetch(&git.FetchOptions{})
-		if err == git.NoErrAlreadyUpToDate {
-			fmt.Println(pkg, "latest copy is already present")
-			return nil
-		} else if err != nil {
-			err = errors.Wrap(err, "failed to fetch latest package")
-			return
-		} else {
-			fmt.Println(pkg, "latest copy has been fetched")
-			return
-		}
-	}
-
-	versionedTags, err := getPackageRepoTags(repo)
-	if err != nil {
-		return errors.Wrap(err, "failed to get package repository tags")
-	}
-
-	ref, err := getRefFromConstraint(pkg, versionedTags, pkg.Version)
-	if err != nil {
-		return
-	}
-
 	wt, err := repo.Worktree()
 	if err != nil {
 		err = errors.Wrap(err, "failed to get repo worktree")
 		return
 	}
 
-	err = wt.Checkout(&git.CheckoutOptions{
-		Hash:  ref.Hash(),
-		Force: true,
-	})
-	if err != nil {
-		err = errors.Wrapf(err, "failed to checkout necessary commit %s", ref.Hash())
-		return
+	if pkg.Version == "" {
+		fmt.Println(pkg, "package does not have version constraint, fetching latest...")
+
+		err = wt.Pull(&git.PullOptions{})
+		if err == git.NoErrAlreadyUpToDate {
+			fmt.Println(pkg, "latest copy is already present")
+		} else if err != nil {
+			err = errors.Wrap(err, "failed to fetch latest package")
+			return
+		} else {
+			fmt.Println(pkg, "latest copy has been fetched")
+		}
+	} else {
+		fmt.Println(pkg, "package has version constraint, checking out...")
+
+		versionedTags, err = getPackageRepoTags(repo)
+		if err != nil {
+			return errors.Wrap(err, "failed to get package repository tags")
+		}
+
+		ref, err = getRefFromConstraint(pkg, versionedTags, pkg.Version)
+		if err != nil {
+			return
+		}
+
+		err = wt.Checkout(&git.CheckoutOptions{
+			Hash:  ref.Hash(),
+			Force: true,
+		})
+		if err != nil {
+			err = errors.Wrapf(err, "failed to checkout necessary commit %s", ref.Hash())
+			return
+		}
 	}
 
 	head, err := repo.Head()

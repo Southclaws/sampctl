@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/Southclaws/sampctl/versioning"
+	"github.com/google/go-github/github"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4"
-
-	"github.com/Southclaws/sampctl/versioning"
 )
 
 func TestMain(m *testing.M) {
@@ -97,6 +97,79 @@ func TestEnsurePackage(t *testing.T) {
 					panic(err)
 				}
 			}
+		})
+	}
+}
+
+func Test_getRemotePackage(t *testing.T) {
+	client := github.NewClient(nil)
+
+	type args struct {
+		client *github.Client
+		user   string
+		repo   string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantPkg Package
+		wantErr bool
+	}{
+		{"velocity", args{client, "ScavengeSurvive", "velocity"}, Package{
+			Entry:  "test.pwn",
+			Output: "test.amx",
+			Dependencies: []versioning.DependencyString{
+				"Southclaws/samp-stdlib",
+				"ScavengeSurvive/test-boilerplate",
+			},
+		}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotPkg, err := getRemotePackage(tt.args.client, tt.args.user, tt.args.repo)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			assert.Equal(t, tt.wantPkg, gotPkg)
+		})
+	}
+}
+
+func Test_gather(t *testing.T) {
+	tests := []struct {
+		name             string
+		pkg              Package
+		wantDependencies []versioning.DependencyString
+		wantErr          bool
+	}{
+		{"basic", Package{
+			DependencyMeta: versioning.DependencyMeta{
+				User: "ScavengeSurvive",
+				Repo: "velocity",
+			},
+			Dependencies: []versioning.DependencyString{
+				"Southclaws/samp-stdlib",
+				"ScavengeSurvive/test-boilerplate",
+			}}, []versioning.DependencyString{
+			"Southclaws/samp-stdlib",
+			"ScavengeSurvive/test-boilerplate",
+			"Zeex/amx_assembly",
+			"Misiur/YSI-Includes",
+		}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotDependencies, err := tt.pkg.gather()
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			assert.Equal(t, tt.wantDependencies, gotDependencies)
 		})
 	}
 }
