@@ -25,10 +25,11 @@ jobs:
     - stage: deploy
       if: branch = master
       script:
+        - test -n "$TRAVIS_TAG"
         - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
         - if [ `uname -m` = x86_64 ]; then sudo apt-get install -qq --force-yes gcc-multilib > /dev/null; fi
         - sudo apt-get install -y build-essential rpm
         - gem install --no-ri --no-rdoc fpm
-        - test -n "$TRAVIS_TAG" && curl -sL https://git.io/goreleaser | bash
+        - curl -sL https://git.io/goreleaser | bash
 go:
   - 1.x
