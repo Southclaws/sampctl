@@ -8,9 +8,10 @@ import (
 
 	"github.com/Southclaws/sampctl/rook"
 	"github.com/Southclaws/sampctl/util"
+	"github.com/Southclaws/sampctl/versioning"
 )
 
-var packageEnsureFlags = []cli.Flag{
+var packageInstallFlags = []cli.Flag{
 	cli.StringFlag{
 		Name:  "dir",
 		Value: ".",
@@ -18,15 +19,21 @@ var packageEnsureFlags = []cli.Flag{
 	},
 }
 
-func packageEnsure(c *cli.Context) error {
+func packageInstall(c *cli.Context) error {
 	dir := util.FullPath(c.String("dir"))
+
+	dep := versioning.DependencyString(c.Args().First())
+	if dep == "" {
+		cli.ShowCommandHelpAndExit(c, "install", 0)
+		return nil
+	}
 
 	pkg, err := rook.PackageFromDir(true, dir, "")
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	err = pkg.EnsureDependencies()
+	err = pkg.Install(dep)
 	if err != nil {
 		return err
 	}

@@ -11,8 +11,9 @@ import (
 )
 
 // PackageFromDir attempts to parse a directory as a Package by looking for a `pawn.json` or
-// `pawn.yaml` file and unmarshalling it.
-func PackageFromDir(dir string) (pkg Package, err error) {
+// `pawn.yaml` file and unmarshalling it - additional parameters are required to specify whether or
+// not the package is a "parent package" and where the vendor directory is.
+func PackageFromDir(parent bool, dir string, vendor string) (pkg Package, err error) {
 	jsonFile := filepath.Join(dir, "pawn.json")
 	if util.Exists(jsonFile) {
 		pkg, err = PackageFromJSON(jsonFile)
@@ -28,7 +29,14 @@ func PackageFromDir(dir string) (pkg Package, err error) {
 		return
 	}
 
+	pkg.parent = parent
 	pkg.local = dir
+
+	if vendor == "" {
+		pkg.vendor = filepath.Join(dir, "dependencies")
+	} else {
+		pkg.vendor = vendor
+	}
 
 	if err = pkg.Validate(); err != nil {
 		return
