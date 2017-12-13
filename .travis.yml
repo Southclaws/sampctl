@@ -1,6 +1,8 @@
 sudo: required
 services:
   - docker
+before_install:
+  - sudo apt-get install -qq --force-yes build-essential gcc-multilib > /dev/null
 addons:
   apt:
     packages:
