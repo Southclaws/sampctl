@@ -23,7 +23,7 @@ jobs:
     - stage: test versioning
       script: go test -race -v -p 4 ./versioning
     - stage: deploy
-      if: branch = master
+      if: branch =~ ^(master|v?(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[\da-z-]+(?:\.[\da-z-]+)*)?(?:\+[\da-z-]+(?:\.[\da-z-]+)*)?)$
       script:
         - test -n "$TRAVIS_TAG"
         - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
