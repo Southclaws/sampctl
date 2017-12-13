@@ -38,9 +38,9 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 			}}, []versioning.DependencyString{
 			"ScavengeSurvive/actions",
 			"Southclaws/samp-stdlib",
+			"ScavengeSurvive/test-boilerplate",
 			"Zeex/amx_assembly",
 			"Misiur/YSI-Includes",
-			"ScavengeSurvive/test-boilerplate",
 			"ScavengeSurvive/velocity",
 			"ScavengeSurvive/tick-difference",
 		}, false},
