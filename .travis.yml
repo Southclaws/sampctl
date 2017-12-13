@@ -25,7 +25,8 @@ jobs:
       script: go test -race -v -p 4 ./util
     - stage: test versioning
       script: go test -race -v -p 4 ./versioning
-after_success:
-  - test "$(TRAVIS_COMMIT_MESSAGE)" = deploy && curl -sL https://git.io/goreleaser | bash
+    - stage: deploy
+      if: branch = master
+      script: curl -sL https://git.io/goreleaser | bash
 go:
   - 1.x
