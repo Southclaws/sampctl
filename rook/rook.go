@@ -29,10 +29,19 @@ import (
 // be specified in the Include field. This is common practice for plugins that store the plugin
 // source code in the root and the Pawn source in a subdirectory called 'include'.
 type Package struct {
+	// Parent indicates that this package is a "working" package that the user has explicitly
+	// created and is developing. The opposite of this would be packages that exist in the
+	// `dependencies` directory that have been downloaded as a result of an Ensure.
+	parent bool
 	// Local path, this indicates the Package object represents a local copy which is a directory
 	// containing a `samp.json`/`samp.yaml` file and a set of Pawn source code files.
 	// If this field is not set, then the Package is just an in-memory pointer to a remote package.
 	local string
+	// The vendor directory - for simple packages with no sub-dependencies, this is simply
+	// `<local>/dependencies` but for nested dependencies, this needs to be set.
+	vendor string
+	// format stores the original format of the package definition file, either `json` or `yaml`
+	format string
 
 	// Inferred metadata, not always explicitly set via JSON/YAML but inferred from the dependency path
 	versioning.DependencyMeta

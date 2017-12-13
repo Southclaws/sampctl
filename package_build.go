@@ -32,7 +32,7 @@ func packageBuild(c *cli.Context) error {
 	build := c.String("build")
 	forceEnsure := c.Bool("forceEnsure")
 
-	pkg, err := rook.PackageFromDir(dir)
+	pkg, err := rook.PackageFromDir(true, dir, "")
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}

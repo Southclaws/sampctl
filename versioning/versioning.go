@@ -1,6 +1,7 @@
 package versioning
 
 import (
+	"fmt"
 	"regexp"
 
 	"github.com/Masterminds/semver"
@@ -16,6 +17,10 @@ type DependencyMeta struct {
 	Repo    string `json:"repo"`    // GitHub repository name
 	Path    string `json:"path"`    // Subdirectory that contains .inc files (if any)
 	Version string `json:"version"` // Version string (git tag, preferably a semantic version)
+}
+
+func (dm DependencyMeta) String() string {
+	return fmt.Sprintf("%s/%s:%s", dm.User, dm.Repo, dm.Version)
 }
 
 var dependencyPattern = regexp.MustCompile(`^((?:http(?:s)?:\/\/)?github.com\/)?([a-zA-Z0-9-]*)\/([a-zA-Z0-9-_]*)(?:\/)?([a-zA-Z0-9-_$\[\]{}().,\/]*)?(?:\:)?(.*)?$`)

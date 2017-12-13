@@ -48,7 +48,7 @@ var packageRunFlags = []cli.Flag{
 
 func packageRun(c *cli.Context) error {
 	version := c.String("version")
-	projectDir := util.FullPath(c.String("dir"))
+	dir := util.FullPath(c.String("dir"))
 	endpoint := c.String("endpoint")
 	container := c.Bool("container")
 	build := c.String("build")
@@ -61,7 +61,7 @@ func packageRun(c *cli.Context) error {
 		return err
 	}
 
-	pkg, err := rook.PackageFromDir(projectDir)
+	pkg, err := rook.PackageFromDir(true, dir, "")
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
