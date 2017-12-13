@@ -40,6 +40,8 @@ type Package struct {
 	// The vendor directory - for simple packages with no sub-dependencies, this is simply
 	// `<local>/dependencies` but for nested dependencies, this needs to be set.
 	vendor string
+	// format stores the original format of the package definition file, either `json` or `yaml`
+	format string
 
 	// Inferred metadata, not always explicitly set via JSON/YAML but inferred from the dependency path
 	versioning.DependencyMeta
