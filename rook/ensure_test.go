@@ -5,10 +5,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Southclaws/sampctl/versioning"
 	"github.com/google/go-github/github"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4"
+
+	"github.com/Southclaws/sampctl/versioning"
 )
 
 func TestMain(m *testing.M) {

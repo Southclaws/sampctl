@@ -149,8 +149,9 @@ func getRemotePackage(client *github.Client, user, repo string) (pkg Package, er
 
 		return
 	}
-
-	err = ErrNotRemotePackage
+	if err == nil {
+		err = ErrNotRemotePackage
+	}
 
 	return
 }
