@@ -35,33 +35,34 @@ type VersionedTag struct {
 type VersionedTags []VersionedTag
 
 // EnsureDependencies traverses package dependencies and ensures they are up to date
-func (pkg Package) EnsureDependencies() (err error) {
+func (pkg Package) EnsureDependencies() (allDependencies []versioning.DependencyString, err error) {
 	if pkg.local == "" {
-		return errors.New("package does not represent a locally stored package")
+		return nil, errors.New("package does not represent a locally stored package")
 	}
 
 	if !util.Exists(pkg.local) {
-		return errors.New("package local path does not exist")
+		return nil, errors.New("package local path does not exist")
 	}
 
 	pkg.vendor = filepath.Join(pkg.local, "dependencies")
 
-	dependencies, err := pkg.gather()
+	allDependencies, err = pkg.gather()
 	if err != nil {
-		return errors.Wrap(err, "failed to gather dependency tree")
+		return nil, errors.Wrap(err, "failed to gather dependency tree")
 	}
 
-	for _, depString := range dependencies {
+	for _, depString := range allDependencies {
 		dep, err := PackageFromDep(depString)
 		if err != nil {
-			return errors.Errorf("package dependency '%s' is invalid: %v", depString, err)
+			return nil, errors.Errorf("package dependency '%s' is invalid: %v", depString, err)
 		}
 
 		err = EnsurePackage(pkg.vendor, dep)
 		if err != nil {
-			return errors.Wrapf(err, "failed to ensure package %s", dep)
+			return nil, errors.Wrapf(err, "failed to ensure package %s", dep)
 		}
 	}
+
 	return
 }
 
@@ -78,7 +79,7 @@ func (pkg Package) gather() (dependencies []versioning.DependencyString, err err
 			depMeta, err := depString.Explode()
 			if err != nil {
 				fmt.Println(innerPkg, "failed to parse dependency string", depString)
-				break
+				continue
 			}
 
 			fmt.Println(innerPkg, "- gathered dependency", depMeta)
@@ -91,8 +92,8 @@ func (pkg Package) gather() (dependencies []versioning.DependencyString, err err
 					fmt.Println(innerPkg, "dependency", depMeta.Repo, "does not contain package definition")
 					continue
 				}
-				fmt.Println(depMeta, "failed to get remote package manifest")
-				break
+				fmt.Println(depMeta, "failed to get remote package manifest:", err)
+				continue
 			}
 			fmt.Println(innerPkg, "- got dependency: ", dependencyPkg.User, dependencyPkg.Repo, dependencyPkg.Version, "%")
 
