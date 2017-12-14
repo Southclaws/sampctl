@@ -1,6 +1,6 @@
 # sampctl
 
-[![Build Status](https://travis-ci.org/Southclaws/sampctl.svg?branch=master)](https://travis-ci.org/Southclaws/sampctl)[![Go Report Card](https://goreportcard.com/badge/github.com/Southclaws/sampctl)](https://goreportcard.com/report/github.com/Southclaws/sampctl)
+[![Build Status](https://travis-ci.org/Southclaws/sampctl.svg?branch=master)](https://travis-ci.org/Southclaws/sampctl) [![Go Report Card](https://goreportcard.com/badge/github.com/Southclaws/sampctl)](https://goreportcard.com/report/github.com/Southclaws/sampctl) [![https://img.shields.io/badge/Ko--Fi-Buy\%20Me\%20a\%20Coffee-brown.svg](https://img.shields.io/badge/Ko--Fi-Buy\%20Me\%20a\%20Coffee-brown.svg)](https://ko-fi.com/southclaws)
 
 The Swiss Army Knife of SA:MP - vital tools for any server owner or library
 maintainer.
@@ -27,7 +27,7 @@ Package management and dependency tools:
 
 ## `sampctl`
 
-1.4.0-RC3 - Southclaws <southclaws@gmail.com>
+1.4.12 - Southclaws <southclaws@gmail.com>
 
 Compiles server configuration JSON to server.cfg format. Executes the server and monitors it for crashes, restarting if necessary. Provides a way to quickly download server binaries of a specified version. Provides dependency management and package build tools for library maintainers and gamemode writers alike.
 
@@ -39,13 +39,13 @@ Usage: `sampctl server <subcommand>`
 
 For managing servers and runtime configurations.
 
-#### Subcommands (3)
+#### Subcommands (4)
 
 ### `sampctl server init`
 
 Usage: `sampctl server init`
 
-Bootstrap a new SA:MP server and generates a `samp.json` configuration based on user input. If `gamemodes`, `filterscripts` or `plugins` directories are present, you will be prompted to select relevant files.
+Bootstrap a new SA:MP server and generates a `samp.json`/`samp.yaml` configuration based on user input. If `gamemodes`, `filterscripts` or `plugins` directories are present, you will be prompted to select relevant files.
 
 #### Flags
 
@@ -65,11 +65,21 @@ Downloads the files necessary to run a SA:MP server to the current directory (un
 - `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
 - `--endpoint value`: endpoint to download packages from (default: "http://files.sa-mp.com")
 
+### `sampctl server ensure`
+
+Usage: `sampctl server ensure`
+
+Ensures the server environment is representative of the configuration specified in `samp.json`/`samp.yaml` - downloads server binaries and plugin files if necessary and generates a `server.cfg` file.
+
+#### Flags
+
+- `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
+
 ### `sampctl server run`
 
 Usage: `sampctl server run`
 
-Generates a `server.cfg` file based on the configuration inside `samp.json` then executes the server process and automatically restarts it on crashes.
+Generates a `server.cfg` file based on the configuration inside `samp.json`/`samp.yaml` then executes the server process and automatically restarts it on crashes.
 
 #### Flags
 
@@ -87,13 +97,23 @@ Usage: `sampctl package <subcommand>`
 
 For managing Pawn packages such as gamemodes and libraries.
 
-#### Subcommands (3)
+#### Subcommands (4)
 
 ### `sampctl package ensure`
 
 Usage: `sampctl package ensure`
 
-Ensures dependencies are up to date based on the `dependencies` field in `pawn.json`.
+Ensures dependencies are up to date based on the `dependencies` field in `pawn.json`/`pawn.yaml`.
+
+#### Flags
+
+- `--dir value`: working directory for the project - by default, uses the current directory (default: ".")
+
+### `sampctl package install`
+
+Usage: `sampctl package install [package definition]`
+
+Installs a new package by adding it to the `dependencies` field in `pawn.json`/`pawn.yaml` downloads the contents.
 
 #### Flags
 
@@ -103,7 +123,7 @@ Ensures dependencies are up to date based on the `dependencies` field in `pawn.j
 
 Usage: `sampctl package build`
 
-Builds a package defined by a `pawn.json` or `pawn.yaml` file.
+Builds a package defined by a `pawn.json`/`pawn.yaml` file.
 
 #### Flags
 
@@ -115,7 +135,7 @@ Builds a package defined by a `pawn.json` or `pawn.yaml` file.
 
 Usage: `sampctl package run`
 
-Compiles and runs a package defined by a `pawn.json` or `pawn.yaml` file.
+Compiles and runs a package defined by a `pawn.json`/`pawn.yaml` file.
 
 #### Flags
 

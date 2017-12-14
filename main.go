@@ -60,7 +60,7 @@ func main() {
 				},
 				{
 					Name:        "ensure",
-					Usage:       "sampctl server run",
+					Usage:       "sampctl server ensure",
 					Description: "Ensures the server environment is representative of the configuration specified in `samp.json`/`samp.yaml` - downloads server binaries and plugin files if necessary and generates a `server.cfg` file.",
 					Action:      serverEnsure,
 					Flags:       serverEnsureFlags,
