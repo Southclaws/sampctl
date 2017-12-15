@@ -42,6 +42,9 @@ type Package struct {
 	vendor string
 	// format stores the original format of the package definition file, either `json` or `yaml`
 	format string
+	// allDependencies stores a list of all dependency meta from this package and sub packages
+	// this field is only used if `parent` is true.
+	allDependencies []versioning.DependencyMeta
 
 	// Inferred metadata, not always explicitly set via JSON/YAML but inferred from the dependency path
 	versioning.DependencyMeta
@@ -88,11 +91,6 @@ func (pkg Package) Validate() (err error) {
 	}
 
 	return
-}
-
-// GetURL generates a GitHub URL for a package - it does not test the validity of the URL
-func (pkg Package) GetURL() string {
-	return fmt.Sprintf("https://github.com/%s/%s", pkg.User, pkg.Repo)
 }
 
 // PackageFromDep creates a Package object from a Dependency String

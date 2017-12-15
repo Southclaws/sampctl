@@ -23,12 +23,12 @@ func (pkg Package) Install(target versioning.DependencyString) (err error) {
 		fmt.Println("target already exists in dependencies")
 	}
 
-	dep, err := PackageFromDep(target)
+	meta, err := target.Explode()
 	if err != nil {
 		return
 	}
 
-	err = EnsurePackage(pkg.vendor, dep)
+	err = EnsurePackage(pkg.vendor, meta)
 	if err != nil {
 		return
 	}

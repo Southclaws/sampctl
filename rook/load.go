@@ -2,12 +2,14 @@ package rook
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 
-	"github.com/Southclaws/sampctl/util"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
+
+	"github.com/Southclaws/sampctl/util"
 )
 
 // PackageFromDir attempts to parse a directory as a Package by looking for a `pawn.json` or
@@ -40,6 +42,14 @@ func PackageFromDir(parent bool, dir string, vendor string) (pkg Package, err er
 
 	if err = pkg.Validate(); err != nil {
 		return
+	}
+
+	if parent {
+		err = pkg.ResolveDependencies()
+		if err != nil {
+			err = errors.Wrap(err, "failed to resolve all dependencies")
+			return
+		}
 	}
 
 	return
@@ -76,6 +86,58 @@ func PackageFromYAML(file string) (pkg Package, err error) {
 	if err != nil {
 		err = errors.Wrap(err, "failed to unmarshal pawn.yaml")
 		return
+	}
+
+	return
+}
+
+// ResolveDependencies is a function for use by parent packages to iterate through their
+// `dependencies/` directory discovering packages and getting their dependencies
+func (pkg *Package) ResolveDependencies() (err error) {
+	if !pkg.parent {
+		return errors.New("package is not a parent package")
+	}
+
+	if pkg.local == "" {
+		return errors.New("package has no known local path")
+	}
+
+	depsDir := filepath.Join(pkg.local, "dependencies")
+
+	if !util.Exists(depsDir) {
+		fmt.Println("dependencies directory does not exist, run sampctl package ensure to update dependencies")
+		return
+	}
+
+	for _, dependencyString := range pkg.Dependencies {
+		dependencyMeta, err := dependencyString.Explode()
+		if err != nil {
+			fmt.Println(pkg, "invalid dependency string:", dependencyString)
+			continue
+		}
+
+		dependencyDir := filepath.Join(depsDir, dependencyMeta.Repo)
+		if !util.Exists(dependencyDir) {
+			fmt.Println(pkg, "dependency", dependencyString, "does not exist locally in", depsDir, "run sampctl package ensure to update dependencies.")
+			continue
+		}
+
+		pkg.allDependencies = append(pkg.allDependencies, dependencyMeta)
+
+		subPkg, err := PackageFromDir(false, dependencyDir, depsDir)
+		if err != nil {
+			fmt.Println(pkg, "dependency is not a Pawn package:", dependencyString, err)
+			continue
+		}
+
+		for _, depStr := range subPkg.Dependencies {
+			depMeta, err := depStr.Explode()
+			if err != nil {
+				fmt.Println(pkg, "dependency, ", dependencyString, "has an invalid dependency:", depStr)
+				continue
+			}
+			pkg.allDependencies = append(pkg.allDependencies, depMeta)
+		}
 	}
 
 	return
