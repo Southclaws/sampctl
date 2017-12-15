@@ -26,22 +26,23 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 	tests := []struct {
 		name     string
 		pkg      Package
-		wantDeps []versioning.DependencyString
+		wantDeps []versioning.DependencyMeta
 		wantErr  bool
 	}{
 		{"ensure", Package{
 			local: util.FullPath("./tests/deps-ensure"),
 			Dependencies: []versioning.DependencyString{
 				"ScavengeSurvive/actions",
-			}}, []versioning.DependencyString{
-			"ScavengeSurvive/actions",
-			"Southclaws/samp-stdlib",
-			"Zeex/amx_assembly",
-			"Misiur/YSI-Includes",
-			"ScavengeSurvive/test-boilerplate",
-			"ScavengeSurvive/velocity",
-			"ScavengeSurvive/tick-difference",
-		}, false},
+			}},
+			[]versioning.DependencyMeta{
+				versioning.DependencyMeta{User: "ScavengeSurvive", Repo: "actions", Path: "", Version: ""},
+				versioning.DependencyMeta{User: "Southclaws", Repo: "samp-stdlib", Path: "", Version: ""},
+				versioning.DependencyMeta{User: "ScavengeSurvive", Repo: "test-boilerplate", Path: "", Version: ""},
+				versioning.DependencyMeta{User: "Zeex", Repo: "amx_assembly", Path: "", Version: ""},
+				versioning.DependencyMeta{User: "Misiur", Repo: "YSI-Includes", Path: "", Version: ""},
+				versioning.DependencyMeta{User: "ScavengeSurvive", Repo: "velocity", Path: "", Version: ""},
+				versioning.DependencyMeta{User: "ScavengeSurvive", Repo: "tick-difference", Path: "", Version: ""},
+			}, false},
 	}
 	for _, tt := range tests {
 		os.MkdirAll(tt.pkg.local, 0755) //nolint
