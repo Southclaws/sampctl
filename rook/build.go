@@ -29,12 +29,12 @@ func (pkg Package) Build(build string, ensure bool) (output string, err error) {
 			err = errors.Wrap(err, "failed to ensure dependencies before build")
 			return
 		}
-	} else {
-		err = pkg.ResolveDependencies()
-		if err != nil {
-			err = errors.Wrap(err, "failed to resolve dependencies before build")
-			return
-		}
+	}
+
+	err = pkg.ResolveDependencies()
+	if err != nil {
+		err = errors.Wrap(err, "failed to resolve dependencies before build")
+		return
 	}
 
 	for _, depMeta := range pkg.allDependencies {

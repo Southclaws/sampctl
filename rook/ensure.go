@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"time"
 
 	"github.com/Masterminds/semver"
 	"github.com/google/go-github/github"
@@ -35,7 +36,7 @@ type VersionedTag struct {
 type VersionedTags []VersionedTag
 
 // EnsureDependencies traverses package dependencies and ensures they are up to date
-func (pkg Package) EnsureDependencies() (err error) {
+func (pkg *Package) EnsureDependencies() (err error) {
 	if pkg.local == "" {
 		return errors.New("package does not represent a locally stored package")
 	}
@@ -69,6 +70,17 @@ func (pkg Package) gather() (dependencies []versioning.DependencyMeta, err error
 	var recurse func(Package)
 
 	recurse = func(innerPkg Package) {
+		limits, _, err := client.RateLimits(context.Background())
+		if err != nil {
+			return
+		}
+
+		if limits.Core.Remaining < limits.Core.Limit/2 {
+			fmt.Println("Warning! over half of the allowed GitHub API calls have been used, slowing down a bit...")
+			fmt.Println("This issue is being resolved in a future version of sampctl.")
+			time.Sleep(time.Second * 5)
+		}
+
 		fmt.Println(innerPkg, "gathering dependencies...")
 		for _, depString := range innerPkg.Dependencies {
 			depMeta, err := depString.Explode()
