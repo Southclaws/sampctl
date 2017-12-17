@@ -27,6 +27,12 @@ Package management and dependency tools:
 * [Windows](https://github.com/Southclaws/sampctl/wiki/Windows)
 * [Mac](https://github.com/Southclaws/sampctl/wiki/Mac)
 
+## Usage
+
+Scroll to the end of this document for an overview of the commands.
+
+Or visit the [wiki](https://github.com/Southclaws/sampctl/wiki) for all the information you need.
+
 ---
 
 ## Features
@@ -161,7 +167,7 @@ Hack away!
 ---
 # `sampctl`
 
-1.4.12 - Southclaws <southclaws@gmail.com>
+1.4.13 - Southclaws <southclaws@gmail.com>
 
 Compiles server configuration JSON to server.cfg format. Executes the server and monitors it for crashes, restarting if necessary. Provides a way to quickly download server binaries of a specified version. Provides dependency management and package build tools for library maintainers and gamemode writers alike.
 
