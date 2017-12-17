@@ -31,44 +31,9 @@ type Config struct {
 // GetDefaultConfig defines and returns a default compiler configuration
 func GetDefaultConfig() Config {
 	return Config{
-		Args:    []string{"-d3", "-;+", "-(+", "-Z+"},
+		Args:    []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
 		Version: "3.10.4",
 	}
-}
-
-// MergeDefault returns a default config with the specified config merged on top
-func MergeDefault(config Config) (result Config) {
-	result = GetDefaultConfig()
-
-	result.Name = config.Name
-
-	if config.Version != "" {
-		result.Version = config.Version
-	}
-
-	result.WorkingDir = config.WorkingDir
-
-	if len(config.Args) > 0 {
-		args := make(map[string]struct{})
-		for _, defaultArg := range result.Args {
-			args[defaultArg] = struct{}{}
-		}
-		for _, configArg := range config.Args {
-			args[configArg] = struct{}{}
-		}
-		argsList := []string{}
-		for arg := range args {
-			argsList = append(argsList, arg)
-		}
-		result.Args = argsList
-	}
-
-	result.Input = config.Input
-	result.Output = config.Output
-	result.Includes = config.Includes
-	result.Constants = config.Constants
-
-	return
 }
 
 // CompileSource compiles a given input script to the specified output path using compiler version
@@ -124,6 +89,7 @@ func CompileSource(execDir string, cacheDir string, config Config) (err error) {
 		fmt.Sprintf("LD_LIBRARY_PATH=%s", runtimeDir),
 		fmt.Sprintf("DYLD_LIBRARY_PATH=%s", runtimeDir),
 	}
+	fmt.Println(cmd.Args)
 	err = cmd.Run()
 	if err != nil {
 		// todo: make a config flag to ignore this message

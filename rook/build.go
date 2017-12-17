@@ -64,18 +64,14 @@ func (pkg Package) Build(build string, ensure bool) (output string, err error) {
 // specified, the first build is returned. If the package has no build definitions, a default
 // configuration is returned.
 func (pkg Package) GetBuildConfig(name string) (config compiler.Config, err error) {
-	if len(pkg.Builds) == 0 {
+	if len(pkg.Builds) == 0 || name == "" {
 		config = compiler.GetDefaultConfig()
 		return
 	}
 
-	if name == "" {
-		return compiler.MergeDefault(pkg.Builds[0]), nil
-	}
-
 	for _, cfg := range pkg.Builds {
 		if cfg.Name == name {
-			return compiler.MergeDefault(cfg), nil
+			return cfg, nil
 		}
 	}
 
