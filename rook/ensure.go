@@ -1,18 +1,12 @@
 package rook
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
-	"time"
 
 	"github.com/Masterminds/semver"
-	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -47,118 +41,47 @@ func (pkg *Package) EnsureDependencies() (err error) {
 
 	pkg.vendor = filepath.Join(pkg.local, "dependencies")
 
-	pkg.allDependencies, err = pkg.gather()
-	if err != nil {
-		return errors.Wrap(err, "failed to gather dependency tree")
-	}
+	visited := make(map[versioning.DependencyMeta]bool)
 
-	for _, depMeta := range pkg.allDependencies {
-		err = EnsurePackage(pkg.vendor, depMeta)
+	var recurse func(meta versioning.DependencyMeta)
+	recurse = func(meta versioning.DependencyMeta) {
+		fmt.Println(pkg, "ensuring depenency:", meta)
+
+		pkgPath := filepath.Join(pkg.vendor, meta.Repo)
+
+		err = EnsurePackage(pkgPath, meta)
 		if err != nil {
-			return errors.Wrapf(err, "failed to ensure package %s", depMeta)
-		}
-	}
-
-	return
-}
-
-// gather recursively discovers `pawn.json`/`pawn.yaml` files in dependencies to build up a list of
-// packages to ensure.
-func (pkg Package) gather() (dependencies []versioning.DependencyMeta, err error) {
-	client := github.NewClient(nil)
-
-	var recurse func(Package)
-
-	recurse = func(innerPkg Package) {
-		limits, _, err := client.RateLimits(context.Background())
-		if err != nil {
+			fmt.Println(errors.Wrapf(err, "failed to ensure package %s", meta))
 			return
 		}
 
-		if limits.Core.Remaining < limits.Core.Limit/2 {
-			fmt.Println("Warning! over half of the allowed GitHub API calls have been used, slowing down a bit...")
-			fmt.Println("This issue is being resolved in a future version of sampctl.")
-			time.Sleep(time.Second * 5)
+		pkg.allDependencies = append(pkg.allDependencies, meta)
+		visited[meta] = true
+
+		subPkg, err := PackageFromDir(false, pkgPath, pkg.vendor)
+		if err != nil {
+			fmt.Println(err)
+			return
 		}
 
-		fmt.Println(innerPkg, "gathering dependencies...")
-		for _, depString := range innerPkg.Dependencies {
-			depMeta, err := depString.Explode()
+		for _, subPkgDep := range subPkg.Dependencies {
+			subPkgDepMeta, err := subPkgDep.Explode()
 			if err != nil {
-				fmt.Println(innerPkg, "failed to parse dependency string", depString)
 				continue
 			}
-
-			fmt.Println(innerPkg, "- gathered dependency", depMeta)
-
-			dependencies = append(dependencies, depMeta)
-
-			dependencyPkg, err := getRemotePackage(client, depMeta.User, depMeta.Repo)
-			if err != nil {
-				if err == ErrNotRemotePackage {
-					fmt.Println(innerPkg, "dependency", depMeta.Repo, "does not contain package definition")
-					continue
-				}
-				fmt.Println(depMeta, "failed to get remote package manifest:", err)
-				continue
+			if _, ok := visited[subPkgDepMeta]; !ok {
+				recurse(subPkgDepMeta)
 			}
-			fmt.Println(innerPkg, "- got dependency: ", dependencyPkg.User, dependencyPkg.Repo, dependencyPkg.Version, "%")
-
-			recurse(dependencyPkg)
 		}
 	}
-	recurse(pkg)
 
-	fmt.Println(dependencies)
-
-	dependencies = checkConflicts(dependencies)
-
-	return
-}
-
-func getRemotePackage(client *github.Client, user, repo string) (pkg Package, err error) {
-	var (
-		reader   io.Reader
-		contents []byte
-	)
-
-	reader, err = client.Repositories.DownloadContents(context.Background(), user, repo, "pawn.json", &github.RepositoryContentGetOptions{})
-	if err == nil {
-		contents, err = ioutil.ReadAll(reader)
+	var meta versioning.DependencyMeta
+	for _, dep := range pkg.Dependencies {
+		meta, err = dep.Explode()
 		if err != nil {
 			return
 		}
-
-		err = json.Unmarshal(contents, &pkg)
-		if err != nil {
-			return
-		}
-
-		pkg.User = user
-		pkg.Repo = repo
-
-		return
-	}
-
-	reader, err = client.Repositories.DownloadContents(context.Background(), pkg.User, pkg.Repo, "pawn.yaml", &github.RepositoryContentGetOptions{})
-	if err == nil {
-		contents, err = ioutil.ReadAll(reader)
-		if err != nil {
-			return
-		}
-
-		err = json.Unmarshal(contents, &pkg)
-		if err != nil {
-			return
-		}
-
-		pkg.User = user
-		pkg.Repo = repo
-
-		return
-	}
-	if err == nil {
-		err = ErrNotRemotePackage
+		recurse(meta)
 	}
 
 	return
@@ -178,9 +101,7 @@ func checkConflicts(dependencies []versioning.DependencyMeta) (result []versioni
 // EnsurePackage will make sure a vendor directory contains the specified package.
 // If the package is not present, it will clone it at the correct version tag, sha1 or HEAD
 // If the package is present, it will ensure the directory contains the correct version
-func EnsurePackage(vendorDirectory string, meta versioning.DependencyMeta) (err error) {
-	pkgPath := filepath.Join(util.FullPath(vendorDirectory), meta.Repo)
-
+func EnsurePackage(pkgPath string, meta versioning.DependencyMeta) (err error) {
 	repo, err := git.PlainOpen(pkgPath)
 	if err != nil && err != git.ErrRepositoryNotExists {
 		err = errors.Wrap(err, "failed to open dependency repository")
