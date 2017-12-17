@@ -120,10 +120,16 @@ func CompileSource(execDir string, cacheDir string, config Config) (err error) {
 	cmd := exec.Command(binary, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Env = []string{fmt.Sprintf("LD_LIBRARY_PATH=%s", runtimeDir)}
+	cmd.Env = []string{
+		fmt.Sprintf("LD_LIBRARY_PATH=%s", runtimeDir),
+		fmt.Sprintf("DYLD_LIBRARY_PATH=%s", runtimeDir),
+	}
 	err = cmd.Run()
 	if err != nil {
-		return errors.Wrap(err, "failed to execute compiler, if you're on a 64 bit system this may be because the system is not set up to execute 32 bit binaries (yeah, descriptive error message I know...) - please enable this by allowing i386 packages and/or installing g++-multilib")
+		// todo: make a config flag to ignore this message
+		fmt.Println("** if you're on a 64 bit system this may be because the system is not set up to execute 32 bit binaries")
+		fmt.Println("** please enable this by allowing i386 packages and/or installing g++-multilib")
+		return errors.Wrap(err, "failed to execute compiler")
 	}
 
 	return
