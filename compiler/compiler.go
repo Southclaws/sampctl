@@ -3,6 +3,7 @@ package compiler
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -64,6 +65,10 @@ func CompileSource(execDir string, cacheDir string, config Config) (err error) {
 	}
 	args = append(args, config.Args...)
 
+	includePaths := make(map[string]struct{})
+	includeFiles := make(map[string]string)
+	includeErrors := []string{}
+
 	var fullPath string
 	for _, inc := range config.Includes {
 		if filepath.IsAbs(inc) {
@@ -72,8 +77,41 @@ func CompileSource(execDir string, cacheDir string, config Config) (err error) {
 			fullPath = filepath.Join(execDir, inc)
 		}
 
+		if _, found := includePaths[fullPath]; found {
+			fmt.Println("- ignoring duplicate include path", fullPath)
+			continue
+		}
+		includePaths[fullPath] = struct{}{}
+
 		fmt.Println("- using include path", fullPath)
 		args = append(args, "-i"+fullPath)
+
+		contents, err := ioutil.ReadDir(fullPath)
+		if err != nil {
+			return errors.Wrap(err, "failed to list dependency include path")
+		}
+
+		for _, dependencyFile := range contents {
+			fileName := dependencyFile.Name()
+			fileExt := filepath.Ext(fileName)
+			if fileExt == ".inc" {
+				if location, exists := includeFiles[fileName]; exists {
+					if location != fullPath {
+						includeErrors = append(includeErrors, fmt.Sprintf("Duplicate '%s' found in both\n'%s'\n'%s'\n", fileName, location, fullPath))
+					}
+				} else {
+					includeFiles[fileName] = fullPath
+				}
+			}
+		}
+	}
+
+	if len(includeErrors) > 0 {
+		fmt.Println("Dependency include path errors found:")
+		for _, errorString := range includeErrors {
+			fmt.Println(errorString)
+		}
+		return errors.New("could not compile due to conflicting filenames located in different include paths")
 	}
 
 	for name, value := range config.Constants {
