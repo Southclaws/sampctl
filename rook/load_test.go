@@ -18,10 +18,10 @@ func TestPackageFromDir(t *testing.T) {
 		wantPkg Package
 		wantErr bool
 	}{
-		{"build-json", args{"tests/build-json"}, Package{
+		{"load-json", args{"tests/load-json"}, Package{
 			parent: true,
-			local:  "tests/build-json",
-			vendor: "tests/build-json/dependencies",
+			local:  "tests/load-json",
+			vendor: "tests/load-json/dependencies",
 			Entry:  "gamemodes/test.pwn",
 			Output: "gamemodes/test.amx",
 			Dependencies: []versioning.DependencyString{
@@ -33,10 +33,10 @@ func TestPackageFromDir(t *testing.T) {
 				"Zeex/samp-plugin-crashdetect/include",
 			}},
 			false},
-		{"build-yaml", args{"tests/build-yaml"}, Package{
+		{"load-yaml", args{"tests/load-yaml"}, Package{
 			parent: true,
-			local:  "tests/build-yaml",
-			vendor: "tests/build-yaml/dependencies",
+			local:  "tests/load-yaml",
+			vendor: "tests/load-yaml/dependencies",
 			Entry:  "gamemodes/test.pwn",
 			Output: "gamemodes/test.amx",
 			Dependencies: []versioning.DependencyString{

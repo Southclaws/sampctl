@@ -93,3 +93,8 @@ func (d DependencyString) Explode() (dep DependencyMeta, err error) {
 
 	return
 }
+
+// URL generates a GitHub URL for a package - it does not test the validity of the URL
+func (dm DependencyMeta) URL() string {
+	return fmt.Sprintf("https://github.com/%s/%s", dm.User, dm.Repo)
+}

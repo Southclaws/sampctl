@@ -24,75 +24,46 @@ func TestPackage_Build(t *testing.T) {
 		wantOutput string
 		wantErr    bool
 	}{
-		{"stdlib", []byte(`#include <a_samp>
-			main() {print("hi");}
+		// {"stdlib", []byte(`#include <a_samp>
+		// 	main() {print("hi");}
+		// 	`), Package{
+		// 	local:  util.FullPath("./tests/build-auto-stdlib"),
+		// 	Entry:  "gamemodes/test.pwn",
+		// 	Output: "gamemodes/test.amx",
+		// 	Dependencies: []versioning.DependencyString{
+		// 		"Southclaws/samp-stdlib:0.3.7-R2-2-1",
+		// 	},
+		// 	Builds: []compiler.Config{
+		// 		{Name: "build", Version: "3.10.4"},
+		// 	},
+		// }, args{"build", true}, "gamemodes/test.amx", false},
+		{"deep", []byte(`#include <a_samp>
+			#include <actions>
+			main() { print("actions"); }
 			`), Package{
-			local:  util.FullPath("./tests/build-auto-stdlib"),
+			parent: true,
+			local:  util.FullPath("./tests/build-auto-deep"),
 			Entry:  "gamemodes/test.pwn",
 			Output: "gamemodes/test.amx",
 			Dependencies: []versioning.DependencyString{
 				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
+				"ScavengeSurvive/actions",
 			},
 			Builds: []compiler.Config{
 				{Name: "build", Version: "3.10.4"},
 			},
 		}, args{"build", true}, "gamemodes/test.amx", false},
-		{"sif", []byte(`#include <SIF/Item.pwn>
-			main() {DefineItemType("name[]", "uname[]", 1, 1);}
-			`), Package{
-			local:  util.FullPath("./tests/build-auto-sif"),
-			Entry:  "gamemodes/test.pwn",
-			Output: "gamemodes/test.amx",
-			Dependencies: []versioning.DependencyString{
-				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
-				"Southclaws/SIF:1.6.2",
-				"Misiur/YSI-Includes",
-				"samp-incognito/samp-streamer-plugin:2.9.1",
-				"Zeex/amx_assembly",
-			},
-			Builds: []compiler.Config{
-				{Name: "build", Version: "3.10.4"},
-			},
-		}, args{"build", true}, "gamemodes/test.amx", false},
-		{"ysf", []byte(`#include <a_samp>
-			#include <YSF>
-			main() {}
-			`), Package{
-			local:  util.FullPath("./tests/build-auto-ysf"),
-			Entry:  "gamemodes/test.pwn",
-			Output: "gamemodes/test.amx",
-			Dependencies: []versioning.DependencyString{
-				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
-				"kurta999/YSF/sampsvr_files/pawno/include",
-			},
-			Builds: []compiler.Config{
-				{Name: "build", Version: "3.10.4"},
-			},
-		}, args{"build", true}, "gamemodes/test.amx", false},
-		{"spaces", []byte(`#include <a_samp>
-			main() {}
-			`), Package{
-			local:  util.FullPath("./tests/build-auto- spaces"),
-			Entry:  "gamemodes/test.pwn",
-			Output: "gamemodes/test.amx",
-			Dependencies: []versioning.DependencyString{
-				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
-			},
-			Builds: []compiler.Config{
-				{Name: "build", Version: "3.10.4"},
-			},
-		}, args{"build", true}, "gamemodes/test.amx", false},
-		{"custominc", []byte(`#include <a_samp>
-			main() {}
-			`), Package{
-			local:        util.FullPath("./tests/build-auto-custominc"),
-			Entry:        "gamemodes/test.pwn",
-			Output:       "gamemodes/test.amx",
-			Dependencies: []versioning.DependencyString{},
-			Builds: []compiler.Config{
-				{Name: "build", Version: "3.10.4", Includes: []string{"../build-auto-ysf/dependencies/samp-stdlib"}},
-			},
-		}, args{"build", true}, "gamemodes/test.amx", false},
+		// {"custominc", []byte(`#include <a_samp>
+		// 	main() {}
+		// 	`), Package{
+		// 	local:        util.FullPath("./tests/build-auto-custominc"),
+		// 	Entry:        "gamemodes/test.pwn",
+		// 	Output:       "gamemodes/test.amx",
+		// 	Dependencies: []versioning.DependencyString{},
+		// 	Builds: []compiler.Config{
+		// 		{Name: "build", Version: "3.10.4", Includes: []string{"../build-auto-ysf/dependencies/samp-stdlib"}},
+		// 	},
+		// }, args{"build", true}, "gamemodes/test.amx", false},
 	}
 	for _, tt := range tests {
 		err := os.MkdirAll(filepath.Join(tt.pkg.local, "gamemodes"), 0755)

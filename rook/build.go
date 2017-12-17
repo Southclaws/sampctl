@@ -9,7 +9,6 @@ import (
 	"github.com/Southclaws/sampctl/compiler"
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/util"
-	"github.com/Southclaws/sampctl/versioning"
 )
 
 // Build compiles a package, dependencies are ensured and a list of paths are sent to the compiler.
@@ -24,26 +23,22 @@ func (pkg Package) Build(build string, ensure bool) (output string, err error) {
 	config.Input = filepath.Join(pkg.local, pkg.Entry)
 	config.Output = filepath.Join(pkg.local, pkg.Output)
 
-	var allDependencies []versioning.DependencyString
-
 	if ensure {
-		allDependencies, err = pkg.EnsureDependencies()
+		err = pkg.EnsureDependencies()
 		if err != nil {
 			err = errors.Wrap(err, "failed to ensure dependencies before build")
 			return
 		}
-	} else {
-		allDependencies = pkg.Dependencies
 	}
 
-	for _, depStr := range allDependencies {
-		dep, err := PackageFromDep(depStr)
-		if err != nil {
-			return "", errors.Errorf("package dependency '%s' is invalid: %v", depStr, err)
-		}
+	err = pkg.ResolveDependencies()
+	if err != nil {
+		err = errors.Wrap(err, "failed to resolve dependencies before build")
+		return
+	}
 
-		includePath := filepath.Join(pkg.local, "dependencies", dep.Repo, dep.Path)
-
+	for _, depMeta := range pkg.allDependencies {
+		includePath := filepath.Join(pkg.local, "dependencies", depMeta.Repo, depMeta.Path)
 		config.Includes = append(config.Includes, includePath)
 	}
 

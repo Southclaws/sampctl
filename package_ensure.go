@@ -26,12 +26,12 @@ func packageEnsure(c *cli.Context) error {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	allDependencies, err := pkg.EnsureDependencies()
+	err = pkg.EnsureDependencies()
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("successfully ensured", len(allDependencies), "dependencies for project")
+	fmt.Println("successfully ensured dependencies for project")
 
 	return nil
 }
