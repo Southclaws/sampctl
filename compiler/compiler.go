@@ -30,8 +30,8 @@ type Config struct {
 }
 
 // GetDefaultConfig defines and returns a default compiler configuration
-func GetDefaultConfig() Config {
-	return Config{
+func GetDefaultConfig() *Config {
+	return &Config{
 		Args:    []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
 		Version: "3.10.4",
 	}

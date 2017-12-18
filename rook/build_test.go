@@ -50,9 +50,6 @@ func TestPackage_Build(t *testing.T) {
 				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
 				"ScavengeSurvive/actions",
 			},
-			Builds: []compiler.Config{
-				{Name: "build", Version: "3.10.4"},
-			},
 		}, args{"build", true}, "gamemodes/test.amx", false},
 		{"custominc", []byte(`#include <a_samp>
 			#include <YSI\y_utils>
@@ -73,6 +70,7 @@ func TestPackage_Build(t *testing.T) {
 						"../build-auto-deep/dependencies/amx_assembly",
 						"../build-auto-deep/dependencies/YSI-Includes",
 					},
+					Args: []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
 				},
 			},
 		}, args{"build", true}, "gamemodes/test.amx", false},

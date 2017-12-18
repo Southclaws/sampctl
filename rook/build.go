@@ -13,9 +13,9 @@ import (
 
 // Build compiles a package, dependencies are ensured and a list of paths are sent to the compiler.
 func (pkg Package) Build(build string, ensure bool) (output string, err error) {
-	config, err := pkg.GetBuildConfig(build)
-	if err != nil {
-		err = errors.Wrap(err, "failed to get build config")
+	config := pkg.GetBuildConfig(build)
+	if config == nil {
+		err = errors.Errorf("no build config named '%s'", build)
 		return
 	}
 
@@ -49,7 +49,7 @@ func (pkg Package) Build(build string, ensure bool) (output string, err error) {
 
 	fmt.Println("building", pkg, "with", config.Version)
 
-	err = compiler.CompileSource(pkg.local, cacheDir, config)
+	err = compiler.CompileSource(pkg.local, cacheDir, *config)
 	if err != nil {
 		err = errors.Wrap(err, "failed to compile package entry")
 		return
@@ -63,19 +63,16 @@ func (pkg Package) Build(build string, ensure bool) (output string, err error) {
 // GetBuildConfig returns a matching build by name from the package build list. If no name is
 // specified, the first build is returned. If the package has no build definitions, a default
 // configuration is returned.
-func (pkg Package) GetBuildConfig(name string) (config compiler.Config, err error) {
+func (pkg Package) GetBuildConfig(name string) (config *compiler.Config) {
 	if len(pkg.Builds) == 0 || name == "" {
 		config = compiler.GetDefaultConfig()
-		return
-	}
-
-	for _, cfg := range pkg.Builds {
-		if cfg.Name == name {
-			return cfg, nil
+	} else {
+		for _, cfg := range pkg.Builds {
+			if cfg.Name == name {
+				config = &cfg
+			}
 		}
 	}
-
-	err = errors.Errorf("build '%s' not found in config", name)
 
 	return
 }
