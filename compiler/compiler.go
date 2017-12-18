@@ -88,7 +88,7 @@ func CompileSource(execDir string, cacheDir string, config Config) (err error) {
 
 		contents, err := ioutil.ReadDir(fullPath)
 		if err != nil {
-			return errors.Wrap(err, "failed to list dependency include path:", inc)
+			return errors.Wrapf(err, "failed to list dependency include path:", inc)
 		}
 
 		for _, dependencyFile := range contents {
