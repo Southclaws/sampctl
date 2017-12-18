@@ -149,16 +149,12 @@ func EnsurePackage(pkgPath string, meta versioning.DependencyMeta) (err error) {
 	}
 
 	if meta.Version == "" {
-		fmt.Println(meta, "package does not have version constraint, fetching latest...")
+		fmt.Println(meta, "package does not have version constraint, using latest")
 
 		err = wt.Pull(&git.PullOptions{})
-		if err == git.NoErrAlreadyUpToDate {
-			fmt.Println(meta, "latest copy is already present")
-		} else if err != nil {
+		if err != nil && err != git.NoErrAlreadyUpToDate {
 			err = errors.Wrap(err, "failed to fetch latest package")
 			return
-		} else {
-			fmt.Println(meta, "latest copy has been fetched")
 		}
 	} else {
 		fmt.Println(meta, "package has version constraint, checking out...")

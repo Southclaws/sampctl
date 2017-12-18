@@ -78,7 +78,7 @@ func CompileSource(execDir string, cacheDir string, config Config) (err error) {
 		}
 
 		if _, found := includePaths[fullPath]; found {
-			fmt.Println("- ignoring duplicate include path", fullPath)
+			fmt.Println("- ignoring duplicate", fullPath)
 			continue
 		}
 		includePaths[fullPath] = struct{}{}

@@ -24,19 +24,20 @@ func TestPackage_Build(t *testing.T) {
 		wantOutput string
 		wantErr    bool
 	}{
-		// {"stdlib", []byte(`#include <a_samp>
-		// 	main() {print("hi");}
-		// 	`), Package{
-		// 	local:  util.FullPath("./tests/build-auto-stdlib"),
-		// 	Entry:  "gamemodes/test.pwn",
-		// 	Output: "gamemodes/test.amx",
-		// 	Dependencies: []versioning.DependencyString{
-		// 		"Southclaws/samp-stdlib:0.3.7-R2-2-1",
-		// 	},
-		// 	Builds: []compiler.Config{
-		// 		{Name: "build", Version: "3.10.4"},
-		// 	},
-		// }, args{"build", true}, "gamemodes/test.amx", false},
+		{"stdlib", []byte(`#include <a_samp>
+			main() {print("hi");}
+			`), Package{
+			parent: true,
+			local:  util.FullPath("./tests/build-auto-stdlib"),
+			Entry:  "gamemodes/test.pwn",
+			Output: "gamemodes/test.amx",
+			Dependencies: []versioning.DependencyString{
+				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
+			},
+			Builds: []compiler.Config{
+				{Name: "build", Version: "3.10.4"},
+			},
+		}, args{"build", true}, "gamemodes/test.amx", false},
 		{"deep", []byte(`#include <a_samp>
 			#include <actions>
 			main() { print("actions"); }
@@ -53,17 +54,28 @@ func TestPackage_Build(t *testing.T) {
 				{Name: "build", Version: "3.10.4"},
 			},
 		}, args{"build", true}, "gamemodes/test.amx", false},
-		// {"custominc", []byte(`#include <a_samp>
-		// 	main() {}
-		// 	`), Package{
-		// 	local:        util.FullPath("./tests/build-auto-custominc"),
-		// 	Entry:        "gamemodes/test.pwn",
-		// 	Output:       "gamemodes/test.amx",
-		// 	Dependencies: []versioning.DependencyString{},
-		// 	Builds: []compiler.Config{
-		// 		{Name: "build", Version: "3.10.4", Includes: []string{"../build-auto-ysf/dependencies/samp-stdlib"}},
-		// 	},
-		// }, args{"build", true}, "gamemodes/test.amx", false},
+		{"custominc", []byte(`#include <a_samp>
+			#include <YSI\y_utils>
+			main() {}
+			`), Package{
+			parent: true,
+			local:  util.FullPath("./tests/build-auto-custominc"),
+			Entry:  "gamemodes/test.pwn",
+			Output: "gamemodes/test.amx",
+			Dependencies: []versioning.DependencyString{
+				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
+			},
+			Builds: []compiler.Config{
+				{
+					Name:    "build",
+					Version: "3.10.4",
+					Includes: []string{
+						"../build-auto-deep/dependencies/amx_assembly",
+						"../build-auto-deep/dependencies/YSI-Includes",
+					},
+				},
+			},
+		}, args{"build", true}, "gamemodes/test.amx", false},
 	}
 	for _, tt := range tests {
 		err := os.MkdirAll(filepath.Join(tt.pkg.local, "gamemodes"), 0755)
