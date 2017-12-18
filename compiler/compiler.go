@@ -88,7 +88,7 @@ func CompileSource(execDir string, cacheDir string, config Config) (err error) {
 
 		contents, err := ioutil.ReadDir(fullPath)
 		if err != nil {
-			return errors.Wrap(err, "failed to list dependency include path")
+			return errors.Wrap(err, "failed to list dependency include path:", inc)
 		}
 
 		for _, dependencyFile := range contents {
@@ -133,7 +133,7 @@ func CompileSource(execDir string, cacheDir string, config Config) (err error) {
 		// todo: make a config flag to ignore this message
 		fmt.Println("** if you're on a 64 bit system this may be because the system is not set up to execute 32 bit binaries")
 		fmt.Println("** please enable this by allowing i386 packages and/or installing g++-multilib")
-		return errors.Wrap(err, "failed to execute compiler")
+		return errors.Wrap(err, "compilation failed")
 	}
 
 	return
