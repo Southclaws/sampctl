@@ -1,6 +1,7 @@
 package rook
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -12,7 +13,7 @@ import (
 
 // Run will create a temporary server runtime and run the package output AMX as a gamemode using the
 // runtime configuration in the package info.
-func (pkg Package) Run(cacheDir, endpoint, version, appVersion, build string, container, forceBuild, forceEnsure bool) (err error) {
+func Run(pkg types.Package, cacheDir, endpoint, version, appVersion, build string, container, forceBuild, forceEnsure bool) (err error) {
 	runtimeDir := runtime.GetRuntimePath(cacheDir, version)
 
 	err = runtime.PrepareRuntimeDirectory(cacheDir, endpoint, version)
@@ -44,6 +45,7 @@ func (pkg Package) Run(cacheDir, endpoint, version, appVersion, build string, co
 		return errors.Wrap(err, "failed to generate temporary samp.json")
 	}
 
+	fmt.Println("ensuring runtime installation", *config)
 	err = runtime.Ensure(config)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure temporary runtime")

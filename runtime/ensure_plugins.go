@@ -30,11 +30,13 @@ func EnsurePlugins(cfg *types.Runtime, cacheDir string) (err error) {
 	for _, plugin := range cfg.Plugins {
 		meta, err := plugin.AsDep()
 		if err != nil {
+			fmt.Println("plugin", plugin, "is a local plugin")
 			fullpath := filepath.Join(cfg.WorkingDir, "plugins", string(plugin)+ext)
 			if !util.Exists(fullpath) {
 				errs = append(errs, fmt.Sprintf("plugin '%s' is missing its %s file from the plugins directory", plugin, ext))
 			}
 		} else {
+			fmt.Println("plugin", plugin, "is a package dependency")
 			err = EnsureVersionedPlugin(*cfg, meta, cacheDir)
 			if err != nil {
 				errs = append(errs, fmt.Sprintf("plugin '%s' failed to ensure: %v", plugin, err))
