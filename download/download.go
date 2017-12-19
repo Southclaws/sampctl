@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"github.com/minio/go-homedir"
 	"github.com/pkg/errors"
@@ -107,9 +108,10 @@ func Untar(src, dst string, paths map[string]string) (err error) {
 	}()
 
 	tr := tar.NewReader(gzr)
+	var header *tar.Header
 loop:
 	for {
-		header, err := tr.Next()
+		header, err = tr.Next()
 		switch {
 		// if no more files are found return
 		case err == io.EOF:
@@ -124,10 +126,31 @@ loop:
 			continue
 		}
 
-		target, ok := paths[header.Name]
-		if !ok {
+		// search by regular expression
+
+		var (
+			source string
+			target string
+			match  *regexp.Regexp
+			found  bool
+		)
+
+		for source, target = range paths {
+			match, err = regexp.Compile(source)
+			if err != nil {
+				return
+			}
+
+			if match.MatchString(header.Name) {
+				target = header.Name
+				found = true
+			}
+		}
+
+		if !found {
 			continue
 		}
+
 		// if the target is not absolute, make relative to destination dir
 		if !filepath.IsAbs(target) {
 			target = filepath.Join(dst, target)
@@ -174,10 +197,29 @@ func Unzip(src, dst string, paths map[string]string) (err error) {
 	}()
 
 	for _, f := range r.File {
-		target, ok := paths[f.Name]
-		if !ok {
+		var (
+			source string
+			target string
+			match  *regexp.Regexp
+			found  bool
+		)
+
+		for source, target = range paths {
+			match, err = regexp.Compile(source)
+			if err != nil {
+				return
+			}
+
+			if match.MatchString(f.Name) {
+				target = f.Name
+				found = true
+			}
+		}
+
+		if !found {
 			continue
 		}
+
 		// if the target is not absolute, make relative to destination dir
 		if !filepath.IsAbs(target) {
 			target = filepath.Join(dst, target)

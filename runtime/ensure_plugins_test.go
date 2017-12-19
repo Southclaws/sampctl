@@ -2,11 +2,14 @@ package runtime
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
-	"github.com/Southclaws/sampctl/types"
-	"github.com/Southclaws/sampctl/versioning"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/Southclaws/sampctl/types"
+	"github.com/Southclaws/sampctl/util"
+	"github.com/Southclaws/sampctl/versioning"
 )
 
 func TestEnsureVersionedPlugin(t *testing.T) {
@@ -15,9 +18,10 @@ func TestEnsureVersionedPlugin(t *testing.T) {
 		meta versioning.DependencyMeta
 	}
 	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
+		name      string
+		args      args
+		wantFiles []string
+		wantErr   bool
 	}{
 		{"streamer-linux", args{
 			types.Runtime{
@@ -25,13 +29,30 @@ func TestEnsureVersionedPlugin(t *testing.T) {
 				Platform:   "linux",
 			},
 			versioning.DependencyMeta{"samp-incognito", "samp-streamer-plugin", "", ""},
-		}, false}}
+		}, []string{"plugins/streamer.so"}, false},
+		{"crashdetect-linux", args{
+			types.Runtime{
+				WorkingDir: "./tests/ensure",
+				Platform:   "linux",
+			},
+			versioning.DependencyMeta{"Zeex", "samp-plugin-crashdetect", "", ""},
+		}, []string{"plugins/crashdetect.so"}, false},
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			os.MkdirAll(tt.args.cfg.WorkingDir, 0755)
 
-			if err := EnsureVersionedPlugin(tt.args.cfg, tt.args.meta, "./tests/cache"); (err != nil) != tt.wantErr {
-				t.Errorf("EnsureVersionedPlugin() error = %v, wantErr %v", err, tt.wantErr)
+			err := EnsureVersionedPlugin(tt.args.cfg, tt.args.meta, "./tests/cache")
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			assert.NoError(t, err)
+
+			for _, file := range tt.wantFiles {
+				assert.True(t, util.Exists(filepath.Join("./tests/ensure", file)))
 			}
 		})
 	}
