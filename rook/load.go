@@ -10,6 +10,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/Southclaws/sampctl/util"
+	"github.com/Southclaws/sampctl/versioning"
 )
 
 // PackageFromDir attempts to parse a directory as a Package by looking for a `pawn.json` or
@@ -94,6 +95,7 @@ func PackageFromYAML(file string) (pkg Package, err error) {
 // ResolveDependencies is a function for use by parent packages to iterate through their
 // `dependencies/` directory discovering packages and getting their dependencies
 func (pkg *Package) ResolveDependencies() (err error) {
+	fmt.Println(pkg, "resolving dependency tree into a flattened list...")
 	if !pkg.Parent {
 		return errors.New("package is not a parent package")
 	}
@@ -109,17 +111,19 @@ func (pkg *Package) ResolveDependencies() (err error) {
 		return
 	}
 
-	for _, dependencyString := range pkg.Dependencies {
+	var recurse func(dependencyString versioning.DependencyString)
+
+	recurse = func(dependencyString versioning.DependencyString) {
 		dependencyMeta, err := dependencyString.Explode()
 		if err != nil {
 			fmt.Println(pkg, "invalid dependency string:", dependencyString)
-			continue
+			return
 		}
 
 		dependencyDir := filepath.Join(depsDir, dependencyMeta.Repo)
 		if !util.Exists(dependencyDir) {
 			fmt.Println(pkg, "dependency", dependencyString, "does not exist locally in", depsDir, "run sampctl package ensure to update dependencies.")
-			continue
+			return
 		}
 
 		pkg.AllDependencies = append(pkg.AllDependencies, dependencyMeta)
@@ -127,17 +131,16 @@ func (pkg *Package) ResolveDependencies() (err error) {
 		subPkg, err := PackageFromDir(false, dependencyDir, depsDir)
 		if err != nil {
 			fmt.Println(pkg, "dependency is not a Pawn package:", dependencyString, err)
-			continue
+			return
 		}
 
 		for _, depStr := range subPkg.Dependencies {
-			depMeta, err := depStr.Explode()
-			if err != nil {
-				fmt.Println(pkg, "dependency, ", dependencyString, "has an invalid dependency:", depStr)
-				continue
-			}
-			pkg.AllDependencies = append(pkg.AllDependencies, depMeta)
+			recurse(depStr)
 		}
+	}
+
+	for _, depStr := range pkg.Dependencies {
+		recurse(depStr)
 	}
 
 	return
