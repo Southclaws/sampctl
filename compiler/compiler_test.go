@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -40,7 +41,7 @@ func TestCompileSource(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := CompileSource(".", tt.args.cacheDir, tt.args.config)
+			err := CompileSource(".", tt.args.cacheDir, runtime.GOOS, tt.args.config)
 
 			if tt.wantErr {
 				assert.Error(t, err)

@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"strconv"
 	"strings"
 
@@ -91,7 +90,7 @@ func GenerateServerCfg(cfg *types.Runtime) (err error) {
 	}()
 
 	// make some minor changes to the cfg before using it
-	adjustForOS(cfg.WorkingDir, runtime.GOOS, cfg)
+	adjustForOS(cfg.WorkingDir, cfg.Platform, cfg)
 	cfg.Echo = &echoMessage
 
 	v := reflect.ValueOf(*cfg)
@@ -155,7 +154,7 @@ func GenerateServerCfg(cfg *types.Runtime) (err error) {
 func adjustForOS(dir, os string, cfg *types.Runtime) {
 	if os == "linux" || os == "darwin" {
 		if len(cfg.Plugins) > 0 {
-			actualPlugins := getPlugins(filepath.Join(dir, "plugins"))
+			actualPlugins := getPlugins(filepath.Join(dir, "plugins"), cfg.Platform)
 
 			for i, declared := range cfg.Plugins {
 				ext := filepath.Ext(string(declared))

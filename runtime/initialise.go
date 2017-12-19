@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	garbler "github.com/michaelbironneau/garbler/lib"
@@ -17,7 +16,7 @@ import (
 )
 
 // InitialiseServer creates a samp.json by asking the user a series of questions
-func InitialiseServer(version, dir string) (err error) {
+func InitialiseServer(version, dir, platform string) (err error) {
 	var (
 		gamemodesDir      = filepath.Join(dir, "gamemodes")
 		filterscriptsDir  = filepath.Join(dir, "filterscripts")
@@ -42,7 +41,7 @@ func InitialiseServer(version, dir string) (err error) {
 	if !util.Exists(pluginsDir) {
 		fmt.Println("This directory does not appear to have a plugins directory")
 	} else {
-		pluginsList = getPlugins(pluginsDir)
+		pluginsList = getPlugins(pluginsDir, platform)
 	}
 
 	var questions = []*survey.Question{
@@ -161,19 +160,19 @@ func getAmxFiles(dir string) (result []string) {
 	return
 }
 
-func getPlugins(dir string) (result []string) {
+func getPlugins(dir, platform string) (result []string) {
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		panic(err)
 	}
 
 	var ext string
-	if runtime.GOOS == "windows" {
+	if platform == "windows" {
 		ext = ".dll"
-	} else if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
+	} else if platform == "linux" || platform == "darwin" {
 		ext = ".so"
 	} else {
-		panic(errors.Errorf("unsupported OS %s", runtime.GOOS))
+		panic(errors.Errorf("unsupported OS %s", platform))
 	}
 
 	for _, file := range files {

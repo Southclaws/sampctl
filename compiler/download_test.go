@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -24,7 +25,7 @@ func Test_CompilerFromNet(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := FromNet(tt.args.cacheDir, tt.args.version, tt.args.dir)
+			err := FromNet(tt.args.cacheDir, tt.args.version, tt.args.dir, runtime.GOOS)
 			assert.NoError(t, err)
 
 			// assumes the tests are being run in linux/darwin (sorry!)
@@ -49,7 +50,7 @@ func Test_CompilerFromCache(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotHit, err := FromCache(tt.args.cacheDir, tt.args.version, tt.args.dir)
+			gotHit, err := FromCache(tt.args.cacheDir, tt.args.version, tt.args.dir, runtime.GOOS)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

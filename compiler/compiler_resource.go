@@ -5,7 +5,6 @@ import (
 	"html/template"
 	"net/url"
 	"path/filepath"
-	"runtime"
 
 	"github.com/pkg/errors"
 
@@ -52,13 +51,13 @@ var (
 )
 
 // GetCompilerPackage downloads and installs a Pawn compiler to a user directory
-func GetCompilerPackage(version types.CompilerVersion, dir string) (err error) {
+func GetCompilerPackage(version types.CompilerVersion, dir, platform string) (err error) {
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
 		return err
 	}
 
-	hit, err := FromCache(cacheDir, version, dir)
+	hit, err := FromCache(cacheDir, version, dir, platform)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get package %s from cache", version)
 	}
@@ -66,7 +65,7 @@ func GetCompilerPackage(version types.CompilerVersion, dir string) (err error) {
 		return
 	}
 
-	err = FromNet(cacheDir, version, dir)
+	err = FromNet(cacheDir, version, dir, platform)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get package %s from net", version)
 	}
@@ -75,15 +74,15 @@ func GetCompilerPackage(version types.CompilerVersion, dir string) (err error) {
 }
 
 // GetCompilerPackageInfo returns the URL for a specific compiler version
-func GetCompilerPackageInfo(os string, version types.CompilerVersion) (pkg Package, filename string, err error) {
-	if os == "windows" {
+func GetCompilerPackageInfo(platform string, version types.CompilerVersion) (pkg Package, filename string, err error) {
+	if platform == "windows" {
 		pkg = pawnWin32
-	} else if os == "linux" {
+	} else if platform == "linux" {
 		pkg = pawnLinux
-	} else if os == "darwin" {
+	} else if platform == "darwin" {
 		pkg = pawnMacOS
 	} else {
-		err = errors.Errorf("unsupported OS %s", runtime.GOOS)
+		err = errors.Errorf("unsupported OS %s", platform)
 		return
 	}
 

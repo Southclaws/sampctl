@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -31,7 +32,7 @@ func Test_ServerFromNet(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := FromNet(tt.args.endpoint, tt.args.cacheDir, tt.args.version, tt.args.dir)
+			err := FromNet(tt.args.endpoint, tt.args.cacheDir, tt.args.version, tt.args.dir, runtime.GOOS)
 			assert.NoError(t, err)
 		})
 	}
@@ -66,7 +67,7 @@ func Test_ServerFromCache(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotHit, err := FromCache(tt.args.cacheDir, tt.args.version, tt.args.dir)
+			gotHit, err := FromCache(tt.args.cacheDir, tt.args.version, tt.args.dir, runtime.GOOS)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

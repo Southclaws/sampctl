@@ -6,7 +6,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 
 	"github.com/pkg/errors"
 
@@ -15,13 +14,13 @@ import (
 )
 
 // GetServerPackage checks if a cached package is available and if not, downloads it to dir
-func GetServerPackage(endpoint, version, dir string) (err error) {
+func GetServerPackage(endpoint, version, dir, platform string) (err error) {
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
 		return err
 	}
 
-	hit, err := FromCache(cacheDir, version, dir)
+	hit, err := FromCache(cacheDir, version, dir, platform)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get package %s from cache", version)
 	}
@@ -29,7 +28,7 @@ func GetServerPackage(endpoint, version, dir string) (err error) {
 		return
 	}
 
-	err = FromNet(endpoint, cacheDir, version, dir)
+	err = FromNet(endpoint, cacheDir, version, dir, platform)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get package %s from net", version)
 	}
@@ -38,7 +37,7 @@ func GetServerPackage(endpoint, version, dir string) (err error) {
 }
 
 // FromCache tries to grab a server package from cache, `hit` indicates if it was successful
-func FromCache(cacheDir, version, dir string) (hit bool, err error) {
+func FromCache(cacheDir, version, dir, platform string) (hit bool, err error) {
 	var (
 		filename string
 		method   download.ExtractFunc
@@ -50,16 +49,16 @@ func FromCache(cacheDir, version, dir string) (hit bool, err error) {
 		return
 	}
 
-	if runtime.GOOS == "windows" {
+	if platform == "windows" {
 		filename = pkg.Win32
 		method = download.Unzip
 		paths = pkg.Win32Paths
-	} else if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
+	} else if platform == "linux" || platform == "darwin" {
 		filename = pkg.Linux
 		method = download.Untar
 		paths = pkg.LinuxPaths
 	} else {
-		err = errors.Errorf("unsupported OS %s", runtime.GOOS)
+		err = errors.Errorf("unsupported OS %s", platform)
 		return
 	}
 
@@ -74,7 +73,7 @@ func FromCache(cacheDir, version, dir string) (hit bool, err error) {
 }
 
 // FromNet downloads a server package to the cache, then calls FromCache to finish the job
-func FromNet(endpoint, cacheDir, version, dir string) (err error) {
+func FromNet(endpoint, cacheDir, version, dir, platform string) (err error) {
 	fmt.Printf("Downloading package %s from endpoint %s into %s\n", version, endpoint, dir)
 
 	var (
@@ -88,16 +87,16 @@ func FromNet(endpoint, cacheDir, version, dir string) (err error) {
 		return
 	}
 
-	if runtime.GOOS == "windows" {
+	if platform == "windows" {
 		filename = pkg.Win32
 		method = download.Unzip
 		paths = pkg.Win32Paths
-	} else if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
+	} else if platform == "linux" || platform == "darwin" {
 		filename = pkg.Linux
 		method = download.Untar
 		paths = pkg.LinuxPaths
 	} else {
-		err = errors.Errorf("unsupported OS %s", runtime.GOOS)
+		err = errors.Errorf("unsupported OS %s", platform)
 		return
 	}
 
@@ -132,7 +131,7 @@ func FromNet(endpoint, cacheDir, version, dir string) (err error) {
 		return errors.Wrapf(err, "failed to unzip package %s", filename)
 	}
 
-	ok, err := MatchesChecksum(filepath.Join(dir, getServerBinary()), version)
+	ok, err := MatchesChecksum(filepath.Join(dir, getServerBinary(platform)), platform, version)
 	if err != nil {
 		return errors.Wrap(err, "failed to match checksum")
 	} else if !ok {

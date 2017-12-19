@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 
 	"github.com/ghodss/yaml"
@@ -24,7 +23,7 @@ import (
 
 // EnsurePlugins validates and downloads plugin binary files
 func EnsurePlugins(cfg *types.Runtime, cacheDir string) (err error) {
-	ext := pluginExtensionForOS(runtime.GOOS)
+	ext := pluginExtensionForOS(cfg.Platform)
 
 	errs := []string{}
 	for _, plugin := range cfg.Plugins {

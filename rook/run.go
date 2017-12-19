@@ -13,17 +13,17 @@ import (
 
 // Run will create a temporary server runtime and run the package output AMX as a gamemode using the
 // runtime configuration in the package info.
-func Run(pkg types.Package, cacheDir, endpoint, version, appVersion, build string, container, forceBuild, forceEnsure bool) (err error) {
+func Run(pkg types.Package, cacheDir, endpoint, version, appVersion, build, platform string, container, forceBuild, forceEnsure bool) (err error) {
 	runtimeDir := runtime.GetRuntimePath(cacheDir, version)
 
-	err = runtime.PrepareRuntimeDirectory(cacheDir, endpoint, version)
+	err = runtime.PrepareRuntimeDirectory(cacheDir, endpoint, version, platform)
 	if err != nil {
 		return err
 	}
 
 	filename := util.FullPath(pkg.Output)
 	if !util.Exists(filename) || forceBuild {
-		filename, err = Build(&pkg, build, forceEnsure)
+		filename, err = Build(&pkg, build, platform, forceEnsure)
 		if err != nil {
 			return err
 		}

@@ -13,7 +13,7 @@ import (
 )
 
 // Build compiles a package, dependencies are ensured and a list of paths are sent to the compiler.
-func Build(pkg *types.Package, build string, ensure bool) (output string, err error) {
+func Build(pkg *types.Package, build, platform string, ensure bool) (output string, err error) {
 	config := GetBuildConfig(*pkg, build)
 	if config == nil {
 		err = errors.Errorf("no build config named '%s'", build)
@@ -50,7 +50,7 @@ func Build(pkg *types.Package, build string, ensure bool) (output string, err er
 
 	fmt.Println("building", pkg, "with", config.Version)
 
-	err = compiler.CompileSource(pkg.Local, cacheDir, *config)
+	err = compiler.CompileSource(pkg.Local, cacheDir, platform, *config)
 	if err != nil {
 		err = errors.Wrap(err, "failed to compile package entry")
 		return

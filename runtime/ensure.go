@@ -49,24 +49,24 @@ func Ensure(cfg *types.Runtime) (err error) {
 func EnsureBinaries(cfg types.Runtime) (err error) {
 	missing := false
 
-	if !util.Exists(filepath.Join(cfg.WorkingDir, getNpcBinary())) {
+	if !util.Exists(filepath.Join(cfg.WorkingDir, getNpcBinary(cfg.Platform))) {
 		missing = true
 	}
-	if !util.Exists(filepath.Join(cfg.WorkingDir, getAnnounceBinary())) {
+	if !util.Exists(filepath.Join(cfg.WorkingDir, getAnnounceBinary(cfg.Platform))) {
 		missing = true
 	}
-	if !util.Exists(filepath.Join(cfg.WorkingDir, getServerBinary())) {
+	if !util.Exists(filepath.Join(cfg.WorkingDir, getServerBinary(cfg.Platform))) {
 		missing = true
 	}
 
 	if missing {
-		err = GetServerPackage(*cfg.Endpoint, *cfg.Version, cfg.WorkingDir)
+		err = GetServerPackage(*cfg.Endpoint, *cfg.Version, cfg.WorkingDir, cfg.Platform)
 		if err != nil {
 			return errors.Wrap(err, "failed to get runtime package")
 		}
 	}
 
-	ok, err := MatchesChecksum(filepath.Join(cfg.WorkingDir, getServerBinary()), *cfg.Version)
+	ok, err := MatchesChecksum(filepath.Join(cfg.WorkingDir, getServerBinary(cfg.Platform)), cfg.Platform, *cfg.Version)
 	if err != nil {
 		return errors.Wrap(err, "failed to match checksum")
 	} else if !ok {

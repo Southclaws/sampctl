@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/Southclaws/sampctl/types"
@@ -88,7 +89,7 @@ func TestPackage_Build(t *testing.T) {
 		}
 
 		t.Run(tt.name, func(t *testing.T) {
-			gotOutput, err := Build(tt.args.pkg, tt.args.build, tt.args.ensure)
+			gotOutput, err := Build(tt.args.pkg, tt.args.build, runtime.GOOS, tt.args.ensure)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return

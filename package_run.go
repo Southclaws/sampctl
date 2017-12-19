@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"runtime"
 
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
@@ -66,7 +67,7 @@ func packageRun(c *cli.Context) error {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	err = rook.Run(pkg, cacheDir, endpoint, version, c.App.Version, build, container, forceBuild, forceEnsure)
+	err = rook.Run(pkg, cacheDir, endpoint, version, c.App.Version, build, runtime.GOOS, container, forceBuild, forceEnsure)
 
 	return err
 }

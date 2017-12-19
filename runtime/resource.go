@@ -4,7 +4,6 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"io/ioutil"
-	"runtime"
 
 	"github.com/pkg/errors"
 )
@@ -165,8 +164,8 @@ var AllPackages = Packages{
 	},
 }
 
-func isBinary(filename string) bool {
-	switch runtime.GOOS {
+func isBinary(filename string, platform string) bool {
+	switch platform {
 	case "windows":
 		switch filename {
 		case "samp-server.exe", "announce.exe", "samp-npc.exe":
@@ -181,8 +180,8 @@ func isBinary(filename string) bool {
 	return false
 }
 
-func getServerBinary() string {
-	switch runtime.GOOS {
+func getServerBinary(platform string) string {
+	switch platform {
 	case "windows":
 		return "samp-server.exe"
 	case "linux", "darwin":
@@ -192,8 +191,8 @@ func getServerBinary() string {
 	}
 }
 
-func getNpcBinary() string {
-	switch runtime.GOOS {
+func getNpcBinary(platform string) string {
+	switch platform {
 	case "windows":
 		return "samp-npc.exe"
 	case "linux", "darwin":
@@ -203,8 +202,8 @@ func getNpcBinary() string {
 	}
 }
 
-func getAnnounceBinary() string {
-	switch runtime.GOOS {
+func getAnnounceBinary(platform string) string {
+	switch platform {
 	case "windows":
 		return "announce.exe"
 	case "linux", "darwin":
@@ -216,7 +215,7 @@ func getAnnounceBinary() string {
 
 // MatchesChecksum checks if the file at the given path src is the correct file for the specified
 // runtime package via MD5 sum
-func MatchesChecksum(src, version string) (ok bool, err error) {
+func MatchesChecksum(src, platform, version string) (ok bool, err error) {
 	pkg, err := FindPackage(version)
 	if err != nil {
 		return
@@ -228,7 +227,7 @@ func MatchesChecksum(src, version string) (ok bool, err error) {
 	}
 
 	want := ""
-	switch runtime.GOOS {
+	switch platform {
 	case "windows":
 		want = pkg.Win32Checksum
 	case "linux", "darwin":

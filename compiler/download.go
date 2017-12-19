@@ -3,7 +3,6 @@ package compiler
 import (
 	"fmt"
 	"os"
-	"runtime"
 
 	"github.com/pkg/errors"
 
@@ -13,8 +12,8 @@ import (
 )
 
 // FromCache attempts to get a compiler package from the cache, `hit` represents success
-func FromCache(cacheDir string, version types.CompilerVersion, dir string) (hit bool, err error) {
-	pkg, filename, err := GetCompilerPackageInfo(runtime.GOOS, version)
+func FromCache(cacheDir string, version types.CompilerVersion, dir, platform string) (hit bool, err error) {
+	pkg, filename, err := GetCompilerPackageInfo(platform, version)
 	if err != nil {
 		return false, err
 	}
@@ -30,10 +29,10 @@ func FromCache(cacheDir string, version types.CompilerVersion, dir string) (hit 
 }
 
 // FromNet downloads a compiler package to the cache
-func FromNet(cacheDir string, version types.CompilerVersion, dir string) (err error) {
+func FromNet(cacheDir string, version types.CompilerVersion, dir, platform string) (err error) {
 	fmt.Printf("Downloading compiler package %s\n", version)
 
-	pkg, filename, err := GetCompilerPackageInfo(runtime.GOOS, version)
+	pkg, filename, err := GetCompilerPackageInfo(platform, version)
 	if err != nil {
 		return errors.Wrap(err, "package info mismatch")
 	}

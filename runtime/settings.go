@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -30,6 +31,8 @@ func NewConfigFromEnvironment(dir string) (cfg types.Runtime, err error) {
 
 	// Environment variables override samp.json
 	LoadEnvironmentVariables(&cfg)
+
+	cfg.Platform = runtime.GOOS
 
 	return
 }

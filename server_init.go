@@ -1,6 +1,8 @@
 package main
 
 import (
+	appRuntime "runtime"
+
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
@@ -31,12 +33,12 @@ func serverInit(c *cli.Context) error {
 	dir := util.FullPath(c.String("dir"))
 	endpoint := c.String("endpoint")
 
-	err := runtime.InitialiseServer(version, dir)
+	err := runtime.InitialiseServer(version, dir, appRuntime.GOOS)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialise server")
 	}
 
-	err = runtime.GetServerPackage(endpoint, version, dir)
+	err = runtime.GetServerPackage(endpoint, version, dir, appRuntime.GOOS)
 	if err != nil {
 		return errors.Wrap(err, "failed to get package")
 	}

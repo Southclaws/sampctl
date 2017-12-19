@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 
 	"github.com/pkg/errors"
 
@@ -16,7 +15,7 @@ import (
 )
 
 // CompileSource compiles a given input script to the specified output path using compiler version
-func CompileSource(execDir string, cacheDir string, config types.BuildConfig) (err error) {
+func CompileSource(execDir, cacheDir, platform string, config types.BuildConfig) (err error) {
 	fmt.Printf("Compiling source: '%s' with compiler %s...\n", config.Input, config.Version)
 
 	if config.WorkingDir == "" {
@@ -26,12 +25,12 @@ func CompileSource(execDir string, cacheDir string, config types.BuildConfig) (e
 	cacheDir = util.FullPath(cacheDir)
 
 	runtimeDir := filepath.Join(cacheDir, "pawn", string(config.Version))
-	err = GetCompilerPackage(config.Version, runtimeDir)
+	err = GetCompilerPackage(config.Version, runtimeDir, platform)
 	if err != nil {
 		return errors.Wrap(err, "failed to get compiler package")
 	}
 
-	pkg, _, err := GetCompilerPackageInfo(runtime.GOOS, config.Version)
+	pkg, _, err := GetCompilerPackageInfo(platform, config.Version)
 	if err != nil {
 		return errors.Wrap(err, "failed to get compiler package info for runtime")
 	}

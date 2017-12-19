@@ -1,6 +1,8 @@
 package main
 
 import (
+	appRuntime "runtime"
+
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/runtime"
@@ -29,5 +31,5 @@ func serverDownload(c *cli.Context) error {
 	version := c.String("version")
 	dir := util.FullPath(c.String("dir"))
 	endpoint := c.String("endpoint")
-	return runtime.GetServerPackage(endpoint, version, dir)
+	return runtime.GetServerPackage(endpoint, version, dir, appRuntime.GOOS)
 }
