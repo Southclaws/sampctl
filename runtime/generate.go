@@ -101,14 +101,14 @@ func GenerateServerCfg(cfg *types.Runtime) (err error) {
 		fieldval := v.Field(i)
 		stype := t.Field(i)
 
-		required := stype.Tag.Get("required") == "1"
-		nodefault := stype.Tag.Get("default") == ""
-		if !required && nodefault && fieldval.IsNil() {
+		ignore := stype.Tag.Get("ignore") != ""
+		if ignore {
 			continue
 		}
 
-		ignore := stype.Tag.Get("ignore") != ""
-		if ignore {
+		required := stype.Tag.Get("required") == "1"
+		nodefault := stype.Tag.Get("default") == ""
+		if !required && nodefault && fieldval.IsNil() {
 			continue
 		}
 
