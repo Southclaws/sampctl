@@ -80,8 +80,6 @@ func PluginFromNet(meta versioning.DependencyMeta, platform, workingDir, cacheDi
 		return
 	}
 
-	fmt.Println("using resource", resource)
-
 	matcher, err := regexp.Compile(resource.Name)
 	if err != nil {
 		return errors.Wrap(err, "resource name is not a valid regular expression")
@@ -141,8 +139,6 @@ func PluginFromNet(meta versioning.DependencyMeta, platform, workingDir, cacheDi
 		paths[src] = dest
 	}
 
-	fmt.Println(paths)
-
 	err = method(fullPath, workingDir, paths)
 
 	return
@@ -163,7 +159,6 @@ func GetPluginRemotePackage(meta versioning.DependencyMeta) (pkg types.Package, 
 		if err != nil {
 			return
 		}
-		fmt.Println(string(contents))
 		err = json.Unmarshal(contents, &pkg)
 		return
 	}

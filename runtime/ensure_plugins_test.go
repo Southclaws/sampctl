@@ -23,13 +23,13 @@ func TestEnsureVersionedPlugin(t *testing.T) {
 		wantFiles []string
 		wantErr   bool
 	}{
-		{"streamer-linux", args{
-			types.Runtime{
-				WorkingDir: "./tests/ensure",
-				Platform:   "linux",
-			},
-			versioning.DependencyMeta{"samp-incognito", "samp-streamer-plugin", "", ""},
-		}, []string{"plugins/streamer.so"}, false},
+		// {"streamer-linux", args{
+		// 	types.Runtime{
+		// 		WorkingDir: "./tests/ensure",
+		// 		Platform:   "linux",
+		// 	},
+		// 	versioning.DependencyMeta{"samp-incognito", "samp-streamer-plugin", "", ""},
+		// }, []string{"plugins/streamer.so"}, false},
 		{"crashdetect-linux", args{
 			types.Runtime{
 				WorkingDir: "./tests/ensure",

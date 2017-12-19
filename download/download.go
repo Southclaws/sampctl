@@ -89,7 +89,7 @@ func FromNet(url, cacheDir, filename string) (result string, err error) {
 func Untar(src, dst string, paths map[string]string) (err error) {
 	r, err := os.Open(src)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to open archive")
 	}
 	defer func() {
 		if err := r.Close(); err != nil {
@@ -99,7 +99,7 @@ func Untar(src, dst string, paths map[string]string) (err error) {
 
 	gzr, err := gzip.NewReader(r)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to create new gzip reader")
 	}
 	defer func() {
 		if err := gzr.Close(); err != nil {
@@ -115,7 +115,7 @@ loop:
 		switch {
 		// if no more files are found return
 		case err == io.EOF:
-			break loop
+			return nil
 
 		// return any other error
 		case err != nil:
@@ -138,12 +138,15 @@ loop:
 		for source, target = range paths {
 			match, err = regexp.Compile(source)
 			if err != nil {
-				return
-			}
-
-			if match.MatchString(header.Name) {
-				target = header.Name
-				found = true
+				if header.Name == source {
+					found = true
+					break
+				}
+			} else {
+				if match.MatchString(header.Name) {
+					found = true
+					break
+				}
 			}
 		}
 
@@ -163,7 +166,7 @@ loop:
 		if header.Typeflag == tar.TypeReg {
 			f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
 			if err != nil {
-				return err
+				return errors.Wrap(err, "failed to open extract target file")
 			}
 			defer func() {
 				if err := f.Close(); err != nil {
@@ -173,12 +176,12 @@ loop:
 
 			// copy over contents
 			if _, err := io.Copy(f, tr); err != nil {
-				return err
+				return errors.Wrap(err, "failed to copy contents to extract target file")
 			}
 		}
 	}
 	if err != nil {
-		return
+		err = errors.Wrap(err, "unhandled error while parsing archive")
 	}
 	return
 }
