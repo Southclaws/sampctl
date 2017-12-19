@@ -13,8 +13,8 @@ import (
 )
 
 // Build compiles a package, dependencies are ensured and a list of paths are sent to the compiler.
-func (pkg Package) Build(build string, ensure bool) (output string, err error) {
-	config := pkg.GetBuildConfig(build)
+func Build(pkg *types.Package, build string, ensure bool) (output string, err error) {
+	config := GetBuildConfig(*pkg, build)
 	if config == nil {
 		err = errors.Errorf("no build config named '%s'", build)
 		return
@@ -25,14 +25,14 @@ func (pkg Package) Build(build string, ensure bool) (output string, err error) {
 	config.Output = filepath.Join(pkg.Local, pkg.Output)
 
 	if ensure {
-		err = pkg.EnsureDependencies()
+		err = EnsureDependencies(pkg)
 		if err != nil {
 			err = errors.Wrap(err, "failed to ensure dependencies before build")
 			return
 		}
 	}
 
-	err = pkg.ResolveDependencies()
+	err = ResolveDependencies(pkg)
 	if err != nil {
 		err = errors.Wrap(err, "failed to resolve dependencies before build")
 		return
@@ -64,7 +64,7 @@ func (pkg Package) Build(build string, ensure bool) (output string, err error) {
 // GetBuildConfig returns a matching build by name from the package build list. If no name is
 // specified, the first build is returned. If the package has no build definitions, a default
 // configuration is returned.
-func (pkg Package) GetBuildConfig(name string) (config *types.BuildConfig) {
+func GetBuildConfig(pkg types.Package, name string) (config *types.BuildConfig) {
 	if len(pkg.Builds) == 0 || name == "" {
 		config = types.GetBuildConfigDefault()
 	} else {

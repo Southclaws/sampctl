@@ -11,6 +11,7 @@ import (
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 
+	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -30,7 +31,7 @@ type VersionedTag struct {
 type VersionedTags []VersionedTag
 
 // EnsureDependencies traverses package dependencies and ensures they are up to date
-func (pkg *Package) EnsureDependencies() (err error) {
+func EnsureDependencies(pkg *types.Package) (err error) {
 	if pkg.Local == "" {
 		return errors.New("package does not represent a locally stored package")
 	}

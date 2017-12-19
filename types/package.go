@@ -2,6 +2,7 @@ package types
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -54,23 +55,30 @@ type Package struct {
 	Resources    []Resource                    `json:"resources"`    // list of additional resources associated with the package
 }
 
-// Resource represents a resource associated with a package
-type Resource struct {
-	Name     string            `json:"name"`     // filename pattern of the resource
-	Platform string            `json:"platform"` // target platform, if empty the resource is always used but if this is set and does not match the runtime OS, the resource is ignored
-	Archive  bool              `json:"archive"`  // is this resource an archive file or just a single file?
-	Includes []string          `json:"includes"` // if archive: paths to directories containing .inc files for the compiler
-	Plugins  []string          `json:"plugins"`  // if archive: paths to plugin binaries, either .so or .dll
-	Files    map[string]string `json:"files"`    // if archive: path-to-path map of any other files, keys are paths inside the archive and values are extraction paths relative to the sampctl working directory
+func (pkg Package) String() string {
+	return fmt.Sprintf("%s/%s:%s", pkg.User, pkg.Repo, pkg.Version)
 }
 
-// Validate checks for missing fields
-func (res Resource) Validate() (err error) {
-	if res.Name == "" {
-		return errors.New("missing name field in resource")
+// Validate checks a package for missing fields
+func (pkg Package) Validate() (err error) {
+	if pkg.Entry == "" {
+		return errors.New("package does not define an entry point")
 	}
-	if res.Platform == "" {
-		return errors.New("missing platform field in resource")
+
+	if pkg.Output == "" {
+		return errors.New("package does not define an output file")
 	}
+
+	if pkg.Entry == pkg.Output {
+		return errors.New("package entry and output point to the same file")
+	}
+
+	return
+}
+
+// PackageFromDep creates a Package object from a Dependency String
+func PackageFromDep(depString versioning.DependencyString) (pkg Package, err error) {
+	dep, err := depString.Explode()
+	pkg.User, pkg.Repo, pkg.Path, pkg.Version = dep.User, dep.Repo, dep.Path, dep.Version
 	return
 }

@@ -26,7 +26,7 @@ func packageEnsure(c *cli.Context) error {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	err = pkg.EnsureDependencies()
+	err = rook.EnsureDependencies(&pkg)
 	if err != nil {
 		return err
 	}

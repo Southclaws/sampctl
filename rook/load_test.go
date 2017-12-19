@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/versioning"
 )
 
@@ -15,10 +16,10 @@ func TestPackageFromDir(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		wantPkg Package
+		wantPkg types.Package
 		wantErr bool
 	}{
-		{"load-json", args{"tests/load-json"}, Package{
+		{"load-json", args{"tests/load-json"}, types.Package{
 			Parent: true,
 			Local:  "tests/load-json",
 			Vendor: "tests/load-json/dependencies",
@@ -33,7 +34,7 @@ func TestPackageFromDir(t *testing.T) {
 				"Zeex/samp-plugin-crashdetect/include",
 			}},
 			false},
-		{"load-yaml", args{"tests/load-yaml"}, Package{
+		{"load-yaml", args{"tests/load-yaml"}, types.Package{
 			Parent: true,
 			Local:  "tests/load-yaml",
 			Vendor: "tests/load-yaml/dependencies",

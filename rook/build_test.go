@@ -9,24 +9,25 @@ import (
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPackage_Build(t *testing.T) {
 	type args struct {
+		pkg    *types.Package
 		build  string
 		ensure bool
 	}
 	tests := []struct {
 		name       string
 		sourceCode []byte
-		pkg        Package
 		args       args
 		wantOutput string
 		wantErr    bool
 	}{
 		{"stdlib", []byte(`#include <a_samp>
-			main() {print("hi");}
-			`), Package{
+			main() {print("hi");}`,
+		), args{&types.Package{
 			Parent: true,
 			Local:  util.FullPath("./tests/build-auto-stdlib"),
 			Entry:  "gamemodes/test.pwn",
@@ -37,11 +38,11 @@ func TestPackage_Build(t *testing.T) {
 			Builds: []types.BuildConfig{
 				{Name: "build", Version: "3.10.4"},
 			},
-		}, args{"build", true}, "gamemodes/test.amx", false},
+		}, "build", true}, "gamemodes/test.amx", false},
 		{"deep", []byte(`#include <a_samp>
 			#include <actions>
-			main() { print("actions"); }
-			`), Package{
+			main() { print("actions"); }`,
+		), args{&types.Package{
 			Parent: true,
 			Local:  util.FullPath("./tests/build-auto-deep"),
 			Entry:  "gamemodes/test.pwn",
@@ -50,11 +51,11 @@ func TestPackage_Build(t *testing.T) {
 				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
 				"ScavengeSurvive/actions",
 			},
-		}, args{"build", true}, "gamemodes/test.amx", false},
+		}, "build", true}, "gamemodes/test.amx", false},
 		{"custominc", []byte(`#include <a_samp>
 			#include <YSI\y_utils>
-			main() {}
-			`), Package{
+			main() {}`,
+		), args{&types.Package{
 			Parent: true,
 			Local:  util.FullPath("./tests/build-auto-custominc"),
 			Entry:  "gamemodes/test.pwn",
@@ -73,28 +74,29 @@ func TestPackage_Build(t *testing.T) {
 					Args: []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
 				},
 			},
-		}, args{"build", true}, "gamemodes/test.amx", false},
+		}, "build", true}, "gamemodes/test.amx", false},
 	}
 	for _, tt := range tests {
-		err := os.MkdirAll(filepath.Join(tt.pkg.Local, "gamemodes"), 0755)
+		err := os.MkdirAll(filepath.Join(tt.args.pkg.Local, "gamemodes"), 0755)
 		if err != nil {
 			panic(err)
 		}
 
-		err = ioutil.WriteFile(filepath.Join(tt.pkg.Local, tt.pkg.Entry), tt.sourceCode, 0755)
+		err = ioutil.WriteFile(filepath.Join(tt.args.pkg.Local, tt.args.pkg.Entry), tt.sourceCode, 0755)
 		if err != nil {
 			panic(err)
 		}
 
 		t.Run(tt.name, func(t *testing.T) {
-			gotOutput, err := tt.pkg.Build(tt.args.build, tt.args.ensure)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Package.Build() error = %v, wantErr %v", err, tt.wantErr)
+			gotOutput, err := Build(tt.args.pkg, tt.args.build, tt.args.ensure)
+			if tt.wantErr {
+				assert.Error(t, err)
 				return
 			}
-			if gotOutput != tt.wantOutput {
-				t.Errorf("Package.Build() = %v, want %v", gotOutput, tt.wantOutput)
-			}
+
+			assert.NoError(t, err)
+
+			assert.Equal(t, tt.wantOutput, gotOutput)
 		})
 	}
 }

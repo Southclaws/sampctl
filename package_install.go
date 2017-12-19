@@ -33,7 +33,7 @@ func packageInstall(c *cli.Context) error {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	err = pkg.Install(dep)
+	err = rook.Install(pkg, dep)
 	if err != nil {
 		return err
 	}

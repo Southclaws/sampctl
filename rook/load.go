@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
+	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -16,7 +17,7 @@ import (
 // PackageFromDir attempts to parse a directory as a Package by looking for a `pawn.json` or
 // `pawn.yaml` file and unmarshalling it - additional parameters are required to specify whether or
 // not the package is a "parent package" and where the vendor directory is.
-func PackageFromDir(parent bool, dir string, vendor string) (pkg Package, err error) {
+func PackageFromDir(parent bool, dir string, vendor string) (pkg types.Package, err error) {
 	jsonFile := filepath.Join(dir, "pawn.json")
 	if util.Exists(jsonFile) {
 		pkg, err = PackageFromJSON(jsonFile)
@@ -46,7 +47,7 @@ func PackageFromDir(parent bool, dir string, vendor string) (pkg Package, err er
 	}
 
 	if parent {
-		err = pkg.ResolveDependencies()
+		err = ResolveDependencies(&pkg)
 		if err != nil {
 			err = errors.Wrap(err, "failed to resolve all dependencies")
 			return
@@ -57,7 +58,7 @@ func PackageFromDir(parent bool, dir string, vendor string) (pkg Package, err er
 }
 
 // PackageFromJSON creates a config from a JSON file
-func PackageFromJSON(file string) (pkg Package, err error) {
+func PackageFromJSON(file string) (pkg types.Package, err error) {
 	var contents []byte
 	contents, err = ioutil.ReadFile(file)
 	if err != nil {
@@ -75,7 +76,7 @@ func PackageFromJSON(file string) (pkg Package, err error) {
 }
 
 // PackageFromYAML creates a config from a YAML file
-func PackageFromYAML(file string) (pkg Package, err error) {
+func PackageFromYAML(file string) (pkg types.Package, err error) {
 	var contents []byte
 	contents, err = ioutil.ReadFile(file)
 	if err != nil {
@@ -94,7 +95,7 @@ func PackageFromYAML(file string) (pkg Package, err error) {
 
 // ResolveDependencies is a function for use by parent packages to iterate through their
 // `dependencies/` directory discovering packages and getting their dependencies
-func (pkg *Package) ResolveDependencies() (err error) {
+func ResolveDependencies(pkg *types.Package) (err error) {
 	fmt.Println(pkg, "resolving dependency tree into a flattened list...")
 	if !pkg.Parent {
 		return errors.New("package is not a parent package")

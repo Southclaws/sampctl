@@ -3,11 +3,12 @@ package rook
 import (
 	"fmt"
 
+	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/versioning"
 )
 
 // Install adds a new dependency to an existing local parent package
-func (pkg Package) Install(target versioning.DependencyString) (err error) {
+func Install(pkg types.Package, target versioning.DependencyString) (err error) {
 
 	// todo: version checks
 	exists := false

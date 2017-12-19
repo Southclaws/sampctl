@@ -27,7 +27,7 @@ func TestPackage_Install(t *testing.T) {
 				t.Error(err)
 			}
 
-			err = pkg.Install(tt.args.target)
+			err = Install(pkg, tt.args.target)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

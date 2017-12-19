@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/codegangsta/cli"
 	"github.com/pkg/errors"
+	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/rook"

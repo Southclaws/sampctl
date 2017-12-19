@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -25,11 +26,11 @@ func TestMain(m *testing.M) {
 func TestPackage_EnsureDependencies(t *testing.T) {
 	tests := []struct {
 		name     string
-		pkg      Package
+		pkg      *types.Package
 		wantDeps []versioning.DependencyMeta
 		wantErr  bool
 	}{
-		{"ensure", Package{
+		{"ensure", &types.Package{
 			Local: util.FullPath("./tests/deps-ensure"),
 			Dependencies: []versioning.DependencyString{
 				"ScavengeSurvive/actions",
@@ -48,7 +49,7 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 		os.MkdirAll(tt.pkg.Local, 0755) //nolint
 
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.pkg.EnsureDependencies()
+			err := EnsureDependencies(tt.pkg)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
