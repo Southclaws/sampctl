@@ -214,8 +214,8 @@ func Unzip(src, dst string, paths map[string]string) (err error) {
 			}
 
 			if match.MatchString(f.Name) {
-				target = f.Name
 				found = true
+				break
 			}
 		}
 

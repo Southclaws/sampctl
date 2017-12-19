@@ -7,13 +7,12 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/compiler"
-	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
 
 // Build compiles a package, dependencies are ensured and a list of paths are sent to the compiler.
-func Build(pkg *types.Package, build, platform string, ensure bool) (output string, err error) {
+func Build(pkg *types.Package, build, cacheDir, platform string, ensure bool) (output string, err error) {
 	config := GetBuildConfig(*pkg, build)
 	if config == nil {
 		err = errors.Errorf("no build config named '%s'", build)
@@ -41,11 +40,6 @@ func Build(pkg *types.Package, build, platform string, ensure bool) (output stri
 	for _, depMeta := range pkg.AllDependencies {
 		includePath := filepath.Join(pkg.Local, "dependencies", depMeta.Repo, depMeta.Path)
 		config.Includes = append(config.Includes, includePath)
-	}
-
-	cacheDir, err := download.GetCacheDir()
-	if err != nil {
-		return
 	}
 
 	fmt.Println("building", pkg, "with", config.Version)

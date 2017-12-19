@@ -104,6 +104,7 @@ func CompileSource(execDir, cacheDir, platform string, config types.BuildConfig)
 		fmt.Sprintf("LD_LIBRARY_PATH=%s", runtimeDir),
 		fmt.Sprintf("DYLD_LIBRARY_PATH=%s", runtimeDir),
 	}
+	fmt.Println(runtimeDir)
 	fmt.Println(cmd.Args)
 	err = cmd.Run()
 	if err != nil {

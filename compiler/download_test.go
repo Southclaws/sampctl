@@ -28,8 +28,17 @@ func Test_CompilerFromNet(t *testing.T) {
 			err := FromNet(tt.args.cacheDir, tt.args.version, tt.args.dir, runtime.GOOS)
 			assert.NoError(t, err)
 
-			// assumes the tests are being run in linux/darwin (sorry!)
-			assert.True(t, util.Exists("./tests/compiler/pawncc"))
+			switch runtime.GOOS {
+			case "linux":
+				assert.True(t, util.Exists("./tests/compiler/pawncc"))
+				assert.True(t, util.Exists("./tests/compiler/libpawnc"))
+			case "darwin":
+				assert.True(t, util.Exists("./tests/compiler/pawncc"))
+				assert.True(t, util.Exists("./tests/compiler/libpawnc.dylib"))
+			case "windows":
+				assert.True(t, util.Exists("./tests/compiler/pawncc.exe"))
+				assert.True(t, util.Exists("./tests/compiler/libpawnc.dll"))
+			}
 		})
 	}
 }

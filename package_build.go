@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/rook"
 	"github.com/Southclaws/sampctl/util"
 )
@@ -33,12 +34,17 @@ func packageBuild(c *cli.Context) error {
 	build := c.String("build")
 	forceEnsure := c.Bool("forceEnsure")
 
+	cacheDir, err := download.GetCacheDir()
+	if err != nil {
+		return errors.Wrap(err, "failed to get or create cache directory")
+	}
+
 	pkg, err := rook.PackageFromDir(true, dir, "")
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	output, err := rook.Build(&pkg, build, appRuntime.GOOS, forceEnsure)
+	output, err := rook.Build(&pkg, build, cacheDir, appRuntime.GOOS, forceEnsure)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 1)
 	}

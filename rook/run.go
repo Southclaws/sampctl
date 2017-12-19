@@ -23,7 +23,7 @@ func Run(pkg types.Package, cacheDir, endpoint, version, appVersion, build, plat
 
 	filename := util.FullPath(pkg.Output)
 	if !util.Exists(filename) || forceBuild {
-		filename, err = Build(&pkg, build, platform, forceEnsure)
+		filename, err = Build(&pkg, build, cacheDir, platform, forceEnsure)
 		if err != nil {
 			return err
 		}
