@@ -45,7 +45,7 @@ func Run(pkg types.Package, cacheDir, endpoint, version, appVersion, build strin
 		return errors.Wrap(err, "failed to generate temporary samp.json")
 	}
 
-	fmt.Println("ensuring runtime installation", *config)
+	fmt.Println("ensuring runtime installation", config.Plugins)
 	err = runtime.Ensure(config)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure temporary runtime")
