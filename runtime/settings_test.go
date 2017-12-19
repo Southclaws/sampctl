@@ -3,6 +3,7 @@ package runtime
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -65,6 +66,10 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 				os.Setenv(k, v) // nolint
 			}
 			gotCfg, err := NewConfigFromEnvironment(tt.args.dir)
+
+			// NewConfigFromEnvironment uses runtime.GOOS so the comparison should to
+			tt.wantCfg.Platform = runtime.GOOS
+
 			assert.NoError(t, err)
 			assert.Equal(t, tt.wantCfg, gotCfg)
 		})
