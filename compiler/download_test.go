@@ -5,13 +5,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
 
 func Test_CompilerFromNet(t *testing.T) {
 	type args struct {
 		cacheDir string
-		version  Version
+		version  types.CompilerVersion
 		dir      string
 	}
 	tests := []struct {
@@ -35,7 +36,7 @@ func Test_CompilerFromNet(t *testing.T) {
 func Test_CompilerFromCache(t *testing.T) {
 	type args struct {
 		cacheDir string
-		version  Version
+		version  types.CompilerVersion
 		dir      string
 	}
 	tests := []struct {

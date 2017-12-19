@@ -31,15 +31,15 @@ type VersionedTags []VersionedTag
 
 // EnsureDependencies traverses package dependencies and ensures they are up to date
 func (pkg *Package) EnsureDependencies() (err error) {
-	if pkg.local == "" {
+	if pkg.Local == "" {
 		return errors.New("package does not represent a locally stored package")
 	}
 
-	if !util.Exists(pkg.local) {
+	if !util.Exists(pkg.Local) {
 		return errors.New("package local path does not exist")
 	}
 
-	pkg.vendor = filepath.Join(pkg.local, "dependencies")
+	pkg.Vendor = filepath.Join(pkg.Local, "dependencies")
 
 	visited := make(map[versioning.DependencyMeta]bool)
 
@@ -47,7 +47,7 @@ func (pkg *Package) EnsureDependencies() (err error) {
 	recurse = func(meta versioning.DependencyMeta) {
 		fmt.Println(pkg, "ensuring depenency:", meta)
 
-		pkgPath := filepath.Join(pkg.vendor, meta.Repo)
+		pkgPath := filepath.Join(pkg.Vendor, meta.Repo)
 
 		err = EnsurePackage(pkgPath, meta)
 		if err != nil {
@@ -55,10 +55,10 @@ func (pkg *Package) EnsureDependencies() (err error) {
 			return
 		}
 
-		pkg.allDependencies = append(pkg.allDependencies, meta)
+		pkg.AllDependencies = append(pkg.AllDependencies, meta)
 		visited[meta] = true
 
-		subPkg, err := PackageFromDir(false, pkgPath, pkg.vendor)
+		subPkg, err := PackageFromDir(false, pkgPath, pkg.Vendor)
 		if err != nil {
 			fmt.Println(err)
 			return

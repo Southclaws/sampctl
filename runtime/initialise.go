@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/AlecAivazis/survey.v1"
 
+	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -102,7 +103,7 @@ func InitialiseServer(version, dir string) (err error) {
 		MaxPlayers    int
 		Gamemodes     []string
 		Filterscripts []string
-		Plugins       []Plugin
+		Plugins       []types.Plugin
 	}{}
 
 	err = survey.Ask(questions, &answers)
@@ -118,8 +119,8 @@ func InitialiseServer(version, dir string) (err error) {
 		}
 	}
 
-	config := Config{
-		dir:           &dir,
+	config := types.Runtime{
+		WorkingDir:    &dir,
 		Hostname:      &answers.Hostname,
 		RCONPassword:  &answers.RCONPassword,
 		Port:          &answers.Port,
@@ -138,7 +139,7 @@ func InitialiseServer(version, dir string) (err error) {
 	fmt.Println("Filterscripts: ", answers.Filterscripts)
 	fmt.Println("Plugins: ", answers.Plugins)
 
-	err = config.GenerateJSON()
+	err = GenerateJSON(config)
 	return
 }
 

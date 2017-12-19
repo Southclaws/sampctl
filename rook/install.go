@@ -28,7 +28,7 @@ func (pkg Package) Install(target versioning.DependencyString) (err error) {
 		return
 	}
 
-	err = EnsurePackage(pkg.vendor, meta)
+	err = EnsurePackage(pkg.Vendor, meta)
 	if err != nil {
 		return
 	}

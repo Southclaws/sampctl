@@ -8,6 +8,7 @@ import (
 
 	"github.com/Southclaws/sampctl/compiler"
 	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -20,8 +21,8 @@ func (pkg Package) Build(build string, ensure bool) (output string, err error) {
 	}
 
 	config.WorkingDir = filepath.Dir(util.FullPath(pkg.Entry))
-	config.Input = filepath.Join(pkg.local, pkg.Entry)
-	config.Output = filepath.Join(pkg.local, pkg.Output)
+	config.Input = filepath.Join(pkg.Local, pkg.Entry)
+	config.Output = filepath.Join(pkg.Local, pkg.Output)
 
 	if ensure {
 		err = pkg.EnsureDependencies()
@@ -37,8 +38,8 @@ func (pkg Package) Build(build string, ensure bool) (output string, err error) {
 		return
 	}
 
-	for _, depMeta := range pkg.allDependencies {
-		includePath := filepath.Join(pkg.local, "dependencies", depMeta.Repo, depMeta.Path)
+	for _, depMeta := range pkg.AllDependencies {
+		includePath := filepath.Join(pkg.Local, "dependencies", depMeta.Repo, depMeta.Path)
 		config.Includes = append(config.Includes, includePath)
 	}
 
@@ -49,7 +50,7 @@ func (pkg Package) Build(build string, ensure bool) (output string, err error) {
 
 	fmt.Println("building", pkg, "with", config.Version)
 
-	err = compiler.CompileSource(pkg.local, cacheDir, *config)
+	err = compiler.CompileSource(pkg.Local, cacheDir, *config)
 	if err != nil {
 		err = errors.Wrap(err, "failed to compile package entry")
 		return
@@ -63,9 +64,9 @@ func (pkg Package) Build(build string, ensure bool) (output string, err error) {
 // GetBuildConfig returns a matching build by name from the package build list. If no name is
 // specified, the first build is returned. If the package has no build definitions, a default
 // configuration is returned.
-func (pkg Package) GetBuildConfig(name string) (config *compiler.Config) {
+func (pkg Package) GetBuildConfig(name string) (config *types.BuildConfig) {
 	if len(pkg.Builds) == 0 || name == "" {
-		config = compiler.GetDefaultConfig()
+		config = types.GetBuildConfigDefault()
 	} else {
 		for _, cfg := range pkg.Builds {
 			if cfg.Name == name {

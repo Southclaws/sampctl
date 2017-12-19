@@ -6,12 +6,13 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/types"
 )
 
 func Test_GetCompilerPackageInfo(t *testing.T) {
 	type args struct {
 		os      string
-		version Version
+		version types.CompilerVersion
 	}
 	tests := []struct {
 		name         string

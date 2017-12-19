@@ -30,7 +30,7 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 		wantErr  bool
 	}{
 		{"ensure", Package{
-			local: util.FullPath("./tests/deps-ensure"),
+			Local: util.FullPath("./tests/deps-ensure"),
 			Dependencies: []versioning.DependencyString{
 				"ScavengeSurvive/actions",
 			}},
@@ -45,7 +45,7 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 			}, false},
 	}
 	for _, tt := range tests {
-		os.MkdirAll(tt.pkg.local, 0755) //nolint
+		os.MkdirAll(tt.pkg.Local, 0755) //nolint
 
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.pkg.EnsureDependencies()
@@ -55,7 +55,7 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			assert.Equal(t, tt.wantDeps, tt.pkg.allDependencies)
+			assert.Equal(t, tt.wantDeps, tt.pkg.AllDependencies)
 		})
 	}
 }

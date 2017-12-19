@@ -11,34 +11,12 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
 
-// Version represents a compiler version number
-type Version string
-
-// Config represents a configuration for compiling a file
-type Config struct {
-	Name       string            `json:"name"`       // name of the configuration
-	Version    Version           `json:"version"`    // compiler version to use for this build
-	WorkingDir string            `json:"workingDir"` // working directory for the -D flag
-	Args       []string          `json:"args"`       // list of arguments to pass to the compiler
-	Input      string            `json:"input"`      // input .pwn file
-	Output     string            `json:"output"`     // output .amx file
-	Includes   []string          `json:"includes"`   // list of include files to include in compilation via -i flags
-	Constants  map[string]string `json:"constants"`  // set of constant definitions to pass to the compiler
-}
-
-// GetDefaultConfig defines and returns a default compiler configuration
-func GetDefaultConfig() *Config {
-	return &Config{
-		Args:    []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
-		Version: "3.10.4",
-	}
-}
-
 // CompileSource compiles a given input script to the specified output path using compiler version
-func CompileSource(execDir string, cacheDir string, config Config) (err error) {
+func CompileSource(execDir string, cacheDir string, config types.BuildConfig) (err error) {
 	fmt.Printf("Compiling source: '%s' with compiler %s...\n", config.Input, config.Version)
 
 	if config.WorkingDir == "" {

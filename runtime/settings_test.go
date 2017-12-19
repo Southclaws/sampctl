@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/Southclaws/sampctl/types"
 )
 
 func TestNewConfigFromEnvironment(t *testing.T) {
@@ -16,16 +18,16 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 		name    string
 		env     map[string]string
 		args    args
-		genCfg  Config
-		wantCfg Config
+		genCfg  types.Runtime
+		wantCfg types.Runtime
 		wantErr bool
 	}{
 		{
 			"minimal",
 			map[string]string{"SAMP_RCON_PASSWORD": "changed"},
 			args{"./tests/from-env"},
-			Config{
-				dir: &[]string{"./tests/from-env"}[0],
+			types.Runtime{
+				WorkingDir: &[]string{"./tests/from-env"}[0],
 				Gamemodes: []string{
 					"rivershell",
 					"baserace",
@@ -37,8 +39,8 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 				Announce:   &[]bool{true}[0],
 				RCON:       &[]bool{true}[0],
 			},
-			Config{
-				dir: &[]string{"./tests/from-env"}[0],
+			types.Runtime{
+				WorkingDir: &[]string{"./tests/from-env"}[0],
 				Gamemodes: []string{
 					"rivershell",
 					"baserace",
@@ -56,7 +58,7 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.genCfg.GenerateJSON()
+			err := GenerateJSON(tt.genCfg)
 			assert.NoError(t, err)
 
 			for k, v := range tt.env {
@@ -72,13 +74,13 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 func TestConfig_EnsureScripts(t *testing.T) {
 	tests := []struct {
 		name     string
-		config   Config
+		config   types.Runtime
 		wantErrs bool
 	}{
 		{
 			"minimal",
-			Config{
-				dir: &[]string{"./tests/validate"}[0],
+			types.Runtime{
+				WorkingDir: &[]string{"./tests/validate"}[0],
 				Gamemodes: []string{
 					"rivershell",
 				},
@@ -94,8 +96,8 @@ func TestConfig_EnsureScripts(t *testing.T) {
 		},
 		{
 			"minimal_fail",
-			Config{
-				dir: &[]string{"./tests/validate"}[0],
+			types.Runtime{
+				WorkingDir: &[]string{"./tests/validate"}[0],
 				Gamemodes: []string{
 					"rivershell",
 					"baserace",
@@ -113,7 +115,7 @@ func TestConfig_EnsureScripts(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.config.EnsureScripts()
+			err := EnsureScripts(tt.config)
 			if tt.wantErrs {
 				assert.Error(t, err)
 			} else {
@@ -130,14 +132,14 @@ func TestConfigFromDirectory(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		wantCfg Config
+		wantCfg types.Runtime
 		wantErr bool
 	}{
-		{"both basic", args{"./tests/load-both"}, Config{
+		{"both basic", args{"./tests/load-both"}, types.Runtime{
 			Gamemodes:    []string{"rivershell"},
 			RCONPassword: &[]string{"hello"}[0],
 		}, false},
-		{"both large", args{"./tests/load-yaml"}, Config{
+		{"both large", args{"./tests/load-yaml"}, types.Runtime{
 			Gamemodes: []string{
 				"rivershell",
 				"baserace",
@@ -154,10 +156,10 @@ func TestConfigFromDirectory(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := tt.args.dir
-			tt.wantCfg.dir = &dir
+			tt.wantCfg.WorkingDir = &dir
 
-			tt.wantCfg.GenerateJSON()
-			tt.wantCfg.GenerateYAML()
+			GenerateJSON(tt.wantCfg)
+			GenerateYAML(tt.wantCfg)
 
 			gotCfg, err := ConfigFromDirectory(tt.args.dir)
 			if (err != nil) != tt.wantErr {
@@ -176,14 +178,14 @@ func TestConfigFromJSON(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		wantCfg Config
+		wantCfg types.Runtime
 		wantErr bool
 	}{
-		{"json basic", args{"./tests/load-json/samp.json"}, Config{
+		{"json basic", args{"./tests/load-json/samp.json"}, types.Runtime{
 			Gamemodes:    []string{"rivershell"},
 			RCONPassword: &[]string{"hello"}[0],
 		}, false},
-		{"json large", args{"./tests/load-json/samp.json"}, Config{
+		{"json large", args{"./tests/load-json/samp.json"}, types.Runtime{
 			Gamemodes: []string{
 				"rivershell",
 				"baserace",
@@ -200,8 +202,8 @@ func TestConfigFromJSON(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := filepath.Dir(tt.args.file)
-			tt.wantCfg.dir = &dir
-			tt.wantCfg.GenerateJSON()
+			tt.wantCfg.WorkingDir = &dir
+			GenerateJSON(tt.wantCfg)
 
 			gotCfg, err := ConfigFromJSON(tt.args.file)
 			if (err != nil) != tt.wantErr {
@@ -210,7 +212,7 @@ func TestConfigFromJSON(t *testing.T) {
 			}
 
 			// because the ConfigFromJSON function does not know the dir
-			tt.wantCfg.dir = nil
+			tt.wantCfg.WorkingDir = nil
 
 			assert.Equal(t, tt.wantCfg, gotCfg)
 		})
@@ -224,14 +226,14 @@ func TestConfigFromYAML(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		wantCfg Config
+		wantCfg types.Runtime
 		wantErr bool
 	}{
-		{"yaml basic", args{"./tests/load-yaml/samp.yaml"}, Config{
+		{"yaml basic", args{"./tests/load-yaml/samp.yaml"}, types.Runtime{
 			Gamemodes:    []string{"rivershell"},
 			RCONPassword: &[]string{"hello"}[0],
 		}, false},
-		{"yaml large", args{"./tests/load-yaml/samp.yaml"}, Config{
+		{"yaml large", args{"./tests/load-yaml/samp.yaml"}, types.Runtime{
 			Gamemodes: []string{
 				"rivershell",
 				"baserace",
@@ -248,8 +250,8 @@ func TestConfigFromYAML(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := filepath.Dir(tt.args.file)
-			tt.wantCfg.dir = &dir
-			tt.wantCfg.GenerateYAML()
+			tt.wantCfg.WorkingDir = &dir
+			GenerateYAML(tt.wantCfg)
 
 			gotCfg, err := ConfigFromYAML(tt.args.file)
 			if (err != nil) != tt.wantErr {
@@ -258,7 +260,7 @@ func TestConfigFromYAML(t *testing.T) {
 			}
 
 			// because the ConfigFromJSON function does not know the dir
-			tt.wantCfg.dir = nil
+			tt.wantCfg.WorkingDir = nil
 
 			assert.Equal(t, tt.wantCfg, gotCfg)
 		})

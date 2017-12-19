@@ -5,13 +5,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
 
 func TestCompileSource(t *testing.T) {
 	type args struct {
 		cacheDir string
-		config   Config
+		config   types.BuildConfig
 	}
 	tests := []struct {
 		name    string
@@ -20,7 +21,7 @@ func TestCompileSource(t *testing.T) {
 	}{
 		{"valid", args{
 			util.FullPath("./tests/cache"),
-			Config{
+			types.BuildConfig{
 				WorkingDir: ".",
 				Input:      "./tests/valid.pwn",
 				Output:     "./tests/valid.amx",
@@ -29,7 +30,7 @@ func TestCompileSource(t *testing.T) {
 			}}, false},
 		{"invalid", args{
 			util.FullPath("./tests/cache"),
-			Config{
+			types.BuildConfig{
 				WorkingDir: ".",
 				Input:      "./tests/invalid.pwn",
 				Output:     "./tests/invalid.amx",

@@ -16,10 +16,12 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/google/uuid"
+
+	sampctltypes "github.com/Southclaws/sampctl/types"
 )
 
 // RunContainer does what Run does but inside a Linux container
-func (cfg Config) RunContainer(appVersion string) (err error) {
+func RunContainer(cfg sampctltypes.Runtime, appVersion string) (err error) {
 	cli, err := client.NewEnvClient()
 	if err != nil {
 		panic(err)
@@ -40,7 +42,7 @@ func (cfg Config) RunContainer(appVersion string) (err error) {
 			Mounts: []mount.Mount{
 				{
 					Type:   mount.TypeBind,
-					Source: *cfg.dir,
+					Source: *cfg.WorkingDir,
 					Target: "/samp",
 				},
 			},

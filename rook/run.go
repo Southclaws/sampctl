@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/runtime"
+	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -32,26 +33,26 @@ func (pkg Package) Run(cacheDir, endpoint, version, appVersion, build string, co
 		return err
 	}
 
-	config := runtime.MergeDefaultConfig(pkg.Runtime)
+	config := types.MergeRuntimeDefault(&pkg.Runtime)
 	config.Gamemodes = []string{strings.TrimSuffix(pkg.Output, ".amx")}
-	config.SetWorkingDir(runtimeDir)
+	config.WorkingDir = &runtimeDir
 	config.Version = &version
 	config.Endpoint = &endpoint
 
-	err = config.GenerateJSON()
+	err = runtime.GenerateJSON(*config)
 	if err != nil {
 		return errors.Wrap(err, "failed to generate temporary samp.json")
 	}
 
-	err = config.Ensure()
+	err = runtime.Ensure(config)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure temporary runtime")
 	}
 
 	if container {
-		err = config.RunContainer(appVersion)
+		err = runtime.RunContainer(*config, appVersion)
 	} else {
-		err = config.Run()
+		err = runtime.Run(*config)
 	}
 	return
 }

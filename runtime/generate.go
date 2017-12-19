@@ -10,14 +10,16 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Southclaws/sampctl/util"
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
+
+	"github.com/Southclaws/sampctl/types"
+	"github.com/Southclaws/sampctl/util"
 )
 
 // GenerateJSON simply marshals the data to a samp.json file in dir
-func (cfg Config) GenerateJSON() (err error) {
-	path := filepath.Join(*cfg.dir, "samp.json")
+func GenerateJSON(cfg types.Runtime) (err error) {
+	path := filepath.Join(*cfg.WorkingDir, "samp.json")
 
 	if util.Exists(path) {
 		if err := os.Remove(path); err != nil {
@@ -46,8 +48,8 @@ func (cfg Config) GenerateJSON() (err error) {
 }
 
 // GenerateYAML simply marshals the data to a samp.yaml file in dir
-func (cfg Config) GenerateYAML() (err error) {
-	path := filepath.Join(*cfg.dir, "samp.yaml")
+func GenerateYAML(cfg types.Runtime) (err error) {
+	path := filepath.Join(*cfg.WorkingDir, "samp.yaml")
 
 	if util.Exists(path) {
 		if err := os.Remove(path); err != nil {
@@ -76,8 +78,8 @@ func (cfg Config) GenerateYAML() (err error) {
 }
 
 // GenerateServerCfg creates a settings file in the SA:MP "server.cfg" format at the specified location
-func (cfg *Config) GenerateServerCfg(dir string) (err error) {
-	file, err := os.Create(filepath.Join(dir, "server.cfg"))
+func GenerateServerCfg(cfg *types.Runtime) (err error) {
+	file, err := os.Create(filepath.Join(*cfg.WorkingDir, "server.cfg"))
 	if err != nil {
 		return
 	}
@@ -89,7 +91,7 @@ func (cfg *Config) GenerateServerCfg(dir string) (err error) {
 	}()
 
 	// make some minor changes to the cfg before using it
-	adjustForOS(dir, runtime.GOOS, cfg)
+	adjustForOS(*cfg.WorkingDir, runtime.GOOS, cfg)
 	cfg.Echo = &echoMessage
 
 	v := reflect.ValueOf(*cfg)
@@ -102,6 +104,11 @@ func (cfg *Config) GenerateServerCfg(dir string) (err error) {
 		required := stype.Tag.Get("required") == "1"
 		nodefault := stype.Tag.Get("default") == ""
 		if !required && nodefault && fieldval.IsNil() {
+			continue
+		}
+
+		ignore := stype.Tag.Get("ignore") != ""
+		if ignore {
 			continue
 		}
 
@@ -120,7 +127,7 @@ func (cfg *Config) GenerateServerCfg(dir string) (err error) {
 			line, err = fromString(name, fieldval, required, defaultValue)
 		case "[]string":
 			line, err = fromSlice(name, fieldval, required, defaultValue, numbered)
-		case "[]runtime.Plugin":
+		case "[]types.Plugin":
 			line, err = fromSlice(name, fieldval, required, defaultValue, numbered)
 		case "*bool":
 			line, err = fromBool(name, fieldval, required, defaultValue)
@@ -145,7 +152,7 @@ func (cfg *Config) GenerateServerCfg(dir string) (err error) {
 }
 
 // adjustForOS quickly does some tweaks depending on the OS such as .so plugin extension on linux
-func adjustForOS(dir, os string, cfg *Config) {
+func adjustForOS(dir, os string, cfg *types.Runtime) {
 	if os == "linux" || os == "darwin" {
 		if len(cfg.Plugins) > 0 {
 			actualPlugins := getPlugins(filepath.Join(dir, "plugins"))
@@ -153,14 +160,14 @@ func adjustForOS(dir, os string, cfg *Config) {
 			for i, declared := range cfg.Plugins {
 				ext := filepath.Ext(string(declared))
 				if ext != "" {
-					declared = Plugin(strings.TrimSuffix(string(declared), ext))
+					declared = types.Plugin(strings.TrimSuffix(string(declared), ext))
 				}
 				for _, actual := range actualPlugins {
 					// if the declared plugin matches the found plugin case-insensitively but does match
 					// case sensitively...
 					if strings.EqualFold(string(declared), actual) && string(declared) != actual {
 						// update the array index to use the actual filename
-						declared = Plugin(actual)
+						declared = types.Plugin(actual)
 						break
 					}
 				}

@@ -44,9 +44,9 @@ func serverRun(c *cli.Context) error {
 	cfg.Endpoint = &endpoint
 
 	if container {
-		err = cfg.RunContainer(c.App.Version)
+		err = runtime.RunContainer(cfg, c.App.Version)
 	} else {
-		err = cfg.Run()
+		err = runtime.Run(cfg)
 	}
 
 	return err

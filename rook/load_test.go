@@ -19,9 +19,9 @@ func TestPackageFromDir(t *testing.T) {
 		wantErr bool
 	}{
 		{"load-json", args{"tests/load-json"}, Package{
-			parent: true,
-			local:  "tests/load-json",
-			vendor: "tests/load-json/dependencies",
+			Parent: true,
+			Local:  "tests/load-json",
+			Vendor: "tests/load-json/dependencies",
 			Entry:  "gamemodes/test.pwn",
 			Output: "gamemodes/test.amx",
 			Dependencies: []versioning.DependencyString{
@@ -34,9 +34,9 @@ func TestPackageFromDir(t *testing.T) {
 			}},
 			false},
 		{"load-yaml", args{"tests/load-yaml"}, Package{
-			parent: true,
-			local:  "tests/load-yaml",
-			vendor: "tests/load-yaml/dependencies",
+			Parent: true,
+			Local:  "tests/load-yaml",
+			Vendor: "tests/load-yaml/dependencies",
 			Entry:  "gamemodes/test.pwn",
 			Output: "gamemodes/test.amx",
 			Dependencies: []versioning.DependencyString{

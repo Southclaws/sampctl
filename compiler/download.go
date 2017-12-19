@@ -8,11 +8,12 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
 
 // FromCache attempts to get a compiler package from the cache, `hit` represents success
-func FromCache(cacheDir string, version Version, dir string) (hit bool, err error) {
+func FromCache(cacheDir string, version types.CompilerVersion, dir string) (hit bool, err error) {
 	pkg, filename, err := GetCompilerPackageInfo(runtime.GOOS, version)
 	if err != nil {
 		return false, err
@@ -29,7 +30,7 @@ func FromCache(cacheDir string, version Version, dir string) (hit bool, err erro
 }
 
 // FromNet downloads a compiler package to the cache
-func FromNet(cacheDir string, version Version, dir string) (err error) {
+func FromNet(cacheDir string, version types.CompilerVersion, dir string) (err error) {
 	fmt.Printf("Downloading compiler package %s\n", version)
 
 	pkg, filename, err := GetCompilerPackageInfo(runtime.GOOS, version)

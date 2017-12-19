@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Southclaws/sampctl/compiler"
+	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -27,14 +27,14 @@ func TestPackage_Build(t *testing.T) {
 		{"stdlib", []byte(`#include <a_samp>
 			main() {print("hi");}
 			`), Package{
-			parent: true,
-			local:  util.FullPath("./tests/build-auto-stdlib"),
+			Parent: true,
+			Local:  util.FullPath("./tests/build-auto-stdlib"),
 			Entry:  "gamemodes/test.pwn",
 			Output: "gamemodes/test.amx",
 			Dependencies: []versioning.DependencyString{
 				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
 			},
-			Builds: []compiler.Config{
+			Builds: []types.BuildConfig{
 				{Name: "build", Version: "3.10.4"},
 			},
 		}, args{"build", true}, "gamemodes/test.amx", false},
@@ -42,8 +42,8 @@ func TestPackage_Build(t *testing.T) {
 			#include <actions>
 			main() { print("actions"); }
 			`), Package{
-			parent: true,
-			local:  util.FullPath("./tests/build-auto-deep"),
+			Parent: true,
+			Local:  util.FullPath("./tests/build-auto-deep"),
 			Entry:  "gamemodes/test.pwn",
 			Output: "gamemodes/test.amx",
 			Dependencies: []versioning.DependencyString{
@@ -55,14 +55,14 @@ func TestPackage_Build(t *testing.T) {
 			#include <YSI\y_utils>
 			main() {}
 			`), Package{
-			parent: true,
-			local:  util.FullPath("./tests/build-auto-custominc"),
+			Parent: true,
+			Local:  util.FullPath("./tests/build-auto-custominc"),
 			Entry:  "gamemodes/test.pwn",
 			Output: "gamemodes/test.amx",
 			Dependencies: []versioning.DependencyString{
 				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
 			},
-			Builds: []compiler.Config{
+			Builds: []types.BuildConfig{
 				{
 					Name:    "build",
 					Version: "3.10.4",
@@ -76,12 +76,12 @@ func TestPackage_Build(t *testing.T) {
 		}, args{"build", true}, "gamemodes/test.amx", false},
 	}
 	for _, tt := range tests {
-		err := os.MkdirAll(filepath.Join(tt.pkg.local, "gamemodes"), 0755)
+		err := os.MkdirAll(filepath.Join(tt.pkg.Local, "gamemodes"), 0755)
 		if err != nil {
 			panic(err)
 		}
 
-		err = ioutil.WriteFile(filepath.Join(tt.pkg.local, tt.pkg.Entry), tt.sourceCode, 0755)
+		err = ioutil.WriteFile(filepath.Join(tt.pkg.Local, tt.pkg.Entry), tt.sourceCode, 0755)
 		if err != nil {
 			panic(err)
 		}

@@ -31,13 +31,13 @@ func PackageFromDir(parent bool, dir string, vendor string) (pkg Package, err er
 		return
 	}
 
-	pkg.parent = parent
-	pkg.local = dir
+	pkg.Parent = parent
+	pkg.Local = dir
 
 	if vendor == "" {
-		pkg.vendor = filepath.Join(dir, "dependencies")
+		pkg.Vendor = filepath.Join(dir, "dependencies")
 	} else {
-		pkg.vendor = vendor
+		pkg.Vendor = vendor
 	}
 
 	if err = pkg.Validate(); err != nil {
@@ -94,15 +94,15 @@ func PackageFromYAML(file string) (pkg Package, err error) {
 // ResolveDependencies is a function for use by parent packages to iterate through their
 // `dependencies/` directory discovering packages and getting their dependencies
 func (pkg *Package) ResolveDependencies() (err error) {
-	if !pkg.parent {
+	if !pkg.Parent {
 		return errors.New("package is not a parent package")
 	}
 
-	if pkg.local == "" {
+	if pkg.Local == "" {
 		return errors.New("package has no known local path")
 	}
 
-	depsDir := filepath.Join(pkg.local, "dependencies")
+	depsDir := filepath.Join(pkg.Local, "dependencies")
 
 	if !util.Exists(depsDir) {
 		fmt.Println("dependencies directory does not exist, run sampctl package ensure to update dependencies")
@@ -122,7 +122,7 @@ func (pkg *Package) ResolveDependencies() (err error) {
 			continue
 		}
 
-		pkg.allDependencies = append(pkg.allDependencies, dependencyMeta)
+		pkg.AllDependencies = append(pkg.AllDependencies, dependencyMeta)
 
 		subPkg, err := PackageFromDir(false, dependencyDir, depsDir)
 		if err != nil {
@@ -136,7 +136,7 @@ func (pkg *Package) ResolveDependencies() (err error) {
 				fmt.Println(pkg, "dependency, ", dependencyString, "has an invalid dependency:", depStr)
 				continue
 			}
-			pkg.allDependencies = append(pkg.allDependencies, depMeta)
+			pkg.AllDependencies = append(pkg.AllDependencies, depMeta)
 		}
 	}
 

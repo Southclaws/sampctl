@@ -8,13 +8,15 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+
+	"github.com/Southclaws/sampctl/types"
 )
 
 // Run handles the actual running of the server process - it collects log output too
-func (cfg Config) Run() (err error) {
+func Run(cfg types.Runtime) (err error) {
 	binary := "./" + getServerBinary()
-	fullPath := filepath.Join(*cfg.dir, binary)
-	fmt.Printf("start %s in %s\n", binary, *cfg.dir)
+	fullPath := filepath.Join(*cfg.WorkingDir, binary)
+	fmt.Printf("start %s in %s\n", binary, *cfg.WorkingDir)
 
 	return watchdog(fullPath)
 }

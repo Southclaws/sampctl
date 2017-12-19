@@ -59,26 +59,6 @@ func CopyFileToRuntime(cacheDir, version, filePath string) (err error) {
 	return
 }
 
-// GetDefaultConfig returns a default config for temporary runtimes
-func GetDefaultConfig() (config Config) {
-	return Config{
-		RCONPassword: &[]string{"temp"}[0],
-		Port:         &[]int{7777}[0],
-	}
-}
-
-// MergeDefaultConfig returns a default config with the specified config merged on top
-func MergeDefaultConfig(config Config) (result Config) {
-	result = GetDefaultConfig()
-	if config.RCONPassword != nil {
-		result.RCONPassword = config.RCONPassword
-	}
-	if config.Port != nil {
-		result.Port = config.Port
-	}
-	return
-}
-
 // GetRuntimePath returns the path from the cache directory where the runtime for a specific version
 // of the server should exist.
 func GetRuntimePath(cacheDir, version string) (runtimeDir string) {
