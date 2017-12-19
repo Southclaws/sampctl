@@ -27,7 +27,7 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 			map[string]string{"SAMP_RCON_PASSWORD": "changed"},
 			args{"./tests/from-env"},
 			types.Runtime{
-				WorkingDir: &[]string{"./tests/from-env"}[0],
+				WorkingDir: "./tests/from-env",
 				Gamemodes: []string{
 					"rivershell",
 					"baserace",
@@ -40,7 +40,7 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 				RCON:       &[]bool{true}[0],
 			},
 			types.Runtime{
-				WorkingDir: &[]string{"./tests/from-env"}[0],
+				WorkingDir: "./tests/from-env",
 				Gamemodes: []string{
 					"rivershell",
 					"baserace",
@@ -80,7 +80,7 @@ func TestConfig_EnsureScripts(t *testing.T) {
 		{
 			"minimal",
 			types.Runtime{
-				WorkingDir: &[]string{"./tests/validate"}[0],
+				WorkingDir: "./tests/validate",
 				Gamemodes: []string{
 					"rivershell",
 				},
@@ -97,7 +97,7 @@ func TestConfig_EnsureScripts(t *testing.T) {
 		{
 			"minimal_fail",
 			types.Runtime{
-				WorkingDir: &[]string{"./tests/validate"}[0],
+				WorkingDir: "./tests/validate",
 				Gamemodes: []string{
 					"rivershell",
 					"baserace",
@@ -156,7 +156,7 @@ func TestConfigFromDirectory(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := tt.args.dir
-			tt.wantCfg.WorkingDir = &dir
+			tt.wantCfg.WorkingDir = dir
 
 			GenerateJSON(tt.wantCfg)
 			GenerateYAML(tt.wantCfg)
@@ -202,7 +202,7 @@ func TestConfigFromJSON(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := filepath.Dir(tt.args.file)
-			tt.wantCfg.WorkingDir = &dir
+			tt.wantCfg.WorkingDir = dir
 			GenerateJSON(tt.wantCfg)
 
 			gotCfg, err := ConfigFromJSON(tt.args.file)
@@ -212,7 +212,7 @@ func TestConfigFromJSON(t *testing.T) {
 			}
 
 			// because the ConfigFromJSON function does not know the dir
-			tt.wantCfg.WorkingDir = nil
+			tt.wantCfg.WorkingDir = ""
 
 			assert.Equal(t, tt.wantCfg, gotCfg)
 		})
@@ -250,7 +250,7 @@ func TestConfigFromYAML(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := filepath.Dir(tt.args.file)
-			tt.wantCfg.WorkingDir = &dir
+			tt.wantCfg.WorkingDir = dir
 			GenerateYAML(tt.wantCfg)
 
 			gotCfg, err := ConfigFromYAML(tt.args.file)
@@ -260,7 +260,7 @@ func TestConfigFromYAML(t *testing.T) {
 			}
 
 			// because the ConfigFromJSON function does not know the dir
-			tt.wantCfg.WorkingDir = nil
+			tt.wantCfg.WorkingDir = ""
 
 			assert.Equal(t, tt.wantCfg, gotCfg)
 		})

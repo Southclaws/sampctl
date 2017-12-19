@@ -19,7 +19,7 @@ import (
 
 // GenerateJSON simply marshals the data to a samp.json file in dir
 func GenerateJSON(cfg types.Runtime) (err error) {
-	path := filepath.Join(*cfg.WorkingDir, "samp.json")
+	path := filepath.Join(cfg.WorkingDir, "samp.json")
 
 	if util.Exists(path) {
 		if err := os.Remove(path); err != nil {
@@ -49,7 +49,7 @@ func GenerateJSON(cfg types.Runtime) (err error) {
 
 // GenerateYAML simply marshals the data to a samp.yaml file in dir
 func GenerateYAML(cfg types.Runtime) (err error) {
-	path := filepath.Join(*cfg.WorkingDir, "samp.yaml")
+	path := filepath.Join(cfg.WorkingDir, "samp.yaml")
 
 	if util.Exists(path) {
 		if err := os.Remove(path); err != nil {
@@ -79,7 +79,7 @@ func GenerateYAML(cfg types.Runtime) (err error) {
 
 // GenerateServerCfg creates a settings file in the SA:MP "server.cfg" format at the specified location
 func GenerateServerCfg(cfg *types.Runtime) (err error) {
-	file, err := os.Create(filepath.Join(*cfg.WorkingDir, "server.cfg"))
+	file, err := os.Create(filepath.Join(cfg.WorkingDir, "server.cfg"))
 	if err != nil {
 		return
 	}
@@ -91,7 +91,7 @@ func GenerateServerCfg(cfg *types.Runtime) (err error) {
 	}()
 
 	// make some minor changes to the cfg before using it
-	adjustForOS(*cfg.WorkingDir, runtime.GOOS, cfg)
+	adjustForOS(cfg.WorkingDir, runtime.GOOS, cfg)
 	cfg.Echo = &echoMessage
 
 	v := reflect.ValueOf(*cfg)

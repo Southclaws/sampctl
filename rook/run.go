@@ -35,7 +35,7 @@ func (pkg Package) Run(cacheDir, endpoint, version, appVersion, build string, co
 
 	config := types.MergeRuntimeDefault(&pkg.Runtime)
 	config.Gamemodes = []string{strings.TrimSuffix(pkg.Output, ".amx")}
-	config.WorkingDir = &runtimeDir
+	config.WorkingDir = runtimeDir
 	config.Version = &version
 	config.Endpoint = &endpoint
 

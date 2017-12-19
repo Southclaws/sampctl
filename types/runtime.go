@@ -7,7 +7,9 @@ import (
 // Runtime stores the server settings and working directory
 type Runtime struct {
 	// Only used internally
-	WorkingDir *string `ignore:"1" json:"-"` // local directory that configuration points to
+	WorkingDir string `ignore:"1" json:"-"` // local directory that configuration points to
+
+	Platform string `ignore:"1" json:"-"` // the target platform for the runtime
 
 	// Only used to configure sampctl, not used in server.cfg generation
 	Version  *string `json:"version,omitempty"`  // SA:MP server binaries version

@@ -42,7 +42,7 @@ func RunContainer(cfg sampctltypes.Runtime, appVersion string) (err error) {
 			Mounts: []mount.Mount{
 				{
 					Type:   mount.TypeBind,
-					Source: *cfg.WorkingDir,
+					Source: cfg.WorkingDir,
 					Target: "/samp",
 				},
 			},

@@ -23,7 +23,7 @@ func Test_GenerateServerCfg(t *testing.T) {
 		{
 			"required",
 			args{&types.Runtime{
-				WorkingDir: &[]string{"./tests/generate"}[0],
+				WorkingDir: "./tests/generate",
 				Announce:   &[]bool{true}[0],
 				Hostname:   &[]string{"Test"}[0],
 				MaxPlayers: &[]int{32}[0],
@@ -110,7 +110,7 @@ func TestConfig_GenerateJSON(t *testing.T) {
 		{
 			"minimal",
 			types.Runtime{
-				WorkingDir: &[]string{"./tests/generate-json"}[0],
+				WorkingDir: "./tests/generate-json",
 				Gamemodes: []string{
 					"rivershell",
 					"baserace",
@@ -144,7 +144,7 @@ func TestConfig_GenerateJSON(t *testing.T) {
 			err := GenerateJSON(tt.config)
 			assert.NoError(t, err)
 
-			contents, err := ioutil.ReadFile(filepath.Join(*tt.config.WorkingDir, "samp.json"))
+			contents, err := ioutil.ReadFile(filepath.Join(tt.config.WorkingDir, "samp.json"))
 			assert.NoError(t, err)
 
 			assert.Equal(t, string(tt.want), string(contents))
@@ -162,7 +162,7 @@ func TestConfig_GenerateYAML(t *testing.T) {
 		{
 			"minimal",
 			types.Runtime{
-				WorkingDir: &[]string{"./tests/generate-yaml"}[0],
+				WorkingDir: "./tests/generate-yaml",
 				Gamemodes: []string{
 					"rivershell",
 					"baserace",
@@ -194,7 +194,7 @@ rcon_password: test
 			err := GenerateYAML(tt.config)
 			assert.NoError(t, err)
 
-			contents, err := ioutil.ReadFile(filepath.Join(*tt.config.WorkingDir, "samp.yaml"))
+			contents, err := ioutil.ReadFile(filepath.Join(tt.config.WorkingDir, "samp.yaml"))
 			assert.NoError(t, err)
 
 			assert.Equal(t, string(tt.want), string(contents))

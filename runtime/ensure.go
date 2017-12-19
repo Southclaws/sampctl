@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/pkg/errors"
@@ -16,12 +17,17 @@ import (
 // - Plugin binaries
 // and a `server.cfg` is generated based on the contents of the Config fields.
 func Ensure(cfg *types.Runtime) (err error) {
+	cacheDir, err := download.GetCacheDir()
+	if err != nil {
+		return err
+	}
+
 	err = EnsureBinaries(*cfg)
 	if err != nil {
 		return
 	}
 
-	err = EnsurePlugins(cfg)
+	err = EnsurePlugins(cfg, cacheDir)
 	if err != nil {
 		return
 	}
@@ -43,24 +49,24 @@ func Ensure(cfg *types.Runtime) (err error) {
 func EnsureBinaries(cfg types.Runtime) (err error) {
 	missing := false
 
-	if !util.Exists(filepath.Join(*cfg.WorkingDir, getNpcBinary())) {
+	if !util.Exists(filepath.Join(cfg.WorkingDir, getNpcBinary())) {
 		missing = true
 	}
-	if !util.Exists(filepath.Join(*cfg.WorkingDir, getAnnounceBinary())) {
+	if !util.Exists(filepath.Join(cfg.WorkingDir, getAnnounceBinary())) {
 		missing = true
 	}
-	if !util.Exists(filepath.Join(*cfg.WorkingDir, getServerBinary())) {
+	if !util.Exists(filepath.Join(cfg.WorkingDir, getServerBinary())) {
 		missing = true
 	}
 
 	if missing {
-		err = GetServerPackage(*cfg.Endpoint, *cfg.Version, *cfg.WorkingDir)
+		err = GetServerPackage(*cfg.Endpoint, *cfg.Version, cfg.WorkingDir)
 		if err != nil {
 			return errors.Wrap(err, "failed to get runtime package")
 		}
 	}
 
-	ok, err := MatchesChecksum(filepath.Join(*cfg.WorkingDir, getServerBinary()), *cfg.Version)
+	ok, err := MatchesChecksum(filepath.Join(cfg.WorkingDir, getServerBinary()), *cfg.Version)
 	if err != nil {
 		return errors.Wrap(err, "failed to match checksum")
 	} else if !ok {
@@ -75,13 +81,13 @@ func EnsureScripts(cfg types.Runtime) (err error) {
 	errs := []string{}
 
 	for _, gamemode := range cfg.Gamemodes {
-		fullpath := filepath.Join(*cfg.WorkingDir, "gamemodes", gamemode+".amx")
+		fullpath := filepath.Join(cfg.WorkingDir, "gamemodes", gamemode+".amx")
 		if !util.Exists(fullpath) {
 			errs = append(errs, fmt.Sprintf("gamemode '%s' is missing its .amx file from the gamemodes directory", gamemode))
 		}
 	}
 	for _, filterscript := range cfg.Filterscripts {
-		fullpath := filepath.Join(*cfg.WorkingDir, "filterscripts", filterscript+".amx")
+		fullpath := filepath.Join(cfg.WorkingDir, "filterscripts", filterscript+".amx")
 		if !util.Exists(fullpath) {
 			errs = append(errs, fmt.Sprintf("filterscript '%s' is missing its .amx file from the filterscripts directory", filterscript))
 		}

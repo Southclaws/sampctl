@@ -120,7 +120,7 @@ func InitialiseServer(version, dir string) (err error) {
 	}
 
 	config := types.Runtime{
-		WorkingDir:    &dir,
+		WorkingDir:    dir,
 		Hostname:      &answers.Hostname,
 		RCONPassword:  &answers.RCONPassword,
 		Port:          &answers.Port,

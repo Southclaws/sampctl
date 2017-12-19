@@ -43,7 +43,7 @@ func ConfigFromDirectory(dir string) (cfg types.Runtime, err error) {
 		if err != nil {
 			return
 		}
-		cfg.WorkingDir = &dir
+		cfg.WorkingDir = dir
 		return
 	}
 
@@ -53,7 +53,7 @@ func ConfigFromDirectory(dir string) (cfg types.Runtime, err error) {
 		if err != nil {
 			return
 		}
-		cfg.WorkingDir = &dir
+		cfg.WorkingDir = dir
 		return
 	}
 

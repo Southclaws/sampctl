@@ -1,6 +1,8 @@
 package types
 
 import (
+	"errors"
+
 	"github.com/Southclaws/sampctl/versioning"
 )
 
@@ -60,4 +62,15 @@ type Resource struct {
 	Includes []string          `json:"includes"` // if archive: paths to directories containing .inc files for the compiler
 	Plugins  []string          `json:"plugins"`  // if archive: paths to plugin binaries, either .so or .dll
 	Files    map[string]string `json:"files"`    // if archive: path-to-path map of any other files, keys are paths inside the archive and values are extraction paths relative to the sampctl working directory
+}
+
+// Validate checks for missing fields
+func (res Resource) Validate() (err error) {
+	if res.Name == "" {
+		return errors.New("missing name field in resource")
+	}
+	if res.Platform == "" {
+		return errors.New("missing platform field in resource")
+	}
+	return
 }
