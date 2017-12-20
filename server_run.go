@@ -9,19 +9,9 @@ import (
 
 var serverRunFlags = []cli.Flag{
 	cli.StringFlag{
-		Name:  "version",
-		Value: "0.3.7",
-		Usage: "the SA:MP server version to use",
-	},
-	cli.StringFlag{
 		Name:  "dir",
 		Value: ".",
 		Usage: "working directory for the server - by default, uses the current directory",
-	},
-	cli.StringFlag{
-		Name:  "endpoint",
-		Value: "http://files.sa-mp.com",
-		Usage: "endpoint to download packages from",
 	},
 	cli.BoolFlag{
 		Name:  "container",
@@ -30,9 +20,7 @@ var serverRunFlags = []cli.Flag{
 }
 
 func serverRun(c *cli.Context) error {
-	version := c.String("version")
 	dir := util.FullPath(c.String("dir"))
-	endpoint := c.String("endpoint")
 	container := c.Bool("container")
 
 	cfg, err := runtime.NewConfigFromEnvironment(dir)
@@ -40,8 +28,10 @@ func serverRun(c *cli.Context) error {
 		return nil
 	}
 
-	cfg.Version = &version
-	cfg.Endpoint = &endpoint
+	err = runtime.Ensure(&cfg)
+	if err != nil {
+		return err
+	}
 
 	if container {
 		err = runtime.RunContainer(cfg, c.App.Version)

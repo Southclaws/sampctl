@@ -60,7 +60,7 @@ func EnsureBinaries(cfg types.Runtime) (err error) {
 	}
 
 	if missing {
-		err = GetServerPackage(*cfg.Endpoint, *cfg.Version, cfg.WorkingDir, cfg.Platform)
+		err = GetServerPackage(cfg.Endpoint, cfg.Version, cfg.WorkingDir, cfg.Platform)
 		if err != nil {
 			return errors.Wrap(err, "failed to get runtime package")
 		}
@@ -68,11 +68,11 @@ func EnsureBinaries(cfg types.Runtime) (err error) {
 
 	serverBinary := filepath.Join(cfg.WorkingDir, getServerBinary(cfg.Platform))
 
-	ok, err := MatchesChecksum(serverBinary, cfg.Platform, *cfg.Version)
+	ok, err := MatchesChecksum(serverBinary, cfg.Platform, cfg.Version)
 	if err != nil {
 		return errors.Wrap(err, "failed to match checksum")
 	} else if !ok {
-		return errors.Errorf("existing binary does not match checksum for version %s", *cfg.Version)
+		return errors.Errorf("existing binary does not match checksum for version %s", cfg.Version)
 	}
 
 	return

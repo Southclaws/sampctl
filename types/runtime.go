@@ -12,8 +12,8 @@ type Runtime struct {
 	Platform string `ignore:"1" json:"-"` // the target platform for the runtime
 
 	// Only used to configure sampctl, not used in server.cfg generation
-	Version  *string `json:"version,omitempty"`  // SA:MP server binaries version
-	Endpoint *string `json:"endpoint,omitempty"` // download endpoint for server binaries
+	Version  string `ignore:"1" json:"version,omitempty"`  // SA:MP server binaries version
+	Endpoint string `ignore:"1" json:"endpoint,omitempty"` // download endpoint for server binaries
 
 	// Echo - set automatically
 	Echo *string `default:"-"             required:"0" json:"echo,omitempty"`

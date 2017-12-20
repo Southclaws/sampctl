@@ -34,6 +34,14 @@ func NewConfigFromEnvironment(dir string) (cfg types.Runtime, err error) {
 
 	cfg.Platform = runtime.GOOS
 
+	if cfg.Version == "" {
+		cfg.Version = "0.3.7"
+	}
+
+	if cfg.Endpoint == "" {
+		cfg.Endpoint = "http://files.sa-mp.com"
+	}
+
 	return
 }
 
