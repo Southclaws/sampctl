@@ -25,7 +25,7 @@ func TestEnsureVersionedPlugin(t *testing.T) {
 	}{
 		{"streamer-linux", args{
 			types.Runtime{
-				WorkingDir: "./tests/ensure",
+				WorkingDir: "./tests/ensure/streamer-linux",
 				Platform:   "linux",
 				Plugins: []types.Plugin{
 					"samp-incognito/samp-streamer-plugin",
@@ -34,7 +34,7 @@ func TestEnsureVersionedPlugin(t *testing.T) {
 		}, []string{"plugins/streamer.so"}, []types.Plugin{"streamer"}, false},
 		{"streamer-windows", args{
 			types.Runtime{
-				WorkingDir: "./tests/ensure",
+				WorkingDir: "./tests/ensure/streamer-windows",
 				Platform:   "windows",
 				Plugins: []types.Plugin{
 					"samp-incognito/samp-streamer-plugin",
@@ -43,7 +43,7 @@ func TestEnsureVersionedPlugin(t *testing.T) {
 		}, []string{"plugins/streamer.dll"}, []types.Plugin{"streamer"}, false},
 		{"crashdetect-linux", args{
 			types.Runtime{
-				WorkingDir: "./tests/ensure",
+				WorkingDir: "./tests/ensure/crashdetect-linux",
 				Platform:   "linux",
 				Plugins: []types.Plugin{
 					"Zeex/samp-plugin-crashdetect",
@@ -52,13 +52,31 @@ func TestEnsureVersionedPlugin(t *testing.T) {
 		}, []string{"plugins/crashdetect.so"}, []types.Plugin{"crashdetect"}, false},
 		{"crashdetect-windows", args{
 			types.Runtime{
-				WorkingDir: "./tests/ensure",
+				WorkingDir: "./tests/ensure/crashdetect-windows",
 				Platform:   "windows",
 				Plugins: []types.Plugin{
 					"Zeex/samp-plugin-crashdetect",
 				},
 			},
 		}, []string{"plugins/crashdetect.dll"}, []types.Plugin{"crashdetect"}, false},
+		{"mysql-linux", args{
+			types.Runtime{
+				WorkingDir: "./tests/ensure/mysql-linux",
+				Platform:   "linux",
+				Plugins: []types.Plugin{
+					"pBlueG/SA-MP-MySQL",
+				},
+			},
+		}, []string{"plugins/mysql.so"}, []types.Plugin{"mysql"}, false},
+		{"mysql-windows", args{
+			types.Runtime{
+				WorkingDir: "./tests/ensure/mysql-windows",
+				Platform:   "windows",
+				Plugins: []types.Plugin{
+					"pBlueG/SA-MP-MySQL",
+				},
+			},
+		}, []string{"plugins/mysql.dll"}, []types.Plugin{"mysql"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -73,7 +91,7 @@ func TestEnsureVersionedPlugin(t *testing.T) {
 			assert.NoError(t, err)
 
 			for _, file := range tt.wantFiles {
-				assert.True(t, util.Exists(filepath.Join("./tests/ensure", file)))
+				assert.True(t, util.Exists(filepath.Join("./tests/ensure", tt.name, file)))
 			}
 
 			assert.Equal(t, tt.wantPlugins, tt.args.cfg.Plugins)

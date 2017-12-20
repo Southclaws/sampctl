@@ -7,13 +7,14 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 
-	"github.com/ghodss/yaml"
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
 
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/types"
@@ -23,7 +24,14 @@ import (
 
 // EnsurePlugins validates and downloads plugin binary files
 func EnsurePlugins(cfg *types.Runtime, cacheDir string) (err error) {
-	fmt.Println("ensuring runtime plugins", cfg.Plugins, "to", cacheDir)
+	fmt.Println("ensuring runtime plugins", cfg.Plugins)
+
+	pluginsDir := util.FullPath(filepath.Join(cfg.WorkingDir, "plugins"))
+
+	err = os.MkdirAll(pluginsDir, 0755)
+	if err != nil {
+		return errors.Wrap(err, "failed to create runtime plugins directory")
+	}
 
 	fileExt := pluginExtForFile(cfg.Platform)
 
@@ -37,7 +45,7 @@ func EnsurePlugins(cfg *types.Runtime, cacheDir string) (err error) {
 		meta, err := plugin.AsDep()
 		if err != nil {
 			fmt.Println("plugin", plugin, "is a local plugin")
-			fullpath := filepath.Join(cfg.WorkingDir, "plugins", string(plugin)+fileExt)
+			fullpath := filepath.Join(pluginsDir, string(plugin)+fileExt)
 			if !util.Exists(fullpath) {
 				errs = append(errs, fmt.Sprintf("plugin '%s' is missing its %s file from the plugins directory", plugin, fileExt))
 			}
@@ -114,15 +122,19 @@ func PluginFromNet(meta versioning.DependencyMeta, platform, workingDir, cacheDi
 		return
 	}
 
-	var asset *github.ReleaseAsset
+	var (
+		asset  *github.ReleaseAsset
+		assets []string
+	)
 	for _, a := range release.Assets {
 		if matcher.MatchString(*a.Name) {
 			asset = &a
 			break
 		}
+		assets = append(assets, *a.Name)
 	}
 	if asset == nil {
-		err = errors.New("resource name does not match any release assets")
+		err = errors.Errorf("resource name '%s' does not match any release assets from '%v'", resource.Name, assets)
 		return
 	}
 
