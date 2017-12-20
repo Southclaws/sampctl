@@ -1,6 +1,7 @@
 package rook
 
 import (
+	"path/filepath"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -35,7 +36,7 @@ func Run(pkg types.Package, cacheDir, endpoint, version, appVersion, build, plat
 
 	config := types.MergeRuntimeDefault(&pkg.Runtime)
 	config.Platform = platform
-	config.Gamemodes = []string{strings.TrimSuffix(pkg.Output, ".amx")}
+	config.Gamemodes = []string{strings.TrimSuffix(filepath.Base(pkg.Output), ".amx")}
 	config.WorkingDir = runtimeDir
 	config.Version = &version
 	config.Endpoint = &endpoint
