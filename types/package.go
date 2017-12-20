@@ -38,6 +38,9 @@ type Package struct {
 	// allDependencies stores a list of all dependency meta from this package and sub packages
 	// this field is only used if `parent` is true.
 	AllDependencies []versioning.DependencyMeta
+	// allPlugins stores a list of all plugin dependency meta from this package and sub packages
+	// this field is only used if `parent` is true.
+	AllPlugins []versioning.DependencyMeta
 
 	// Inferred metadata, not always explicitly set via JSON/YAML but inferred from the dependency path
 	versioning.DependencyMeta

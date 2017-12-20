@@ -113,6 +113,7 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 	}
 
 	var recurse func(dependencyString versioning.DependencyString)
+	var pluginMeta versioning.DependencyMeta
 
 	recurse = func(dependencyString versioning.DependencyString) {
 		dependencyMeta, err := dependencyString.Explode()
@@ -135,6 +136,15 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 			return
 		}
 
+		for _, pluginDepStr := range subPkg.Runtime.Plugins {
+			pluginMeta, err = pluginDepStr.AsDep()
+			if err != nil {
+				fmt.Println(pkg, "invalid plugin dependency string:", pluginDepStr)
+				return
+			}
+			pkg.AllPlugins = append(pkg.AllPlugins, pluginMeta)
+		}
+
 		for _, depStr := range subPkg.Dependencies {
 			recurse(depStr)
 		}
@@ -142,6 +152,15 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 
 	for _, depStr := range pkg.Dependencies {
 		recurse(depStr)
+	}
+
+	for _, pluginDepStr := range pkg.Runtime.Plugins {
+		pluginMeta, err = pluginDepStr.AsDep()
+		if err != nil {
+			fmt.Println(pkg, "invalid plugin dependency string:", pluginDepStr)
+			return
+		}
+		pkg.AllPlugins = append(pkg.AllPlugins, pluginMeta)
 	}
 
 	return

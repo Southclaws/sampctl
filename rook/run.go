@@ -41,6 +41,11 @@ func Run(pkg types.Package, cacheDir, endpoint, version, appVersion, build, plat
 	config.Version = version
 	config.Endpoint = endpoint
 
+	config.Plugins = []types.Plugin{}
+	for _, pluginMeta := range pkg.AllPlugins {
+		config.Plugins = append(config.Plugins, types.Plugin(pluginMeta.String()))
+	}
+
 	err = runtime.GenerateJSON(*config)
 	if err != nil {
 		return errors.Wrap(err, "failed to generate temporary samp.json")
