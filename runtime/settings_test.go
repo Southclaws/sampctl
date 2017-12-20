@@ -28,6 +28,8 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 			map[string]string{"SAMP_RCON_PASSWORD": "changed"},
 			args{"./tests/from-env"},
 			types.Runtime{
+				Version:    "0.3.7",
+				Endpoint:   "http://files.sa-mp.com",
 				WorkingDir: "./tests/from-env",
 				Gamemodes: []string{
 					"rivershell",
@@ -41,6 +43,8 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 				RCON:       &[]bool{true}[0],
 			},
 			types.Runtime{
+				Version:    "0.3.7",
+				Endpoint:   "http://files.sa-mp.com",
 				WorkingDir: "./tests/from-env",
 				Gamemodes: []string{
 					"rivershell",
