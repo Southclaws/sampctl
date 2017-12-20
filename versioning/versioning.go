@@ -22,9 +22,8 @@ type DependencyMeta struct {
 func (dm DependencyMeta) String() string {
 	if dm.Version == "" {
 		return fmt.Sprintf("%s/%s", dm.User, dm.Repo)
-	} else {
-		return fmt.Sprintf("%s/%s:%s", dm.User, dm.Repo, dm.Version)
 	}
+	return fmt.Sprintf("%s/%s:%s", dm.User, dm.Repo, dm.Version)
 }
 
 var dependencyPattern = regexp.MustCompile(`^((?:http(?:s)?:\/\/)?github.com\/)?([a-zA-Z0-9-]*)\/([a-zA-Z0-9-_]*)(?:\/)?([a-zA-Z0-9-_$\[\]{}().,\/]*)?(?:\:)?(.*)?$`)
