@@ -23,40 +23,56 @@ import (
 
 // EnsurePlugins validates and downloads plugin binary files
 func EnsurePlugins(cfg *types.Runtime, cacheDir string) (err error) {
-	ext := pluginExtensionForOS(cfg.Platform)
+	fmt.Println("ensuring runtime plugins", cfg.Plugins, "to", cacheDir)
 
-	errs := []string{}
+	fileExt := pluginExtForFile(cfg.Platform)
+
+	var (
+		errs       = []string{}
+		newPlugins = []types.Plugin{}
+		files      = []types.Plugin{}
+	)
+
 	for _, plugin := range cfg.Plugins {
 		meta, err := plugin.AsDep()
 		if err != nil {
 			fmt.Println("plugin", plugin, "is a local plugin")
-			fullpath := filepath.Join(cfg.WorkingDir, "plugins", string(plugin)+ext)
+			fullpath := filepath.Join(cfg.WorkingDir, "plugins", string(plugin)+fileExt)
 			if !util.Exists(fullpath) {
-				errs = append(errs, fmt.Sprintf("plugin '%s' is missing its %s file from the plugins directory", plugin, ext))
+				errs = append(errs, fmt.Sprintf("plugin '%s' is missing its %s file from the plugins directory", plugin, fileExt))
 			}
+			newPlugins = append(newPlugins, plugin)
 		} else {
 			fmt.Println("plugin", plugin, "is a package dependency")
-			err = EnsureVersionedPlugin(*cfg, meta, cacheDir)
+			files, err = EnsureVersionedPlugin(*cfg, meta, cacheDir)
 			if err != nil {
 				errs = append(errs, fmt.Sprintf("plugin '%s' failed to ensure: %v", plugin, err))
 			}
+			newPlugins = append(newPlugins, files...)
 		}
 	}
 	if len(errs) > 0 {
 		err = errors.New(strings.Join(errs, ", "))
 	}
 
+	cfg.Plugins = []types.Plugin{}
+
+	// trim extensions for plugins list, they are added later by GenerateServerCFG if needed
+	for _, plugin := range newPlugins {
+		cfg.Plugins = append(cfg.Plugins, types.Plugin(strings.TrimSuffix(string(plugin), fileExt)))
+	}
+
 	return
 }
 
 // EnsureVersionedPlugin automatically downloads a plugin binary from its github releases page
-func EnsureVersionedPlugin(cfg types.Runtime, meta versioning.DependencyMeta, cacheDir string) (err error) {
-	err = PluginFromNet(meta, cfg.Platform, cfg.WorkingDir, cacheDir)
+func EnsureVersionedPlugin(cfg types.Runtime, meta versioning.DependencyMeta, cacheDir string) (files []types.Plugin, err error) {
+	files, err = PluginFromNet(meta, cfg.Platform, cfg.WorkingDir, cacheDir)
 	return
 }
 
 // PluginFromNet downloads a plugin from the given metadata to the cache directory
-func PluginFromNet(meta versioning.DependencyMeta, platform, workingDir, cacheDir string) (err error) {
+func PluginFromNet(meta versioning.DependencyMeta, platform, workingDir, cacheDir string) (files []types.Plugin, err error) {
 	pkg, err := GetPluginRemotePackage(meta)
 	if err != nil {
 		return
@@ -71,7 +87,8 @@ func PluginFromNet(meta versioning.DependencyMeta, platform, workingDir, cacheDi
 		}
 	}
 	if resource == nil {
-		return errors.New("plugin does not provide binaries for target platform")
+		err = errors.New("plugin does not provide binaries for target platform")
+		return
 	}
 
 	err = resource.Validate()
@@ -81,7 +98,8 @@ func PluginFromNet(meta versioning.DependencyMeta, platform, workingDir, cacheDi
 
 	matcher, err := regexp.Compile(resource.Name)
 	if err != nil {
-		return errors.Wrap(err, "resource name is not a valid regular expression")
+		err = errors.Wrap(err, "resource name is not a valid regular expression")
+		return
 	}
 
 	client := github.NewClient(nil)
@@ -104,7 +122,8 @@ func PluginFromNet(meta versioning.DependencyMeta, platform, workingDir, cacheDi
 		}
 	}
 	if asset == nil {
-		return errors.New("resource name does not match any release assets")
+		err = errors.New("resource name does not match any release assets")
+		return
 	}
 
 	// download url should be valid from github api
@@ -123,14 +142,17 @@ func PluginFromNet(meta versioning.DependencyMeta, platform, workingDir, cacheDi
 	} else if filepath.Ext(filename) == ".gz" {
 		method = download.Untar
 	} else {
-		return errors.Errorf("unsupported archive format: %s", filepath.Ext(filename))
+		err = errors.Errorf("unsupported archive format: %s", filepath.Ext(filename))
+		return
 	}
 
 	paths := make(map[string]string)
 
 	// get plugins
 	for _, plugin := range resource.Plugins {
-		paths[plugin] = filepath.Join("plugins", filepath.Base(plugin))
+		filename := filepath.Base(plugin)
+		paths[plugin] = filepath.Join("plugins", filename)
+		files = append(files, types.Plugin(filename))
 	}
 
 	// get additional files

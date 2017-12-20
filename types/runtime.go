@@ -81,10 +81,10 @@ func GetRuntimeDefault() (config *Runtime) {
 func MergeRuntimeDefault(config *Runtime) (result *Runtime) {
 	def := GetRuntimeDefault()
 	result = config
-	if config.RCONPassword != nil {
+	if config.RCONPassword == nil {
 		result.RCONPassword = def.RCONPassword
 	}
-	if config.Port != nil {
+	if config.Port == nil {
 		result.Port = def.Port
 	}
 	return

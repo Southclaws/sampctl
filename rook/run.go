@@ -1,7 +1,6 @@
 package rook
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -35,6 +34,7 @@ func Run(pkg types.Package, cacheDir, endpoint, version, appVersion, build, plat
 	}
 
 	config := types.MergeRuntimeDefault(&pkg.Runtime)
+	config.Platform = platform
 	config.Gamemodes = []string{strings.TrimSuffix(pkg.Output, ".amx")}
 	config.WorkingDir = runtimeDir
 	config.Version = &version
@@ -45,7 +45,6 @@ func Run(pkg types.Package, cacheDir, endpoint, version, appVersion, build, plat
 		return errors.Wrap(err, "failed to generate temporary samp.json")
 	}
 
-	fmt.Println("ensuring runtime installation", config.Plugins)
 	err = runtime.Ensure(config)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure temporary runtime")

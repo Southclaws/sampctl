@@ -66,7 +66,9 @@ func EnsureBinaries(cfg types.Runtime) (err error) {
 		}
 	}
 
-	ok, err := MatchesChecksum(filepath.Join(cfg.WorkingDir, getServerBinary(cfg.Platform)), cfg.Platform, *cfg.Version)
+	serverBinary := filepath.Join(cfg.WorkingDir, getServerBinary(cfg.Platform))
+
+	ok, err := MatchesChecksum(serverBinary, cfg.Platform, *cfg.Version)
 	if err != nil {
 		return errors.Wrap(err, "failed to match checksum")
 	} else if !ok {
@@ -100,7 +102,7 @@ func EnsureScripts(cfg types.Runtime) (err error) {
 	return
 }
 
-func pluginExtensionForOS(os string) (ext string) {
+func pluginExtForFile(os string) (ext string) {
 	switch os {
 	case "windows":
 		ext = ".dll"

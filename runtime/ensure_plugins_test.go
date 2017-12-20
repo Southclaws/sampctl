@@ -14,36 +14,57 @@ import (
 
 func TestEnsureVersionedPlugin(t *testing.T) {
 	type args struct {
-		cfg  types.Runtime
-		meta versioning.DependencyMeta
+		cfg types.Runtime
 	}
 	tests := []struct {
-		name      string
-		args      args
-		wantFiles []string
-		wantErr   bool
+		name        string
+		args        args
+		wantFiles   []string
+		wantPlugins []types.Plugin
+		wantErr     bool
 	}{
-		// {"streamer-linux", args{
-		// 	types.Runtime{
-		// 		WorkingDir: "./tests/ensure",
-		// 		Platform:   "linux",
-		// 	},
-		// 	versioning.DependencyMeta{"samp-incognito", "samp-streamer-plugin", "", ""},
-		// }, []string{"plugins/streamer.so"}, false},
+		{"streamer-linux", args{
+			types.Runtime{
+				WorkingDir: "./tests/ensure",
+				Platform:   "linux",
+				Plugins: []types.Plugin{
+					"samp-incognito/samp-streamer-plugin",
+				},
+			},
+		}, []string{"plugins/streamer.so"}, []types.Plugin{"streamer"}, false},
+		{"streamer-windows", args{
+			types.Runtime{
+				WorkingDir: "./tests/ensure",
+				Platform:   "windows",
+				Plugins: []types.Plugin{
+					"samp-incognito/samp-streamer-plugin",
+				},
+			},
+		}, []string{"plugins/streamer.dll"}, []types.Plugin{"streamer"}, false},
 		{"crashdetect-linux", args{
 			types.Runtime{
 				WorkingDir: "./tests/ensure",
 				Platform:   "linux",
+				Plugins: []types.Plugin{
+					"Zeex/samp-plugin-crashdetect",
+				},
 			},
-			versioning.DependencyMeta{"Zeex", "samp-plugin-crashdetect", "", ""},
-		}, []string{"plugins/crashdetect.so"}, false},
+		}, []string{"plugins/crashdetect.so"}, []types.Plugin{"crashdetect"}, false},
+		{"crashdetect-windows", args{
+			types.Runtime{
+				WorkingDir: "./tests/ensure",
+				Platform:   "windows",
+				Plugins: []types.Plugin{
+					"Zeex/samp-plugin-crashdetect",
+				},
+			},
+		}, []string{"plugins/crashdetect.dll"}, []types.Plugin{"crashdetect"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			os.MkdirAll(tt.args.cfg.WorkingDir, 0755)
 
-			err := EnsureVersionedPlugin(tt.args.cfg, tt.args.meta, "./tests/cache")
-
+			err := EnsurePlugins(&tt.args.cfg, "./tests/cache")
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -54,6 +75,8 @@ func TestEnsureVersionedPlugin(t *testing.T) {
 			for _, file := range tt.wantFiles {
 				assert.True(t, util.Exists(filepath.Join("./tests/ensure", file)))
 			}
+
+			assert.Equal(t, tt.wantPlugins, tt.args.cfg.Plugins)
 		})
 	}
 }
