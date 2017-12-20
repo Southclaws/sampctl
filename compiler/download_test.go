@@ -1,7 +1,6 @@
 package compiler
 
 import (
-	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -17,27 +16,30 @@ func Test_CompilerFromNet(t *testing.T) {
 		dir      string
 	}
 	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
+		name     string
+		args     args
+		platform string
+		wantErr  bool
 	}{
-		{"valid", args{"tests/cache", "3.10.4", "tests/compiler"}, false},
+		{"valid", args{"tests/cache", "3.10.4", "tests/compiler"}, "linux", false},
+		{"valid", args{"tests/cache", "3.10.4", "tests/compiler"}, "darwin", false},
+		{"valid", args{"tests/cache", "3.10.4", "tests/compiler"}, "windows", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := FromNet(tt.args.cacheDir, tt.args.version, tt.args.dir, runtime.GOOS)
+			err := FromNet(tt.args.cacheDir, tt.args.version, tt.args.dir, tt.platform)
 			assert.NoError(t, err)
 
-			switch runtime.GOOS {
+			switch tt.platform {
 			case "linux":
 				assert.True(t, util.Exists("./tests/compiler/pawncc"))
-				assert.True(t, util.Exists("./tests/compiler/libpawnc"))
+				assert.True(t, util.Exists("./tests/compiler/libpawnc.so"))
 			case "darwin":
 				assert.True(t, util.Exists("./tests/compiler/pawncc"))
 				assert.True(t, util.Exists("./tests/compiler/libpawnc.dylib"))
 			case "windows":
 				assert.True(t, util.Exists("./tests/compiler/pawncc.exe"))
-				assert.True(t, util.Exists("./tests/compiler/libpawnc.dll"))
+				assert.True(t, util.Exists("./tests/compiler/pawnc.dll"))
 			}
 		})
 	}
@@ -50,16 +52,17 @@ func Test_CompilerFromCache(t *testing.T) {
 		dir      string
 	}
 	tests := []struct {
-		name    string
-		args    args
-		wantHit bool
-		wantErr bool
+		name     string
+		args     args
+		platform string
+		wantHit  bool
+		wantErr  bool
 	}{
-		{"valid", args{"./tests/cache", "3.10.4", "./tests/compiler"}, true, false},
+		{"valid", args{"./tests/cache", "3.10.4", "./tests/compiler"}, "linux", true, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotHit, err := FromCache(tt.args.cacheDir, tt.args.version, tt.args.dir, runtime.GOOS)
+			gotHit, err := FromCache(tt.args.cacheDir, tt.args.version, tt.args.dir, tt.platform)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
