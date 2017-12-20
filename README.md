@@ -167,7 +167,7 @@ Hack away!
 ---
 # `sampctl`
 
-1.5.1 - Southclaws <southclaws@gmail.com>
+1.5.2 - Southclaws <southclaws@gmail.com>
 
 Compiles server configuration JSON to server.cfg format. Executes the server and monitors it for crashes, restarting if necessary. Provides a way to quickly download server binaries of a specified version. Provides dependency management and package build tools for library maintainers and gamemode writers alike.
 
@@ -223,9 +223,7 @@ Generates a `server.cfg` file based on the configuration inside `samp.json`/`sam
 
 #### Flags
 
-- `--version value`: the SA:MP server version to use (default: "0.3.7")
 - `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
-- `--endpoint value`: endpoint to download packages from (default: "http://files.sa-mp.com")
 - `--container`: starts the server as a Linux container instead of running it in the current directory
 
 
