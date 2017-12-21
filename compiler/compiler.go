@@ -2,11 +2,16 @@
 package compiler
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -14,31 +19,62 @@ import (
 	"github.com/Southclaws/sampctl/util"
 )
 
+var (
+	// matches warnings or errors
+	matchCompilerProblem = regexp.MustCompile(`^(.*?)\(([0-9]*)[- 0-9]*\) \: (fatal error|error|warning) [0-9]*\: (.*)$`)
+
+	// Header size:             60 bytes
+	matchHeader = regexp.MustCompile(`^Header size:\s*([0-9]+) bytes$`)
+
+	// Code size:              276 bytes
+	matchCode = regexp.MustCompile(`^Code size:\s*([0-9]+) bytes$`)
+
+	// Data size:                0 bytes
+	matchData = regexp.MustCompile(`^Data size:\s*([0-9]+) bytes$`)
+
+	// Stack/heap size:      16384 bytes; estimated max. usage=8 cells (32 bytes)
+	matchStack = regexp.MustCompile(`^Stack/heap size:\s*([0-9]*) bytes; estimated max. usage=[0-9]+ cells \(([0-9]+) bytes\)$`)
+
+	// Total requirements:   16720 bytes
+	matchTotal = regexp.MustCompile(`^Total requirements:\s*([0-9]+) bytes$`)
+)
+
 // CompileSource compiles a given input script to the specified output path using compiler version
-func CompileSource(execDir, cacheDir, platform string, config types.BuildConfig) (err error) {
+func CompileSource(execDir, cacheDir, platform string, config types.BuildConfig) (problems []types.BuildProblem, result types.BuildResult, err error) {
 	fmt.Printf("Compiling source: '%s' with compiler %s...\n", config.Input, config.Version)
 
-	if config.WorkingDir == "" {
-		config.WorkingDir = filepath.Dir(config.Input)
-	}
+	var (
+		workingDir string
+		input      string
+		output     string
+	)
 
+	if config.WorkingDir == "" {
+		workingDir = filepath.Dir(config.Input)
+	} else {
+		workingDir = util.FullPath(config.WorkingDir)
+	}
+	input = util.FullPath(config.Input)
+	output = util.FullPath(config.Output)
 	cacheDir = util.FullPath(cacheDir)
 
 	runtimeDir := filepath.Join(cacheDir, "pawn", string(config.Version))
 	err = GetCompilerPackage(config.Version, runtimeDir, platform)
 	if err != nil {
-		return errors.Wrap(err, "failed to get compiler package")
+		err = errors.Wrap(err, "failed to get compiler package")
+		return
 	}
 
 	pkg, _, err := GetCompilerPackageInfo(platform, config.Version)
 	if err != nil {
-		return errors.Wrap(err, "failed to get compiler package info for runtime")
+		err = errors.Wrap(err, "failed to get compiler package info for runtime")
+		return
 	}
 
 	args := []string{
-		config.Input,
-		"-D" + config.WorkingDir,
-		"-o" + config.Output,
+		input,
+		"-D" + workingDir,
+		"-o" + output,
 	}
 	args = append(args, config.Args...)
 
@@ -46,7 +82,10 @@ func CompileSource(execDir, cacheDir, platform string, config types.BuildConfig)
 	includeFiles := make(map[string]string)
 	includeErrors := []string{}
 
-	var fullPath string
+	var (
+		fullPath string
+		contents []os.FileInfo
+	)
 	for _, inc := range config.Includes {
 		if filepath.IsAbs(inc) {
 			fullPath = inc
@@ -63,9 +102,10 @@ func CompileSource(execDir, cacheDir, platform string, config types.BuildConfig)
 		fmt.Println("- using include path", fullPath)
 		args = append(args, "-i"+fullPath)
 
-		contents, err := ioutil.ReadDir(fullPath)
+		contents, err = ioutil.ReadDir(fullPath)
 		if err != nil {
-			return errors.Wrapf(err, "failed to list dependency include path:", inc)
+			err = errors.Wrapf(err, "failed to list dependency include path:", inc)
+			return
 		}
 
 		for _, dependencyFile := range contents {
@@ -88,7 +128,9 @@ func CompileSource(execDir, cacheDir, platform string, config types.BuildConfig)
 		for _, errorString := range includeErrors {
 			fmt.Println(errorString)
 		}
-		return errors.New("could not compile due to conflicting filenames located in different include paths")
+
+		err = errors.New("could not compile due to conflicting filenames located in different include paths")
+		return
 	}
 
 	for name, value := range config.Constants {
@@ -97,22 +139,97 @@ func CompileSource(execDir, cacheDir, platform string, config types.BuildConfig)
 
 	binary := filepath.Join(runtimeDir, pkg.Binary)
 
+	outputReader, outputWriter := io.Pipe()
+
+	go func() {
+		scanner := bufio.NewScanner(outputReader)
+		for scanner.Scan() {
+			line := scanner.Text()
+			groups := matchCompilerProblem.FindStringSubmatch(line)
+
+			if len(groups) == 5 {
+				// output is a warning or error
+
+				problem := types.BuildProblem{}
+
+				if filepath.IsAbs(groups[1]) {
+					problem.File = groups[1]
+				} else {
+					problem.File = filepath.Join(workingDir, groups[1])
+				}
+
+				problem.Line, _ = strconv.Atoi(groups[2])
+
+				switch groups[3] {
+				case "warning":
+					problem.Severity = types.ProblemWarning
+				case "error":
+					problem.Severity = types.ProblemError
+				case "fatal error":
+					problem.Severity = types.ProblemFatal
+				}
+
+				problem.Description = groups[4]
+
+				fmt.Println(problem)
+				problems = append(problems, problem)
+			} else {
+				// output is pre-roll or post-roll
+				if strings.HasPrefix(line, "Pawn compiler") {
+					continue
+				} else if strings.HasPrefix(line, "Compilation aborted") {
+					continue
+				} else if strings.HasSuffix(line, "Error.") {
+					continue
+				} else if len(strings.TrimSpace(line)) == 0 {
+					continue
+				} else {
+					if g := matchHeader.FindStringSubmatch(line); len(g) == 2 {
+						result.Header, _ = strconv.Atoi(g[1])
+					} else if g := matchCode.FindStringSubmatch(line); len(g) == 2 {
+						result.Code, _ = strconv.Atoi(g[1])
+					} else if g := matchData.FindStringSubmatch(line); len(g) == 2 {
+						result.Data, _ = strconv.Atoi(g[1])
+					} else if g := matchStack.FindStringSubmatch(line); len(g) == 3 {
+						result.StackHeap, _ = strconv.Atoi(g[1])
+						result.Estimate, _ = strconv.Atoi(g[2])
+					} else if g := matchTotal.FindStringSubmatch(line); len(g) == 2 {
+						result.Total, _ = strconv.Atoi(g[1])
+					}
+				}
+			}
+		}
+	}()
+
 	cmd := exec.Command(binary, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = outputWriter
+	cmd.Stderr = outputWriter
 	cmd.Env = []string{
 		fmt.Sprintf("LD_LIBRARY_PATH=%s", runtimeDir),
 		fmt.Sprintf("DYLD_LIBRARY_PATH=%s", runtimeDir),
 	}
-	fmt.Println(runtimeDir)
-	fmt.Println(cmd.Args)
+
 	err = cmd.Run()
 	if err != nil {
 		// todo: make a config flag to ignore this message
 		fmt.Println("** if you're on a 64 bit system this may be because the system is not set up to execute 32 bit binaries")
 		fmt.Println("** please enable this by allowing i386 packages and/or installing g++-multilib")
-		return errors.Wrap(err, "compilation failed")
+		err = errors.Wrap(err, "compilation failed")
+		return
 	}
+
+	err = outputReader.Close()
+	if err != nil {
+		fmt.Println("Compiler output read error:", err)
+	}
+
+	fmt.Printf("Results, in bytes: Header: %d, Code: %d, Data: %d, Stack/Heap: %d, Estimated usage: %d, Total: %d\n",
+		result.Header,
+		result.Code,
+		result.Data,
+		result.StackHeap,
+		result.Estimate,
+		result.Total)
 
 	return
 }
