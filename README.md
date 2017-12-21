@@ -167,7 +167,7 @@ Hack away!
 ---
 # `sampctl`
 
-1.5.2 - Southclaws <southclaws@gmail.com>
+1.5.3 - Southclaws <southclaws@gmail.com>
 
 Compiles server configuration JSON to server.cfg format. Executes the server and monitors it for crashes, restarting if necessary. Provides a way to quickly download server binaries of a specified version. Provides dependency management and package build tools for library maintainers and gamemode writers alike.
 
