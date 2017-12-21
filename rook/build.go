@@ -59,13 +59,22 @@ func Build(pkg *types.Package, build, cacheDir, platform string, ensure bool) (o
 // specified, the first build is returned. If the package has no build definitions, a default
 // configuration is returned.
 func GetBuildConfig(pkg types.Package, name string) (config *types.BuildConfig) {
-	if len(pkg.Builds) == 0 || name == "" {
-		config = types.GetBuildConfigDefault()
+	def := types.GetBuildConfigDefault()
+
+	if len(pkg.Builds) == 0 {
+		config = def
 	} else {
-		for _, cfg := range pkg.Builds {
-			if cfg.Name == name {
-				config = &cfg
+		if name == "" {
+			config = &pkg.Builds[0]
+		} else {
+			for _, cfg := range pkg.Builds {
+				if cfg.Name == name {
+					config = &cfg
+				}
 			}
+		}
+		if config.Version == "" {
+			config.Version = def.Version
 		}
 	}
 
