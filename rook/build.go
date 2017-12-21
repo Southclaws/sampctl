@@ -44,7 +44,7 @@ func Build(pkg *types.Package, build, cacheDir, platform string, ensure bool) (o
 
 	fmt.Println("building", pkg, "with", config.Version)
 
-	err = compiler.CompileSource(pkg.Local, cacheDir, platform, *config)
+	_, _, err = compiler.CompileSource(pkg.Local, cacheDir, platform, *config)
 	if err != nil {
 		err = errors.Wrap(err, "failed to compile package entry")
 		return
