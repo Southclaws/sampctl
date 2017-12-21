@@ -77,6 +77,42 @@ func TestEnsureVersionedPlugin(t *testing.T) {
 				},
 			},
 		}, []string{"plugins/mysql.dll"}, []types.Plugin{"mysql"}, false},
+		{"fcnpc-linux", args{
+			types.Runtime{
+				WorkingDir: "./tests/ensure/fcnpc-linux",
+				Platform:   "linux",
+				Plugins: []types.Plugin{
+					"ziggi/FCNPC",
+				},
+			},
+		}, []string{"plugins/FCNPC.so"}, []types.Plugin{"FCNPC"}, false},
+		{"fcnpc-windows", args{
+			types.Runtime{
+				WorkingDir: "./tests/ensure/fcnpc-windows",
+				Platform:   "windows",
+				Plugins: []types.Plugin{
+					"ziggi/FCNPC",
+				},
+			},
+		}, []string{"plugins/FCNPC.dll"}, []types.Plugin{"FCNPC"}, false},
+		{"pawn-memory-linux", args{
+			types.Runtime{
+				WorkingDir: "./tests/ensure/pawn-memory-linux",
+				Platform:   "linux",
+				Plugins: []types.Plugin{
+					"BigETI/pawn-memory",
+				},
+			},
+		}, []string{"plugins/memory.so"}, []types.Plugin{"memory"}, false},
+		{"pawn-memory-windows", args{
+			types.Runtime{
+				WorkingDir: "./tests/ensure/pawn-memory-windows",
+				Platform:   "windows",
+				Plugins: []types.Plugin{
+					"BigETI/pawn-memory",
+				},
+			},
+		}, []string{"plugins/pawn-memory.dll"}, []types.Plugin{"pawn-memory"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
