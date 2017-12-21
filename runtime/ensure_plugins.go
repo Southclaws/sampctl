@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
 
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/types"
@@ -179,37 +181,37 @@ func PluginFromNet(meta versioning.DependencyMeta, platform, workingDir, cacheDi
 // it first checks the repository itself, if that fails it falls back to using the sampctl central
 // plugin metadata repository
 func GetPluginRemotePackage(meta versioning.DependencyMeta) (pkg types.Package, err error) {
-	// resp, err := http.Get(fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/master/pawn.json", meta.User, meta.Repo))
-	// if err != nil {
-	// 	return
-	// }
+	resp, err := http.Get(fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/master/pawn.json", meta.User, meta.Repo))
+	if err != nil {
+		return
+	}
 
-	// if resp.StatusCode == 200 {
-	// 	var contents []byte
-	// 	contents, err = ioutil.ReadAll(resp.Body)
-	// 	if err != nil {
-	// 		return
-	// 	}
-	// 	err = json.Unmarshal(contents, &pkg)
-	// 	return
-	// }
+	if resp.StatusCode == 200 {
+		var contents []byte
+		contents, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return
+		}
+		err = json.Unmarshal(contents, &pkg)
+		return
+	}
 
-	// resp, err = http.Get(fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/master/pawn.yaml", meta.User, meta.Repo))
-	// if err != nil {
-	// 	return
-	// }
+	resp, err = http.Get(fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/master/pawn.yaml", meta.User, meta.Repo))
+	if err != nil {
+		return
+	}
 
-	// if resp.StatusCode == 200 {
-	// 	var contents []byte
-	// 	contents, err = ioutil.ReadAll(resp.Body)
-	// 	if err != nil {
-	// 		return
-	// 	}
-	// 	err = yaml.Unmarshal(contents, &pkg)
-	// 	return
-	// }
+	if resp.StatusCode == 200 {
+		var contents []byte
+		contents, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return
+		}
+		err = yaml.Unmarshal(contents, &pkg)
+		return
+	}
 
-	resp, err := http.Get(fmt.Sprintf("https://raw.githubusercontent.com/sampctl/plugins/master/%s-%s.json", meta.User, meta.Repo))
+	resp, err = http.Get(fmt.Sprintf("https://raw.githubusercontent.com/sampctl/plugins/master/%s-%s.json", meta.User, meta.Repo))
 	if err != nil {
 		return
 	}
