@@ -137,9 +137,11 @@ func CompileSource(execDir, cacheDir, platform string, config types.BuildConfig)
 		args = append(args, fmt.Sprintf("%s=%s", name, value))
 	}
 
-	binary := filepath.Join(runtimeDir, pkg.Binary)
-
 	outputReader, outputWriter := io.Pipe()
+	var (
+		problemChan = make(chan types.BuildProblem, 2048)
+		resultChan  = make(chan string, 6)
+	)
 
 	go func() {
 		scanner := bufio.NewScanner(outputReader)
@@ -171,8 +173,7 @@ func CompileSource(execDir, cacheDir, platform string, config types.BuildConfig)
 
 				problem.Description = groups[4]
 
-				fmt.Println(problem)
-				problems = append(problems, problem)
+				problemChan <- problem
 			} else {
 				// output is pre-roll or post-roll
 				if strings.HasPrefix(line, "Pawn compiler") {
@@ -184,24 +185,17 @@ func CompileSource(execDir, cacheDir, platform string, config types.BuildConfig)
 				} else if len(strings.TrimSpace(line)) == 0 {
 					continue
 				} else {
-					if g := matchHeader.FindStringSubmatch(line); len(g) == 2 {
-						result.Header, _ = strconv.Atoi(g[1])
-					} else if g := matchCode.FindStringSubmatch(line); len(g) == 2 {
-						result.Code, _ = strconv.Atoi(g[1])
-					} else if g := matchData.FindStringSubmatch(line); len(g) == 2 {
-						result.Data, _ = strconv.Atoi(g[1])
-					} else if g := matchStack.FindStringSubmatch(line); len(g) == 3 {
-						result.StackHeap, _ = strconv.Atoi(g[1])
-						result.Estimate, _ = strconv.Atoi(g[2])
-					} else if g := matchTotal.FindStringSubmatch(line); len(g) == 2 {
-						result.Total, _ = strconv.Atoi(g[1])
-					}
+					resultChan <- line
 				}
 			}
 		}
+
+		// close output channels once scanner is closed
+		close(problemChan)
+		close(resultChan)
 	}()
 
-	cmd := exec.Command(binary, args...)
+	cmd := exec.Command(filepath.Join(runtimeDir, pkg.Binary), args...)
 	cmd.Stdout = outputWriter
 	cmd.Stderr = outputWriter
 	cmd.Env = []string{
@@ -209,18 +203,40 @@ func CompileSource(execDir, cacheDir, platform string, config types.BuildConfig)
 		fmt.Sprintf("DYLD_LIBRARY_PATH=%s", runtimeDir),
 	}
 
-	err = cmd.Run()
-	if err != nil {
-		// todo: make a config flag to ignore this message
-		fmt.Println("** if you're on a 64 bit system this may be because the system is not set up to execute 32 bit binaries")
-		fmt.Println("** please enable this by allowing i386 packages and/or installing g++-multilib")
-		err = errors.Wrap(err, "compilation failed")
-		return
-	}
+	cmdError := cmd.Run()
 
-	err = outputReader.Close()
+	err = outputWriter.Close()
 	if err != nil {
 		fmt.Println("Compiler output read error:", err)
+	}
+
+	if cmdError != nil {
+		if cmdError.Error() != "exit status 1" {
+			// if the failure was not caused by a simple compile error
+			fmt.Println("** if you're on a 64 bit system this may be because the system is not set up to execute 32 bit binaries")
+			fmt.Println("** please enable this by allowing i386 packages and/or installing g++-multilib")
+			err = errors.Wrap(cmdError, "failed to execute compiler")
+		}
+	}
+
+	for problem := range problemChan {
+		fmt.Println(problem)
+		problems = append(problems, problem)
+	}
+
+	for line := range resultChan {
+		if g := matchHeader.FindStringSubmatch(line); len(g) == 2 {
+			result.Header, _ = strconv.Atoi(g[1])
+		} else if g := matchCode.FindStringSubmatch(line); len(g) == 2 {
+			result.Code, _ = strconv.Atoi(g[1])
+		} else if g := matchData.FindStringSubmatch(line); len(g) == 2 {
+			result.Data, _ = strconv.Atoi(g[1])
+		} else if g := matchStack.FindStringSubmatch(line); len(g) == 3 {
+			result.StackHeap, _ = strconv.Atoi(g[1])
+			result.Estimate, _ = strconv.Atoi(g[2])
+		} else if g := matchTotal.FindStringSubmatch(line); len(g) == 2 {
+			result.Total, _ = strconv.Atoi(g[1])
+		}
 	}
 
 	fmt.Printf("Results, in bytes: Header: %d, Code: %d, Data: %d, Stack/Heap: %d, Estimated usage: %d, Total: %d\n",

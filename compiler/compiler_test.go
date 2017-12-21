@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"path/filepath"
 	"runtime"
 	"testing"
 
@@ -21,6 +22,7 @@ func TestCompileSource(t *testing.T) {
 		wantProblems []types.BuildProblem
 		wantResult   types.BuildResult
 		wantErr      bool
+		wantOutput   bool
 	}{
 		{"simple-pass", args{
 			util.FullPath("./tests/cache"),
@@ -33,7 +35,7 @@ func TestCompileSource(t *testing.T) {
 			}},
 			nil,
 			types.BuildResult{},
-			false},
+			false, true},
 		{"simple-pass-d3", args{
 			util.FullPath("./tests/cache"),
 			types.BuildConfig{
@@ -53,7 +55,7 @@ func TestCompileSource(t *testing.T) {
 				Estimate:  20,
 				Total:     16628,
 			},
-			false},
+			false, true},
 		{"simple-fail", args{
 			util.FullPath("./tests/cache"),
 			types.BuildConfig{
@@ -64,13 +66,13 @@ func TestCompileSource(t *testing.T) {
 				Version:    "3.10.4",
 			}},
 			[]types.BuildProblem{
-				{`C:\Users\Southclaw\Go\src\github.com\Southclaws\sampctl\compiler\tests\build-simple-fail\script.pwn`, 1, types.ProblemError, `invalid function or declaration`},
-				{`C:\Users\Southclaw\Go\src\github.com\Southclaws\sampctl\compiler\tests\build-simple-fail\script.pwn`, 3, types.ProblemError, `invalid function or declaration`},
-				{`C:\Users\Southclaw\Go\src\github.com\Southclaws\sampctl\compiler\tests\build-simple-fail\script.pwn`, 6, types.ProblemWarning, `symbol is never used: "a"`},
-				{`C:\Users\Southclaw\Go\src\github.com\Southclaws\sampctl\compiler\tests\build-simple-fail\script.pwn`, 6, types.ProblemError, `no entry point (no public functions)`},
+				{"script.pwn", 1, types.ProblemError, `invalid function or declaration`},
+				{"script.pwn", 3, types.ProblemError, `invalid function or declaration`},
+				{"script.pwn", 6, types.ProblemWarning, `symbol is never used: "a"`},
+				{"script.pwn", 6, types.ProblemError, `no entry point (no public functions)`},
 			},
 			types.BuildResult{},
-			true},
+			false, false},
 		{"local-include-pass", args{
 			util.FullPath("./tests/cache"),
 			types.BuildConfig{
@@ -90,7 +92,7 @@ func TestCompileSource(t *testing.T) {
 				Estimate:  32,
 				Total:     16664,
 			},
-			false},
+			false, true},
 		{"local-include-warn", args{
 			util.FullPath("./tests/cache"),
 			types.BuildConfig{
@@ -102,8 +104,8 @@ func TestCompileSource(t *testing.T) {
 				Version:    "3.10.4",
 			}},
 			[]types.BuildProblem{
-				{`C:\Users\Southclaw\Go\src\github.com\Southclaws\sampctl\compiler\tests\build-local-include-warn\library.inc`, 6, types.ProblemWarning, `symbol is never used: "b"`},
-				{`C:\Users\Southclaw\Go\src\github.com\Southclaws\sampctl\compiler\tests\build-local-include-warn\script.pwn`, 5, types.ProblemWarning, `symbol is never used: "a"`},
+				{"library.inc", 6, types.ProblemWarning, `symbol is never used: "b"`},
+				{"script.pwn", 5, types.ProblemWarning, `symbol is never used: "a"`},
 			},
 			types.BuildResult{
 				Header:    60,
@@ -113,7 +115,22 @@ func TestCompileSource(t *testing.T) {
 				Estimate:  32,
 				Total:     16720,
 			},
-			false},
+			false, true},
+		{"fatal", args{
+			util.FullPath("./tests/cache"),
+			types.BuildConfig{
+				WorkingDir: "./tests/build-fatal",
+				Input:      "./tests/build-fatal/script.pwn",
+				Output:     "./tests/build-fatal/script.amx",
+				Args:       []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
+				Includes:   []string{},
+				Version:    "3.10.4",
+			}},
+			[]types.BuildProblem{
+				{"script.pwn", 1, types.ProblemFatal, `cannot read from file: "idonotexist"`},
+			},
+			types.BuildResult{},
+			false, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -123,11 +140,18 @@ func TestCompileSource(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				assert.True(t, util.Exists(tt.args.config.Output))
+			}
+
+			for i, p := range tt.wantProblems {
+				tt.wantProblems[i].File = util.FullPath(filepath.Join(tt.args.config.WorkingDir, p.File))
 			}
 
 			assert.Equal(t, tt.wantProblems, gotProblems)
 			assert.Equal(t, tt.wantResult, gotResult)
+
+			if tt.wantOutput {
+				assert.True(t, util.Exists(tt.args.config.Output))
+			}
 		})
 	}
 }
