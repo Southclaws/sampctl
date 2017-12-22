@@ -87,6 +87,13 @@ func main() {
 			Description: "For managing Pawn packages such as gamemodes and libraries.",
 			Subcommands: []cli.Command{
 				{
+					Name:        "init",
+					Usage:       "sampctl package init",
+					Description: "Helper tool to bootstrap a new package or turn an existing project into a package.",
+					Action:      packageInit,
+					Flags:       packageInitFlags,
+				},
+				{
 					Name:        "ensure",
 					Usage:       "sampctl package ensure",
 					Description: "Ensures dependencies are up to date based on the `dependencies` field in `pawn.json`/`pawn.yaml`.",
