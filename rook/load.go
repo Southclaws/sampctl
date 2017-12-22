@@ -1,13 +1,10 @@
 package rook
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"path/filepath"
 
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
 
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
@@ -18,17 +15,7 @@ import (
 // `pawn.yaml` file and unmarshalling it - additional parameters are required to specify whether or
 // not the package is a "parent package" and where the vendor directory is.
 func PackageFromDir(parent bool, dir string, vendor string) (pkg types.Package, err error) {
-	jsonFile := filepath.Join(dir, "pawn.json")
-	if util.Exists(jsonFile) {
-		pkg, err = PackageFromJSON(jsonFile)
-	} else {
-		yamlFile := filepath.Join(dir, "pawn.yaml")
-		if util.Exists(yamlFile) {
-			pkg, err = PackageFromYAML(yamlFile)
-		} else {
-			err = errors.New("directory does not contain a pawn.json or pawn.yaml file")
-		}
-	}
+	pkg, err = types.PackageFromDir(dir)
 	if err != nil {
 		return
 	}
@@ -52,42 +39,6 @@ func PackageFromDir(parent bool, dir string, vendor string) (pkg types.Package, 
 			err = errors.Wrap(err, "failed to resolve all dependencies")
 			return
 		}
-	}
-
-	return
-}
-
-// PackageFromJSON creates a config from a JSON file
-func PackageFromJSON(file string) (pkg types.Package, err error) {
-	var contents []byte
-	contents, err = ioutil.ReadFile(file)
-	if err != nil {
-		err = errors.Wrap(err, "failed to read pawn.json")
-		return
-	}
-
-	err = json.Unmarshal(contents, &pkg)
-	if err != nil {
-		err = errors.Wrap(err, "failed to unmarshal pawn.json")
-		return
-	}
-
-	return
-}
-
-// PackageFromYAML creates a config from a YAML file
-func PackageFromYAML(file string) (pkg types.Package, err error) {
-	var contents []byte
-	contents, err = ioutil.ReadFile(file)
-	if err != nil {
-		err = errors.Wrap(err, "failed to read pawn.yaml")
-		return
-	}
-
-	err = yaml.Unmarshal(contents, &pkg)
-	if err != nil {
-		err = errors.Wrap(err, "failed to unmarshal pawn.yaml")
-		return
 	}
 
 	return
