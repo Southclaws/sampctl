@@ -23,6 +23,8 @@ Package management and dependency tools:
 
 ## Installation
 
+Installation is simple and fast on all platforms. If you're not into it, uninstallation is also simple and fast.
+
 * [Linux (Debian/Ubuntu)](https://github.com/Southclaws/sampctl/wiki/Linux)
 * [Windows](https://github.com/Southclaws/sampctl/wiki/Windows)
 * [Mac](https://github.com/Southclaws/sampctl/wiki/Mac)
@@ -37,44 +39,17 @@ Or visit the [wiki](https://github.com/Southclaws/sampctl/wiki) for all the info
 
 ## Features
 
-### An Easier Way To Configure via `samp.json`
+sampctl is designed for both development of gamemodes/libraries and management of live servers.
 
-Everybody loves JSON! I've always hated the `server.cfg` structure, so no longer
-will you need to edit this file by hand! You can work with a modern, structured,
-JSON format instead.
+### Package Management and Build Tool
 
-If your `samp.json` looks like this:
+If you've used platforms like NodeJS, Python, Go, Ruby, etc you know how useful tools like npm, pip, gem are.
 
-```json
-{
-    "gamemodes": ["rivershell"],
-    "plugins": ["filemanager"],
-    "rcon_password": "test",
-    "port": 8080
-}
-```
+It's about time Pawn had the same tool.
 
-It compiles to this:
+sampctl provides a simple and intuitive way to _declare_ what includes your project depends on while taking care of all the hard work such as downloading those includes to the correct directory, ensuring they are at the correct version and making sure the compiler has all the information it needs.
 
-```conf
-gamemode0 rivershell
-plugins filemanager.so
-rcon_password test
-port 8080
-(... and the rest of the settings which have default values)
-```
-
-Note that the plugins line turned `filemanager` into `filemanager.so` because
-this example was run on a Linux machine.
-
-[See documentation for more info.](https://github.com/Southclaws/sampctl/wiki/samp.json-Reference)
-
-### Write libraries like it's npm with `pawn.json`
-
-Not writing a gamemode? If you're a Pawn library maintainer, you know it's
-awkward to set up unit tests for libraries. Even if you just want to quickly
-test some code, you have to provision a server, set the gamemode in the
-server.cfg, write and compile code using the correct compiler.
+If you're a Pawn library maintainer, you know it's awkward to set up unit tests for libraries. Even if you just want to quickly test some code, you know that you can't just write code and test it instantly. You need to set up a server, compile the include into a gamemode, configure the server and run it.
 
 Forget all that. Just make a `pawn.json` in your project directory:
 
@@ -107,13 +82,6 @@ Using cached package for 0.3.7
 building /: with 3.10.4
 Compiling source: '/tmp/test.pwn' with compiler 3.10.4...
 Using cached package pawnc-3.10.4-darwin.zip
-Pawn compiler 3.10.2                    Copyright (c) 1997-2006, ITB CompuPhase
-
-Header size:            480 bytes
-Code size:             5960 bytes
-Data size:            15876 bytes
-Stack/heap size:      16384 bytes; estimated max. usage=300 cells (1200 bytes)
-Total requirements:   38700 bytes
 Starting server...
 
 Server Plugins
@@ -140,28 +108,33 @@ You get the compiler output and the server output without ever needing to:
 * make sure the Pawn compiler is reading the correct includes
 * download the formatex include
 
-### Crashloops and Exponential Backoff
+[See documentation for more info.](https://github.com/Southclaws/sampctl/wiki/Package-Definition-Reference)
 
-Crashes, crashloops and backoff timing is handled by the app. If the server
-crashes, it will be restarted. If it crashes repeatedly, it will be restarted
-with an exponentially increasing amount of time between tries - in case it's
-waiting for a database to spin up or something. Once the backoff time reaches
-15s, it quits.
+### Server Configuration and Automatic Plugin Download
 
-### Development
+Use JSON or YAML to write your server config:
 
-Grab the code:
-
-```bash
-go get github.com/Southclaws/sampctl
+```json
+{
+    "gamemodes": ["rivershell"],
+    "plugins": ["maddinat0r/sscanf"],
+    "rcon_password": "test",
+    "port": 8080
+}
 ```
 
-Grab the dependencies:
+It compiles to this:
 
-```bash
-dep ensure -update
+```conf
+gamemode0 rivershell
+plugins filemanager.so
+rcon_password test
+port 8080
+(... and the rest of the settings which have default values)
 ```
 
-Hack away!
+What also happens here is `maddinat0r/sscanf` tells sampctl to automatically get the latest sscanf plugin and place the `.so` or `.dll` file into the `plugins/` directory.
+
+[See documentation for more info.](https://github.com/Southclaws/sampctl/wiki/Runtime-Configuration-Reference)
 
 ---
