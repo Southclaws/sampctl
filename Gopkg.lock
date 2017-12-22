@@ -44,6 +44,12 @@
   version = "v0.3.2"
 
 [[projects]]
+  name = "github.com/fatih/color"
+  packages = ["."]
+  revision = "570b54cabe6b8eb0bc2dfce68d964677d63b5260"
+  version = "v1.5.0"
+
+[[projects]]
   name = "github.com/ghodss/yaml"
   packages = ["."]
   revision = "0ca9ea5df5451ffdf184b4428c902747c2c11cd7"
@@ -214,6 +220,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "046303dbba317544716789fa22f87e63d3a53e8f18889d5a709664b006542034"
+  inputs-digest = "71331e4c7c817a4b56ed727fb562dbf844abf92bd63c1a50dc2d0aacf04ce03a"
   solver-name = "gps-cdcl"
   solver-version = 1

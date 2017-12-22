@@ -1,9 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"runtime"
+	"time"
 
+	"github.com/Masterminds/semver"
+	"github.com/fatih/color"
+	"github.com/google/go-github/github"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
@@ -130,5 +136,44 @@ func main() {
 	err = app.Run(os.Args)
 	if err != nil {
 		fmt.Printf("Exited with error: %v\n", err)
+	}
+
+	client := github.NewClient(nil)
+	ctx, _ := context.WithTimeout(context.Background(), time.Second*10)
+
+	release, _, err := client.Repositories.GetLatestRelease(ctx, "Southclaws", "sampctl")
+	if err != nil {
+		fmt.Println(color.RedString("Failed to check for latest sampctl release:"), err)
+	} else {
+		latest, err := semver.NewVersion(release.GetTagName())
+		if err != nil {
+			fmt.Println(color.RedString("Failed to interpret latest release tag as a semantic version:"), err)
+		}
+
+		this, err := semver.NewVersion(app.Version)
+		if err != nil {
+			fmt.Println(color.RedString("Failed to interpret this version number as a semantic version:"), err)
+		}
+
+		if latest.GreaterThan(this) {
+			fmt.Println("\n-\n")
+			fmt.Println(color.YellowString("sampctl version"), color.GreenString(latest.String()), color.YellowString("available!"))
+			fmt.Println(color.YellowString("To upgrade, use the following command:"))
+			switch runtime.GOOS {
+			case "windows":
+				fmt.Println(color.BlueString("  scoop update"))
+				fmt.Println(color.BlueString("  scoop update sampctl"))
+			case "linux":
+				fmt.Println(color.YellowString("  Debian/Ubuntu based systems:"))
+				fmt.Println(color.BlueString("  curl https://raw.githubusercontent.com/Southclaws/sampctl/master/install-deb.sh | sh"))
+				fmt.Println(color.YellowString("  CentOS/Red Hat based systems"))
+				fmt.Println(color.BlueString("  curl https://raw.githubusercontent.com/Southclaws/sampctl/master/install-rpm.sh | sh"))
+			case "darwin":
+				fmt.Println(color.BlueString("  brew update"))
+				fmt.Println(color.BlueString("  brew upgrade sampctl"))
+			}
+			fmt.Println(color.YellowString("If you have any problems upgrading, please open an issue:"))
+			fmt.Println(color.BlueString("  https://github.com/Southclaws/sampctl/issues/new"))
+		}
 	}
 }
