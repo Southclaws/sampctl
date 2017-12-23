@@ -102,7 +102,7 @@ func InitialiseServer(version, dir, platform string) (err error) {
 		MaxPlayers    int
 		Gamemodes     []string
 		Filterscripts []string
-		Plugins       []types.Plugin
+		Plugins       []string
 	}{}
 
 	err = survey.Ask(questions, &answers)
@@ -126,7 +126,10 @@ func InitialiseServer(version, dir, platform string) (err error) {
 		MaxPlayers:    &answers.MaxPlayers,
 		Gamemodes:     answers.Gamemodes,
 		Filterscripts: answers.Filterscripts,
-		Plugins:       answers.Plugins,
+	}
+
+	for _, pluginName := range answers.Plugins {
+		config.Plugins = append(config.Plugins, types.Plugin(pluginName))
 	}
 
 	strength := zxcvbn.PasswordStrength(*config.RCONPassword, nil)
