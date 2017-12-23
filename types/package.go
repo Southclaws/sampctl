@@ -31,37 +31,37 @@ type Package struct {
 	// Parent indicates that this package is a "working" package that the user has explicitly
 	// created and is developing. The opposite of this would be packages that exist in the
 	// `dependencies` directory that have been downloaded as a result of an Ensure.
-	Parent bool
+	Parent bool `json:"-" yaml:"-"`
 	// Local path, this indicates the Package object represents a local copy which is a directory
 	// containing a `samp.json`/`samp.yaml` file and a set of Pawn source code files.
 	// If this field is not set, then the Package is just an in-memory pointer to a remote package.
-	Local string
+	Local string `json:"-" yaml:"-"`
 	// The vendor directory - for simple packages with no sub-dependencies, this is simply
 	// `<local>/dependencies` but for nested dependencies, this needs to be set.
-	Vendor string
+	Vendor string `json:"-" yaml:"-"`
 	// format stores the original format of the package definition file, either `json` or `yaml`
-	Format string
+	Format string `json:"-" yaml:"-"`
 	// allDependencies stores a list of all dependency meta from this package and sub packages
 	// this field is only used if `parent` is true.
-	AllDependencies []versioning.DependencyMeta
+	AllDependencies []versioning.DependencyMeta `json:"-" yaml:"-"`
 	// allPlugins stores a list of all plugin dependency meta from this package and sub packages
 	// this field is only used if `parent` is true.
-	AllPlugins []versioning.DependencyMeta
+	AllPlugins []versioning.DependencyMeta `json:"-" yaml:"-"`
 
 	// Inferred metadata, not always explicitly set via JSON/YAML but inferred from the dependency path
 	versioning.DependencyMeta
 
 	// Metadata, set by the package author to describe the package
-	Contributors []string `json:"contributors"` // list of contributors
-	Website      string   `json:"website"`      // website or forum topic associated with the package
+	Contributors []string `json:"contributors,omitempty"` // list of contributors
+	Website      string   `json:"website,omitempty"`      // website or forum topic associated with the package
 
 	// Functional, set by the package author to declare relevant files and dependencies
-	Entry        string                        `json:"entry"`        // entry point script to compile the project
-	Output       string                        `json:"output"`       // output amx file
-	Dependencies []versioning.DependencyString `json:"dependencies"` // list of packages that the package depends on
-	Builds       []BuildConfig                 `json:"builds"`       // list of build configurations
-	Runtime      Runtime                       `json:"runtime"`      // runtime configuration for executing the package code
-	Resources    []Resource                    `json:"resources"`    // list of additional resources associated with the package
+	Entry        string                        `json:"entry"`                  // entry point script to compile the project
+	Output       string                        `json:"output"`                 // output amx file
+	Dependencies []versioning.DependencyString `json:"dependencies,omitempty"` // list of packages that the package depends on
+	Builds       []BuildConfig                 `json:"builds,omitempty"`       // list of build configurations
+	Runtime      *Runtime                      `json:"runtime,omitempty"`      // runtime configuration for executing the package code
+	Resources    []Resource                    `json:"resources,omitempty"`    // list of additional resources associated with the package
 }
 
 func (pkg Package) String() string {
@@ -124,6 +124,8 @@ func PackageFromJSON(file string) (pkg Package, err error) {
 		return
 	}
 
+	pkg.Format = "json"
+
 	return
 }
 
@@ -141,6 +143,8 @@ func PackageFromYAML(file string) (pkg Package, err error) {
 		err = errors.Wrap(err, "failed to unmarshal pawn.yaml")
 		return
 	}
+
+	pkg.Format = "yaml"
 
 	return
 }

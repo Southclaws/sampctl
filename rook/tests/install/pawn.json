@@ -1,5 +1,0 @@
-{
-    "entry": "gamemodes/test.pwn",
-    "output": "gamemodes/test.amx",
-    "dependencies": ["Southclaws/samp-stdlib:0.3.7-R2-2-1"]
-}

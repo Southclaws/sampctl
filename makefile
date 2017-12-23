@@ -10,6 +10,7 @@ test:
 	go test -race -v ./runtime
 	go test -race -v ./util
 	go test -race -v ./versioning
+	echo SUCCESS!
 
 fast:
 	go build $(LDFLAGS) -o sampctl

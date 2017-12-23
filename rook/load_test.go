@@ -20,11 +20,13 @@ func TestPackageFromDir(t *testing.T) {
 		wantErr bool
 	}{
 		{"load-json", args{"tests/load-json"}, types.Package{
-			Parent: true,
-			Local:  "tests/load-json",
-			Vendor: "tests/load-json/dependencies",
-			Entry:  "gamemodes/test.pwn",
-			Output: "gamemodes/test.amx",
+			Parent:         true,
+			Local:          "tests/load-json",
+			Vendor:         "tests/load-json/dependencies",
+			Format:         "json",
+			DependencyMeta: versioning.DependencyMeta{User: "<none>", Repo: "<local>"},
+			Entry:          "gamemodes/test.pwn",
+			Output:         "gamemodes/test.amx",
 			Dependencies: []versioning.DependencyString{
 				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
 				"Southclaws/SIF:1.6.2",
@@ -35,11 +37,13 @@ func TestPackageFromDir(t *testing.T) {
 			}},
 			false},
 		{"load-yaml", args{"tests/load-yaml"}, types.Package{
-			Parent: true,
-			Local:  "tests/load-yaml",
-			Vendor: "tests/load-yaml/dependencies",
-			Entry:  "gamemodes/test.pwn",
-			Output: "gamemodes/test.amx",
+			Parent:         true,
+			Local:          "tests/load-yaml",
+			Vendor:         "tests/load-yaml/dependencies",
+			Format:         "yaml",
+			DependencyMeta: versioning.DependencyMeta{User: "<none>", Repo: "<local>"},
+			Entry:          "gamemodes/test.pwn",
+			Output:         "gamemodes/test.amx",
 			Dependencies: []versioning.DependencyString{
 				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
 				"Southclaws/SIF:1.6.2",

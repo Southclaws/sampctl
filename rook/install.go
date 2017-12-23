@@ -1,7 +1,13 @@
 package rook
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"path/filepath"
+
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
 
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/versioning"
@@ -24,21 +30,32 @@ func Install(pkg types.Package, target versioning.DependencyString) (err error) 
 		fmt.Println("target already exists in dependencies")
 	}
 
-	meta, err := target.Explode()
+	err = EnsureDependencies(&pkg)
 	if err != nil {
 		return
 	}
 
-	err = EnsurePackage(pkg.Vendor, meta)
-	if err != nil {
-		return
+	if pkg.Format == "json" {
+		var contents []byte
+		contents, err = json.MarshalIndent(pkg, "", "\t")
+		if err != nil {
+			return errors.Wrap(err, "failed to encode package metadata")
+		}
+		err = ioutil.WriteFile(filepath.Join(pkg.Local, "pawn.json"), contents, 0755)
+		if err != nil {
+			return errors.Wrap(err, "failed to write pawn.json")
+		}
+	} else {
+		var contents []byte
+		contents, err = yaml.Marshal(pkg)
+		if err != nil {
+			return errors.Wrap(err, "failed to encode package metadata")
+		}
+		err = ioutil.WriteFile(filepath.Join(pkg.Local, "pawn.json"), contents, 0755)
+		if err != nil {
+			return errors.Wrap(err, "failed to write pawn.yaml")
+		}
 	}
-
-	// if pkg.format == "json" {
-	// 	// generate pawn.json
-	// } else {
-	// 	// generate pawn.yaml
-	// }
 
 	return
 }

@@ -33,6 +33,13 @@ func PackageFromDir(parent bool, dir string, vendor string) (pkg types.Package, 
 		return
 	}
 
+	if pkg.User == "" {
+		pkg.User = "<none>"
+	}
+	if pkg.Repo == "" {
+		pkg.Repo = "<local>"
+	}
+
 	if parent {
 		err = ResolveDependencies(&pkg)
 		if err != nil {
@@ -87,13 +94,15 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 			return
 		}
 
-		for _, pluginDepStr := range subPkg.Runtime.Plugins {
-			pluginMeta, err = pluginDepStr.AsDep()
-			if err != nil {
-				fmt.Println(pkg, "invalid plugin dependency string:", pluginDepStr)
-				return
+		if subPkg.Runtime != nil {
+			for _, pluginDepStr := range subPkg.Runtime.Plugins {
+				pluginMeta, err = pluginDepStr.AsDep()
+				if err != nil {
+					fmt.Println(pkg, "invalid plugin dependency string:", pluginDepStr)
+					return
+				}
+				pkg.AllPlugins = append(pkg.AllPlugins, pluginMeta)
 			}
-			pkg.AllPlugins = append(pkg.AllPlugins, pluginMeta)
 		}
 
 		for _, depStr := range subPkg.Dependencies {
@@ -105,13 +114,15 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 		recurse(depStr)
 	}
 
-	for _, pluginDepStr := range pkg.Runtime.Plugins {
-		pluginMeta, err = pluginDepStr.AsDep()
-		if err != nil {
-			fmt.Println(pkg, "invalid plugin dependency string:", pluginDepStr)
-			return
+	if pkg.Runtime != nil {
+		for _, pluginDepStr := range pkg.Runtime.Plugins {
+			pluginMeta, err = pluginDepStr.AsDep()
+			if err != nil {
+				fmt.Println(pkg, "invalid plugin dependency string:", pluginDepStr)
+				return
+			}
+			pkg.AllPlugins = append(pkg.AllPlugins, pluginMeta)
 		}
-		pkg.AllPlugins = append(pkg.AllPlugins, pluginMeta)
 	}
 
 	return
