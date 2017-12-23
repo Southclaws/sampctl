@@ -4,13 +4,13 @@ LDFLAGS := -ldflags "-X main.version=$(VERSION)"
 .PHONY: version
 
 test:
-	go test -race -v -p 4 \
-		./compiler \
-		./download \
-		./rook \
-		./runtime \
-		./util \
-		./versioning
+	go test -race -v ./compiler
+	go test -race -v ./download
+	go test -race -v ./rook
+	go test -race -v ./runtime
+	go test -race -v ./util
+	go test -race -v ./versioning
+
 fast:
 	go build $(LDFLAGS) -o sampctl
 
