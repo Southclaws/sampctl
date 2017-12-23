@@ -36,31 +36,29 @@ func EnsurePlugins(cfg *types.Runtime, cacheDir string) (err error) {
 	fileExt := pluginExtForFile(cfg.Platform)
 
 	var (
-		errs       = []string{}
 		newPlugins = []types.Plugin{}
 		files      = []types.Plugin{}
+		meta       versioning.DependencyMeta
 	)
 
 	for _, plugin := range cfg.Plugins {
-		meta, err := plugin.AsDep()
+		meta, err = plugin.AsDep()
 		if err != nil {
 			fmt.Println("plugin", plugin, "is a local plugin")
 			fullpath := filepath.Join(pluginsDir, string(plugin)+fileExt)
 			if !util.Exists(fullpath) {
-				errs = append(errs, fmt.Sprintf("plugin '%s' is missing its %s file from the plugins directory", plugin, fileExt))
+				fmt.Println(fmt.Sprintf("plugin '%s' is missing its %s file from the plugins directory", plugin, fileExt))
 			}
 			newPlugins = append(newPlugins, plugin)
 		} else {
 			fmt.Println("plugin", plugin, "is a package dependency")
 			files, err = EnsureVersionedPlugin(*cfg, meta, cacheDir)
 			if err != nil {
-				errs = append(errs, fmt.Sprintf("plugin '%s' failed to ensure: %v", plugin, err))
+				fmt.Println(fmt.Sprintf("plugin '%s' failed to ensure: %v", plugin, err))
 			}
 			newPlugins = append(newPlugins, files...)
 		}
-	}
-	if len(errs) > 0 {
-		err = errors.New(strings.Join(errs, ", "))
+		err = nil
 	}
 
 	cfg.Plugins = []types.Plugin{}
@@ -90,13 +88,16 @@ func EnsureVersionedPlugin(cfg types.Runtime, meta versioning.DependencyMeta, ca
 
 	fmt.Println("retrieved package", meta, "resource file:", filename)
 
-	var method download.ExtractFunc
-	if filepath.Ext(filename) == ".zip" {
+	var (
+		ext    = filepath.Ext(filename)
+		method download.ExtractFunc
+	)
+	if ext == ".zip" {
 		method = download.Unzip
-	} else if filepath.Ext(filename) == ".gz" {
+	} else if ext == ".gz" {
 		method = download.Untar
 	} else {
-		err = errors.Errorf("unsupported archive format: %s", filepath.Ext(filename))
+		err = errors.Errorf("unsupported archive format: %s", filename)
 		return
 	}
 
@@ -153,6 +154,7 @@ func PluginFromCache(meta versioning.DependencyMeta, platform, cacheDir string) 
 		name = file.Name()
 		if matcher.MatchString(name) {
 			found = true
+			break
 		}
 	}
 	if !found {
@@ -333,5 +335,5 @@ func GetResourcePath(meta versioning.DependencyMeta) (path string) {
 	if version == "" {
 		version = "latest"
 	}
-	return filepath.Join(meta.User, version)
+	return filepath.Join("plugins", meta.User, version)
 }
