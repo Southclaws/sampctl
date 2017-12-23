@@ -140,7 +140,7 @@ What also happens here is `maddinat0r/sscanf` tells sampctl to automatically get
 ---
 # `sampctl`
 
-1.5.4 - Southclaws <southclaws@gmail.com>
+1.5.5 - Southclaws <southclaws@gmail.com>
 
 Compiles server configuration JSON to server.cfg format. Executes the server and monitors it for crashes, restarting if necessary. Provides a way to quickly download server binaries of a specified version. Provides dependency management and package build tools for library maintainers and gamemode writers alike.
 
@@ -208,7 +208,17 @@ Usage: `sampctl package <subcommand>`
 
 For managing Pawn packages such as gamemodes and libraries.
 
-#### Subcommands (4)
+#### Subcommands (5)
+
+### `sampctl package init`
+
+Usage: `sampctl package init`
+
+Helper tool to bootstrap a new package or turn an existing project into a package.
+
+#### Flags
+
+- `--dir value`: working directory for the project - by default, uses the current directory (default: ".")
 
 ### `sampctl package ensure`
 
