@@ -13,10 +13,10 @@ type DependencyString string
 
 // DependencyMeta represents all the individual components of a DependencyString
 type DependencyMeta struct {
-	User    string `json:"user"`    // Owner of the project repository
-	Repo    string `json:"repo"`    // GitHub repository name
-	Path    string `json:"path"`    // Subdirectory that contains .inc files (if any)
-	Version string `json:"version"` // Version string (git tag, preferably a semantic version)
+	User    string `json:"user"`                                       // Owner of the project repository
+	Repo    string `json:"repo"`                                       // GitHub repository name
+	Path    string `json:"path,omitempty" yaml:"path,omitempty"`       // Subdirectory that contains .inc files (if any)
+	Version string `json:"version,omitempty" yaml:"version,omitempty"` // Version string (git tag, preferably a semantic version)
 }
 
 func (dm DependencyMeta) String() string {

@@ -52,16 +52,16 @@ type Package struct {
 	versioning.DependencyMeta
 
 	// Metadata, set by the package author to describe the package
-	Contributors []string `json:"contributors,omitempty"` // list of contributors
-	Website      string   `json:"website,omitempty"`      // website or forum topic associated with the package
+	Contributors []string `json:"contributors,omitempty" yaml:"contributors,omitempty"` // list of contributors
+	Website      string   `json:"website,omitempty" yaml:"website,omitempty"`           // website or forum topic associated with the package
 
 	// Functional, set by the package author to declare relevant files and dependencies
-	Entry        string                        `json:"entry"`                  // entry point script to compile the project
-	Output       string                        `json:"output"`                 // output amx file
-	Dependencies []versioning.DependencyString `json:"dependencies,omitempty"` // list of packages that the package depends on
-	Builds       []BuildConfig                 `json:"builds,omitempty"`       // list of build configurations
-	Runtime      *Runtime                      `json:"runtime,omitempty"`      // runtime configuration for executing the package code
-	Resources    []Resource                    `json:"resources,omitempty"`    // list of additional resources associated with the package
+	Entry        string                        `json:"entry"`                                                // entry point script to compile the project
+	Output       string                        `json:"output"`                                               // output amx file
+	Dependencies []versioning.DependencyString `json:"dependencies,omitempty" yaml:"dependencies,omitempty"` // list of packages that the package depends on
+	Builds       []BuildConfig                 `json:"builds,omitempty" yaml:"builds,omitempty"`             // list of build configurations
+	Runtime      *Runtime                      `json:"runtime,omitempty" yaml:"runtime,omitempty"`           // runtime configuration for executing the package code
+	Resources    []Resource                    `json:"resources,omitempty" yaml:"resources,omitempty"`       // list of additional resources associated with the package
 }
 
 func (pkg Package) String() string {
@@ -145,6 +145,37 @@ func PackageFromYAML(file string) (pkg Package, err error) {
 	}
 
 	pkg.Format = "yaml"
+
+	return
+}
+
+// WriteDefinition creates a JSON or YAML file for a package object, the format depends
+// on the `Format` field of the package.
+func (pkg Package) WriteDefinition() (err error) {
+	switch pkg.Format {
+	case "json":
+		var contents []byte
+		contents, err = json.MarshalIndent(pkg, "", "\t")
+		if err != nil {
+			return errors.Wrap(err, "failed to encode package metadata")
+		}
+		err = ioutil.WriteFile(filepath.Join(pkg.Local, "pawn.json"), contents, 0755)
+		if err != nil {
+			return errors.Wrap(err, "failed to write pawn.json")
+		}
+	case "yaml":
+		var contents []byte
+		contents, err = yaml.Marshal(pkg)
+		if err != nil {
+			return errors.Wrap(err, "failed to encode package metadata")
+		}
+		err = ioutil.WriteFile(filepath.Join(pkg.Local, "pawn.yaml"), contents, 0755)
+		if err != nil {
+			return errors.Wrap(err, "failed to write pawn.yaml")
+		}
+	default:
+		err = errors.New("package has no format associated with it")
+	}
 
 	return
 }
