@@ -14,14 +14,14 @@ func TestDependency_Validate(t *testing.T) {
 		wantErr   bool
 	}{
 		// Unversioned
-		{"v u https url", DependencyString("https://github.com/user/repo_name"), true, false},
-		{"v u http url", DependencyString("http://github.com/user/repo_name"), true, false},
-		{"v u naked url", DependencyString("github.com/user/repo_name"), true, false},
-		{"v u user/repo", DependencyString("user/repo_name"), true, false},
-		{"v u https url path", DependencyString("https://github.com/user/repo_name/inc/path"), true, false},
-		{"v u http url path", DependencyString("http://github.com/user/repo_name/inc/path"), true, false},
-		{"v u naked url path", DependencyString("github.com/user/repo_name/inc/path"), true, false},
-		{"v u user/repo path", DependencyString("user/repo_name/inc/path"), true, false},
+		{"v u https url", DependencyString("https://github.com/user/repo.name"), true, false},
+		{"v u http url", DependencyString("http://github.com/user/repo.name"), true, false},
+		{"v u naked url", DependencyString("github.com/user/repo.name"), true, false},
+		{"v u user/repo", DependencyString("user/repo.name"), true, false},
+		{"v u https url path", DependencyString("https://github.com/user/repo.name/inc/path"), true, false},
+		{"v u http url path", DependencyString("http://github.com/user/repo.name/inc/path"), true, false},
+		{"v u naked url path", DependencyString("github.com/user/repo.name/inc/path"), true, false},
+		{"v u user/repo path", DependencyString("user/repo.name/inc/path"), true, false},
 
 		// Versioned - semver
 		{"v v https url", DependencyString("https://github.com/user/repo:1.2.3"), true, false},
@@ -81,14 +81,14 @@ func TestDependencyString_Explode(t *testing.T) {
 		wantErr bool
 	}{
 		// Unversioned
-		{"v u https url", DependencyString("https://github.com/user/repo_name"), DependencyMeta{"user", "repo_name", "", ""}, false},
-		{"v u http url", DependencyString("http://github.com/user/repo_name"), DependencyMeta{"user", "repo_name", "", ""}, false},
-		{"v u naked url", DependencyString("github.com/user/repo_name"), DependencyMeta{"user", "repo_name", "", ""}, false},
-		{"v u user/repo", DependencyString("user/repo_name"), DependencyMeta{"user", "repo_name", "", ""}, false},
-		{"v u https url path", DependencyString("https://github.com/user/repo_name/inc/path"), DependencyMeta{"user", "repo_name", "inc/path", ""}, false},
-		{"v u http url path", DependencyString("http://github.com/user/repo_name/inc/path"), DependencyMeta{"user", "repo_name", "inc/path", ""}, false},
-		{"v u naked url path", DependencyString("github.com/user/repo_name/inc/path"), DependencyMeta{"user", "repo_name", "inc/path", ""}, false},
-		{"v u user/repo path", DependencyString("user/repo_name/inc/path"), DependencyMeta{"user", "repo_name", "inc/path", ""}, false},
+		{"v u https url", DependencyString("https://github.com/user/repo.name"), DependencyMeta{"user", "repo.name", "", ""}, false},
+		{"v u http url", DependencyString("http://github.com/user/repo.name"), DependencyMeta{"user", "repo.name", "", ""}, false},
+		{"v u naked url", DependencyString("github.com/user/repo.name"), DependencyMeta{"user", "repo.name", "", ""}, false},
+		{"v u user/repo", DependencyString("user/repo.name"), DependencyMeta{"user", "repo.name", "", ""}, false},
+		{"v u https url path", DependencyString("https://github.com/user/repo.name/inc/path"), DependencyMeta{"user", "repo.name", "inc/path", ""}, false},
+		{"v u http url path", DependencyString("http://github.com/user/repo.name/inc/path"), DependencyMeta{"user", "repo.name", "inc/path", ""}, false},
+		{"v u naked url path", DependencyString("github.com/user/repo.name/inc/path"), DependencyMeta{"user", "repo.name", "inc/path", ""}, false},
+		{"v u user/repo path", DependencyString("user/repo.name/inc/path"), DependencyMeta{"user", "repo.name", "inc/path", ""}, false},
 
 		// Versioned - semver
 		{"v v https url", DependencyString("https://github.com/user/repo:1.2.3"), DependencyMeta{"user", "repo", "", "1.2.3"}, false},
