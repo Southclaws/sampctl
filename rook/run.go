@@ -15,7 +15,7 @@ import (
 
 // Run will create a temporary server runtime and run the package output AMX as a gamemode using the
 // runtime configuration in the package info.
-func Run(pkg types.Package, cacheDir, endpoint, version, appVersion, build, platform string, container, forceBuild, forceEnsure bool) (err error) {
+func Run(pkg types.Package, cacheDir, endpoint, version, appVersion, build, platform string, container, forceBuild, forceEnsure, noCache bool) (err error) {
 	runtimeDir := runtime.GetRuntimePath(cacheDir, version)
 
 	err = runtime.PrepareRuntimeDirectory(cacheDir, endpoint, version, platform)
@@ -67,7 +67,7 @@ func Run(pkg types.Package, cacheDir, endpoint, version, appVersion, build, plat
 		return errors.Wrap(err, "failed to generate temporary samp.json")
 	}
 
-	err = runtime.Ensure(config)
+	err = runtime.Ensure(config, noCache)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure temporary runtime")
 	}

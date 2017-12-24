@@ -23,7 +23,7 @@ import (
 )
 
 // EnsurePlugins validates and downloads plugin binary files
-func EnsurePlugins(cfg *types.Runtime, cacheDir string) (err error) {
+func EnsurePlugins(cfg *types.Runtime, cacheDir string, noCache bool) (err error) {
 	fmt.Println("ensuring runtime plugins", cfg.Plugins)
 
 	pluginsDir := util.FullPath(filepath.Join(cfg.WorkingDir, "plugins"))
@@ -52,7 +52,7 @@ func EnsurePlugins(cfg *types.Runtime, cacheDir string) (err error) {
 			newPlugins = append(newPlugins, plugin)
 		} else {
 			fmt.Println("plugin", plugin, "is a package dependency")
-			files, err = EnsureVersionedPlugin(*cfg, meta, cacheDir)
+			files, err = EnsureVersionedPlugin(*cfg, meta, cacheDir, noCache)
 			if err != nil {
 				fmt.Println(fmt.Sprintf("plugin '%s' failed to ensure: %v", plugin, err))
 			}
@@ -72,11 +72,18 @@ func EnsurePlugins(cfg *types.Runtime, cacheDir string) (err error) {
 }
 
 // EnsureVersionedPlugin automatically downloads a plugin binary from its github releases page
-func EnsureVersionedPlugin(cfg types.Runtime, meta versioning.DependencyMeta, cacheDir string) (files []types.Plugin, err error) {
-	hit, filename, resource, err := PluginFromCache(meta, cfg.Platform, cacheDir)
-	if err != nil {
-		err = errors.Wrapf(err, "failed to get plugin %s from cache", meta)
-		return
+func EnsureVersionedPlugin(cfg types.Runtime, meta versioning.DependencyMeta, cacheDir string, noCache bool) (files []types.Plugin, err error) {
+	var (
+		hit      bool
+		filename string
+		resource types.Resource
+	)
+	if !noCache {
+		hit, filename, resource, err = PluginFromCache(meta, cfg.Platform, cacheDir)
+		if err != nil {
+			err = errors.Wrapf(err, "failed to get plugin %s from cache", meta)
+			return
+		}
 	}
 	if !hit {
 		filename, resource, err = PluginFromNet(meta, cfg.Platform, cacheDir)
@@ -180,7 +187,7 @@ func PluginFromNet(meta versioning.DependencyMeta, platform, cacheDir string) (f
 
 	pkg, err := GetPluginRemotePackage(meta)
 	if err != nil {
-		err = errors.Wrap(err, "faied to get remote package definition file")
+		err = errors.Wrap(err, "failed to get remote package definition file")
 		return
 	}
 
@@ -251,6 +258,7 @@ func GetPluginRemotePackage(meta versioning.DependencyMeta) (pkg types.Package, 
 		return
 	}
 
+	fmt.Printf("https://raw.githubusercontent.com/sampctl/plugins/master/%s-%s.json\n", meta.User, meta.Repo)
 	resp, err = http.Get(fmt.Sprintf("https://raw.githubusercontent.com/sampctl/plugins/master/%s-%s.json", meta.User, meta.Repo))
 	if err != nil {
 		return
@@ -335,5 +343,5 @@ func GetResourcePath(meta versioning.DependencyMeta) (path string) {
 	if version == "" {
 		version = "latest"
 	}
-	return filepath.Join("plugins", meta.User, version)
+	return filepath.Join("plugins", meta.Repo, version)
 }

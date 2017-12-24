@@ -17,18 +17,23 @@ var serverRunFlags = []cli.Flag{
 		Name:  "container",
 		Usage: "starts the server as a Linux container instead of running it in the current directory",
 	},
+	cli.BoolFlag{
+		Name:  "noCache",
+		Usage: "forces download of plugins if `--forceEnsure` is set",
+	},
 }
 
 func serverRun(c *cli.Context) error {
 	dir := util.FullPath(c.String("dir"))
 	container := c.Bool("container")
+	noCache := c.Bool("noCache")
 
 	cfg, err := runtime.NewConfigFromEnvironment(dir)
 	if err != nil {
 		return nil
 	}
 
-	err = runtime.Ensure(&cfg)
+	err = runtime.Ensure(&cfg, noCache)
 	if err != nil {
 		return err
 	}

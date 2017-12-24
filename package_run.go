@@ -45,6 +45,10 @@ var packageRunFlags = []cli.Flag{
 		Name:  "forceEnsure",
 		Usage: "forces dependency ensure before build if `--forceBuild` is set",
 	},
+	cli.BoolFlag{
+		Name:  "noCache",
+		Usage: "forces download of plugins if `--forceEnsure` is set",
+	},
 }
 
 func packageRun(c *cli.Context) error {
@@ -55,6 +59,7 @@ func packageRun(c *cli.Context) error {
 	build := c.String("build")
 	forceBuild := c.Bool("forceBuild")
 	forceEnsure := c.Bool("forceEnsure")
+	noCache := c.Bool("noCache")
 
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
@@ -67,7 +72,7 @@ func packageRun(c *cli.Context) error {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	err = rook.Run(pkg, cacheDir, endpoint, version, c.App.Version, build, runtime.GOOS, container, forceBuild, forceEnsure)
+	err = rook.Run(pkg, cacheDir, endpoint, version, c.App.Version, build, runtime.GOOS, container, forceBuild, forceEnsure, noCache)
 
 	return err
 }

@@ -58,6 +58,7 @@ func TestEnsurePlugins(t *testing.T) {
 					"pBlueG/SA-MP-MySQL",
 					"ziggi/FCNPC",
 					"BigETI/pawn-memory",
+					"urShadow/Pawn.RakNet",
 				},
 			},
 		}, []string{
@@ -66,12 +67,14 @@ func TestEnsurePlugins(t *testing.T) {
 			"plugins/mysql.dll",
 			"plugins/FCNPC.dll",
 			"plugins/pawn-memory.dll",
+			"plugins/pawnraknet.dll",
 		}, []types.Plugin{
 			"streamer",
 			"crashdetect",
 			"mysql",
 			"FCNPC",
 			"pawn-memory",
+			"pawnraknet",
 		}, false},
 	}
 	for _, tt := range tests {
@@ -79,7 +82,7 @@ func TestEnsurePlugins(t *testing.T) {
 			os.MkdirAll(tt.args.cfg.WorkingDir, 0755)
 
 			t.Log("First call to Ensure - from internet")
-			err := EnsurePlugins(&tt.args.cfg, "./tests/cache")
+			err := EnsurePlugins(&tt.args.cfg, "./tests/cache", true)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -87,7 +90,7 @@ func TestEnsurePlugins(t *testing.T) {
 			assert.NoError(t, err)
 
 			t.Log("Second call to Ensure - from cache")
-			err = EnsurePlugins(&tt.args.cfg, "./tests/cache")
+			err = EnsurePlugins(&tt.args.cfg, "./tests/cache", false)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return

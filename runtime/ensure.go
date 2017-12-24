@@ -16,7 +16,7 @@ import (
 // - Server binaries (server, announce, npc)
 // - Plugin binaries
 // and a `server.cfg` is generated based on the contents of the Config fields.
-func Ensure(cfg *types.Runtime) (err error) {
+func Ensure(cfg *types.Runtime, noCache bool) (err error) {
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
 		return err
@@ -27,7 +27,7 @@ func Ensure(cfg *types.Runtime) (err error) {
 		return
 	}
 
-	err = EnsurePlugins(cfg, cacheDir)
+	err = EnsurePlugins(cfg, cacheDir, noCache)
 	if err != nil {
 		return
 	}
