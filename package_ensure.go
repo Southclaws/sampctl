@@ -28,7 +28,7 @@ func packageEnsure(c *cli.Context) error {
 
 	err = rook.EnsureDependencies(&pkg)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to ensure")
 	}
 
 	fmt.Println("successfully ensured dependencies for project")

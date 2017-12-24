@@ -2,8 +2,11 @@ package rook
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +15,7 @@ import (
 	"gopkg.in/AlecAivazis/survey.v1"
 
 	"github.com/Southclaws/sampctl/types"
+	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
 
@@ -21,6 +25,10 @@ func Init(dir string) (err error) {
 		pwnFiles []string
 		incFiles []string
 	)
+
+	if !util.Exists(dir) {
+		return errors.New("directory does not exist")
+	}
 
 	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) (innerErr error) {
 		if info.IsDir() {
@@ -66,6 +74,24 @@ func Init(dir string) (err error) {
 			Prompt:   &survey.Input{Message: "Package Name - If you plan to release, must be the GitHub project name."},
 			Validate: survey.Required,
 		},
+		{
+			Name:     "GitIgnore",
+			Prompt:   &survey.Confirm{Message: "Add a .gitignore file?", Default: true},
+			Validate: survey.Required,
+		},
+		{
+			Name:     "Readme",
+			Prompt:   &survey.Confirm{Message: "Add a README.md file?", Default: true},
+			Validate: survey.Required,
+		},
+		{
+			Name: "Editor",
+			Prompt: &survey.Select{
+				Message: "Select your text editor",
+				Options: []string{"none", "vscode"},
+			},
+			Validate: survey.Required,
+		},
 	}
 
 	if len(pwnFiles) > 0 {
@@ -99,6 +125,9 @@ func Init(dir string) (err error) {
 		Format        string
 		User          string
 		Repo          string
+		GitIgnore     bool
+		Readme        bool
+		Editor        string
 		EntryGenerate []string
 		Entry         string
 	}{}
@@ -119,8 +148,16 @@ func Init(dir string) (err error) {
 	}
 
 	if answers.Entry != "" {
-		pkg.Entry = answers.Entry
-		pkg.Output = strings.TrimSuffix(answers.Entry, filepath.Ext(answers.Entry)) + ".amx"
+		ext := filepath.Ext(answers.Entry)
+		nameOnly := strings.TrimSuffix(answers.Entry, ext)
+		pkg.Entry = nameOnly + ".pwn"
+		pkg.Output = nameOnly + ".amx"
+
+		if ext != "" && ext != ".pwn" {
+			fmt.Println("Entry point is not a .pwn file - it's advised to use a .pwn file as the compiled script.")
+			fmt.Println("If you are writing a library and not a gamemode or filterscript,")
+			fmt.Println("it's good to make a separate .pwn file that #includes the .inc file of your library.")
+		}
 	} else {
 		if len(answers.EntryGenerate) > 0 {
 			buf := bytes.Buffer{}
@@ -143,6 +180,61 @@ func Init(dir string) (err error) {
 	}
 
 	err = pkg.WriteDefinition()
+
+	if answers.GitIgnore {
+		err = getTemplateFile(dir, ".gitignore")
+		if err != nil {
+			return
+		}
+	}
+
+	if answers.Readme {
+		err = getTemplateFile(dir, "README.md")
+		if err != nil {
+			return
+		}
+	}
+
+	switch answers.Editor {
+	case "vscode":
+		err = getTemplateFile(dir, ".vscode/tasks.json")
+		if err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+func getTemplateFile(dir, filename string) (err error) {
+	resp, err := http.Get("https://raw.githubusercontent.com/Southclaws/pawn-package-template/master/" + filename)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+
+	outputFile := filepath.Join(dir, filename)
+
+	err = os.MkdirAll(filepath.Dir(outputFile), 0755)
+	if err != nil {
+		return
+	}
+
+	file, err := os.Create(outputFile)
+	if err != nil {
+		return
+	}
+	defer func() {
+		err = file.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}()
+
+	_, err = io.Copy(file, resp.Body)
+	if err != nil {
+		return
+	}
 
 	return
 }

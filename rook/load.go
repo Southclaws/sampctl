@@ -17,6 +17,7 @@ import (
 func PackageFromDir(parent bool, dir string, vendor string) (pkg types.Package, err error) {
 	pkg, err = types.PackageFromDir(dir)
 	if err != nil {
+		err = errors.Wrap(err, "failed to read package definition file")
 		return
 	}
 
@@ -40,11 +41,11 @@ func PackageFromDir(parent bool, dir string, vendor string) (pkg types.Package, 
 		pkg.Repo = "<local>"
 	}
 
-	if parent {
+	if parent && len(pkg.Dependencies) > 0 && len(pkg.AllDependencies) == 0 {
 		err = ResolveDependencies(&pkg)
 		if err != nil {
-			err = errors.Wrap(err, "failed to resolve all dependencies")
-			return
+			fmt.Println("failed to resolve dependency tree:", err)
+			err = nil // not a breaking error for PackageFromDir
 		}
 	}
 
@@ -66,8 +67,7 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 	depsDir := filepath.Join(pkg.Local, "dependencies")
 
 	if !util.Exists(depsDir) {
-		fmt.Println("dependencies directory does not exist, run sampctl package ensure to update dependencies")
-		return
+		return errors.New("no local dependencies present, must ensure dependencies first")
 	}
 
 	var recurse func(dependencyString versioning.DependencyString)
