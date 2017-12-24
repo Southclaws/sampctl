@@ -61,6 +61,7 @@ type Package struct {
 	Dependencies []versioning.DependencyString `json:"dependencies,omitempty" yaml:"dependencies,omitempty"` // list of packages that the package depends on
 	Builds       []BuildConfig                 `json:"builds,omitempty" yaml:"builds,omitempty"`             // list of build configurations
 	Runtime      *Runtime                      `json:"runtime,omitempty" yaml:"runtime,omitempty"`           // runtime configuration for executing the package code
+	IncludePath  string                        `json:"include_path,omitempty" yaml:"include_path,omitempty"` // include path within the repository, so users don't need to specify the path explicitly
 	Resources    []Resource                    `json:"resources,omitempty" yaml:"resources,omitempty"`       // list of additional resources associated with the package
 }
 

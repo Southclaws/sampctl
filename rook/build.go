@@ -38,8 +38,18 @@ func Build(pkg *types.Package, build, cacheDir, platform string, ensure bool) (o
 	}
 
 	for _, depMeta := range pkg.AllDependencies {
-		includePath := filepath.Join(pkg.Local, "dependencies", depMeta.Repo, depMeta.Path)
-		config.Includes = append(config.Includes, includePath)
+		depDir := filepath.Join(pkg.Local, "dependencies", depMeta.Repo)
+		incPath := depMeta.Path
+
+		// check if local package has a definition, if so, check if it has an IncludePath field
+		pkg, err := types.PackageFromDir(depDir)
+		if err == nil {
+			if pkg.IncludePath != "" {
+				incPath = pkg.IncludePath
+			}
+		}
+
+		config.Includes = append(config.Includes, filepath.Join(depDir, incPath))
 	}
 
 	fmt.Println("building", pkg, "with", config.Version)
