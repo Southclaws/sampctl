@@ -140,7 +140,7 @@ What also happens here is `maddinat0r/sscanf` tells sampctl to automatically get
 ---
 # `sampctl`
 
-1.5.7 - Southclaws <southclaws@gmail.com>
+1.5.8 - Southclaws <southclaws@gmail.com>
 
 Compiles server configuration JSON to server.cfg format. Executes the server and monitors it for crashes, restarting if necessary. Provides a way to quickly download server binaries of a specified version. Provides dependency management and package build tools for library maintainers and gamemode writers alike.
 
@@ -187,6 +187,7 @@ Ensures the server environment is representative of the configuration specified 
 #### Flags
 
 - `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
+- `--noCache --forceEnsure`: forces download of plugins if --forceEnsure is set
 
 ### `sampctl server run`
 
@@ -198,6 +199,7 @@ Generates a `server.cfg` file based on the configuration inside `samp.json`/`sam
 
 - `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
 - `--container`: starts the server as a Linux container instead of running it in the current directory
+- `--noCache --forceEnsure`: forces download of plugins if --forceEnsure is set
 
 
 ---
@@ -267,6 +269,7 @@ Compiles and runs a package defined by a `pawn.json`/`pawn.yaml` file.
 - `--build --forceBuild`: build configuration to use if --forceBuild is set
 - `--forceBuild`: forces a build to run before executing the server
 - `--forceEnsure --forceBuild`: forces dependency ensure before build if --forceBuild is set
+- `--noCache --forceEnsure`: forces download of plugins if --forceEnsure is set
 
 
 ---
