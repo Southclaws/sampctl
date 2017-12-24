@@ -61,7 +61,7 @@ func EnsureDependencies(pkg *types.Package) (err error) {
 
 		subPkg, err := PackageFromDir(false, pkgPath, pkg.Vendor)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println(pkg, err)
 			return
 		}
 

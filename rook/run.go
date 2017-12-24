@@ -1,9 +1,11 @@
 package rook
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
+	"github.com/fatih/color"
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/runtime"
@@ -21,12 +23,26 @@ func Run(pkg types.Package, cacheDir, endpoint, version, appVersion, build, plat
 		return err
 	}
 
-	filename := util.FullPath(pkg.Output)
+	var (
+		filename = util.FullPath(pkg.Output)
+		problems []types.BuildProblem
+		canRun   = true
+	)
 	if !util.Exists(filename) || forceBuild {
-		filename, err = Build(&pkg, build, cacheDir, platform, forceEnsure)
+		problems, _, err = Build(&pkg, build, cacheDir, platform, forceEnsure)
 		if err != nil {
 			return err
 		}
+
+		for _, problem := range problems {
+			if problem.Severity > types.ProblemWarning {
+				canRun = false
+			}
+			fmt.Println(problem)
+		}
+	}
+	if !canRun {
+		color.Red("Build failed, can not run")
 	}
 
 	err = runtime.CopyFileToRuntime(cacheDir, version, filename)

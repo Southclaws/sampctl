@@ -44,12 +44,19 @@ func packageBuild(c *cli.Context) error {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	output, err := rook.Build(&pkg, build, cacheDir, appRuntime.GOOS, forceEnsure)
+	problems, result, err := rook.Build(&pkg, build, cacheDir, appRuntime.GOOS, forceEnsure)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 1)
 	}
 
-	fmt.Println("successfully built project to", output)
+	fmt.Println("Build complete with", len(problems), "problems")
+	fmt.Printf("Results, in bytes: Header: %d, Code: %d, Data: %d, Stack/Heap: %d, Estimated usage: %d, Total: %d\n",
+		result.Header,
+		result.Code,
+		result.Data,
+		result.StackHeap,
+		result.Estimate,
+		result.Total)
 
 	return nil
 }

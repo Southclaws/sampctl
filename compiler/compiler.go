@@ -239,13 +239,5 @@ func CompileSource(execDir, cacheDir, platform string, config types.BuildConfig)
 		}
 	}
 
-	fmt.Printf("Results, in bytes: Header: %d, Code: %d, Data: %d, Stack/Heap: %d, Estimated usage: %d, Total: %d\n",
-		result.Header,
-		result.Code,
-		result.Data,
-		result.StackHeap,
-		result.Estimate,
-		result.Total)
-
 	return
 }

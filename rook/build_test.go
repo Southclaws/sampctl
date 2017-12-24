@@ -20,47 +20,50 @@ func TestPackage_Build(t *testing.T) {
 		ensure bool
 	}
 	tests := []struct {
-		name       string
-		sourceCode []byte
-		args       args
-		wantOutput string
-		wantErr    bool
+		name         string
+		sourceCode   []byte
+		args         args
+		wantProblems []types.BuildProblem
+		wantErr      bool
 	}{
 		{"stdlib", []byte(`#include <a_samp>
 			main() {print("hi");}`,
 		), args{&types.Package{
-			Parent: true,
-			Local:  util.FullPath("./tests/build-auto-stdlib"),
-			Entry:  "gamemodes/test.pwn",
-			Output: "gamemodes/test.amx",
+			Parent:         true,
+			Local:          util.FullPath("./tests/build-auto-stdlib"),
+			DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "stdlib"},
+			Entry:          "gamemodes/test.pwn",
+			Output:         "gamemodes/test.amx",
 			Dependencies: []versioning.DependencyString{
 				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
 			},
 			Builds: []types.BuildConfig{
 				{Name: "build", Version: "3.10.4"},
 			},
-		}, "build", true}, "gamemodes/test.amx", false},
+		}, "build", true}, nil, false},
 		{"deep", []byte(`#include <a_samp>
 			#include <actions>
 			main() { print("actions"); }`,
 		), args{&types.Package{
-			Parent: true,
-			Local:  util.FullPath("./tests/build-auto-deep"),
-			Entry:  "gamemodes/test.pwn",
-			Output: "gamemodes/test.amx",
+			Parent:         true,
+			Local:          util.FullPath("./tests/build-auto-deep"),
+			DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "deep"},
+			Entry:          "gamemodes/test.pwn",
+			Output:         "gamemodes/test.amx",
 			Dependencies: []versioning.DependencyString{
 				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
 				"ScavengeSurvive/actions",
 			},
-		}, "build", true}, "gamemodes/test.amx", false},
+		}, "build", true}, nil, false},
 		{"custominc", []byte(`#include <a_samp>
 			#include <YSI\y_utils>
 			main() {}`,
 		), args{&types.Package{
-			Parent: true,
-			Local:  util.FullPath("./tests/build-auto-custominc"),
-			Entry:  "gamemodes/test.pwn",
-			Output: "gamemodes/test.amx",
+			Parent:         true,
+			Local:          util.FullPath("./tests/build-auto-custominc"),
+			DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "custominc"},
+			Entry:          "gamemodes/test.pwn",
+			Output:         "gamemodes/test.amx",
 			Dependencies: []versioning.DependencyString{
 				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
 			},
@@ -75,7 +78,7 @@ func TestPackage_Build(t *testing.T) {
 					Args: []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
 				},
 			},
-		}, "build", true}, "gamemodes/test.amx", false},
+		}, "build", true}, nil, false},
 	}
 	for _, tt := range tests {
 		err := os.MkdirAll(filepath.Join(tt.args.pkg.Local, "gamemodes"), 0755)
@@ -89,7 +92,7 @@ func TestPackage_Build(t *testing.T) {
 		}
 
 		t.Run(tt.name, func(t *testing.T) {
-			gotOutput, err := Build(tt.args.pkg, tt.args.build, "tests/cache", runtime.GOOS, tt.args.ensure)
+			gotProblems, _, err := Build(tt.args.pkg, tt.args.build, "tests/cache", runtime.GOOS, tt.args.ensure)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -97,7 +100,7 @@ func TestPackage_Build(t *testing.T) {
 
 			assert.NoError(t, err)
 
-			assert.Equal(t, tt.wantOutput, gotOutput)
+			assert.Equal(t, tt.wantProblems, gotProblems)
 		})
 	}
 }
