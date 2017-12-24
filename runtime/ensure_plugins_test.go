@@ -23,96 +23,56 @@ func TestEnsurePlugins(t *testing.T) {
 		wantPlugins []types.Plugin
 		wantErr     bool
 	}{
-		{"streamer-linux", args{
+		{"linux", args{
 			types.Runtime{
-				WorkingDir: "./tests/ensure/streamer-linux",
+				WorkingDir: "./tests/ensure/linux",
 				Platform:   "linux",
 				Plugins: []types.Plugin{
 					"samp-incognito/samp-streamer-plugin",
+					"Zeex/samp-plugin-crashdetect",
+					"pBlueG/SA-MP-MySQL",
+					"ziggi/FCNPC",
+					"BigETI/pawn-memory",
 				},
 			},
-		}, []string{"plugins/streamer.so"}, []types.Plugin{"streamer"}, false},
-		{"streamer-windows", args{
+		}, []string{
+			"plugins/streamer.so",
+			"plugins/crashdetect.so",
+			"plugins/mysql.so",
+			"plugins/FCNPC.so",
+			"plugins/memory.so",
+		}, []types.Plugin{
+			"streamer",
+			"crashdetect",
+			"mysql",
+			"FCNPC",
+			"memory",
+		}, false},
+		{"windows", args{
 			types.Runtime{
-				WorkingDir: "./tests/ensure/streamer-windows",
+				WorkingDir: "./tests/ensure/windows",
 				Platform:   "windows",
 				Plugins: []types.Plugin{
 					"samp-incognito/samp-streamer-plugin",
-				},
-			},
-		}, []string{"plugins/streamer.dll"}, []types.Plugin{"streamer"}, false},
-		{"crashdetect-linux", args{
-			types.Runtime{
-				WorkingDir: "./tests/ensure/crashdetect-linux",
-				Platform:   "linux",
-				Plugins: []types.Plugin{
 					"Zeex/samp-plugin-crashdetect",
-				},
-			},
-		}, []string{"plugins/crashdetect.so"}, []types.Plugin{"crashdetect"}, false},
-		{"crashdetect-windows", args{
-			types.Runtime{
-				WorkingDir: "./tests/ensure/crashdetect-windows",
-				Platform:   "windows",
-				Plugins: []types.Plugin{
-					"Zeex/samp-plugin-crashdetect",
-				},
-			},
-		}, []string{"plugins/crashdetect.dll"}, []types.Plugin{"crashdetect"}, false},
-		{"mysql-linux", args{
-			types.Runtime{
-				WorkingDir: "./tests/ensure/mysql-linux",
-				Platform:   "linux",
-				Plugins: []types.Plugin{
 					"pBlueG/SA-MP-MySQL",
-				},
-			},
-		}, []string{"plugins/mysql.so"}, []types.Plugin{"mysql"}, false},
-		{"mysql-windows", args{
-			types.Runtime{
-				WorkingDir: "./tests/ensure/mysql-windows",
-				Platform:   "windows",
-				Plugins: []types.Plugin{
-					"pBlueG/SA-MP-MySQL",
-				},
-			},
-		}, []string{"plugins/mysql.dll"}, []types.Plugin{"mysql"}, false},
-		{"fcnpc-linux", args{
-			types.Runtime{
-				WorkingDir: "./tests/ensure/fcnpc-linux",
-				Platform:   "linux",
-				Plugins: []types.Plugin{
 					"ziggi/FCNPC",
-				},
-			},
-		}, []string{"plugins/FCNPC.so"}, []types.Plugin{"FCNPC"}, false},
-		{"fcnpc-windows", args{
-			types.Runtime{
-				WorkingDir: "./tests/ensure/fcnpc-windows",
-				Platform:   "windows",
-				Plugins: []types.Plugin{
-					"ziggi/FCNPC",
-				},
-			},
-		}, []string{"plugins/FCNPC.dll"}, []types.Plugin{"FCNPC"}, false},
-		{"pawn-memory-linux", args{
-			types.Runtime{
-				WorkingDir: "./tests/ensure/pawn-memory-linux",
-				Platform:   "linux",
-				Plugins: []types.Plugin{
 					"BigETI/pawn-memory",
 				},
 			},
-		}, []string{"plugins/memory.so"}, []types.Plugin{"memory"}, false},
-		{"pawn-memory-windows", args{
-			types.Runtime{
-				WorkingDir: "./tests/ensure/pawn-memory-windows",
-				Platform:   "windows",
-				Plugins: []types.Plugin{
-					"BigETI/pawn-memory",
-				},
-			},
-		}, []string{"plugins/pawn-memory.dll"}, []types.Plugin{"pawn-memory"}, false},
+		}, []string{
+			"plugins/streamer.dll",
+			"plugins/crashdetect.dll",
+			"plugins/mysql.dll",
+			"plugins/FCNPC.dll",
+			"plugins/pawn-memory.dll",
+		}, []types.Plugin{
+			"streamer",
+			"crashdetect",
+			"mysql",
+			"FCNPC",
+			"pawn-memory",
+		}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
