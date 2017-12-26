@@ -33,6 +33,7 @@ func TestEnsurePlugins(t *testing.T) {
 					"pBlueG/SA-MP-MySQL",
 					"ziggi/FCNPC",
 					"BigETI/pawn-memory",
+					"Southclaws/samp-nolog",
 				},
 			},
 		}, []string{
@@ -41,12 +42,14 @@ func TestEnsurePlugins(t *testing.T) {
 			"plugins/mysql.so",
 			"plugins/FCNPC.so",
 			"plugins/memory.so",
+			"plugins/nolog.so",
 		}, []types.Plugin{
 			"streamer",
 			"crashdetect",
 			"mysql",
 			"FCNPC",
 			"memory",
+			"nolog",
 		}, false},
 		{"windows", args{
 			types.Runtime{

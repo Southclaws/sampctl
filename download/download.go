@@ -5,6 +5,7 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
+	"compress/zlib"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -97,17 +98,29 @@ func Untar(src, dst string, paths map[string]string) (err error) {
 		}
 	}()
 
-	gzr, err := gzip.NewReader(r)
-	if err != nil {
-		return errors.Wrap(err, "failed to create new gzip reader")
-	}
-	defer func() {
-		if err := gzr.Close(); err != nil {
-			panic(err)
-		}
-	}()
+	var tr *tar.Reader
 
-	tr := tar.NewReader(gzr)
+	gz, err := gzip.NewReader(r)
+	if err != nil {
+		zl, err := zlib.NewReader(r)
+		if err != nil {
+			return errors.Wrap(err, "failed to create new zlib reader after failed attempt at gzip")
+		}
+		defer func() {
+			if err := zl.Close(); err != nil {
+				panic(err)
+			}
+		}()
+		tr = tar.NewReader(zl)
+	} else {
+		defer func() {
+			if err := gz.Close(); err != nil {
+				panic(err)
+			}
+		}()
+		tr = tar.NewReader(gz)
+	}
+
 	var header *tar.Header
 loop:
 	for {
