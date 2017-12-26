@@ -21,10 +21,18 @@ import (
 )
 
 // RunContainer does what Run does but inside a Linux container
-func RunContainer(cfg sampctltypes.Runtime, appVersion string) (err error) {
+func RunContainer(cfg sampctltypes.Runtime) (err error) {
 	cli, err := client.NewEnvClient()
 	if err != nil {
 		panic(err)
+	}
+
+	args := strslice.StrSlice{"sampctl", "server", "run"}
+	for i, arg := range os.Args {
+		if arg == "--container" || i < 3 {
+			continue
+		}
+		args = append(args, arg)
 	}
 
 	port := fmt.Sprint(*cfg.Port)
@@ -32,8 +40,8 @@ func RunContainer(cfg sampctltypes.Runtime, appVersion string) (err error) {
 	cnt, err := cli.ContainerCreate(
 		context.Background(),
 		&container.Config{
-			Image:        "southclaws/sampctl:" + appVersion,
-			Entrypoint:   strslice.StrSlice{"sampctl", "server", "run"},
+			Image:        "southclaws/sampctl:" + cfg.AppVersion,
+			Entrypoint:   args,
 			Tty:          true,
 			AttachStdout: true,
 			AttachStderr: true,

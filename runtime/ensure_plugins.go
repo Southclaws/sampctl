@@ -62,10 +62,18 @@ func EnsurePlugins(cfg *types.Runtime, cacheDir string, noCache bool) (err error
 	}
 
 	cfg.Plugins = []types.Plugin{}
+	added := make(map[types.Plugin]struct{})
 
 	// trim extensions for plugins list, they are added later by GenerateServerCFG if needed
 	for _, plugin := range newPlugins {
-		cfg.Plugins = append(cfg.Plugins, types.Plugin(strings.TrimSuffix(string(plugin), fileExt)))
+		pluginName := types.Plugin(strings.TrimSuffix(string(plugin), fileExt))
+		if _, ok := added[pluginName]; ok {
+			continue
+		}
+
+		fmt.Println("- adding runtime plugin", pluginName)
+		cfg.Plugins = append(cfg.Plugins, pluginName)
+		added[pluginName] = struct{}{}
 	}
 
 	return

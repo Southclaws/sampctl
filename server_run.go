@@ -5,6 +5,7 @@ import (
 
 	"github.com/Southclaws/sampctl/runtime"
 	"github.com/Southclaws/sampctl/util"
+	"github.com/pkg/errors"
 )
 
 var serverRunFlags = []cli.Flag{
@@ -18,6 +19,10 @@ var serverRunFlags = []cli.Flag{
 		Usage: "starts the server as a Linux container instead of running it in the current directory",
 	},
 	cli.BoolFlag{
+		Name:  "forceEnsure",
+		Usage: "forces plugin and binaries ensure before run",
+	},
+	cli.BoolFlag{
 		Name:  "noCache",
 		Usage: "forces download of plugins if `--forceEnsure` is set",
 	},
@@ -26,23 +31,27 @@ var serverRunFlags = []cli.Flag{
 func serverRun(c *cli.Context) error {
 	dir := util.FullPath(c.String("dir"))
 	container := c.Bool("container")
+	forceEnsure := c.Bool("forceEnsure")
 	noCache := c.Bool("noCache")
 
 	cfg, err := runtime.NewConfigFromEnvironment(dir)
 	if err != nil {
-		return nil
+		return errors.Wrap(err, "failed to interpret directory as server runtime environment")
 	}
 
-	err = runtime.Ensure(&cfg, noCache)
-	if err != nil {
-		return err
+	if forceEnsure {
+		err = runtime.Ensure(&cfg, noCache)
+		if err != nil {
+			return err
+		}
 	}
 
 	if container {
-		err = runtime.RunContainer(cfg, c.App.Version)
-	} else {
-		err = runtime.Run(cfg)
+		cfg.Container = true
+		cfg.AppVersion = c.App.Version
 	}
+
+	err = runtime.Run(cfg)
 
 	return err
 }

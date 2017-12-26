@@ -8,8 +8,9 @@ import (
 type Runtime struct {
 	// Only used internally
 	WorkingDir string `ignore:"1" json:"-"` // local directory that configuration points to
-
-	Platform string `ignore:"1" json:"-"` // the target platform for the runtime
+	Platform   string `ignore:"1" json:"-"` // the target platform for the runtime
+	Container  bool   `ignore:"1" json:"-"` // whether or not to run the server in a container
+	AppVersion string `ignore:"1" json:"-"` // app version for container runtime
 
 	// Only used to configure sampctl, not used in server.cfg generation
 	Version  string `ignore:"1" json:"version,omitempty"`  // SA:MP server binaries version

@@ -14,6 +14,10 @@ import (
 
 // Run handles the actual running of the server process - it collects log output too
 func Run(cfg types.Runtime) (err error) {
+	if cfg.Container {
+		return RunContainer(cfg)
+	}
+
 	binary := "./" + getServerBinary(cfg.Platform)
 	fullPath := filepath.Join(cfg.WorkingDir, binary)
 	fmt.Printf("start %s in %s\n", binary, cfg.WorkingDir)

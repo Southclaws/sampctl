@@ -62,6 +62,11 @@ func Run(pkg types.Package, cacheDir, endpoint, version, appVersion, build, plat
 		config.Plugins = append(config.Plugins, types.Plugin(pluginMeta.String()))
 	}
 
+	if container {
+		config.Container = true
+		config.AppVersion = appVersion
+	}
+
 	err = runtime.GenerateJSON(*config)
 	if err != nil {
 		return errors.Wrap(err, "failed to generate temporary samp.json")
@@ -72,10 +77,7 @@ func Run(pkg types.Package, cacheDir, endpoint, version, appVersion, build, plat
 		return errors.Wrap(err, "failed to ensure temporary runtime")
 	}
 
-	if container {
-		err = runtime.RunContainer(*config, appVersion)
-	} else {
-		err = runtime.Run(*config)
-	}
+	err = runtime.Run(*config)
+
 	return
 }
