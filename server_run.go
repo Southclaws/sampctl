@@ -1,11 +1,13 @@
 package main
 
 import (
+	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/runtime"
+	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
-	"github.com/pkg/errors"
 )
 
 var serverRunFlags = []cli.Flag{
@@ -17,6 +19,10 @@ var serverRunFlags = []cli.Flag{
 	cli.BoolFlag{
 		Name:  "container",
 		Usage: "starts the server as a Linux container instead of running it in the current directory",
+	},
+	cli.BoolFlag{
+		Name:  "mountCache",
+		Usage: "if `--container` is set, mounts the local cache directory inside the container",
 	},
 	cli.BoolFlag{
 		Name:  "forceEnsure",
@@ -31,6 +37,7 @@ var serverRunFlags = []cli.Flag{
 func serverRun(c *cli.Context) error {
 	dir := util.FullPath(c.String("dir"))
 	container := c.Bool("container")
+	mountCache := c.Bool("mountCache")
 	forceEnsure := c.Bool("forceEnsure")
 	noCache := c.Bool("noCache")
 
@@ -47,11 +54,16 @@ func serverRun(c *cli.Context) error {
 	}
 
 	if container {
-		cfg.Container = true
+		cfg.Container = &types.ContainerConfig{MountCache: mountCache}
 		cfg.AppVersion = c.App.Version
 	}
 
-	err = runtime.Run(cfg)
+	cacheDir, err := download.GetCacheDir()
+	if err != nil {
+		return errors.Wrap(err, "failed to get or create cache directory")
+	}
+
+	err = runtime.Run(cfg, cacheDir)
 
 	return err
 }

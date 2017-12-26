@@ -9,6 +9,7 @@ import (
 
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/rook"
+	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -31,6 +32,10 @@ var packageRunFlags = []cli.Flag{
 	cli.BoolFlag{
 		Name:  "container",
 		Usage: "starts the server as a Linux container instead of running it in the current directory",
+	},
+	cli.BoolFlag{
+		Name:  "mountCache",
+		Usage: "if `--container` is set, mounts the local cache directory inside the container",
 	},
 	cli.StringFlag{
 		Name:  "build",
@@ -56,6 +61,7 @@ func packageRun(c *cli.Context) error {
 	dir := util.FullPath(c.String("dir"))
 	endpoint := c.String("endpoint")
 	container := c.Bool("container")
+	mountCache := c.Bool("mountCache")
 	build := c.String("build")
 	forceBuild := c.Bool("forceBuild")
 	forceEnsure := c.Bool("forceEnsure")
@@ -72,7 +78,18 @@ func packageRun(c *cli.Context) error {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	err = rook.Run(pkg, cacheDir, endpoint, version, c.App.Version, build, runtime.GOOS, container, forceBuild, forceEnsure, noCache)
+	cfg := types.Runtime{
+		Platform:   runtime.GOOS,
+		AppVersion: c.App.Version,
+		Version:    version,
+		Endpoint:   endpoint,
+	}
+
+	if container {
+		cfg.Container = &types.ContainerConfig{MountCache: mountCache}
+	}
+
+	err = rook.Run(pkg, cfg, cacheDir, build, forceBuild, forceEnsure, noCache)
 
 	return err
 }

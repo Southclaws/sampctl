@@ -21,7 +21,7 @@ import (
 )
 
 // RunContainer does what Run does but inside a Linux container
-func RunContainer(cfg sampctltypes.Runtime) (err error) {
+func RunContainer(cfg sampctltypes.Runtime, cacheDir string) (err error) {
 	cli, err := client.NewEnvClient()
 	if err != nil {
 		panic(err)
@@ -29,13 +29,30 @@ func RunContainer(cfg sampctltypes.Runtime) (err error) {
 
 	args := strslice.StrSlice{"sampctl", "server", "run"}
 	for i, arg := range os.Args {
-		if arg == "--container" || i < 3 {
+		// trim first 3 args and container specific flags
+		if arg == "--container" || arg == "--mountCache" || i < 3 {
 			continue
 		}
 		args = append(args, arg)
 	}
 
 	port := fmt.Sprint(*cfg.Port)
+	mounts := []mount.Mount{
+		{
+			Type:   mount.TypeBind,
+			Source: cfg.WorkingDir,
+			Target: "/samp",
+		},
+	}
+
+	if cfg.Container.MountCache {
+		mounts = append(mounts, mount.Mount{
+			Type:     mount.TypeBind,
+			Source:   cacheDir,
+			Target:   "/root/.samp",
+			ReadOnly: true,
+		})
+	}
 
 	cnt, err := cli.ContainerCreate(
 		context.Background(),
@@ -47,13 +64,7 @@ func RunContainer(cfg sampctltypes.Runtime) (err error) {
 			AttachStderr: true,
 		},
 		&container.HostConfig{
-			Mounts: []mount.Mount{
-				{
-					Type:   mount.TypeBind,
-					Source: cfg.WorkingDir,
-					Target: "/samp",
-				},
-			},
+			Mounts: mounts,
 			PortBindings: nat.PortMap{
 				nat.Port(port): []nat.PortBinding{
 					{HostIP: "0.0.0.0", HostPort: port},

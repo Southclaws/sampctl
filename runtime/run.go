@@ -13,9 +13,9 @@ import (
 )
 
 // Run handles the actual running of the server process - it collects log output too
-func Run(cfg types.Runtime) (err error) {
-	if cfg.Container {
-		return RunContainer(cfg)
+func Run(cfg types.Runtime, cacheDir string) (err error) {
+	if cfg.Container != nil {
+		return RunContainer(cfg, cacheDir)
 	}
 
 	binary := "./" + getServerBinary(cfg.Platform)

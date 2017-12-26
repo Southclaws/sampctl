@@ -7,10 +7,10 @@ import (
 // Runtime stores the server settings and working directory
 type Runtime struct {
 	// Only used internally
-	WorkingDir string `ignore:"1" json:"-"` // local directory that configuration points to
-	Platform   string `ignore:"1" json:"-"` // the target platform for the runtime
-	Container  bool   `ignore:"1" json:"-"` // whether or not to run the server in a container
-	AppVersion string `ignore:"1" json:"-"` // app version for container runtime
+	WorkingDir string           `ignore:"1" json:"-"` // local directory that configuration points to
+	Platform   string           `ignore:"1" json:"-"` // the target platform for the runtime
+	Container  *ContainerConfig `ignore:"1" json:"-"` // configuration for container runtime
+	AppVersion string           `ignore:"1" json:"-"` // app version for container runtime
 
 	// Only used to configure sampctl, not used in server.cfg generation
 	Version  string `ignore:"1" json:"version,omitempty"`  // SA:MP server binaries version
@@ -65,6 +65,11 @@ type Runtime struct {
 	ConnectCookies    *bool    `default:"1"             required:"0" json:"conncookies,omitempty"`       // 1
 	CookieLogging     *bool    `default:"0"             required:"0" json:"cookielogging,omitempty"`     // 1
 	Output            *bool    `default:"1"             required:"0" json:"output,omitempty"`            // 1
+}
+
+// ContainerConfig is used if the runtime is specified to run inside a container
+type ContainerConfig struct {
+	MountCache bool // whether or not to mount the local cache directory inside the container
 }
 
 // Plugin represents either a plugin name or a dependency-string description of where to get it

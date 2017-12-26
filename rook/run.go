@@ -15,10 +15,10 @@ import (
 
 // Run will create a temporary server runtime and run the package output AMX as a gamemode using the
 // runtime configuration in the package info.
-func Run(pkg types.Package, cacheDir, endpoint, version, appVersion, build, platform string, container, forceBuild, forceEnsure, noCache bool) (err error) {
-	runtimeDir := runtime.GetRuntimePath(cacheDir, version)
+func Run(pkg types.Package, cfg types.Runtime, cacheDir, build string, forceBuild, forceEnsure, noCache bool) (err error) {
+	runtimeDir := runtime.GetRuntimePath(cacheDir, cfg.Version)
 
-	err = runtime.PrepareRuntimeDirectory(cacheDir, endpoint, version, platform)
+	err = runtime.PrepareRuntimeDirectory(cacheDir, cfg.Endpoint, cfg.Version, cfg.Platform)
 	if err != nil {
 		return err
 	}
@@ -29,7 +29,7 @@ func Run(pkg types.Package, cacheDir, endpoint, version, appVersion, build, plat
 		canRun   = true
 	)
 	if !util.Exists(filename) || forceBuild {
-		problems, _, err = Build(&pkg, build, cacheDir, platform, forceEnsure)
+		problems, _, err = Build(&pkg, build, cacheDir, cfg.Platform, forceEnsure)
 		if err != nil {
 			return err
 		}
@@ -45,26 +45,25 @@ func Run(pkg types.Package, cacheDir, endpoint, version, appVersion, build, plat
 		color.Red("Build failed, can not run")
 	}
 
-	err = runtime.CopyFileToRuntime(cacheDir, version, filename)
+	err = runtime.CopyFileToRuntime(cacheDir, cfg.Version, filename)
 	if err != nil {
 		return err
 	}
 
 	config := types.MergeRuntimeDefault(pkg.Runtime)
-	config.Platform = platform
+
+	config.Platform = cfg.Platform
+	config.AppVersion = cfg.AppVersion
+	config.Version = cfg.Version
+	config.Endpoint = cfg.Endpoint
+	config.Container = cfg.Container
+
 	config.Gamemodes = []string{strings.TrimSuffix(filepath.Base(pkg.Output), ".amx")}
 	config.WorkingDir = runtimeDir
-	config.Version = version
-	config.Endpoint = endpoint
 
 	config.Plugins = []types.Plugin{}
 	for _, pluginMeta := range pkg.AllPlugins {
 		config.Plugins = append(config.Plugins, types.Plugin(pluginMeta.String()))
-	}
-
-	if container {
-		config.Container = true
-		config.AppVersion = appVersion
 	}
 
 	err = runtime.GenerateJSON(*config)
@@ -77,7 +76,7 @@ func Run(pkg types.Package, cacheDir, endpoint, version, appVersion, build, plat
 		return errors.Wrap(err, "failed to ensure temporary runtime")
 	}
 
-	err = runtime.Run(*config)
+	err = runtime.Run(*config, cacheDir)
 
 	return
 }

@@ -17,7 +17,7 @@ import (
 func GetServerPackage(endpoint, version, dir, platform string) (err error) {
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to get or create cache directory")
 	}
 
 	hit, err := FromCache(cacheDir, version, dir, platform)
