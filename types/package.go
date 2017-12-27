@@ -56,13 +56,14 @@ type Package struct {
 	Website      string   `json:"website,omitempty" yaml:"website,omitempty"`           // website or forum topic associated with the package
 
 	// Functional, set by the package author to declare relevant files and dependencies
-	Entry        string                        `json:"entry"`                                                // entry point script to compile the project
-	Output       string                        `json:"output"`                                               // output amx file
-	Dependencies []versioning.DependencyString `json:"dependencies,omitempty" yaml:"dependencies,omitempty"` // list of packages that the package depends on
-	Builds       []BuildConfig                 `json:"builds,omitempty" yaml:"builds,omitempty"`             // list of build configurations
-	Runtime      *Runtime                      `json:"runtime,omitempty" yaml:"runtime,omitempty"`           // runtime configuration for executing the package code
-	IncludePath  string                        `json:"include_path,omitempty" yaml:"include_path,omitempty"` // include path within the repository, so users don't need to specify the path explicitly
-	Resources    []Resource                    `json:"resources,omitempty" yaml:"resources,omitempty"`       // list of additional resources associated with the package
+	Entry        string                        `json:"entry"`                                                        // entry point script to compile the project
+	Output       string                        `json:"output"`                                                       // output amx file
+	Dependencies []versioning.DependencyString `json:"dependencies,omitempty" yaml:"dependencies,omitempty"`         // list of packages that the package depends on
+	Development  []versioning.DependencyString `json:"dev_dependencies,omitempty" yaml:"dev_dependencies,omitempty"` // list of packages that only the package builds depend on
+	Builds       []BuildConfig                 `json:"builds,omitempty" yaml:"builds,omitempty"`                     // list of build configurations
+	Runtime      *Runtime                      `json:"runtime,omitempty" yaml:"runtime,omitempty"`                   // runtime configuration for executing the package code
+	IncludePath  string                        `json:"include_path,omitempty" yaml:"include_path,omitempty"`         // include path within the repository, so users don't need to specify the path explicitly
+	Resources    []Resource                    `json:"resources,omitempty" yaml:"resources,omitempty"`               // list of additional resources associated with the package
 }
 
 func (pkg Package) String() string {
@@ -71,18 +72,17 @@ func (pkg Package) String() string {
 
 // Validate checks a package for missing fields
 func (pkg Package) Validate() (err error) {
-	if pkg.Entry == "" {
-		return errors.New("package does not define an entry point")
-	}
-
-	if pkg.Output == "" {
-		return errors.New("package does not define an output file")
-	}
-
 	if pkg.Entry == pkg.Output {
 		return errors.New("package entry and output point to the same file")
 	}
 
+	return
+}
+
+// GetAllDependencies returns the Dependencies and the Development dependencies in one list
+func (pkg Package) GetAllDependencies() (result []versioning.DependencyString) {
+	result = append(result, pkg.Dependencies...)
+	result = append(result, pkg.Development...)
 	return
 }
 
@@ -105,7 +105,7 @@ func PackageFromDir(dir string) (pkg Package, err error) {
 		return PackageFromYAML(yamlFile)
 	}
 
-	err = errors.New("directory does not contain a pawn.json or pawn.yaml file")
+	err = errors.New("no pawn.json/pawn.yaml present")
 
 	return
 }

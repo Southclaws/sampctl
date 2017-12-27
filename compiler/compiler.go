@@ -93,8 +93,8 @@ func CompileSource(execDir, cacheDir, platform string, config types.BuildConfig)
 			fullPath = filepath.Join(execDir, inc)
 		}
 
+		// remove duplicates from the include path list
 		if _, found := includePaths[fullPath]; found {
-			fmt.Println("- ignoring duplicate", fullPath)
 			continue
 		}
 		includePaths[fullPath] = struct{}{}

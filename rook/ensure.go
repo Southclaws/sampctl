@@ -77,7 +77,7 @@ func EnsureDependencies(pkg *types.Package) (err error) {
 	}
 
 	var meta versioning.DependencyMeta
-	for _, dep := range pkg.Dependencies {
+	for _, dep := range pkg.GetAllDependencies() {
 		meta, err = dep.Explode()
 		if err != nil {
 			return

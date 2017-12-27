@@ -17,7 +17,7 @@ import (
 func PackageFromDir(parent bool, dir string, vendor string) (pkg types.Package, err error) {
 	pkg, err = types.PackageFromDir(dir)
 	if err != nil {
-		err = errors.Wrap(err, "failed to read package definition file")
+		err = errors.Wrap(err, "failed to read package definition")
 		return
 	}
 
@@ -90,7 +90,7 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 
 		subPkg, err := PackageFromDir(false, dependencyDir, depsDir)
 		if err != nil {
-			fmt.Println(pkg, "dependency is not a Pawn package:", dependencyString, err)
+			fmt.Println(pkg, "not a package:", dependencyString, err)
 			return
 		}
 
@@ -110,7 +110,7 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 		}
 	}
 
-	for _, depStr := range pkg.Dependencies {
+	for _, depStr := range pkg.GetAllDependencies() {
 		recurse(depStr)
 	}
 

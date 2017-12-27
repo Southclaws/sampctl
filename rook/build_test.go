@@ -26,59 +26,85 @@ func TestPackage_Build(t *testing.T) {
 		wantProblems []types.BuildProblem
 		wantErr      bool
 	}{
-		{"stdlib", []byte(`#include <a_samp>
+		{
+			"stdlib", []byte(`#include <a_samp>
 			main() {print("hi");}`,
-		), args{&types.Package{
-			Parent:         true,
-			Local:          util.FullPath("./tests/build-auto-stdlib"),
-			DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "stdlib"},
-			Entry:          "gamemodes/test.pwn",
-			Output:         "gamemodes/test.amx",
-			Dependencies: []versioning.DependencyString{
-				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
-			},
-			Builds: []types.BuildConfig{
-				{Name: "build", Version: "3.10.4"},
-			},
-		}, "build", true}, nil, false},
-		{"deep", []byte(`#include <a_samp>
+			), args{&types.Package{
+				Parent:         true,
+				Local:          util.FullPath("./tests/build-auto-stdlib"),
+				DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "stdlib"},
+				Entry:          "gamemodes/test.pwn",
+				Output:         "gamemodes/test.amx",
+				Dependencies: []versioning.DependencyString{
+					"Southclaws/samp-stdlib:0.3.7-R2-2-1",
+				},
+				Builds: []types.BuildConfig{
+					{Name: "build", Version: "3.10.4"},
+				},
+			}, "build", true}, nil, false,
+		},
+		{
+			"deep", []byte(`#include <a_samp>
 			#include <actions>
 			main() { print("actions"); }`,
-		), args{&types.Package{
-			Parent:         true,
-			Local:          util.FullPath("./tests/build-auto-deep"),
-			DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "deep"},
-			Entry:          "gamemodes/test.pwn",
-			Output:         "gamemodes/test.amx",
-			Dependencies: []versioning.DependencyString{
-				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
-				"ScavengeSurvive/actions",
-			},
-		}, "build", true}, nil, false},
-		{"custominc", []byte(`#include <a_samp>
+			), args{&types.Package{
+				Parent:         true,
+				Local:          util.FullPath("./tests/build-auto-deep"),
+				DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "deep"},
+				Entry:          "gamemodes/test.pwn",
+				Output:         "gamemodes/test.amx",
+				Dependencies: []versioning.DependencyString{
+					"Southclaws/samp-stdlib:0.3.7-R2-2-1",
+					"ScavengeSurvive/actions",
+				},
+			}, "build", true}, nil, false,
+		},
+		{
+			"dev", []byte(`#include <a_samp>
+				#include <actions>
+				#include <test-boilerplate>
+				main() { print("actions"); }`,
+			), args{&types.Package{
+				Parent:         true,
+				Local:          util.FullPath("./tests/build-auto-deep"),
+				DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "deep"},
+				Entry:          "gamemodes/test.pwn",
+				Output:         "gamemodes/test.amx",
+				Dependencies: []versioning.DependencyString{
+					"Southclaws/samp-stdlib:0.3.7-R2-2-1",
+					"ScavengeSurvive/actions",
+				},
+				Development: []versioning.DependencyString{
+					"ScavengeSurvive/test-boilerplate",
+				},
+			}, "build", true}, nil, false,
+		},
+		{
+			"custominc", []byte(`#include <a_samp>
 			#include <YSI\y_utils>
 			main() {}`,
-		), args{&types.Package{
-			Parent:         true,
-			Local:          util.FullPath("./tests/build-auto-custominc"),
-			DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "custominc"},
-			Entry:          "gamemodes/test.pwn",
-			Output:         "gamemodes/test.amx",
-			Dependencies: []versioning.DependencyString{
-				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
-			},
-			Builds: []types.BuildConfig{
-				{
-					Name:    "build",
-					Version: "3.10.4",
-					Includes: []string{
-						"../build-auto-deep/dependencies/amx_assembly",
-						"../build-auto-deep/dependencies/YSI-Includes",
-					},
-					Args: []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
+			), args{&types.Package{
+				Parent:         true,
+				Local:          util.FullPath("./tests/build-auto-custominc"),
+				DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "custominc"},
+				Entry:          "gamemodes/test.pwn",
+				Output:         "gamemodes/test.amx",
+				Dependencies: []versioning.DependencyString{
+					"Southclaws/samp-stdlib:0.3.7-R2-2-1",
 				},
-			},
-		}, "build", true}, nil, false},
+				Builds: []types.BuildConfig{
+					{
+						Name:    "build",
+						Version: "3.10.4",
+						Includes: []string{
+							"../build-auto-deep/dependencies/amx_assembly",
+							"../build-auto-deep/dependencies/YSI-Includes",
+						},
+						Args: []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
+					},
+				},
+			}, "build", true}, nil, false,
+		},
 	}
 	for _, tt := range tests {
 		err := os.MkdirAll(filepath.Join(tt.args.pkg.Local, "gamemodes"), 0755)

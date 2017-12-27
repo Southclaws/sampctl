@@ -13,7 +13,8 @@ import (
 
 func TestPackage_Install(t *testing.T) {
 	type args struct {
-		target versioning.DependencyString
+		targets     []versioning.DependencyString
+		development bool
 	}
 	tests := []struct {
 		name    string
@@ -27,7 +28,14 @@ func TestPackage_Install(t *testing.T) {
 			"entry": "gamemodes/test.pwn",
 			"output": "gamemodes/test.amx",
 			"dependencies": ["Southclaws/samp-stdlib:0.3.7-R2-2-1"]
-		}`), args{"Southclaws/samp-ini"}, false},
+		}`), args{[]versioning.DependencyString{"Southclaws/samp-ini"}, false}, false},
+		{"dev", []byte(`{
+			"user": "Southclaws",
+			"repo": "install-test",
+			"entry": "gamemodes/test.pwn",
+			"output": "gamemodes/test.amx",
+			"dependencies": ["Southclaws/samp-stdlib:0.3.7-R2-2-1"]
+		}`), args{[]versioning.DependencyString{"Southclaws/samp-ini"}, true}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -42,7 +50,7 @@ func TestPackage_Install(t *testing.T) {
 				t.Error(err)
 			}
 
-			err = Install(pkg, tt.args.target)
+			err = Install(pkg, tt.args.targets, tt.args.development)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -54,7 +62,15 @@ func TestPackage_Install(t *testing.T) {
 				t.Error(err)
 			}
 
-			assert.Contains(t, pkg.Dependencies, tt.args.target)
+			if tt.args.development {
+				for _, target := range tt.args.targets {
+					assert.Contains(t, pkg.Development, target)
+				}
+			} else {
+				for _, target := range tt.args.targets {
+					assert.Contains(t, pkg.Dependencies, target)
+				}
+			}
 		})
 	}
 }

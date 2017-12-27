@@ -8,20 +8,27 @@ import (
 )
 
 // Install adds a new dependency to an existing local parent package
-func Install(pkg types.Package, target versioning.DependencyString) (err error) {
-
+func Install(pkg types.Package, targets []versioning.DependencyString, development bool) (err error) {
 	// todo: version checks
-	exists := false
-	for _, dep := range pkg.Dependencies {
-		if dep == target {
-			exists = true
-		}
-	}
 
-	if !exists {
-		pkg.Dependencies = append(pkg.Dependencies, target)
-	} else {
-		fmt.Println("target already exists in dependencies")
+	exists := false
+
+	for _, target := range targets {
+		for _, dep := range pkg.GetAllDependencies() {
+			if dep == target {
+				exists = true
+			}
+		}
+
+		if !exists {
+			if development {
+				pkg.Development = append(pkg.Development, target)
+			} else {
+				pkg.Dependencies = append(pkg.Dependencies, target)
+			}
+		} else {
+			fmt.Println("target already exists in dependencies")
+		}
 	}
 
 	err = EnsureDependencies(&pkg)

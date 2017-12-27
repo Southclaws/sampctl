@@ -17,15 +17,24 @@ var packageInstallFlags = []cli.Flag{
 		Value: ".",
 		Usage: "working directory for the project - by default, uses the current directory",
 	},
+	cli.BoolFlag{
+		Name:  "dev",
+		Usage: "for specifying dependencies only necessary for development or testing of the package",
+	},
 }
 
 func packageInstall(c *cli.Context) error {
 	dir := util.FullPath(c.String("dir"))
+	development := c.Bool("dev")
 
-	dep := versioning.DependencyString(c.Args().First())
-	if dep == "" {
+	if len(c.Args()) == 0 {
 		cli.ShowCommandHelpAndExit(c, "install", 0)
 		return nil
+	}
+
+	deps := []versioning.DependencyString{}
+	for _, dep := range c.Args() {
+		deps = append(deps, versioning.DependencyString(dep))
 	}
 
 	pkg, err := rook.PackageFromDir(true, dir, "")
@@ -33,7 +42,7 @@ func packageInstall(c *cli.Context) error {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	err = rook.Install(pkg, dep)
+	err = rook.Install(pkg, deps, development)
 	if err != nil {
 		return err
 	}
