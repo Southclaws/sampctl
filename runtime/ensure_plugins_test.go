@@ -140,6 +140,11 @@ func TestGetPluginRemotePackage(t *testing.T) {
 					Plugins:  []string{"plugins/streamer.dll"},
 				},
 			},
+			Runtime: &types.Runtime{
+				Plugins: []types.Plugin{
+					"samp-incognito/samp-streamer-plugin",
+				},
+			},
 		}, false},
 	}
 	for _, tt := range tests {
