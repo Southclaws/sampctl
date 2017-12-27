@@ -46,6 +46,14 @@ func InitialiseServer(version, dir, platform string) (err error) {
 
 	var questions = []*survey.Question{
 		{
+			Name: "Format",
+			Prompt: &survey.Select{
+				Message: "Preferred configuration format",
+				Options: []string{"json", "yaml"},
+			},
+			Validate: survey.Required,
+		},
+		{
 			Name:     "Hostname",
 			Prompt:   &survey.Input{Message: "Server Hostname"},
 			Validate: survey.Required,
@@ -96,6 +104,7 @@ func InitialiseServer(version, dir, platform string) (err error) {
 	}
 
 	answers := struct {
+		Format        string
 		Hostname      string
 		RCONPassword  string
 		Port          int
@@ -134,6 +143,7 @@ func InitialiseServer(version, dir, platform string) (err error) {
 
 	strength := zxcvbn.PasswordStrength(*config.RCONPassword, nil)
 
+	fmt.Println("Format: ", answers.Format)
 	fmt.Println("Hostname: ", answers.Hostname)
 	fmt.Println("RCONPassword: ", answers.RCONPassword, " complexity score: ", strength.CrackTimeDisplay)
 	fmt.Println("Port: ", answers.Port)
@@ -141,7 +151,11 @@ func InitialiseServer(version, dir, platform string) (err error) {
 	fmt.Println("Filterscripts: ", answers.Filterscripts)
 	fmt.Println("Plugins: ", answers.Plugins)
 
-	err = GenerateJSON(config)
+	if answers.Format == "json" {
+		err = GenerateJSON(config)
+	} else if answers.Format == "yaml" {
+		err = GenerateYAML(config)
+	}
 	return
 }
 
