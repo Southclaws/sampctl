@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/Southclaws/sampctl/print"
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
@@ -35,6 +36,10 @@ var serverRunFlags = []cli.Flag{
 }
 
 func serverRun(c *cli.Context) error {
+	if c.Bool("verbose") {
+		print.SetVerbose()
+	}
+
 	dir := util.FullPath(c.String("dir"))
 	container := c.Bool("container")
 	mountCache := c.Bool("mountCache")

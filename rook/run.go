@@ -1,7 +1,6 @@
 package rook
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -37,8 +36,8 @@ func Run(pkg types.Package, cfg types.Runtime, cacheDir, build string, forceBuil
 		for _, problem := range problems {
 			if problem.Severity > types.ProblemWarning {
 				canRun = false
+				break
 			}
-			fmt.Println(problem)
 		}
 	}
 	if !canRun {

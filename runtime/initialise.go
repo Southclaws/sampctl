@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
@@ -11,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/AlecAivazis/survey.v1"
 
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
@@ -27,19 +27,19 @@ func InitialiseServer(version, dir, platform string) (err error) {
 	)
 
 	if !util.Exists(gamemodesDir) {
-		fmt.Println("This directory does not appear to have a gamemodes directory, you must add at least one gamemode to run a server")
+		print.Warn("This directory does not appear to have a gamemodes directory, you must add at least one gamemode to run a server")
 	} else {
 		gamemodesList = getAmxFiles(gamemodesDir)
 	}
 
 	if !util.Exists(filterscriptsDir) {
-		fmt.Println("This directory does not appear to have a filterscripts directory")
+		print.Warn("This directory does not appear to have a filterscripts directory")
 	} else {
 		filterscriptsList = getAmxFiles(filterscriptsDir)
 	}
 
 	if !util.Exists(pluginsDir) {
-		fmt.Println("This directory does not appear to have a plugins directory")
+		print.Warn("This directory does not appear to have a plugins directory")
 	} else {
 		pluginsList = getPlugins(pluginsDir, platform)
 	}
@@ -143,13 +143,14 @@ func InitialiseServer(version, dir, platform string) (err error) {
 
 	strength := zxcvbn.PasswordStrength(*config.RCONPassword, nil)
 
-	fmt.Println("Format: ", answers.Format)
-	fmt.Println("Hostname: ", answers.Hostname)
-	fmt.Println("RCONPassword: ", answers.RCONPassword, " complexity score: ", strength.CrackTimeDisplay)
-	fmt.Println("Port: ", answers.Port)
-	fmt.Println("Gamemodes: ", answers.Gamemodes)
-	fmt.Println("Filterscripts: ", answers.Filterscripts)
-	fmt.Println("Plugins: ", answers.Plugins)
+	print.Info("Format: ", answers.Format)
+	print.Info("Hostname: ", answers.Hostname)
+	print.Info("RCONPassword: ", answers.RCONPassword, " complexity score: ", strength.CrackTimeDisplay)
+	print.Info("Port: ", answers.Port)
+	print.Info("Max Players: ", answers.MaxPlayers)
+	print.Info("Gamemodes: ", answers.Gamemodes)
+	print.Info("Filterscripts: ", answers.Filterscripts)
+	print.Info("Plugins: ", answers.Plugins)
 
 	if answers.Format == "json" {
 		err = GenerateJSON(config)

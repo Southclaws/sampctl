@@ -1,12 +1,12 @@
 package rook
 
 import (
-	"fmt"
 	"path/filepath"
 
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/compiler"
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
@@ -52,7 +52,7 @@ func Build(pkg *types.Package, build, cacheDir, platform string, ensure bool) (p
 		config.Includes = append(config.Includes, filepath.Join(depDir, incPath))
 	}
 
-	fmt.Println("building", pkg, "with", config.Version)
+	print.Verb("building", pkg, "with", config.Version)
 
 	problems, result, err = compiler.CompileSource(pkg.Local, cacheDir, platform, *config)
 	if err != nil {

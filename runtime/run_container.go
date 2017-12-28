@@ -17,6 +17,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/google/uuid"
 
+	"github.com/Southclaws/sampctl/print"
 	sampctltypes "github.com/Southclaws/sampctl/types"
 )
 
@@ -79,13 +80,12 @@ func RunContainer(cfg sampctltypes.Runtime, cacheDir string) (err error) {
 		panic(err)
 	}
 
-	fmt.Println("Starting container...")
+	print.Info("Starting container...")
 	err = cli.ContainerStart(context.Background(), cnt.ID, types.ContainerStartOptions{})
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println("Warnings:", cnt.Warnings)
 	go func() {
 		reader, err := cli.ContainerLogs(context.Background(), cnt.ID, types.ContainerLogsOptions{
 			ShowStdout: true,
@@ -116,13 +116,13 @@ func RunContainer(cfg sampctltypes.Runtime, cacheDir string) (err error) {
 	go func() {
 		sig := <-sigs
 		err = cli.ContainerKill(context.Background(), cnt.ID, "SIGINT")
-		fmt.Println("server killed:", sig, err)
+		print.Info("server killed:", sig, err)
 		finished <- struct{}{}
 	}()
 
 	go func() {
 		n, err := cli.ContainerWait(context.Background(), cnt.ID)
-		fmt.Println("container exited:", n, err)
+		print.Erro("container exited:", n, err)
 		finished <- struct{}{}
 	}()
 

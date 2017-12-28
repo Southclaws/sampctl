@@ -8,6 +8,7 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/rook"
 	"github.com/Southclaws/sampctl/util"
 )
@@ -30,6 +31,10 @@ var packageBuildFlags = []cli.Flag{
 }
 
 func packageBuild(c *cli.Context) error {
+	if c.Bool("verbose") {
+		print.SetVerbose()
+	}
+
 	dir := util.FullPath(c.String("dir"))
 	build := c.String("build")
 	forceEnsure := c.Bool("forceEnsure")
@@ -49,14 +54,14 @@ func packageBuild(c *cli.Context) error {
 		return cli.NewExitError(err.Error(), 1)
 	}
 
-	fmt.Println("Build complete with", len(problems), "problems")
-	fmt.Printf("Results, in bytes: Header: %d, Code: %d, Data: %d, Stack/Heap: %d, Estimated usage: %d, Total: %d\n",
+	print.Info("Build complete with", len(problems), "problems")
+	print.Info(fmt.Sprintf("Results, in bytes: Header: %d, Code: %d, Data: %d, Stack/Heap: %d, Estimated usage: %d, Total: %d\n",
 		result.Header,
 		result.Code,
 		result.Data,
 		result.StackHeap,
 		result.Estimate,
-		result.Total)
+		result.Total))
 
 	return nil
 }

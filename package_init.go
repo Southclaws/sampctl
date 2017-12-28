@@ -4,6 +4,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/rook"
 	"github.com/Southclaws/sampctl/util"
 )
@@ -17,6 +18,10 @@ var packageInitFlags = []cli.Flag{
 }
 
 func packageInit(c *cli.Context) error {
+	if c.Bool("verbose") {
+		print.SetVerbose()
+	}
+
 	dir := util.FullPath(c.String("dir"))
 
 	_, err := rook.PackageFromDir(true, dir, "")

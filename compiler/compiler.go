@@ -15,6 +15,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
@@ -41,7 +42,7 @@ var (
 
 // CompileSource compiles a given input script to the specified output path using compiler version
 func CompileSource(execDir, cacheDir, platform string, config types.BuildConfig) (problems []types.BuildProblem, result types.BuildResult, err error) {
-	fmt.Printf("Compiling source: '%s' with compiler %s...\n", config.Input, config.Version)
+	print.Info("Compiling", config.Input, "with compiler version", config.Version)
 
 	var (
 		workingDir string
@@ -99,7 +100,7 @@ func CompileSource(execDir, cacheDir, platform string, config types.BuildConfig)
 		}
 		includePaths[fullPath] = struct{}{}
 
-		fmt.Println("- using include path", fullPath)
+		print.Verb("using include path", fullPath)
 		args = append(args, "-i"+fullPath)
 
 		contents, err = ioutil.ReadDir(fullPath)
@@ -124,9 +125,9 @@ func CompileSource(execDir, cacheDir, platform string, config types.BuildConfig)
 	}
 
 	if len(includeErrors) > 0 {
-		fmt.Println("Dependency include path errors found:")
+		print.Erro("Dependency include path errors found:")
 		for _, errorString := range includeErrors {
-			fmt.Println(errorString)
+			print.Erro(errorString)
 		}
 
 		err = errors.New("could not compile due to conflicting filenames located in different include paths")
@@ -207,20 +208,24 @@ func CompileSource(execDir, cacheDir, platform string, config types.BuildConfig)
 
 	err = outputWriter.Close()
 	if err != nil {
-		fmt.Println("Compiler output read error:", err)
+		print.Erro("Compiler output read error:", err)
 	}
 
 	if cmdError != nil {
 		if cmdError.Error() != "exit status 1" {
 			// if the failure was not caused by a simple compile error
-			fmt.Println("** if you're on a 64 bit system this may be because the system is not set up to execute 32 bit binaries")
-			fmt.Println("** please enable this by allowing i386 packages and/or installing g++-multilib")
+			print.Info("** if you're on a 64 bit system this may be because the system is not set up to execute 32 bit binaries")
+			print.Info("** please enable this by allowing i386 packages and/or installing g++-multilib")
 			err = errors.Wrap(cmdError, "failed to execute compiler")
 		}
 	}
 
 	for problem := range problemChan {
-		fmt.Println(problem)
+		if problem.Severity == types.ProblemWarning {
+			print.Warn(problem)
+		} else {
+			print.Erro(problem)
+		}
 		problems = append(problems, problem)
 	}
 

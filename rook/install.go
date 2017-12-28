@@ -1,8 +1,7 @@
 package rook
 
 import (
-	"fmt"
-
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -27,7 +26,8 @@ func Install(pkg types.Package, targets []versioning.DependencyString, developme
 				pkg.Dependencies = append(pkg.Dependencies, target)
 			}
 		} else {
-			fmt.Println("target already exists in dependencies")
+			print.Warn("target already exists in dependencies")
+			return
 		}
 	}
 

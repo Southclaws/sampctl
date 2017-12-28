@@ -1,12 +1,12 @@
 package compiler
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
@@ -23,14 +23,14 @@ func FromCache(cacheDir string, version types.CompilerVersion, dir, platform str
 		return false, nil
 	}
 
-	fmt.Printf("Using cached package %s\n", filename)
+	print.Verb("Using cached package", filename)
 
 	return
 }
 
 // FromNet downloads a compiler package to the cache
 func FromNet(cacheDir string, version types.CompilerVersion, dir, platform string) (err error) {
-	fmt.Printf("Downloading compiler package %s\n", version)
+	print.Info("Downloading compiler package", version)
 
 	pkg, filename, err := GetCompilerPackageInfo(platform, version)
 	if err != nil {

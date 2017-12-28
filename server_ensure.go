@@ -4,6 +4,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/runtime"
 	"github.com/Southclaws/sampctl/util"
 )
@@ -21,6 +22,10 @@ var serverEnsureFlags = []cli.Flag{
 }
 
 func serverEnsure(c *cli.Context) error {
+	if c.Bool("verbose") {
+		print.SetVerbose()
+	}
+
 	dir := util.FullPath(c.String("dir"))
 	noCache := c.Bool("noCache")
 

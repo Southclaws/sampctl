@@ -14,6 +14,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
@@ -140,16 +141,17 @@ func LoadEnvironmentVariables(cfg *types.Runtime) {
 
 		case "[]string":
 			// todo: allow filterscripts via env vars
-			fmt.Println("cannot set filterscripts via environment variables yet")
+			print.Warn("cannot set filterscripts via environment variables yet")
 
 		case "[]runtime.Plugin":
 			// todo: plugins via env vars
-			fmt.Println("cannot set plugins via environment variables yet")
+			print.Warn("cannot set plugins via environment variables yet")
 
 		case "*bool":
 			valueAsBool, err := strconv.ParseBool(value)
 			if err != nil {
-				fmt.Printf("warning: environment variable '%s' could not interpret value '%s' as boolean: %v\n", stype.Name, value, err)
+				print.Warn("environment variable", stype.Name, "could not interpret value", value, "as boolean:", err)
+				continue
 			}
 			if fieldval.IsNil() {
 				v := reflect.ValueOf(valueAsBool)
@@ -160,7 +162,7 @@ func LoadEnvironmentVariables(cfg *types.Runtime) {
 		case "*int":
 			valueAsInt, err := strconv.Atoi(value)
 			if err != nil {
-				fmt.Printf("warning: environment variable '%s' could not interpret value '%s' as integer: %v\n", stype.Name, value, err)
+				print.Warn("environment variable", stype.Name, "could not interpret value", value, "as integer:", err)
 				continue
 			}
 			if fieldval.IsNil() {
@@ -172,7 +174,7 @@ func LoadEnvironmentVariables(cfg *types.Runtime) {
 		case "*float32":
 			valueAsFloat, err := strconv.ParseFloat(value, 64)
 			if err != nil {
-				fmt.Printf("warning: environment variable '%s' could not interpret value '%s' as float: %v\n", stype.Name, value, err)
+				print.Warn("environment variable", stype.Name, "could not interpret value", value, "as float:", err)
 				continue
 			}
 			if fieldval.IsNil() {

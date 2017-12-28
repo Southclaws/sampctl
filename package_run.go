@@ -1,13 +1,13 @@
 package main
 
 import (
-	"fmt"
 	"runtime"
 
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/rook"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
@@ -57,6 +57,10 @@ var packageRunFlags = []cli.Flag{
 }
 
 func packageRun(c *cli.Context) error {
+	if c.Bool("verbose") {
+		print.SetVerbose()
+	}
+
 	version := c.String("version")
 	dir := util.FullPath(c.String("dir"))
 	endpoint := c.String("endpoint")
@@ -69,7 +73,7 @@ func packageRun(c *cli.Context) error {
 
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
-		fmt.Println("Failed to retrieve cache directory path (attempted <user folder>/.samp) ", err)
+		print.Erro("Failed to retrieve cache directory path (attempted <user folder>/.samp) ")
 		return err
 	}
 

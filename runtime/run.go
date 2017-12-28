@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,6 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/types"
 )
 
@@ -20,7 +20,7 @@ func Run(cfg types.Runtime, cacheDir string) (err error) {
 
 	binary := "./" + getServerBinary(cfg.Platform)
 	fullPath := filepath.Join(cfg.WorkingDir, binary)
-	fmt.Printf("start %s in %s\n", binary, cfg.WorkingDir)
+	print.Verb("starting", binary, "in", cfg.WorkingDir)
 
 	return watchdog(fullPath)
 }
@@ -61,7 +61,7 @@ func watchdog(binary string) (err error) {
 			return errors.Errorf("too many crashloops, last error: %v", err)
 		}
 
-		fmt.Printf("crash loop exponential backoff: %s: %v\n", exponentialBackoff, err)
+		print.Warn("crash loop backoff: %s: %v\n", exponentialBackoff, err)
 		time.Sleep(exponentialBackoff)
 	}
 }

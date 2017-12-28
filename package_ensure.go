@@ -1,11 +1,10 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/rook"
 	"github.com/Southclaws/sampctl/util"
 )
@@ -19,6 +18,10 @@ var packageEnsureFlags = []cli.Flag{
 }
 
 func packageEnsure(c *cli.Context) error {
+	if c.Bool("verbose") {
+		print.SetVerbose()
+	}
+
 	dir := util.FullPath(c.String("dir"))
 
 	pkg, err := rook.PackageFromDir(true, dir, "")
@@ -31,7 +34,7 @@ func packageEnsure(c *cli.Context) error {
 		return errors.Wrap(err, "failed to ensure")
 	}
 
-	fmt.Println("successfully ensured dependencies for project")
+	print.Info("ensured dependencies for package")
 
 	return nil
 }

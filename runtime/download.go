@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"fmt"
 	"net/url"
 	"os"
 	"path"
@@ -10,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -67,14 +67,14 @@ func FromCache(cacheDir, version, dir, platform string) (hit bool, err error) {
 		return
 	}
 
-	fmt.Printf("Using cached package for %s\n", version)
+	print.Verb("Using cached package for %s\n", version)
 
 	return true, nil
 }
 
 // FromNet downloads a server package to the cache, then calls FromCache to finish the job
 func FromNet(endpoint, cacheDir, version, dir, platform string) (err error) {
-	fmt.Printf("Downloading package %s from endpoint %s into %s\n", version, endpoint, dir)
+	print.Verb("Downloading package", version, "from", endpoint, "into", dir)
 
 	var (
 		filename string

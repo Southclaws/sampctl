@@ -14,6 +14,7 @@ import (
 	"github.com/fatih/color"
 	"gopkg.in/AlecAivazis/survey.v1"
 
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
@@ -154,9 +155,9 @@ func Init(dir string) (err error) {
 		pkg.Output = nameOnly + ".amx"
 
 		if ext != "" && ext != ".pwn" {
-			fmt.Println("Entry point is not a .pwn file - it's advised to use a .pwn file as the compiled script.")
-			fmt.Println("If you are writing a library and not a gamemode or filterscript,")
-			fmt.Println("it's good to make a separate .pwn file that #includes the .inc file of your library.")
+			print.Warn("Entry point is not a .pwn file - it's advised to use a .pwn file as the compiled script.")
+			print.Warn("If you are writing a library and not a gamemode or filterscript,")
+			print.Warn("it's good to make a separate .pwn file that #includes the .inc file of your library.")
 		}
 	} else {
 		if len(answers.EntryGenerate) > 0 {
@@ -227,7 +228,7 @@ func getTemplateFile(dir, filename string) (err error) {
 	defer func() {
 		err = file.Close()
 		if err != nil {
-			fmt.Println(err)
+			print.Erro(err)
 		}
 	}()
 

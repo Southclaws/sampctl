@@ -13,6 +13,7 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/print"
 )
 
 var version = "master"
@@ -34,12 +35,12 @@ func main() {
 
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
-		fmt.Println("Failed to retrieve cache directory path (attempted <user folder>/.samp) ", err)
+		print.Erro("Failed to retrieve cache directory path (attempted <user folder>/.samp) ", err)
 		return
 	}
 	err = os.MkdirAll(cacheDir, 0665)
 	if err != nil {
-		fmt.Println("Failed to create cache directory at ", cacheDir, ": ", err)
+		print.Erro("Failed to create cache directory at ", cacheDir, ": ", err)
 		return
 	}
 
@@ -140,9 +141,16 @@ func main() {
 		},
 	}
 
+	app.Flags = []cli.Flag{
+		cli.BoolFlag{
+			Name:  "verbose",
+			Usage: "output all detailed information - useful for debugging",
+		},
+	}
+
 	err = app.Run(os.Args)
 	if err != nil {
-		fmt.Printf("Exited with error: %v\n", err)
+		print.Erro(err)
 	}
 
 	client := github.NewClient(nil)
@@ -150,37 +158,37 @@ func main() {
 
 	release, _, err := client.Repositories.GetLatestRelease(ctx, "Southclaws", "sampctl")
 	if err != nil {
-		fmt.Println(color.RedString("Failed to check for latest sampctl release:"), err)
+		print.Erro("Failed to check for latest sampctl release:", err)
 	} else {
 		latest, err := semver.NewVersion(release.GetTagName())
 		if err != nil {
-			fmt.Println(color.RedString("Failed to interpret latest release tag as a semantic version:"), err)
+			print.Erro("Failed to interpret latest release tag as a semantic version:", err)
 		}
 
 		this, err := semver.NewVersion(app.Version)
 		if err != nil {
-			fmt.Println(color.RedString("Failed to interpret this version number as a semantic version:"), err)
+			print.Erro("Failed to interpret this version number as a semantic version:", err)
 		}
 
 		if latest.GreaterThan(this) {
-			fmt.Println("\n-\n")
-			fmt.Println(color.YellowString("sampctl version"), color.GreenString(latest.String()), color.YellowString("available!"))
-			fmt.Println(color.YellowString("To upgrade, use the following command:"))
+			print.Info("\n-\n")
+			print.Info(color.YellowString("sampctl version"), color.GreenString(latest.String()), color.YellowString("available!"))
+			print.Info(color.YellowString("To upgrade, use the following command:"))
 			switch runtime.GOOS {
 			case "windows":
-				fmt.Println(color.BlueString("  scoop update"))
-				fmt.Println(color.BlueString("  scoop update sampctl"))
+				print.Info(color.BlueString("  scoop update"))
+				print.Info(color.BlueString("  scoop update sampctl"))
 			case "linux":
-				fmt.Println(color.YellowString("  Debian/Ubuntu based systems:"))
-				fmt.Println(color.BlueString("  curl https://raw.githubusercontent.com/Southclaws/sampctl/master/install-deb.sh | sh"))
-				fmt.Println(color.YellowString("  CentOS/Red Hat based systems"))
-				fmt.Println(color.BlueString("  curl https://raw.githubusercontent.com/Southclaws/sampctl/master/install-rpm.sh | sh"))
+				print.Info(color.YellowString("  Debian/Ubuntu based systems:"))
+				print.Info(color.BlueString("  curl https://raw.githubusercontent.com/Southclaws/sampctl/master/install-deb.sh | sh"))
+				print.Info(color.YellowString("  CentOS/Red Hat based systems"))
+				print.Info(color.BlueString("  curl https://raw.githubusercontent.com/Southclaws/sampctl/master/install-rpm.sh | sh"))
 			case "darwin":
-				fmt.Println(color.BlueString("  brew update"))
-				fmt.Println(color.BlueString("  brew upgrade sampctl"))
+				print.Info(color.BlueString("  brew update"))
+				print.Info(color.BlueString("  brew upgrade sampctl"))
 			}
-			fmt.Println(color.YellowString("If you have any problems upgrading, please open an issue:"))
-			fmt.Println(color.BlueString("  https://github.com/Southclaws/sampctl/issues/new"))
+			print.Info(color.YellowString("If you have any problems upgrading, please open an issue:"))
+			print.Info(color.BlueString("  https://github.com/Southclaws/sampctl/issues/new"))
 		}
 	}
 }

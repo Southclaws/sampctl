@@ -1,7 +1,6 @@
 package util
 
 import (
-	"fmt"
 	"os"
 	"testing"
 
@@ -29,7 +28,7 @@ func TestCopyFile(t *testing.T) {
 	}{
 		{"valid", args{"./tests/file", "./tests/file2"}, false},
 	}
-	fmt.Println("test")
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := CopyFile(tt.args.src, tt.args.dst)

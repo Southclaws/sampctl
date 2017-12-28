@@ -1,11 +1,10 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/rook"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
@@ -24,6 +23,10 @@ var packageInstallFlags = []cli.Flag{
 }
 
 func packageInstall(c *cli.Context) error {
+	if c.Bool("verbose") {
+		print.SetVerbose()
+	}
+
 	dir := util.FullPath(c.String("dir"))
 	development := c.Bool("dev")
 
@@ -47,7 +50,7 @@ func packageInstall(c *cli.Context) error {
 		return err
 	}
 
-	fmt.Println("successfully ensured dependencies for project")
+	print.Info("successfully added new dependency")
 
 	return nil
 }

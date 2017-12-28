@@ -1,7 +1,6 @@
 package rook
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -11,6 +10,7 @@ import (
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
@@ -46,22 +46,22 @@ func EnsureDependencies(pkg *types.Package) (err error) {
 
 	var recurse func(meta versioning.DependencyMeta)
 	recurse = func(meta versioning.DependencyMeta) {
-		fmt.Println(pkg, "ensuring depenency:", meta)
-
 		pkgPath := filepath.Join(pkg.Vendor, meta.Repo)
 
 		err = EnsurePackage(pkgPath, meta)
 		if err != nil {
-			fmt.Println(errors.Wrapf(err, "failed to ensure package %s", meta))
+			print.Warn(errors.Wrapf(err, "failed to ensure package %s", meta))
 			return
 		}
+
+		print.Info(pkg, "successfully ensured depenency files for", meta)
 
 		pkg.AllDependencies = append(pkg.AllDependencies, meta)
 		visited[meta] = true
 
 		subPkg, err := PackageFromDir(false, pkgPath, pkg.Vendor)
 		if err != nil {
-			fmt.Println(pkg, err)
+			print.Warn(pkg, meta, err)
 			return
 		}
 
@@ -116,24 +116,24 @@ func EnsurePackage(pkgPath string, meta versioning.DependencyMeta) (err error) {
 	)
 
 	if err == git.ErrRepositoryNotExists {
-		fmt.Println(meta, "package does not exist at", pkgPath, "cloning new copy")
+		print.Verb(meta, "package does not exist at", pkgPath, "cloning new copy")
 		needToClone = true
 	} else {
 		ref, err = repo.Head()
 		if err != nil {
-			fmt.Println(meta, "package already exists but failed to get repository HEAD:", err)
+			print.Verb(meta, "package already exists but failed to get repository HEAD:", err)
 			needToClone = true
 			err = os.RemoveAll(pkgPath)
 			if err != nil {
 				return errors.Wrap(err, "failed to temporarily remove possibly corrupted dependency repo")
 			}
 		} else {
-			fmt.Println(meta, "package already exists at", ref)
+			print.Verb(meta, "package already exists at", ref)
 		}
 	}
 
 	if needToClone {
-		fmt.Println(meta, "cloning dependency package:", meta)
+		print.Verb(meta, "cloning dependency package:", meta)
 		repo, err = git.PlainClone(pkgPath, false, &git.CloneOptions{
 			URL: meta.URL(),
 		})
@@ -150,7 +150,7 @@ func EnsurePackage(pkgPath string, meta versioning.DependencyMeta) (err error) {
 	}
 
 	if meta.Version == "" {
-		fmt.Println(meta, "package does not have version constraint, using latest")
+		print.Verb(meta, "package does not have version constraint, using latest")
 
 		err = wt.Pull(&git.PullOptions{})
 		if err != nil && err != git.NoErrAlreadyUpToDate {
@@ -158,7 +158,7 @@ func EnsurePackage(pkgPath string, meta versioning.DependencyMeta) (err error) {
 			return
 		}
 	} else {
-		fmt.Println(meta, "package has version constraint, checking out...")
+		print.Verb(meta, "package has version constraint, checking out...")
 
 		versionedTags, err = getPackageRepoTags(repo)
 		if err != nil {
@@ -184,7 +184,7 @@ func EnsurePackage(pkgPath string, meta versioning.DependencyMeta) (err error) {
 	if err != nil {
 		return
 	}
-	fmt.Println(meta, "successfully checked out to", head.Hash().String())
+	print.Verb(meta, "successfully checked out to", head.Hash().String())
 
 	return
 }
@@ -228,13 +228,13 @@ func getRefFromConstraint(meta versioning.DependencyMeta, versionedTags Versione
 
 	for _, version := range versionedTags {
 		if constraint.Check(version.Tag) {
-			fmt.Println(meta, "discovered tag", version.Tag, "that matches constraint", meta.Version)
+			print.Verb(meta, "discovered tag", version.Tag, "that matches constraint", meta.Version)
 			ref = version.Ref
 			return
 		}
 
 		// these messages will be removed in future versions
-		fmt.Println(meta, "incompatible tag", version.Tag, "does not satisfy constraint", meta.Version)
+		print.Verb(meta, "incompatible tag", version.Tag, "does not satisfy constraint", meta.Version)
 	}
 	err = errors.Errorf("failed to satisfy constraint, no tag found by that name, available tags: %v", versionedTags)
 	return

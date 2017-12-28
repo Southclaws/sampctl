@@ -17,6 +17,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
@@ -24,8 +25,6 @@ import (
 
 // EnsurePlugins validates and downloads plugin binary files
 func EnsurePlugins(cfg *types.Runtime, cacheDir string, noCache bool) (err error) {
-	fmt.Println("ensuring runtime plugins", cfg.Plugins)
-
 	pluginsDir := util.FullPath(filepath.Join(cfg.WorkingDir, "plugins"))
 
 	err = os.MkdirAll(pluginsDir, 0755)
@@ -44,17 +43,17 @@ func EnsurePlugins(cfg *types.Runtime, cacheDir string, noCache bool) (err error
 	for _, plugin := range cfg.Plugins {
 		meta, err = plugin.AsDep()
 		if err != nil {
-			fmt.Println("plugin", plugin, "is a local plugin")
+			print.Verb("plugin", plugin, "is a local plugin")
 			fullpath := filepath.Join(pluginsDir, string(plugin)+fileExt)
 			if !util.Exists(fullpath) {
-				fmt.Println(fmt.Sprintf("plugin '%s' is missing its %s file from the plugins directory", plugin, fileExt))
+				print.Warn("plugin", plugin, "is missing", fileExt, "file from the plugins directory")
 			}
 			newPlugins = append(newPlugins, plugin)
 		} else {
-			fmt.Println("plugin", plugin, "is a package dependency")
+			print.Verb("plugin", plugin, "is a package dependency")
 			files, err = EnsureVersionedPlugin(*cfg, meta, cacheDir, noCache)
 			if err != nil {
-				fmt.Println(fmt.Sprintf("plugin '%s' failed to ensure: %v", plugin, err))
+				print.Warn(err)
 			}
 			newPlugins = append(newPlugins, files...)
 		}
@@ -71,7 +70,7 @@ func EnsurePlugins(cfg *types.Runtime, cacheDir string, noCache bool) (err error
 			continue
 		}
 
-		fmt.Println("- adding runtime plugin", pluginName)
+		print.Verb("adding runtime plugin", pluginName)
 		cfg.Plugins = append(cfg.Plugins, pluginName)
 		added[pluginName] = struct{}{}
 	}
@@ -101,7 +100,7 @@ func EnsureVersionedPlugin(cfg types.Runtime, meta versioning.DependencyMeta, ca
 		}
 	}
 
-	fmt.Println("retrieved package", meta, "resource file:", filename)
+	print.Verb("retrieved package", meta, "resource file:", filename)
 
 	var (
 		ext    = filepath.Ext(filename)
@@ -185,7 +184,7 @@ func PluginFromCache(meta versioning.DependencyMeta, platform, cacheDir string) 
 func PluginFromNet(meta versioning.DependencyMeta, platform, cacheDir string) (filename string, resource types.Resource, err error) {
 	resourcePath := filepath.Join(cacheDir, GetResourcePath(meta))
 
-	fmt.Println("downloading remote plugin to", resourcePath)
+	print.Info("downloading plugin resource", meta)
 
 	err = os.MkdirAll(resourcePath, 0755)
 	if err != nil {
@@ -266,7 +265,6 @@ func GetPluginRemotePackage(meta versioning.DependencyMeta) (pkg types.Package, 
 		return
 	}
 
-	fmt.Printf("https://raw.githubusercontent.com/sampctl/plugins/master/%s-%s.json\n", meta.User, meta.Repo)
 	resp, err = http.Get(fmt.Sprintf("https://raw.githubusercontent.com/sampctl/plugins/master/%s-%s.json", meta.User, meta.Repo))
 	if err != nil {
 		return

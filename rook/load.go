@@ -1,11 +1,11 @@
 package rook
 
 import (
-	"fmt"
 	"path/filepath"
 
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
@@ -44,7 +44,7 @@ func PackageFromDir(parent bool, dir string, vendor string) (pkg types.Package, 
 	if parent && len(pkg.Dependencies) > 0 && len(pkg.AllDependencies) == 0 {
 		err = ResolveDependencies(&pkg)
 		if err != nil {
-			fmt.Println("failed to resolve dependency tree:", err)
+			print.Warn("failed to resolve dependency tree:", err)
 			err = nil // not a breaking error for PackageFromDir
 		}
 	}
@@ -55,7 +55,7 @@ func PackageFromDir(parent bool, dir string, vendor string) (pkg types.Package, 
 // ResolveDependencies is a function for use by parent packages to iterate through their
 // `dependencies/` directory discovering packages and getting their dependencies
 func ResolveDependencies(pkg *types.Package) (err error) {
-	fmt.Println(pkg, "resolving dependency tree into a flattened list...")
+	print.Verb(pkg, "resolving dependency tree into a flattened list...")
 	if !pkg.Parent {
 		return errors.New("package is not a parent package")
 	}
@@ -76,13 +76,13 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 	recurse = func(dependencyString versioning.DependencyString) {
 		dependencyMeta, err := dependencyString.Explode()
 		if err != nil {
-			fmt.Println(pkg, "invalid dependency string:", dependencyString)
+			print.Verb(pkg, "invalid dependency string:", dependencyString)
 			return
 		}
 
 		dependencyDir := filepath.Join(depsDir, dependencyMeta.Repo)
 		if !util.Exists(dependencyDir) {
-			fmt.Println(pkg, "dependency", dependencyString, "does not exist locally in", depsDir, "run sampctl package ensure to update dependencies.")
+			print.Verb(pkg, "dependency", dependencyString, "does not exist locally in", depsDir, "run sampctl package ensure to update dependencies.")
 			return
 		}
 
@@ -90,7 +90,7 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 
 		subPkg, err := PackageFromDir(false, dependencyDir, depsDir)
 		if err != nil {
-			fmt.Println(pkg, "not a package:", dependencyString, err)
+			print.Verb(pkg, "not a package:", dependencyString, err)
 			return
 		}
 
@@ -98,7 +98,7 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 			for _, pluginDepStr := range subPkg.Runtime.Plugins {
 				pluginMeta, err = pluginDepStr.AsDep()
 				if err != nil {
-					fmt.Println(pkg, "invalid plugin dependency string:", pluginDepStr)
+					print.Verb(pkg, "invalid plugin dependency string:", pluginDepStr)
 					return
 				}
 				pkg.AllPlugins = append(pkg.AllPlugins, pluginMeta)
@@ -118,7 +118,7 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 		for _, pluginDepStr := range pkg.Runtime.Plugins {
 			pluginMeta, err = pluginDepStr.AsDep()
 			if err != nil {
-				fmt.Println(pkg, "invalid plugin dependency string:", pluginDepStr)
+				print.Erro(pkg, "invalid plugin dependency string:", pluginDepStr)
 				return
 			}
 			pkg.AllPlugins = append(pkg.AllPlugins, pluginMeta)

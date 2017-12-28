@@ -5,6 +5,7 @@ import (
 
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/runtime"
 	"github.com/Southclaws/sampctl/util"
 )
@@ -28,6 +29,10 @@ var serverDownloadFlags = []cli.Flag{
 }
 
 func serverDownload(c *cli.Context) error {
+	if c.Bool("verbose") {
+		print.SetVerbose()
+	}
+
 	version := c.String("version")
 	dir := util.FullPath(c.String("dir"))
 	endpoint := c.String("endpoint")
