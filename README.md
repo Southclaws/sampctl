@@ -7,23 +7,51 @@
 The Swiss Army Knife of SA:MP - vital tools for any server owner or library
 maintainer.
 
-## Overview
+## Features
 
-Server management and configuration tools:
+### Package Manager
 
-* Manage your server settings in JSON format (compiles to server.cfg)
-* Run the server from `sampctl` and let it worry about automatic restarts
-* Automatically download Windows/Linux server binaries when you need them
+Always have the libraries you need. Inspired by npm.
 
-Package management and dependency tools:
+![images/sampctl-package-ensure.gif](images/sampctl-package-ensure.gif)
 
-* Always have the libraries you need at the versions to specify
-* No more copies of the Pawn compiler or includes, let `sampctl` handle it
-* Easily write and run tests for libraries or quickly run arbitrary code
+### Build/Run Tool
+
+Use on the command-line or integrate with any editor.
+
+![images/sampctl-package-build-vscode.gif](images/sampctl-package-build-vscode.gif)
+
+Easily write and run tests for libraries or quickly run arbitrary code. Utilise the power of Docker to run on any platform!
+
+![images/sampctl-package-run-container.gif](images/sampctl-package-run-container.gif)
+
+### Developer Tools
+
+Quickly bootstrap new packages.
+
+![images/sampctl-package-init.gif](images/sampctl-package-init.gif)
+
+### SA:MP Server Configuration - no more `server.cfg`
+
+Manage your server settings in JSON or YAML format
+
+![images/sampctl-server-init.gif](images/sampctl-server-init.gif)
+
+### Automatic Server Restart - no more dodgy bash scripts
+
+Run the server from `sampctl` and let it worry about restarting in case of crashes.
+
+![images/sampctl-server-run.gif](images/sampctl-server-run.gif)
+
+### Automatic Server and Plugin Installer
+
+Automatically download Windows/Linux server binaries and plugins when and where you need them.
+
+![images/sampctl-server-ensure.gif](images/sampctl-server-ensure.gif)
 
 ## Installation
 
-Installation is simple and fast on all platforms. If you're not into it, uninstallation is also simple and fast.
+Installation is simple and fast on all platforms so why not give sampctl a try?
 
 * [Linux (Debian/Ubuntu)](https://github.com/Southclaws/sampctl/wiki/Linux)
 * [Windows](https://github.com/Southclaws/sampctl/wiki/Windows)
@@ -37,9 +65,11 @@ Or visit the [wiki](https://github.com/Southclaws/sampctl/wiki) for all the info
 
 ---
 
-## Features
+## Overview
 
 sampctl is designed for both development of gamemodes/libraries and management of live servers.
+
+Below is a quick overview of the best features that will help _you_ develop faster.
 
 ### Package Management and Build Tool
 
@@ -47,11 +77,11 @@ If you've used platforms like NodeJS, Python, Go, Ruby, etc you know how useful 
 
 It's about time Pawn had the same tool.
 
-sampctl provides a simple and intuitive way to _declare_ what includes your project depends on while taking care of all the hard work such as downloading those includes to the correct directory, ensuring they are at the correct version and making sure the compiler has all the information it needs.
+sampctl provides a simple and intuitive way to _declare_ what includes your project needs. After that you simply let sampctl take care of the downloading and building.
 
-If you're a Pawn library maintainer, you know it's awkward to set up unit tests for libraries. Even if you just want to quickly test some code, you know that you can't just write code and test it instantly. You need to set up a server, compile the include into a gamemode, configure the server and run it.
+If you release scripts, you know it's awkward to test even simple code. You need to set up a server, compile the include into a gamemode, configure the server and run it.
 
-Forget all that. Just make a `pawn.json` in your project directory:
+Forget all that. Just make a `pawn.json` in your project directory with `sampctl package init` and use `sampctl package install` the includes you need:
 
 ```json
 {
@@ -78,19 +108,12 @@ And run it!
 
 ```bash
 sampctl package run
-Using cached package for 0.3.7
-building /: with 3.10.4
-Compiling source: '/tmp/test.pwn' with compiler 3.10.4...
-Using cached package pawnc-3.10.4-darwin.zip
-Starting server...
 
 Server Plugins
 --------------
  Loaded 0 plugins.
 
-
 Started server on port: 7777, with maxplayers: 50 lanmode is OFF.
-
 
 Filterscripts
 ---------------
@@ -103,12 +126,12 @@ You get the compiler output and the server output without ever needing to:
 
 * visit sa-mp.com/download.php
 * unzip a server package
-* worry about Windows or Linux
-* set up the Pawn compiler
+* worry about Windows or Linux differences
+* set up the Pawn compiler with your favourite editor
 * make sure the Pawn compiler is reading the correct includes
 * download the formatex include
 
-[See documentation for more info.](https://github.com/Southclaws/sampctl/wiki/Package-Definition-Reference)
+[See documentation for more info.](https://github.com/Southclaws/sampctl/wiki/Packages)
 
 ### Server Configuration and Automatic Plugin Download
 
