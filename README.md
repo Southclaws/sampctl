@@ -140,7 +140,7 @@ What also happens here is `maddinat0r/sscanf` tells sampctl to automatically get
 ---
 # `sampctl`
 
-1.5.9 - Southclaws <southclaws@gmail.com>
+1.5.10 - Southclaws <southclaws@gmail.com>
 
 Compiles server configuration JSON to server.cfg format. Executes the server and monitors it for crashes, restarting if necessary. Provides a way to quickly download server binaries of a specified version. Provides dependency management and package build tools for library maintainers and gamemode writers alike.
 
@@ -162,6 +162,7 @@ Bootstrap a new SA:MP server and generates a `samp.json`/`samp.yaml` configurati
 
 #### Flags
 
+- `--verbose`: output all detailed information - useful for debugging
 - `--version value`: the SA:MP server version to use (default: "0.3.7")
 - `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
 - `--endpoint value`: endpoint to download packages from (default: "http://files.sa-mp.com")
@@ -174,6 +175,7 @@ Downloads the files necessary to run a SA:MP server to the current directory (un
 
 #### Flags
 
+- `--verbose`: output all detailed information - useful for debugging
 - `--version value`: the SA:MP server version to use (default: "0.3.7")
 - `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
 - `--endpoint value`: endpoint to download packages from (default: "http://files.sa-mp.com")
@@ -186,6 +188,7 @@ Ensures the server environment is representative of the configuration specified 
 
 #### Flags
 
+- `--verbose`: output all detailed information - useful for debugging
 - `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
 - `--noCache --forceEnsure`: forces download of plugins if --forceEnsure is set
 
@@ -197,6 +200,7 @@ Generates a `server.cfg` file based on the configuration inside `samp.json`/`sam
 
 #### Flags
 
+- `--verbose`: output all detailed information - useful for debugging
 - `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
 - `--container`: starts the server as a Linux container instead of running it in the current directory
 - `--mountCache --container`: if --container is set, mounts the local cache directory inside the container
@@ -222,6 +226,7 @@ Helper tool to bootstrap a new package or turn an existing project into a packag
 
 #### Flags
 
+- `--verbose`: output all detailed information - useful for debugging
 - `--dir value`: working directory for the project - by default, uses the current directory (default: ".")
 
 ### `sampctl package ensure`
@@ -232,6 +237,7 @@ Ensures dependencies are up to date based on the `dependencies` field in `pawn.j
 
 #### Flags
 
+- `--verbose`: output all detailed information - useful for debugging
 - `--dir value`: working directory for the project - by default, uses the current directory (default: ".")
 
 ### `sampctl package install`
@@ -242,7 +248,9 @@ Installs a new package by adding it to the `dependencies` field in `pawn.json`/`
 
 #### Flags
 
+- `--verbose`: output all detailed information - useful for debugging
 - `--dir value`: working directory for the project - by default, uses the current directory (default: ".")
+- `--dev`: for specifying dependencies only necessary for development or testing of the package
 
 ### `sampctl package build`
 
@@ -252,6 +260,7 @@ Builds a package defined by a `pawn.json`/`pawn.yaml` file.
 
 #### Flags
 
+- `--verbose`: output all detailed information - useful for debugging
 - `--dir value`: working directory for the project - by default, uses the current directory (default: ".")
 - `--build --forceBuild`: build configuration to use if --forceBuild is set
 - `--forceEnsure --forceBuild`: forces dependency ensure before build if --forceBuild is set
@@ -264,6 +273,7 @@ Compiles and runs a package defined by a `pawn.json`/`pawn.yaml` file.
 
 #### Flags
 
+- `--verbose`: output all detailed information - useful for debugging
 - `--version value`: the SA:MP server version to use (default: "0.3.7")
 - `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
 - `--endpoint value`: endpoint to download packages from (default: "http://files.sa-mp.com")
@@ -299,6 +309,7 @@ Usage: `Shows a list of commands or help for one command`
 
 ## Global Flags
 
+- `--verbose`: output all detailed information - useful for debugging
 - `--help, -h`: show help
 - `--appVersion, -V`: sampctl version
 
