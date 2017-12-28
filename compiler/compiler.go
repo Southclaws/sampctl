@@ -221,11 +221,7 @@ func CompileSource(execDir, cacheDir, platform string, config types.BuildConfig)
 	}
 
 	for problem := range problemChan {
-		if problem.Severity == types.ProblemWarning {
-			print.Warn(problem)
-		} else {
-			print.Erro(problem)
-		}
+		fmt.Println(problem)
 		problems = append(problems, problem)
 	}
 
