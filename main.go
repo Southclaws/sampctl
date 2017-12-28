@@ -44,6 +44,12 @@ func main() {
 		return
 	}
 
+	globalFlags := []cli.Flag{
+		cli.BoolFlag{
+			Name:  "verbose",
+			Usage: "output all detailed information - useful for debugging",
+		},
+	}
 	app.Commands = []cli.Command{
 		{
 			Name:        "server",
@@ -56,28 +62,28 @@ func main() {
 					Usage:       "sampctl server init",
 					Description: "Bootstrap a new SA:MP server and generates a `samp.json`/`samp.yaml` configuration based on user input. If `gamemodes`, `filterscripts` or `plugins` directories are present, you will be prompted to select relevant files.",
 					Action:      serverInit,
-					Flags:       serverInitFlags,
+					Flags:       append(globalFlags, serverInitFlags...),
 				},
 				{
 					Name:        "download",
 					Usage:       "sampctl server download",
 					Description: "Downloads the files necessary to run a SA:MP server to the current directory (unless `--dir` specified). Will download the latest stable (non RC) server version unless `--version` is specified.",
 					Action:      serverDownload,
-					Flags:       serverDownloadFlags,
+					Flags:       append(globalFlags, serverDownloadFlags...),
 				},
 				{
 					Name:        "ensure",
 					Usage:       "sampctl server ensure",
 					Description: "Ensures the server environment is representative of the configuration specified in `samp.json`/`samp.yaml` - downloads server binaries and plugin files if necessary and generates a `server.cfg` file.",
 					Action:      serverEnsure,
-					Flags:       serverEnsureFlags,
+					Flags:       append(globalFlags, serverEnsureFlags...),
 				},
 				{
 					Name:        "run",
 					Usage:       "sampctl server run",
 					Description: "Generates a `server.cfg` file based on the configuration inside `samp.json`/`samp.yaml` then executes the server process and automatically restarts it on crashes.",
 					Action:      serverRun,
-					Flags:       serverRunFlags,
+					Flags:       append(globalFlags, serverRunFlags...),
 				},
 			},
 		},
@@ -92,35 +98,35 @@ func main() {
 					Usage:       "sampctl package init",
 					Description: "Helper tool to bootstrap a new package or turn an existing project into a package.",
 					Action:      packageInit,
-					Flags:       packageInitFlags,
+					Flags:       append(globalFlags, packageInitFlags...),
 				},
 				{
 					Name:        "ensure",
 					Usage:       "sampctl package ensure",
 					Description: "Ensures dependencies are up to date based on the `dependencies` field in `pawn.json`/`pawn.yaml`.",
 					Action:      packageEnsure,
-					Flags:       packageEnsureFlags,
+					Flags:       append(globalFlags, packageEnsureFlags...),
 				},
 				{
 					Name:        "install",
 					Usage:       "sampctl package install [package definition]",
 					Description: "Installs a new package by adding it to the `dependencies` field in `pawn.json`/`pawn.yaml` downloads the contents.",
 					Action:      packageInstall,
-					Flags:       packageInstallFlags,
+					Flags:       append(globalFlags, packageInstallFlags...),
 				},
 				{
 					Name:        "build",
 					Usage:       "sampctl package build",
 					Description: "Builds a package defined by a `pawn.json`/`pawn.yaml` file.",
 					Action:      packageBuild,
-					Flags:       packageBuildFlags,
+					Flags:       append(globalFlags, packageBuildFlags...),
 				},
 				{
 					Name:        "run",
 					Usage:       "sampctl package run",
 					Description: "Compiles and runs a package defined by a `pawn.json`/`pawn.yaml` file.",
 					Action:      packageRun,
-					Flags:       packageRunFlags,
+					Flags:       append(globalFlags, packageRunFlags...),
 				},
 			},
 		},
@@ -141,11 +147,12 @@ func main() {
 		},
 	}
 
-	app.Flags = []cli.Flag{
-		cli.BoolFlag{
-			Name:  "verbose",
-			Usage: "output all detailed information - useful for debugging",
-		},
+	app.Flags = globalFlags
+	app.Before = func(c *cli.Context) error {
+		if c.GlobalBool("verbose") {
+			print.SetVerbose()
+		}
+		return nil
 	}
 
 	err = app.Run(os.Args)
