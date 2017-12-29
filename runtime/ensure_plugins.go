@@ -235,37 +235,43 @@ func PluginFromNet(meta versioning.DependencyMeta, platform, cacheDir string) (f
 // it first checks the repository itself, if that fails it falls back to using the sampctl central
 // plugin metadata repository
 func GetPluginRemotePackage(meta versioning.DependencyMeta) (pkg types.Package, err error) {
-	resp, err := http.Get(fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/master/pawn.json", meta.User, meta.Repo))
-	if err != nil {
-		return
-	}
+	client := github.NewClient(nil)
+	repo, _, err := client.Repositories.Get(context.Background(), meta.User, meta.Repo)
+	if err == nil {
+		var resp *http.Response
 
-	if resp.StatusCode == 200 {
-		var contents []byte
-		contents, err = ioutil.ReadAll(resp.Body)
+		resp, err = http.Get(fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/pawn.json", meta.User, meta.Repo, *repo.DefaultBranch))
 		if err != nil {
 			return
 		}
-		err = json.Unmarshal(contents, &pkg)
-		return
-	}
 
-	resp, err = http.Get(fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/master/pawn.yaml", meta.User, meta.Repo))
-	if err != nil {
-		return
-	}
+		if resp.StatusCode == 200 {
+			var contents []byte
+			contents, err = ioutil.ReadAll(resp.Body)
+			if err != nil {
+				return
+			}
+			err = json.Unmarshal(contents, &pkg)
+			return
+		}
 
-	if resp.StatusCode == 200 {
-		var contents []byte
-		contents, err = ioutil.ReadAll(resp.Body)
+		resp, err = http.Get(fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/pawn.yaml", meta.User, meta.Repo, *repo.DefaultBranch))
 		if err != nil {
 			return
 		}
-		err = yaml.Unmarshal(contents, &pkg)
-		return
+
+		if resp.StatusCode == 200 {
+			var contents []byte
+			contents, err = ioutil.ReadAll(resp.Body)
+			if err != nil {
+				return
+			}
+			err = yaml.Unmarshal(contents, &pkg)
+			return
+		}
 	}
 
-	resp, err = http.Get(fmt.Sprintf("https://raw.githubusercontent.com/sampctl/plugins/master/%s-%s.json", meta.User, meta.Repo))
+	resp, err := http.Get(fmt.Sprintf("https://raw.githubusercontent.com/sampctl/plugins/master/%s-%s.json", meta.User, meta.Repo))
 	if err != nil {
 		return
 	}
