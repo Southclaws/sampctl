@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -82,17 +83,33 @@ func EnsureBinaries(cfg types.Runtime) (err error) {
 func EnsureScripts(cfg types.Runtime) (err error) {
 	errs := []string{}
 
-	for _, gamemode := range cfg.Gamemodes {
-		fullpath := filepath.Join(cfg.WorkingDir, "gamemodes", gamemode+".amx")
-		if !util.Exists(fullpath) {
-			errs = append(errs, fmt.Sprintf("gamemode '%s' is missing its .amx file from the gamemodes directory", gamemode))
+	gamemodes := filepath.Join(cfg.WorkingDir, "gamemodes")
+	if util.Exists(gamemodes) {
+		for _, gamemode := range cfg.Gamemodes {
+			fullpath := filepath.Join(gamemodes, gamemode+".amx")
+			if !util.Exists(fullpath) {
+				errs = append(errs, fmt.Sprintf("gamemode '%s' is missing its .amx file from the gamemodes directory", gamemode))
+			}
 		}
+	} else {
+		os.MkdirAll(gamemodes, 0755)
 	}
-	for _, filterscript := range cfg.Filterscripts {
-		fullpath := filepath.Join(cfg.WorkingDir, "filterscripts", filterscript+".amx")
-		if !util.Exists(fullpath) {
-			errs = append(errs, fmt.Sprintf("filterscript '%s' is missing its .amx file from the filterscripts directory", filterscript))
+
+	filterscripts := filepath.Join(cfg.WorkingDir, "filterscripts")
+	if util.Exists(filterscripts) {
+		for _, filterscript := range cfg.Filterscripts {
+			fullpath := filepath.Join(cfg.WorkingDir, "filterscripts", filterscript+".amx")
+			if !util.Exists(fullpath) {
+				errs = append(errs, fmt.Sprintf("filterscript '%s' is missing its .amx file from the filterscripts directory", filterscript))
+			}
 		}
+	} else {
+		os.MkdirAll(filterscripts, 0755)
+	}
+
+	scriptfiles := filepath.Join(cfg.WorkingDir, "scripfiles")
+	if !util.Exists(scriptfiles) {
+		os.MkdirAll(scriptfiles, 0755)
 	}
 
 	if len(errs) > 0 {
