@@ -220,7 +220,7 @@ func PluginFromNet(meta versioning.DependencyMeta, platform, cacheDir string) (f
 		return
 	}
 
-	filename, err = download.ReleaseAssetByPattern(meta, matcher, platform, GetResourcePath(meta), cacheDir)
+	filename, err = download.ReleaseAssetByPattern(meta, matcher, GetResourcePath(meta), "", cacheDir)
 	if err != nil {
 		return
 	}

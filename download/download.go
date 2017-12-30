@@ -84,7 +84,7 @@ func FromNet(url, cacheDir, filename string) (result string, err error) {
 }
 
 // ReleaseAssetByPattern downloads a resource file, which is a GitHub release asset
-func ReleaseAssetByPattern(meta versioning.DependencyMeta, matcher *regexp.Regexp, platform, dir, cacheDir string) (filename string, err error) {
+func ReleaseAssetByPattern(meta versioning.DependencyMeta, matcher *regexp.Regexp, dir, outputFile, cacheDir string) (filename string, err error) {
 	var (
 		client = github.NewClient(nil)
 		asset  *github.ReleaseAsset
@@ -113,8 +113,12 @@ func ReleaseAssetByPattern(meta versioning.DependencyMeta, matcher *regexp.Regex
 		return
 	}
 
-	u, _ := url.Parse(*asset.BrowserDownloadURL)
-	outputFile := filepath.Join(dir, filepath.Base(u.Path))
+	if outputFile == "" {
+		u, _ := url.Parse(*asset.BrowserDownloadURL)
+		outputFile = filepath.Join(dir, filepath.Base(u.Path))
+	} else {
+		outputFile = filepath.Join(dir, outputFile)
+	}
 
 	filename, err = FromNet(*asset.BrowserDownloadURL, cacheDir, outputFile)
 	return
