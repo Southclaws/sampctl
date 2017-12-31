@@ -1,18 +1,15 @@
 package runtime
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 
-	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
@@ -223,7 +220,7 @@ func PluginFromNet(meta versioning.DependencyMeta, platform, cacheDir string) (f
 		return
 	}
 
-	filename, err = DownloadResource(meta, matcher, platform, cacheDir)
+	filename, err = download.ReleaseAssetByPattern(meta, matcher, GetResourcePath(meta), "", cacheDir)
 	if err != nil {
 		return
 	}
@@ -307,45 +304,6 @@ func GetResourceForPlatform(resources []types.Resource, platform string) (resour
 		return
 	}
 	resource = *tmp
-	return
-}
-
-// DownloadResource downloads a resource file, which is a GitHub release asset
-func DownloadResource(meta versioning.DependencyMeta, matcher *regexp.Regexp, platform, cacheDir string) (filename string, err error) {
-	resourcePath := GetResourcePath(meta)
-
-	var (
-		client = github.NewClient(nil)
-		asset  *github.ReleaseAsset
-		assets []string
-	)
-
-	var release *github.RepositoryRelease
-	if meta.Version == "" {
-		release, _, err = client.Repositories.GetLatestRelease(context.Background(), meta.User, meta.Repo)
-	} else {
-		release, _, err = client.Repositories.GetReleaseByTag(context.Background(), meta.User, meta.Repo, meta.Version)
-	}
-	if err != nil {
-		return
-	}
-
-	for _, a := range release.Assets {
-		if matcher.MatchString(*a.Name) {
-			asset = &a
-			break
-		}
-		assets = append(assets, *a.Name)
-	}
-	if asset == nil {
-		err = errors.Errorf("resource matcher '%s' does not match any release assets from '%v'", matcher, assets)
-		return
-	}
-
-	u, _ := url.Parse(*asset.BrowserDownloadURL)
-	outputFile := filepath.Join(resourcePath, filepath.Base(u.Path))
-
-	filename, err = download.FromNet(*asset.BrowserDownloadURL, cacheDir, outputFile)
 	return
 }
 

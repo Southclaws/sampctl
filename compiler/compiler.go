@@ -59,16 +59,10 @@ func CompileSource(execDir, cacheDir, platform string, config types.BuildConfig)
 	output = util.FullPath(config.Output)
 	cacheDir = util.FullPath(cacheDir)
 
-	runtimeDir := filepath.Join(cacheDir, "pawn", string(config.Version))
-	err = GetCompilerPackage(config.Version, runtimeDir, platform)
+	runtimeDir := filepath.Join("pawn", string(config.Version))
+	pkg, err := GetCompilerPackage(config.Version, runtimeDir, platform, cacheDir)
 	if err != nil {
 		err = errors.Wrap(err, "failed to get compiler package")
-		return
-	}
-
-	pkg, _, err := GetCompilerPackageInfo(platform, config.Version)
-	if err != nil {
-		err = errors.Wrap(err, "failed to get compiler package info for runtime")
 		return
 	}
 
