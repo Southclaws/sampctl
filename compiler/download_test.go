@@ -26,9 +26,9 @@ func Test_CompilerFromNet(t *testing.T) {
 		{"linux-v3.10.4", args{versioning.DependencyMeta{User: "Zeex", Repo: "pawn", Version: "v3.10.4"}, "tests/compiler-linux-v3.10.4", "linux", "tests/cache-linux-v3.10.4"}, false},
 		{"darwin-v3.10.4", args{versioning.DependencyMeta{User: "Zeex", Repo: "pawn", Version: "v3.10.4"}, "tests/compiler-darwin-v3.10.4", "darwin", "tests/cache-darwin-v3.10.4"}, false},
 		{"windows-v3.10.4", args{versioning.DependencyMeta{User: "Zeex", Repo: "pawn", Version: "v3.10.4"}, "tests/compiler-windows-v3.10.4", "windows", "tests/cache-windows-v3.10.4"}, false},
-		{"linux-v3.10.5", args{versioning.DependencyMeta{User: "Zeex", Repo: "pawn", Version: "v3.10.5"}, "tests/compiler-linux-v3.10.5", "linux", "tests/cache-linux-v3.10.5"}, false},
-		{"darwin-v3.10.5", args{versioning.DependencyMeta{User: "Zeex", Repo: "pawn", Version: "v3.10.5"}, "tests/compiler-darwin-v3.10.5", "darwin", "tests/cache-darwin-v3.10.5"}, false},
-		{"windows-v3.10.5", args{versioning.DependencyMeta{User: "Zeex", Repo: "pawn", Version: "v3.10.5"}, "tests/compiler-windows-v3.10.5", "windows", "tests/cache-windows-v3.10.5"}, false},
+		// {"linux-v3.10.5", args{versioning.DependencyMeta{User: "Zeex", Repo: "pawn", Version: "v3.10.5"}, "tests/compiler-linux-v3.10.5", "linux", "tests/cache-linux-v3.10.5"}, false},
+		// {"darwin-v3.10.5", args{versioning.DependencyMeta{User: "Zeex", Repo: "pawn", Version: "v3.10.5"}, "tests/compiler-darwin-v3.10.5", "darwin", "tests/cache-darwin-v3.10.5"}, false},
+		// {"windows-v3.10.5", args{versioning.DependencyMeta{User: "Zeex", Repo: "pawn", Version: "v3.10.5"}, "tests/compiler-windows-v3.10.5", "windows", "tests/cache-windows-v3.10.5"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -70,9 +70,9 @@ func Test_CompilerFromCache(t *testing.T) {
 		{"linux-v3.10.4", args{versioning.DependencyMeta{User: "Zeex", Repo: "pawn", Version: "v3.10.4"}, "tests/compiler-linux-v3.10.4", "linux", "tests/cache-linux-v3.10.4"}, true, false},
 		{"darwin-v3.10.4", args{versioning.DependencyMeta{User: "Zeex", Repo: "pawn", Version: "v3.10.4"}, "tests/compiler-darwin-v3.10.4", "darwin", "tests/cache-darwin-v3.10.4"}, true, false},
 		{"windows-v3.10.4", args{versioning.DependencyMeta{User: "Zeex", Repo: "pawn", Version: "v3.10.4"}, "tests/compiler-windows-v3.10.4", "windows", "tests/cache-windows-v3.10.4"}, true, false},
-		{"linux-v3.10.5", args{versioning.DependencyMeta{User: "Zeex", Repo: "pawn", Version: "v3.10.5"}, "tests/compiler-linux-v3.10.5", "linux", "tests/cache-linux-v3.10.5"}, true, false},
-		{"darwin-v3.10.5", args{versioning.DependencyMeta{User: "Zeex", Repo: "pawn", Version: "v3.10.5"}, "tests/compiler-darwin-v3.10.5", "darwin", "tests/cache-darwin-v3.10.5"}, true, false},
-		{"windows-v3.10.5", args{versioning.DependencyMeta{User: "Zeex", Repo: "pawn", Version: "v3.10.5"}, "tests/compiler-windows-v3.10.5", "windows", "tests/cache-windows-v3.10.5"}, true, false},
+		// {"linux-v3.10.5", args{versioning.DependencyMeta{User: "Zeex", Repo: "pawn", Version: "v3.10.5"}, "tests/compiler-linux-v3.10.5", "linux", "tests/cache-linux-v3.10.5"}, true, false},
+		// {"darwin-v3.10.5", args{versioning.DependencyMeta{User: "Zeex", Repo: "pawn", Version: "v3.10.5"}, "tests/compiler-darwin-v3.10.5", "darwin", "tests/cache-darwin-v3.10.5"}, true, false},
+		// {"windows-v3.10.5", args{versioning.DependencyMeta{User: "Zeex", Repo: "pawn", Version: "v3.10.5"}, "tests/compiler-windows-v3.10.5", "windows", "tests/cache-windows-v3.10.5"}, true, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
