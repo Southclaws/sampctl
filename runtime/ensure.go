@@ -107,7 +107,7 @@ func EnsureScripts(cfg types.Runtime) (err error) {
 		os.MkdirAll(filterscripts, 0755)
 	}
 
-	scriptfiles := filepath.Join(cfg.WorkingDir, "scripfiles")
+	scriptfiles := filepath.Join(cfg.WorkingDir, "scriptfiles")
 	if !util.Exists(scriptfiles) {
 		os.MkdirAll(scriptfiles, 0755)
 	}
