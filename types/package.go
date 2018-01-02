@@ -72,7 +72,7 @@ func (pkg Package) String() string {
 
 // Validate checks a package for missing fields
 func (pkg Package) Validate() (err error) {
-	if pkg.Entry == pkg.Output {
+	if pkg.Entry == pkg.Output && pkg.Entry != "" && pkg.Output != "" {
 		return errors.New("package entry and output point to the same file")
 	}
 
