@@ -163,7 +163,7 @@ What also happens here is `maddinat0r/sscanf` tells sampctl to automatically get
 ---
 # `sampctl`
 
-1.5.11 - Southclaws <southclaws@gmail.com>
+1.5.12 - Southclaws <southclaws@gmail.com>
 
 Compiles server configuration JSON to server.cfg format. Executes the server and monitors it for crashes, restarting if necessary. Provides a way to quickly download server binaries of a specified version. Provides dependency management and package build tools for library maintainers and gamemode writers alike.
 
