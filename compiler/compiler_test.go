@@ -130,7 +130,7 @@ func TestCompileSource(t *testing.T) {
 				{"script.pwn", 1, types.ProblemFatal, `cannot read from file: "idonotexist"`},
 			},
 			types.BuildResult{},
-			false, true},
+			false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

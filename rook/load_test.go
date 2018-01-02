@@ -1,6 +1,7 @@
 package rook
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -61,6 +62,8 @@ func TestPackageFromDir(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
+
+			tt.wantPkg.Vendor = filepath.FromSlash(tt.wantPkg.Vendor)
 
 			assert.Equal(t, tt.wantPkg, gotPkg)
 		})
