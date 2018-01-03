@@ -163,6 +163,18 @@ func main() {
 		print.Erro(err)
 	}
 
+	// quick and dirty stateless check to make sure update check doesn't run on *every* execution
+	// instead, it will only check when the user happens to run the app during a minute and second
+	// that are even numbers. 12:56:44 will work, 12:57:44 will not, etc...
+	// this is done because the GitHub API has rate limits and we don't want to use all our requests
+	// up on version checks when package management is more important.
+	if time.Now().Minute()%2 == 0 && time.Now().Second()%2 == 0 {
+		CheckForUpdates(app.Version)
+	}
+}
+
+// CheckForUpdates uses the GitHub API to check if a new release is available.
+func CheckForUpdates(thisVersion string) {
 	client := github.NewClient(nil)
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*10)
 
@@ -175,7 +187,7 @@ func main() {
 			print.Erro("Failed to interpret latest release tag as a semantic version:", err)
 		}
 
-		this, err := semver.NewVersion(app.Version)
+		this, err := semver.NewVersion(thisVersion)
 		if err != nil {
 			print.Erro("Failed to interpret this version number as a semantic version:", err)
 		}
@@ -183,6 +195,7 @@ func main() {
 		if latest.GreaterThan(this) {
 			print.Info("\n-\n")
 			print.Info(color.YellowString("sampctl version"), color.GreenString(latest.String()), color.YellowString("available!"))
+			print.Info(color.YellowString("You are currently using"), color.GreenString(thisVersion))
 			print.Info(color.YellowString("To upgrade, use the following command:"))
 			switch runtime.GOOS {
 			case "windows":
