@@ -59,6 +59,11 @@ func CompileSource(execDir, cacheDir, platform string, config types.BuildConfig)
 	output = util.FullPath(config.Output)
 	cacheDir = util.FullPath(cacheDir)
 
+	if !util.Exists(input) {
+		err = errors.Errorf("no such file '%s'", input)
+		return
+	}
+
 	runtimeDir := filepath.Join(cacheDir, "pawn", string(config.Version))
 	pkg, err := GetCompilerPackage(config.Version, runtimeDir, platform, cacheDir)
 	if err != nil {
