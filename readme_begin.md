@@ -2,10 +2,9 @@
 
 [![Build Status](https://travis-ci.org/Southclaws/sampctl.svg?branch=master)](https://travis-ci.org/Southclaws/sampctl) [![Go Report Card](https://goreportcard.com/badge/github.com/Southclaws/sampctl)](https://goreportcard.com/report/github.com/Southclaws/sampctl) [![https://img.shields.io/badge/Ko--Fi-Buy%20Me%20a%20Coffee-brown.svg](https://img.shields.io/badge/Ko--Fi-Buy%20Me%20a%20Coffee-brown.svg)](https://ko-fi.com/southclaws)
 
-![sampctl.png](sampctl.png)
+![sampctl-logo](sampctl-wordmark.png)
 
-The Swiss Army Knife of SA:MP - vital tools for any server owner or library
-maintainer.
+The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
 
 ## Features
 
