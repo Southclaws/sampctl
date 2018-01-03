@@ -152,6 +152,9 @@ func main() {
 		if c.GlobalBool("verbose") {
 			print.SetVerbose()
 		}
+		if runtime.GOOS != "windows" {
+			print.SetColoured()
+		}
 		return nil
 	}
 
