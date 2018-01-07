@@ -61,7 +61,7 @@ func watchdog(binary string) (err error) {
 			return errors.Errorf("too many crashloops, last error: %v", err)
 		}
 
-		print.Warn("crash loop backoff: %s: %v\n", exponentialBackoff, err)
+		print.Warn("crash loop backoff for", exponentialBackoff, "reason:", err)
 		time.Sleep(exponentialBackoff)
 	}
 }
