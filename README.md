@@ -149,7 +149,7 @@ It compiles to this:
 
 ```conf
 gamemode0 rivershell
-plugins filemanager.so
+plugins sscanf.so
 rcon_password test
 port 8080
 (... and the rest of the settings which have default values)
