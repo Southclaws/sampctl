@@ -54,7 +54,7 @@ func EnsureDependencies(pkg *types.Package) (err error) {
 			return
 		}
 
-		print.Info(pkg, "successfully ensured depenency files for", meta)
+		print.Info(pkg, "successfully ensured dependency files for", meta)
 
 		pkg.AllDependencies = append(pkg.AllDependencies, meta)
 		visited[meta] = true
