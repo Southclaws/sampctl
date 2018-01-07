@@ -70,27 +70,27 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 		return
 	}
 
-	var recurse func(dependencyString versioning.DependencyString)
-	var pluginMeta versioning.DependencyMeta
+	var (
+		recurse    func(meta versioning.DependencyMeta)
+		visited    = make(map[versioning.DependencyMeta]bool)
+		pluginMeta versioning.DependencyMeta
+	)
 
-	recurse = func(dependencyString versioning.DependencyString) {
-		dependencyMeta, err := dependencyString.Explode()
-		if err != nil {
-			print.Verb(pkg, "invalid dependency string:", dependencyString)
-			return
-		}
+	visited[pkg.DependencyMeta] = true
 
-		dependencyDir := filepath.Join(depsDir, dependencyMeta.Repo)
+	recurse = func(meta versioning.DependencyMeta) {
+		dependencyDir := filepath.Join(depsDir, meta.Repo)
 		if !util.Exists(dependencyDir) {
-			print.Verb(pkg, "dependency", dependencyString, "does not exist locally in", depsDir, "run sampctl package ensure to update dependencies.")
+			print.Verb(pkg, "dependency", meta, "does not exist locally in", depsDir, "run sampctl package ensure to update dependencies.")
 			return
 		}
 
-		pkg.AllDependencies = append(pkg.AllDependencies, dependencyMeta)
+		pkg.AllDependencies = append(pkg.AllDependencies, meta)
+		visited[meta] = true
 
 		subPkg, err := PackageFromDir(false, dependencyDir, depsDir)
 		if err != nil {
-			print.Verb(pkg, "not a package:", dependencyString, err)
+			print.Verb(pkg, "not a package:", meta, err)
 			return
 		}
 
@@ -105,13 +105,26 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 			}
 		}
 
-		for _, depStr := range subPkg.Dependencies {
-			recurse(depStr)
+		for _, subPkgDep := range subPkg.Dependencies {
+			subPkgDepMeta, err := subPkgDep.Explode()
+			if err != nil {
+				print.Verb(pkg, "invalid dependency string:", subPkgDepMeta)
+				continue
+			}
+			if _, ok := visited[subPkgDepMeta]; !ok {
+				recurse(subPkgDepMeta)
+			}
 		}
 	}
 
-	for _, depStr := range pkg.GetAllDependencies() {
-		recurse(depStr)
+	var meta versioning.DependencyMeta
+	for _, dep := range pkg.GetAllDependencies() {
+		meta, err = dep.Explode()
+		if err != nil {
+			print.Verb(pkg, "invalid dependency string:", dep)
+			continue
+		}
+		recurse(meta)
 	}
 
 	if pkg.Runtime != nil {
