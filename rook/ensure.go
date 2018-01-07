@@ -43,6 +43,7 @@ func EnsureDependencies(pkg *types.Package) (err error) {
 	pkg.Vendor = filepath.Join(pkg.Local, "dependencies")
 
 	visited := make(map[versioning.DependencyMeta]bool)
+	visited[pkg.DependencyMeta] = true
 
 	var recurse func(meta versioning.DependencyMeta)
 	recurse = func(meta versioning.DependencyMeta) {

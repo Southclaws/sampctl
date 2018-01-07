@@ -30,8 +30,8 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 		wantDeps []versioning.DependencyMeta
 		wantErr  bool
 	}{
-		{"ensure", &types.Package{
-			Local: util.FullPath("./tests/deps-ensure"),
+		{"basic", &types.Package{
+			Local: util.FullPath("./tests/deps-basic"),
 			Dependencies: []versioning.DependencyString{
 				"ScavengeSurvive/actions",
 			}},
@@ -43,6 +43,15 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 				versioning.DependencyMeta{User: "Zeex", Repo: "amx_assembly", Path: "", Version: ""},
 				versioning.DependencyMeta{User: "ScavengeSurvive", Repo: "velocity", Path: "", Version: ""},
 				versioning.DependencyMeta{User: "ScavengeSurvive", Repo: "tick-difference", Path: "", Version: ""},
+			}, false},
+		{"circular", &types.Package{
+			Local: util.FullPath("./tests/deps-cirular"),
+			Dependencies: []versioning.DependencyString{
+				"sampctl/AAA",
+			}},
+			[]versioning.DependencyMeta{
+				versioning.DependencyMeta{User: "sampctl", Repo: "AAA", Path: "", Version: ""},
+				versioning.DependencyMeta{User: "sampctl", Repo: "BBB", Path: "", Version: ""},
 			}, false},
 	}
 	for _, tt := range tests {
