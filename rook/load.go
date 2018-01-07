@@ -67,7 +67,7 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 	depsDir := filepath.Join(pkg.Local, "dependencies")
 
 	if !util.Exists(depsDir) {
-		return errors.New("no local dependencies present, must ensure dependencies first")
+		return
 	}
 
 	var recurse func(dependencyString versioning.DependencyString)

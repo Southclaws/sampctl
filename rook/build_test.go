@@ -27,6 +27,19 @@ func TestPackage_Build(t *testing.T) {
 		wantErr      bool
 	}{
 		{
+			"bare", []byte(`main(){}`), args{&types.Package{
+				Parent:         true,
+				Local:          util.FullPath("./tests/build-auto-bare"),
+				DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "bare"},
+				Entry:          "gamemodes/test.pwn",
+				Output:         "gamemodes/test.amx",
+				Dependencies:   []versioning.DependencyString{},
+				Builds: []types.BuildConfig{
+					{Name: "build", Version: "3.10.4"},
+				},
+			}, "build", true}, nil, false,
+		},
+		{
 			"stdlib", []byte(`#include <a_samp>
 			main() {print("hi");}`,
 			), args{&types.Package{
