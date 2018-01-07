@@ -67,7 +67,7 @@ func FromCache(cacheDir, version, dir, platform string) (hit bool, err error) {
 		return
 	}
 
-	print.Verb("Using cached package for %s\n", version)
+	print.Verb("Using cached package for", version)
 
 	return true, nil
 }
