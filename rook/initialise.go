@@ -38,7 +38,11 @@ func Init(dir string, config *types.Config) (err error) {
 			return nil
 		}
 
-		// todo: ignore dependencies
+		// skip anything in dependencies
+		base, _ := filepath.Rel(dir, path)
+		if filepath.Base(filepath.Dir(base)) == "dependencies" {
+			return nil
+		}
 
 		ext := filepath.Ext(path)
 		rel, innerErr := filepath.Rel(dir, path)
