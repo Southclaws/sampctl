@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"html/template"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -40,7 +41,7 @@ func Init(dir string, config *types.Config) (err error) {
 
 		// skip anything in dependencies
 		base, _ := filepath.Rel(dir, path)
-		if filepath.Base(filepath.Dir(base)) == "dependencies" {
+		if strings.Contains(filepath.Dir(base), "dependencies") {
 			return nil
 		}
 
@@ -91,7 +92,7 @@ func Init(dir string, config *types.Config) (err error) {
 		},
 		{
 			Name:   "GitIgnore",
-			Prompt: &survey.Confirm{Message: "Add a .gitignore file?", Default: true},
+			Prompt: &survey.Confirm{Message: "Add a .gitignore and .gitattributes files?", Default: true},
 		},
 		{
 			Name:   "Readme",
@@ -207,9 +208,13 @@ func Init(dir string, config *types.Config) (err error) {
 	wg := sync.WaitGroup{}
 
 	if answers.GitIgnore {
-		wg.Add(1)
+		wg.Add(2)
 		go func() {
 			getTemplateFile(dir, ".gitignore")
+			wg.Done()
+		}()
+		go func() {
+			getTemplateFile(dir, ".gitattributes")
 			wg.Done()
 		}()
 	}
@@ -217,8 +222,30 @@ func Init(dir string, config *types.Config) (err error) {
 	if answers.Readme {
 		wg.Add(1)
 		go func() {
+			path := filepath.Join(dir, "README.md")
 			getTemplateFile(dir, "README.md")
-			wg.Done()
+			defer wg.Done()
+			contents, err := ioutil.ReadFile(path)
+			if err != nil {
+				print.Erro("Failed to open readme template:", err)
+				return
+			}
+			tmpl, err := template.New("readme").Parse(string(contents))
+			if err != nil {
+				print.Erro("Failed to parse readme template:", err)
+				return
+			}
+			out, err := os.OpenFile(path, os.O_WRONLY, 0755)
+			if err != nil {
+				print.Erro("Failed to open readme file for writing:", err)
+				return
+			}
+			defer out.Close()
+			err = tmpl.Execute(out, answers)
+			if err != nil {
+				print.Erro("Failed to execute template:", err)
+				return
+			}
 		}()
 	}
 
@@ -257,7 +284,7 @@ func getTemplateFile(dir, filename string) (err error) {
 	outputFile := filepath.Join(dir, filename)
 
 	if util.Exists(outputFile) {
-		outputFile = "init-" + outputFile
+		outputFile = outputFile + "-duplicate"
 	}
 
 	err = os.MkdirAll(filepath.Dir(outputFile), 0755)
