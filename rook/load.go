@@ -72,11 +72,11 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 
 	var (
 		recurse    func(meta versioning.DependencyMeta)
-		visited    = make(map[versioning.DependencyMeta]bool)
+		visited    = make(map[string]bool)
 		pluginMeta versioning.DependencyMeta
 	)
 
-	visited[pkg.DependencyMeta] = true
+	visited[pkg.DependencyMeta.Repo] = true
 
 	recurse = func(meta versioning.DependencyMeta) {
 		dependencyDir := filepath.Join(depsDir, meta.Repo)
@@ -86,7 +86,7 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 		}
 
 		pkg.AllDependencies = append(pkg.AllDependencies, meta)
-		visited[meta] = true
+		visited[meta.Repo] = true
 
 		subPkg, err := PackageFromDir(false, dependencyDir, depsDir)
 		if err != nil {
@@ -111,7 +111,7 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 				print.Verb(pkg, "invalid dependency string:", subPkgDepMeta)
 				continue
 			}
-			if _, ok := visited[subPkgDepMeta]; !ok {
+			if _, ok := visited[subPkgDepMeta.Repo]; !ok {
 				recurse(subPkgDepMeta)
 			}
 		}

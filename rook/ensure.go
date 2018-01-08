@@ -42,8 +42,8 @@ func EnsureDependencies(pkg *types.Package) (err error) {
 
 	pkg.Vendor = filepath.Join(pkg.Local, "dependencies")
 
-	visited := make(map[versioning.DependencyMeta]bool)
-	visited[pkg.DependencyMeta] = true
+	visited := make(map[string]bool)
+	visited[pkg.DependencyMeta.Repo] = true
 
 	var recurse func(meta versioning.DependencyMeta)
 	recurse = func(meta versioning.DependencyMeta) {
@@ -58,7 +58,7 @@ func EnsureDependencies(pkg *types.Package) (err error) {
 		print.Info(pkg, "successfully ensured dependency files for", meta)
 
 		pkg.AllDependencies = append(pkg.AllDependencies, meta)
-		visited[meta] = true
+		visited[meta.Repo] = true
 
 		subPkg, err := PackageFromDir(false, pkgPath, pkg.Vendor)
 		if err != nil {
@@ -71,7 +71,7 @@ func EnsureDependencies(pkg *types.Package) (err error) {
 			if err != nil {
 				continue
 			}
-			if _, ok := visited[subPkgDepMeta]; !ok {
+			if _, ok := visited[subPkgDepMeta.Repo]; !ok {
 				recurse(subPkgDepMeta)
 			}
 		}
