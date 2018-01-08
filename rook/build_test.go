@@ -49,7 +49,7 @@ func TestPackage_Build(t *testing.T) {
 				Entry:          "gamemodes/test.pwn",
 				Output:         "gamemodes/test.amx",
 				Dependencies: []versioning.DependencyString{
-					"Southclaws/samp-stdlib:0.3.7-R2-2-1",
+					"sampctl/samp-stdlib",
 				},
 				Builds: []types.BuildConfig{
 					{Name: "build", Version: "3.10.4"},
@@ -67,7 +67,7 @@ func TestPackage_Build(t *testing.T) {
 				Entry:          "gamemodes/test.pwn",
 				Output:         "gamemodes/test.amx",
 				Dependencies: []versioning.DependencyString{
-					"Southclaws/samp-stdlib:0.3.7-R2-2-1",
+					"sampctl/samp-stdlib",
 					"ScavengeSurvive/actions",
 				},
 			}, "build", true}, nil, false,
@@ -84,7 +84,7 @@ func TestPackage_Build(t *testing.T) {
 				Entry:          "gamemodes/test.pwn",
 				Output:         "gamemodes/test.amx",
 				Dependencies: []versioning.DependencyString{
-					"Southclaws/samp-stdlib:0.3.7-R2-2-1",
+					"sampctl/samp-stdlib",
 					"ScavengeSurvive/actions",
 				},
 				Development: []versioning.DependencyString{
@@ -103,7 +103,7 @@ func TestPackage_Build(t *testing.T) {
 				Entry:          "gamemodes/test.pwn",
 				Output:         "gamemodes/test.amx",
 				Dependencies: []versioning.DependencyString{
-					"Southclaws/samp-stdlib:0.3.7-R2-2-1",
+					"sampctl/samp-stdlib",
 				},
 				Builds: []types.BuildConfig{
 					{

@@ -33,16 +33,11 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 		{"basic", &types.Package{
 			Local: util.FullPath("./tests/deps-basic"),
 			Dependencies: []versioning.DependencyString{
-				"ScavengeSurvive/actions",
+				"sampctl/samp-stdlib",
 			}},
 			[]versioning.DependencyMeta{
-				versioning.DependencyMeta{User: "ScavengeSurvive", Repo: "actions", Path: "", Version: ""},
-				versioning.DependencyMeta{User: "Southclaws", Repo: "samp-stdlib", Path: "", Version: ""},
-				versioning.DependencyMeta{User: "ScavengeSurvive", Repo: "test-boilerplate", Path: "", Version: ""},
-				versioning.DependencyMeta{User: "Misiur", Repo: "YSI-Includes", Path: "", Version: ""},
-				versioning.DependencyMeta{User: "Zeex", Repo: "amx_assembly", Path: "", Version: ""},
-				versioning.DependencyMeta{User: "ScavengeSurvive", Repo: "velocity", Path: "", Version: ""},
-				versioning.DependencyMeta{User: "ScavengeSurvive", Repo: "tick-difference", Path: "", Version: ""},
+				versioning.DependencyMeta{User: "sampctl", Repo: "samp-stdlib", Path: "", Version: ""},
+				versioning.DependencyMeta{User: "sampctl", Repo: "pawn-stdlib", Path: "", Version: ""},
 			}, false},
 		{"circular", &types.Package{
 			Local: util.FullPath("./tests/deps-cirular"),
