@@ -225,8 +225,13 @@ func Init(dir string) (err error) {
 	}
 
 	err = pkg.WriteDefinition()
+	if err != nil {
+		print.Erro(err)
+	}
 
 	wg.Wait()
+
+	err = EnsureDependencies(&pkg)
 
 	return
 }
