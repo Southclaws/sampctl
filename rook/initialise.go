@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/fatih/color"
 	"gopkg.in/AlecAivazis/survey.v1"
@@ -25,6 +26,7 @@ func Init(dir string) (err error) {
 	var (
 		pwnFiles []string
 		incFiles []string
+		dirName  = filepath.Base(dir)
 	)
 
 	if !util.Exists(dir) {
@@ -66,24 +68,27 @@ func Init(dir string) (err error) {
 			Validate: survey.Required,
 		},
 		{
-			Name:     "User",
-			Prompt:   &survey.Input{Message: "Your Name - If you plan to release, must be your GitHub username."},
+			Name: "User",
+			Prompt: &survey.Input{
+				Message: "Your Name - If you plan to release, must be your GitHub username.",
+			},
 			Validate: survey.Required,
 		},
 		{
-			Name:     "Repo",
-			Prompt:   &survey.Input{Message: "Package Name - If you plan to release, must be the GitHub project name."},
+			Name: "Repo",
+			Prompt: &survey.Input{
+				Message: "Package Name - If you plan to release, must be the GitHub project name.",
+				Default: dirName,
+			},
 			Validate: survey.Required,
 		},
 		{
-			Name:     "GitIgnore",
-			Prompt:   &survey.Confirm{Message: "Add a .gitignore file?", Default: true},
-			Validate: survey.Required,
+			Name:   "GitIgnore",
+			Prompt: &survey.Confirm{Message: "Add a .gitignore file?", Default: true},
 		},
 		{
-			Name:     "Readme",
-			Prompt:   &survey.Confirm{Message: "Add a README.md file?", Default: true},
-			Validate: survey.Required,
+			Name:   "Readme",
+			Prompt: &survey.Confirm{Message: "Add a README.md file?", Default: true},
 		},
 		{
 			Name: "Editor",
@@ -92,6 +97,10 @@ func Init(dir string) (err error) {
 				Options: []string{"none", "vscode"},
 			},
 			Validate: survey.Required,
+		},
+		{
+			Name:   "StdLib",
+			Prompt: &survey.Confirm{Message: "Add standard library dependency?", Default: true},
 		},
 	}
 
@@ -116,8 +125,11 @@ func Init(dir string) (err error) {
 			})
 		} else {
 			questions = append(questions, &survey.Question{
-				Name:   "Entry",
-				Prompt: &survey.Input{Message: "No .pwn or .inc files - enter name for new script"},
+				Name: "Entry",
+				Prompt: &survey.Input{
+					Message: "No .pwn or .inc files - enter name for new script",
+					Default: "test.pwn",
+				},
 			})
 		}
 	}
@@ -129,6 +141,7 @@ func Init(dir string) (err error) {
 		GitIgnore     bool
 		Readme        bool
 		Editor        string
+		StdLib        bool
 		EntryGenerate []string
 		Entry         string
 	}{}
@@ -180,29 +193,40 @@ func Init(dir string) (err error) {
 		pkg.Output = "test.amx"
 	}
 
-	err = pkg.WriteDefinition()
+	wg := sync.WaitGroup{}
 
 	if answers.GitIgnore {
-		err = getTemplateFile(dir, ".gitignore")
-		if err != nil {
-			return
-		}
+		wg.Add(1)
+		go func() {
+			getTemplateFile(dir, ".gitignore")
+			wg.Done()
+		}()
 	}
 
 	if answers.Readme {
-		err = getTemplateFile(dir, "README.md")
-		if err != nil {
-			return
-		}
+		wg.Add(1)
+		go func() {
+			getTemplateFile(dir, "README.md")
+			wg.Done()
+		}()
 	}
 
 	switch answers.Editor {
 	case "vscode":
-		err = getTemplateFile(dir, ".vscode/tasks.json")
-		if err != nil {
-			return
-		}
+		wg.Add(1)
+		go func() {
+			getTemplateFile(dir, ".vscode/tasks.json")
+			wg.Done()
+		}()
 	}
+
+	if answers.StdLib {
+		pkg.Dependencies = append(pkg.Dependencies, versioning.DependencyString("sampctl/samp-stdlib"))
+	}
+
+	err = pkg.WriteDefinition()
+
+	wg.Wait()
 
 	return
 }
@@ -215,6 +239,10 @@ func getTemplateFile(dir, filename string) (err error) {
 	defer resp.Body.Close()
 
 	outputFile := filepath.Join(dir, filename)
+
+	if util.Exists(outputFile) {
+		outputFile = "init-" + outputFile
+	}
 
 	err = os.MkdirAll(filepath.Dir(outputFile), 0755)
 	if err != nil {
