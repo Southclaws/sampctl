@@ -14,9 +14,12 @@ import (
 
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
+	"github.com/Southclaws/sampctl/types"
 )
 
 var version = "master"
+
+var config *types.Config
 
 func main() {
 	app := cli.NewApp()
@@ -40,7 +43,13 @@ func main() {
 	}
 	err = os.MkdirAll(cacheDir, 0665)
 	if err != nil {
-		print.Erro("Failed to create cache directory at ", cacheDir, ": ", err)
+		print.Erro("Failed to create cache directory at", cacheDir, "-", err)
+		return
+	}
+
+	config, err = types.LoadOrCreateConfig(cacheDir)
+	if err != nil {
+		print.Erro("Failed to load or create sampctl config in", cacheDir, "-", err)
 		return
 	}
 
@@ -170,6 +179,12 @@ func main() {
 	// up on version checks when package management is more important.
 	if time.Now().Minute()%2 == 0 && time.Now().Second()%2 == 0 {
 		CheckForUpdates(app.Version)
+	}
+
+	err = types.WriteConfig(cacheDir, *config)
+	if err != nil {
+		print.Erro("Failed to write updated configuration file to", cacheDir, "-", err)
+		return
 	}
 }
 

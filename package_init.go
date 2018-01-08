@@ -29,7 +29,7 @@ func packageInit(c *cli.Context) error {
 		return errors.New("Directory already appears to be a package")
 	}
 
-	err = rook.Init(dir)
+	err = rook.Init(dir, config)
 
 	return err
 }

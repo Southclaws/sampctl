@@ -22,7 +22,7 @@ import (
 )
 
 // Init prompts the user to initialise a package
-func Init(dir string) (err error) {
+func Init(dir string, config *types.Config) (err error) {
 	var (
 		pwnFiles []string
 		incFiles []string
@@ -37,6 +37,8 @@ func Init(dir string) (err error) {
 		if info.IsDir() {
 			return nil
 		}
+
+		// todo: ignore dependencies
 
 		ext := filepath.Ext(path)
 		rel, innerErr := filepath.Rel(dir, path)
@@ -71,6 +73,7 @@ func Init(dir string) (err error) {
 			Name: "User",
 			Prompt: &survey.Input{
 				Message: "Your Name - If you plan to release, must be your GitHub username.",
+				Default: config.DefaultUser,
 			},
 			Validate: survey.Required,
 		},
@@ -149,6 +152,10 @@ func Init(dir string) (err error) {
 	err = survey.Ask(questions, &answers)
 	if err != nil {
 		return
+	}
+
+	if answers.User != config.DefaultUser {
+		config.DefaultUser = answers.User
 	}
 
 	pkg := types.Package{
