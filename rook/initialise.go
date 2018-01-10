@@ -241,7 +241,15 @@ func Init(dir string, config *types.Config) (err error) {
 				return
 			}
 			defer out.Close()
-			err = tmpl.Execute(out, answers)
+			err = tmpl.Execute(out, struct {
+				User        string
+				Repo        string
+				RepoEscaped string
+			}{
+				User:        answers.User,
+				Repo:        answers.Repo,
+				RepoEscaped: strings.Replace(answers.Repo, "-", "--", -1),
+			})
 			if err != nil {
 				print.Erro("Failed to execute template:", err)
 				return
