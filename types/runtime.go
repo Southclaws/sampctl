@@ -13,8 +13,9 @@ type Runtime struct {
 	AppVersion string           `ignore:"1" json:"-"` // app version for container runtime
 
 	// Only used to configure sampctl, not used in server.cfg generation
-	Version  string `ignore:"1" json:"version,omitempty"`  // SA:MP server binaries version
-	Endpoint string `ignore:"1" json:"endpoint,omitempty"` // download endpoint for server binaries
+	Version  string  `ignore:"1" json:"version,omitempty"`  // SA:MP server binaries version
+	Endpoint string  `ignore:"1" json:"endpoint,omitempty"` // download endpoint for server binaries
+	RunType  RunType `ignore:"1" json:"run_type"`           //
 
 	// Echo - set automatically
 	Echo *string `default:"-"             required:"0" json:"echo,omitempty"`
@@ -71,6 +72,16 @@ type Runtime struct {
 type ContainerConfig struct {
 	MountCache bool // whether or not to mount the local cache directory inside the container
 }
+
+// RunType represents a method of running the server
+type RunType string
+
+const (
+	// Server is the normal runtime mode, it just runs the server as a server
+	Server RunType = "server"
+	// MainOnly hides preamble and closes the server after the main() function finishes
+	MainOnly RunType = "main"
+)
 
 // Plugin represents either a plugin name or a dependency-string description of where to get it
 type Plugin string

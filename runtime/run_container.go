@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/print"
 	sampctltypes "github.com/Southclaws/sampctl/types"
@@ -25,7 +26,7 @@ import (
 func RunContainer(cfg sampctltypes.Runtime, cacheDir string) (err error) {
 	cli, err := client.NewEnvClient()
 	if err != nil {
-		panic(err)
+		return
 	}
 
 	args := strslice.StrSlice{"sampctl", "server", "run"}
@@ -77,13 +78,13 @@ func RunContainer(cfg sampctltypes.Runtime, cacheDir string) (err error) {
 		&network.NetworkingConfig{},
 		"sampctl-"+uuid.New().String())
 	if err != nil {
-		panic(err)
+		return errors.Wrap(err, "failed to create container")
 	}
 
 	print.Info("Starting container...")
 	err = cli.ContainerStart(context.Background(), cnt.ID, types.ContainerStartOptions{})
 	if err != nil {
-		panic(err)
+		return errors.Wrap(err, "failed to start container")
 	}
 
 	go func() {
