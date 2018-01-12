@@ -26,7 +26,11 @@ var packageBuildFlags = []cli.Flag{
 	},
 	cli.BoolFlag{
 		Name:  "forceEnsure",
-		Usage: "forces dependency ensure before build if `--forceBuild` is set",
+		Usage: "forces dependency ensure before build",
+	},
+	cli.BoolFlag{
+		Name:  "watch",
+		Usage: "keeps sampctl running and triggers builds whenever source files change",
 	},
 }
 
@@ -38,6 +42,7 @@ func packageBuild(c *cli.Context) error {
 	dir := util.FullPath(c.String("dir"))
 	build := c.String("build")
 	forceEnsure := c.Bool("forceEnsure")
+	watch := c.Bool("watch")
 
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
@@ -49,19 +54,26 @@ func packageBuild(c *cli.Context) error {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	problems, result, err := rook.Build(&pkg, build, cacheDir, appRuntime.GOOS, forceEnsure)
-	if err != nil {
-		return cli.NewExitError(err.Error(), 1)
-	}
+	if watch {
+		err := rook.BuildWatch(&pkg, build, cacheDir, appRuntime.GOOS, forceEnsure)
+		if err != nil {
+			return cli.NewExitError(err.Error(), 1)
+		}
+	} else {
+		problems, result, err := rook.Build(&pkg, build, cacheDir, appRuntime.GOOS, forceEnsure)
+		if err != nil {
+			return cli.NewExitError(err.Error(), 1)
+		}
 
-	print.Info("Build complete with", len(problems), "problems")
-	print.Info(fmt.Sprintf("Results, in bytes: Header: %d, Code: %d, Data: %d, Stack/Heap: %d, Estimated usage: %d, Total: %d\n",
-		result.Header,
-		result.Code,
-		result.Data,
-		result.StackHeap,
-		result.Estimate,
-		result.Total))
+		print.Info("Build complete with", len(problems), "problems")
+		print.Info(fmt.Sprintf("Results, in bytes: Header: %d, Code: %d, Data: %d, Stack/Heap: %d, Estimated usage: %d, Total: %d\n",
+			result.Header,
+			result.Code,
+			result.Data,
+			result.StackHeap,
+			result.Estimate,
+			result.Total))
+	}
 
 	return nil
 }
