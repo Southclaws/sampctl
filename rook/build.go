@@ -140,13 +140,14 @@ loop:
 			if event.Op != fsnotify.Write && event.Op != fsnotify.Create {
 				continue
 			}
-			print.Verb("changed:", event.Name)
 
+			fmt.Println("watch-build: starting compilation")
 			_, _, err = compiler.CompileSource(pkg.Local, cacheDir, platform, *config)
 			if err != nil {
 				err = errors.Wrap(err, "failed to compile package entry")
 				return
 			}
+			fmt.Println("watch-build: finished")
 		}
 	}
 
