@@ -76,3 +76,7 @@
 [[constraint]]
   branch = "master"
   name = "github.com/google/go-github"
+
+[[constraint]]
+  name = "github.com/fsnotify/fsnotify"
+  version = "1.4.7"
