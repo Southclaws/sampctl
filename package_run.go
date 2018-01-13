@@ -94,6 +94,9 @@ func packageRun(c *cli.Context) error {
 	}
 
 	err = rook.Run(pkg, cfg, cacheDir, build, forceBuild, forceEnsure, noCache)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 1)
+	}
 
-	return err
+	return nil
 }

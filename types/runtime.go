@@ -81,6 +81,8 @@ const (
 	Server RunType = "server"
 	// MainOnly hides preamble and closes the server after the main() function finishes
 	MainOnly RunType = "main"
+	// YTesting hides preamble and closes the server after y_testing output has finished
+	YTesting RunType = "y_testing"
 )
 
 // Plugin represents either a plugin name or a dependency-string description of where to get it
