@@ -40,10 +40,10 @@ func Run(cfg types.Runtime, cacheDir string) (err error) {
 	fullPath := filepath.Join(cfg.WorkingDir, binary)
 	print.Verb("starting", binary, "in", cfg.WorkingDir)
 
-	return run(fullPath, cfg.RunType)
+	return run(fullPath, cfg.Mode)
 }
 
-func run(binary string, runType types.RunType) (err error) {
+func run(binary string, runType types.RunMode) (err error) {
 	outputReader, outputWriter := io.Pipe()
 	cmd := exec.Command(binary)
 	cmd.Dir = filepath.Dir(binary)
