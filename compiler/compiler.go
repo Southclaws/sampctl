@@ -44,17 +44,28 @@ var (
 func CompileSource(execDir, cacheDir, platform string, config types.BuildConfig) (problems []types.BuildProblem, result types.BuildResult, err error) {
 	print.Info("Compiling", config.Input, "with compiler version", config.Version)
 
-	var (
-		workingDir string
-		input      string
-		output     string
-	)
-
+	var workingDir string
 	if config.WorkingDir == "" {
 		workingDir = filepath.Dir(config.Input)
 	} else {
 		workingDir = util.FullPath(config.WorkingDir)
 	}
+
+	cmd, err := PrepareCommand(workingDir, execDir, cacheDir, platform, config)
+	if err != nil {
+		return
+	}
+
+	return CompileWithCommand(cmd, workingDir)
+}
+
+// PrepareCommand prepares a build command for compiling the given input script
+func PrepareCommand(workingDir, execDir, cacheDir, platform string, config types.BuildConfig) (cmd *exec.Cmd, err error) {
+	var (
+		input  string
+		output string
+	)
+
 	input = util.FullPath(config.Input)
 	output = util.FullPath(config.Output)
 	cacheDir = util.FullPath(cacheDir)
@@ -137,11 +148,25 @@ func CompileSource(execDir, cacheDir, platform string, config types.BuildConfig)
 		args = append(args, fmt.Sprintf("%s=%s", name, value))
 	}
 
-	outputReader, outputWriter := io.Pipe()
+	cmd = exec.Command(filepath.Join(runtimeDir, pkg.Binary), args...)
+	cmd.Env = []string{
+		fmt.Sprintf("LD_LIBRARY_PATH=%s", runtimeDir),
+		fmt.Sprintf("DYLD_LIBRARY_PATH=%s", runtimeDir),
+	}
+
+	return
+}
+
+// CompileWithCommand takes a prepared command and executes it
+func CompileWithCommand(cmd *exec.Cmd, workingDir string) (problems []types.BuildProblem, result types.BuildResult, err error) {
 	var (
-		problemChan = make(chan types.BuildProblem, 2048)
-		resultChan  = make(chan string, 6)
+		outputReader, outputWriter = io.Pipe()
+		problemChan                = make(chan types.BuildProblem, 2048)
+		resultChan                 = make(chan string, 6)
 	)
+
+	cmd.Stdout = outputWriter
+	cmd.Stderr = outputWriter
 
 	go func() {
 		scanner := bufio.NewScanner(outputReader)
@@ -194,14 +219,6 @@ func CompileSource(execDir, cacheDir, platform string, config types.BuildConfig)
 		close(problemChan)
 		close(resultChan)
 	}()
-
-	cmd := exec.Command(filepath.Join(runtimeDir, pkg.Binary), args...)
-	cmd.Stdout = outputWriter
-	cmd.Stderr = outputWriter
-	cmd.Env = []string{
-		fmt.Sprintf("LD_LIBRARY_PATH=%s", runtimeDir),
-		fmt.Sprintf("DYLD_LIBRARY_PATH=%s", runtimeDir),
-	}
 
 	cmdError := cmd.Run()
 
