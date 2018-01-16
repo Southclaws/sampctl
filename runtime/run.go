@@ -111,9 +111,10 @@ func run(ctx context.Context, binary string, runType types.RunMode) (err error) 
 				if matchTestEnd.MatchString(line) {
 					testResults := testResultsFromLine(line)
 					if testResults.Fails > 0 {
-						print.Erro(testResults.Tests, "tests failed with:", testResults.Fails, "failures.")
+						print.Erro(testResults.Tests, "tests, with:", testResults.Fails, "failures.")
 						errChan <- errors.New("tests failed")
 					} else {
+						print.Info(testResults.Tests, "tests passed!")
 						endChan <- struct{}{} // end the server process
 					}
 
@@ -134,6 +135,8 @@ func run(ctx context.Context, binary string, runType types.RunMode) (err error) 
 			}
 		}()
 	}
+
+	print.Verb("running with mode", runType)
 
 	go func() {
 		var (
