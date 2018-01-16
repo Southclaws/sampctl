@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"sync/atomic"
 	"syscall"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/pkg/errors"
@@ -156,6 +157,7 @@ func BuildWatch(ctx context.Context, pkg *types.Package, build, cacheDir, platfo
 		running          atomic.Value
 		ctxInner, cancel = context.WithCancel(ctx)
 		problems         []types.BuildProblem
+		lastEvent        time.Time
 	)
 
 	running.Store(false)
@@ -179,6 +181,13 @@ loop:
 			if event.Op != fsnotify.Write && event.Op != fsnotify.Create {
 				continue
 			}
+
+			if time.Since(lastEvent) < time.Millisecond*500 {
+				print.Verb("skipping duplicate write", time.Since(lastEvent), "since last file change")
+				continue
+			}
+
+			lastEvent = time.Now()
 
 			if running.Load().(bool) {
 				fmt.Println("watch-build: killing existing compiler process", buildNumber)
