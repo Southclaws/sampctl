@@ -167,6 +167,7 @@ func CompileWithCommand(cmd *exec.Cmd, workingDir string) (problems []types.Buil
 
 	cmd.Stdout = outputWriter
 	cmd.Stderr = outputWriter
+	workingDir = util.FullPath(workingDir)
 
 	go func() {
 		scanner := bufio.NewScanner(outputReader)
