@@ -28,7 +28,7 @@ func Run(pkg types.Package, cfg types.Runtime, cacheDir, build string, forceBuil
 		canRun   = true
 	)
 	if !util.Exists(filename) || forceBuild {
-		problems, _, err = Build(&pkg, build, cacheDir, cfg.Platform, forceEnsure)
+		problems, _, err = Build(&pkg, build, cacheDir, cfg.Platform, forceEnsure, "")
 		if err != nil {
 			return err
 		}

@@ -3,9 +3,11 @@ package rook
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"sync/atomic"
 	"syscall"
 
@@ -19,7 +21,7 @@ import (
 )
 
 // Build compiles a package, dependencies are ensured and a list of paths are sent to the compiler.
-func Build(pkg *types.Package, build, cacheDir, platform string, ensure bool) (problems []types.BuildProblem, result types.BuildResult, err error) {
+func Build(pkg *types.Package, build, cacheDir, platform string, ensure bool, buildFile string) (problems []types.BuildProblem, result types.BuildResult, err error) {
 	config := GetBuildConfig(*pkg, build)
 	if config == nil {
 		err = errors.Errorf("no build config named '%s'", build)
@@ -34,6 +36,14 @@ func Build(pkg *types.Package, build, cacheDir, platform string, ensure bool) (p
 		err = EnsureDependencies(pkg)
 		if err != nil {
 			err = errors.Wrap(err, "failed to ensure dependencies before build")
+			return
+		}
+	}
+
+	var buildNumber = uint32(0)
+	if buildFile != "" {
+		buildNumber, err = readInt(buildFile)
+		if err != nil {
 			return
 		}
 	}
@@ -64,14 +74,20 @@ func Build(pkg *types.Package, build, cacheDir, platform string, ensure bool) (p
 	problems, result, err = compiler.CompileSource(context.Background(), pkg.Local, cacheDir, platform, *config)
 	if err != nil {
 		err = errors.Wrap(err, "failed to compile package entry")
-		return
+	}
+
+	if buildFile != "" {
+		err2 := ioutil.WriteFile(buildFile, []byte(fmt.Sprint(buildNumber)), 0755)
+		if err2 != nil {
+			print.Erro("Failed to write buildfile:", err2)
+		}
 	}
 
 	return
 }
 
 // BuildWatch runs the Build code on file changes
-func BuildWatch(pkg *types.Package, build, cacheDir, platform string, ensure bool) (err error) {
+func BuildWatch(pkg *types.Package, build, cacheDir, platform string, ensure bool, buildFile string) (err error) {
 	config := GetBuildConfig(*pkg, build)
 	if config == nil {
 		err = errors.Errorf("no build config named '%s'", build)
@@ -86,6 +102,14 @@ func BuildWatch(pkg *types.Package, build, cacheDir, platform string, ensure boo
 		err = EnsureDependencies(pkg)
 		if err != nil {
 			err = errors.Wrap(err, "failed to ensure dependencies before build")
+			return
+		}
+	}
+
+	var buildNumber = uint32(0)
+	if buildFile != "" {
+		buildNumber, err = readInt(buildFile)
+		if err != nil {
 			return
 		}
 	}
@@ -129,12 +153,10 @@ func BuildWatch(pkg *types.Package, build, cacheDir, platform string, ensure boo
 
 	var (
 		running     atomic.Value
-		runNumber   uint32
 		ctx, cancel = context.WithCancel(context.Background())
 	)
 
 	running.Store(false)
-	runNumber = 0
 
 loop:
 	for {
@@ -157,16 +179,16 @@ loop:
 			}
 
 			if running.Load().(bool) {
-				fmt.Println("watch-build: killing existing compiler process", runNumber)
+				fmt.Println("watch-build: killing existing compiler process", buildNumber)
 				cancel()
-				fmt.Println("watch-build: finished", runNumber)
+				fmt.Println("watch-build: finished", buildNumber)
 				// re-create context and canceler
 				ctx, cancel = context.WithCancel(context.Background())
 			}
 
-			atomic.AddUint32(&runNumber, 1)
+			atomic.AddUint32(&buildNumber, 1)
 
-			fmt.Println("watch-build: starting compilation", runNumber)
+			fmt.Println("watch-build: starting compilation", buildNumber)
 			go func() {
 				running.Store(true)
 				_, _, err = compiler.CompileSource(ctx, pkg.Local, cacheDir, platform, *config)
@@ -177,9 +199,16 @@ loop:
 						return
 					}
 
-					errorCh <- errors.Wrapf(err, "failed to compile package, run: %d", runNumber)
+					errorCh <- errors.Wrapf(err, "failed to compile package, run: %d", buildNumber)
 				}
-				fmt.Println("watch-build: finished", runNumber)
+				fmt.Println("watch-build: finished", buildNumber)
+
+				if buildFile != "" {
+					err2 := ioutil.WriteFile(buildFile, []byte(fmt.Sprint(buildNumber)), 0755)
+					if err2 != nil {
+						print.Erro("Failed to write buildfile:", err2)
+					}
+				}
 			}()
 		}
 	}
@@ -212,5 +241,31 @@ func GetBuildConfig(pkg types.Package, name string) (config *types.BuildConfig) 
 		}
 	}
 
+	return
+}
+
+func readInt(file string) (n uint32, err error) {
+	var contents []byte
+	if util.Exists(file) {
+		contents, err = ioutil.ReadFile(file)
+		if err != nil {
+			err = errors.Wrap(err, "failed to read buildfile")
+			return
+		}
+		var result int
+		result, err = strconv.Atoi(string(contents))
+		if err != nil {
+			err = errors.Wrap(err, "failed to interpret buildfile contents as an integer number")
+			return
+		}
+		if result < 0 {
+			err = errors.Wrap(err, "build number is not a positive integer")
+			return
+		}
+		n = uint32(result)
+	} else {
+		err = ioutil.WriteFile(file, []byte("0"), 0755)
+		n = 0
+	}
 	return
 }

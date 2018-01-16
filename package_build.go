@@ -32,6 +32,11 @@ var packageBuildFlags = []cli.Flag{
 		Name:  "watch",
 		Usage: "keeps sampctl running and triggers builds whenever source files change",
 	},
+	cli.StringFlag{
+		Name:  "buildFile",
+		Value: "",
+		Usage: "declares a file to store the incrementing build number for easy versioning",
+	},
 }
 
 func packageBuild(c *cli.Context) error {
@@ -43,6 +48,7 @@ func packageBuild(c *cli.Context) error {
 	build := c.String("build")
 	forceEnsure := c.Bool("forceEnsure")
 	watch := c.Bool("watch")
+	buildFile := c.String("buildFile")
 
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
@@ -55,12 +61,12 @@ func packageBuild(c *cli.Context) error {
 	}
 
 	if watch {
-		err := rook.BuildWatch(&pkg, build, cacheDir, appRuntime.GOOS, forceEnsure)
+		err := rook.BuildWatch(&pkg, build, cacheDir, appRuntime.GOOS, forceEnsure, buildFile)
 		if err != nil {
 			return cli.NewExitError(err.Error(), 1)
 		}
 	} else {
-		problems, result, err := rook.Build(&pkg, build, cacheDir, appRuntime.GOOS, forceEnsure)
+		problems, result, err := rook.Build(&pkg, build, cacheDir, appRuntime.GOOS, forceEnsure, buildFile)
 		if err != nil {
 			return cli.NewExitError(err.Error(), 1)
 		}
