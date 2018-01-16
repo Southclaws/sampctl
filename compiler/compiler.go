@@ -3,6 +3,7 @@ package compiler
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -41,26 +42,19 @@ var (
 )
 
 // CompileSource compiles a given input script to the specified output path using compiler version
-func CompileSource(execDir, cacheDir, platform string, config types.BuildConfig) (problems []types.BuildProblem, result types.BuildResult, err error) {
+func CompileSource(ctx context.Context, execDir, cacheDir, platform string, config types.BuildConfig) (problems []types.BuildProblem, result types.BuildResult, err error) {
 	print.Info("Compiling", config.Input, "with compiler version", config.Version)
 
-	var workingDir string
-	if config.WorkingDir == "" {
-		workingDir = filepath.Dir(config.Input)
-	} else {
-		workingDir = util.FullPath(config.WorkingDir)
-	}
-
-	cmd, err := PrepareCommand(workingDir, execDir, cacheDir, platform, config)
+	cmd, err := PrepareCommand(ctx, execDir, cacheDir, platform, config)
 	if err != nil {
 		return
 	}
 
-	return CompileWithCommand(cmd, workingDir)
+	return CompileWithCommand(cmd, config.WorkingDir)
 }
 
 // PrepareCommand prepares a build command for compiling the given input script
-func PrepareCommand(workingDir, execDir, cacheDir, platform string, config types.BuildConfig) (cmd *exec.Cmd, err error) {
+func PrepareCommand(ctx context.Context, execDir, cacheDir, platform string, config types.BuildConfig) (cmd *exec.Cmd, err error) {
 	var (
 		input  string
 		output string
@@ -75,6 +69,12 @@ func PrepareCommand(workingDir, execDir, cacheDir, platform string, config types
 		return
 	}
 
+	if config.WorkingDir == "" {
+		config.WorkingDir = filepath.Dir(input)
+	} else {
+		config.WorkingDir = util.FullPath(config.WorkingDir)
+	}
+
 	runtimeDir := filepath.Join(cacheDir, "pawn", string(config.Version))
 	pkg, err := GetCompilerPackage(config.Version, runtimeDir, platform, cacheDir)
 	if err != nil {
@@ -84,7 +84,7 @@ func PrepareCommand(workingDir, execDir, cacheDir, platform string, config types
 
 	args := []string{
 		input,
-		"-D" + workingDir,
+		"-D" + config.WorkingDir,
 		"-o" + output,
 	}
 	args = append(args, config.Args...)
@@ -148,7 +148,7 @@ func PrepareCommand(workingDir, execDir, cacheDir, platform string, config types
 		args = append(args, fmt.Sprintf("%s=%s", name, value))
 	}
 
-	cmd = exec.Command(filepath.Join(runtimeDir, pkg.Binary), args...)
+	cmd = exec.CommandContext(ctx, filepath.Join(runtimeDir, pkg.Binary), args...)
 	cmd.Env = []string{
 		fmt.Sprintf("LD_LIBRARY_PATH=%s", runtimeDir),
 		fmt.Sprintf("DYLD_LIBRARY_PATH=%s", runtimeDir),
@@ -228,6 +228,10 @@ func CompileWithCommand(cmd *exec.Cmd, workingDir string) (problems []types.Buil
 	}
 
 	if cmdError != nil {
+		if cmdError.Error() == "signal: killed" {
+			err = cmdError
+			return
+		}
 		if cmdError.Error() != "exit status 1" {
 			// if the failure was not caused by a simple compile error
 			print.Info("** if you're on a 64 bit system this may be because the system is not set up to execute 32 bit binaries")

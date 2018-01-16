@@ -1,10 +1,12 @@
 package rook
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sync/atomic"
 	"syscall"
 
 	"github.com/fsnotify/fsnotify"
@@ -59,7 +61,7 @@ func Build(pkg *types.Package, build, cacheDir, platform string, ensure bool) (p
 
 	print.Verb("building", pkg, "with", config.Version)
 
-	problems, result, err = compiler.CompileSource(pkg.Local, cacheDir, platform, *config)
+	problems, result, err = compiler.CompileSource(context.Background(), pkg.Local, cacheDir, platform, *config)
 	if err != nil {
 		err = errors.Wrap(err, "failed to compile package entry")
 		return
@@ -122,7 +124,17 @@ func BuildWatch(pkg *types.Package, build, cacheDir, platform string, ensure boo
 	}
 
 	signals := make(chan os.Signal, 1)
+	errorCh := make(chan error)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+
+	var (
+		running     atomic.Value
+		runNumber   uint32
+		ctx, cancel = context.WithCancel(context.Background())
+	)
+
+	running.Store(false)
+	runNumber = 0
 
 loop:
 	for {
@@ -130,6 +142,9 @@ loop:
 		case sig := <-signals:
 			fmt.Println("") // insert newline after the ^C
 			print.Info("signal received", sig, "stopping watcher...")
+			break loop
+		case err := <-errorCh:
+			print.Erro("Error encountered during build:", err)
 			break loop
 
 		case event := <-watcher.Events:
@@ -141,13 +156,31 @@ loop:
 				continue
 			}
 
-			fmt.Println("watch-build: starting compilation")
-			_, _, err = compiler.CompileSource(pkg.Local, cacheDir, platform, *config)
-			if err != nil {
-				err = errors.Wrap(err, "failed to compile package entry")
-				return
+			if running.Load().(bool) {
+				fmt.Println("watch-build: killing existing compiler process", runNumber)
+				cancel()
+				fmt.Println("watch-build: finished", runNumber)
+				// re-create context and canceler
+				ctx, cancel = context.WithCancel(context.Background())
 			}
-			fmt.Println("watch-build: finished")
+
+			atomic.AddUint32(&runNumber, 1)
+
+			fmt.Println("watch-build: starting compilation", runNumber)
+			go func() {
+				running.Store(true)
+				_, _, err = compiler.CompileSource(ctx, pkg.Local, cacheDir, platform, *config)
+				running.Store(false)
+
+				if err != nil {
+					if err.Error() == "signal: killed" {
+						return
+					}
+
+					errorCh <- errors.Wrapf(err, "failed to compile package, run: %d", runNumber)
+				}
+				fmt.Println("watch-build: finished", runNumber)
+			}()
 		}
 	}
 
