@@ -16,26 +16,27 @@ import (
 // If any of the following are missing or mismatching, they will be automatically downloaded:
 // - Server binaries (server, announce, npc)
 // - Plugin binaries
+// - Scripts: gamemodes and filterscripts
 // and a `server.cfg` is generated based on the contents of the Config fields.
 func Ensure(cfg *types.Runtime, noCache bool) (err error) {
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
-		return err
+		return
 	}
 
 	err = EnsureBinaries(*cfg)
 	if err != nil {
-		return
+		return errors.Wrap(err, "failed to ensure runtime binaries")
 	}
 
 	err = EnsurePlugins(cfg, cacheDir, noCache)
 	if err != nil {
-		return
+		return errors.Wrap(err, "failed to ensure plugins")
 	}
 
 	err = EnsureScripts(*cfg)
 	if err != nil {
-		return
+		return errors.Wrap(err, "failed to ensure scripts")
 	}
 
 	err = GenerateServerCfg(cfg)

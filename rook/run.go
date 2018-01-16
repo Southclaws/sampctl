@@ -83,8 +83,12 @@ func RunWatch(pkg types.Package, cfg types.Runtime, cacheDir, build string, forc
 
 	running.Store(false)
 
-	go BuildWatch(ctx, &pkg, build, cacheDir, cfg.Platform, forceEnsure, buildFile, trigger)
+	go func() {
+		errorCh <- BuildWatch(ctx, &pkg, build, cacheDir, cfg.Platform, forceEnsure, buildFile, trigger)
+	}()
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+
+	print.Verb(pkg, "starting run watcher")
 
 loop:
 	for {
@@ -99,6 +103,7 @@ loop:
 			break loop
 
 		case problems := <-trigger:
+			print.Info("build finished")
 			for _, problem := range problems {
 				if problem.Severity > types.ProblemWarning {
 					continue loop

@@ -48,6 +48,7 @@ func Build(pkg *types.Package, build, cacheDir, platform string, ensure bool, bu
 		}
 	}
 
+	print.Verb(pkg, "resolving dependencies before build")
 	err = ResolveDependencies(pkg)
 	if err != nil {
 		err = errors.Wrap(err, "failed to resolve dependencies before build")
@@ -114,9 +115,10 @@ func BuildWatch(ctx context.Context, pkg *types.Package, build, cacheDir, platfo
 		}
 	}
 
+	print.Verb(pkg, "resolving dependencies before build watcher")
 	err = ResolveDependencies(pkg)
 	if err != nil {
-		err = errors.Wrap(err, "failed to resolve dependencies before build")
+		err = errors.Wrap(err, "failed to resolve dependencies before build watcher")
 		return
 	}
 
@@ -135,17 +137,16 @@ func BuildWatch(ctx context.Context, pkg *types.Package, build, cacheDir, platfo
 		config.Includes = append(config.Includes, filepath.Join(depDir, incPath))
 	}
 
-	print.Verb("watching", pkg)
-
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return errors.Wrap(err, "failed to create new filesystem watcher")
 	}
-
 	err = watcher.Add(pkg.Local)
 	if err != nil {
 		return errors.Wrap(err, "failed to add package directory to filesystem watcher")
 	}
+
+	print.Verb("watching directory for changes", pkg.Local)
 
 	signals := make(chan os.Signal, 1)
 	errorCh := make(chan error)
@@ -200,7 +201,7 @@ loop:
 				}
 
 				if err != nil {
-					if err.Error() == "signal: killed" {
+					if err.Error() == "signal: killed" || err.Error() == "context canceled" {
 						return
 					}
 

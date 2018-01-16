@@ -229,7 +229,7 @@ func CompileWithCommand(cmd *exec.Cmd, workingDir string) (problems []types.Buil
 	}
 
 	if cmdError != nil {
-		if cmdError.Error() == "signal: killed" {
+		if cmdError.Error() == "signal: killed" || cmdError.Error() == "context canceled" {
 			err = cmdError
 			return
 		}

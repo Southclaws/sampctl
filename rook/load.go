@@ -42,9 +42,10 @@ func PackageFromDir(parent bool, dir string, vendor string) (pkg types.Package, 
 	}
 
 	if parent && len(pkg.Dependencies) > 0 && len(pkg.AllDependencies) == 0 {
+		print.Verb(pkg, "resolving dependencies during package load")
 		err = ResolveDependencies(&pkg)
 		if err != nil {
-			print.Warn("failed to resolve dependency tree:", err)
+			print.Verb("failed to resolve dependency tree:", err)
 			err = nil // not a breaking error for PackageFromDir
 		}
 	}
@@ -98,7 +99,7 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 			for _, pluginDepStr := range subPkg.Runtime.Plugins {
 				pluginMeta, err = pluginDepStr.AsDep()
 				if err != nil {
-					print.Warn(pkg, "invalid plugin dependency string:", pluginDepStr)
+					print.Warn(pkg, "invalid plugin dependency string:", pluginDepStr, "in", subPkg, err)
 					return
 				}
 				pkg.AllPlugins = append(pkg.AllPlugins, pluginMeta)
@@ -108,7 +109,7 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 		for _, subPkgDep := range subPkg.Dependencies {
 			subPkgDepMeta, err := subPkgDep.Explode()
 			if err != nil {
-				print.Verb(pkg, "invalid dependency string:", subPkgDepMeta)
+				print.Verb(pkg, "invalid dependency string:", subPkgDepMeta, "in", subPkg, err)
 				continue
 			}
 			if _, ok := visited[subPkgDepMeta.Repo]; !ok {
@@ -121,7 +122,8 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 	for _, dep := range pkg.GetAllDependencies() {
 		meta, err = dep.Explode()
 		if err != nil {
-			print.Verb(pkg, "invalid dependency string:", dep)
+			print.Verb(pkg, "invalid dependency string:", dep, "in parent package:", err)
+			err = nil
 			continue
 		}
 		recurse(meta)
@@ -131,7 +133,8 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 		for _, pluginDepStr := range pkg.Runtime.Plugins {
 			pluginMeta, err = pluginDepStr.AsDep()
 			if err != nil {
-				print.Warn(pkg, "invalid plugin dependency string:", pluginDepStr, err)
+				print.Verb(pkg, "invalid plugin dependency string:", pluginDepStr, "in parent package:", err)
+				err = nil
 				continue
 			}
 			pkg.AllPlugins = append(pkg.AllPlugins, pluginMeta)
