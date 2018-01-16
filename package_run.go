@@ -54,6 +54,15 @@ var packageRunFlags = []cli.Flag{
 		Name:  "noCache",
 		Usage: "forces download of plugins if `--forceEnsure` is set",
 	},
+	cli.BoolFlag{
+		Name:  "watch",
+		Usage: "keeps sampctl running and triggers builds whenever source files change",
+	},
+	cli.StringFlag{
+		Name:  "buildFile",
+		Value: "",
+		Usage: "declares a file to store the incrementing build number for easy versioning",
+	},
 }
 
 func packageRun(c *cli.Context) error {
@@ -70,6 +79,8 @@ func packageRun(c *cli.Context) error {
 	forceBuild := c.Bool("forceBuild")
 	forceEnsure := c.Bool("forceEnsure")
 	noCache := c.Bool("noCache")
+	watch := c.Bool("watch")
+	buildFile := c.String("buildFile")
 
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
@@ -93,7 +104,11 @@ func packageRun(c *cli.Context) error {
 		cfg.Container = &types.ContainerConfig{MountCache: mountCache}
 	}
 
-	err = rook.Run(pkg, cfg, cacheDir, build, forceBuild, forceEnsure, noCache)
+	if watch {
+		err = rook.RunWatch(pkg, cfg, cacheDir, build, forceBuild, forceEnsure, noCache, buildFile)
+	} else {
+		err = rook.Run(pkg, cfg, cacheDir, build, forceBuild, forceEnsure, noCache, buildFile)
+	}
 	if err != nil {
 		return cli.NewExitError(err.Error(), 1)
 	}

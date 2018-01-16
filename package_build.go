@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	appRuntime "runtime"
 
@@ -61,7 +62,7 @@ func packageBuild(c *cli.Context) error {
 	}
 
 	if watch {
-		err := rook.BuildWatch(&pkg, build, cacheDir, appRuntime.GOOS, forceEnsure, buildFile)
+		err := rook.BuildWatch(context.Background(), &pkg, build, cacheDir, appRuntime.GOOS, forceEnsure, buildFile, nil)
 		if err != nil {
 			return cli.NewExitError(err.Error(), 1)
 		}

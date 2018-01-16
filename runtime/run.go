@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -31,7 +32,7 @@ type testResults struct {
 }
 
 // Run handles the actual running of the server process - it collects log output too
-func Run(cfg types.Runtime, cacheDir string) (err error) {
+func Run(ctx context.Context, cfg types.Runtime, cacheDir string) (err error) {
 	if cfg.Container != nil {
 		return RunContainer(cfg, cacheDir)
 	}
@@ -40,12 +41,12 @@ func Run(cfg types.Runtime, cacheDir string) (err error) {
 	fullPath := filepath.Join(cfg.WorkingDir, binary)
 	print.Verb("starting", binary, "in", cfg.WorkingDir)
 
-	return run(fullPath, cfg.Mode)
+	return run(ctx, fullPath, cfg.Mode)
 }
 
-func run(binary string, runType types.RunMode) (err error) {
+func run(ctx context.Context, binary string, runType types.RunMode) (err error) {
 	outputReader, outputWriter := io.Pipe()
-	cmd := exec.Command(binary)
+	cmd := exec.CommandContext(ctx, binary)
 	cmd.Dir = filepath.Dir(binary)
 	cmd.Stdout = outputWriter
 	cmd.Stderr = outputWriter
@@ -180,9 +181,11 @@ func run(binary string, runType types.RunMode) (err error) {
 		err = nil
 	}
 
-	killErr := cmd.Process.Kill()
-	if killErr != nil {
-		print.Erro(killErr)
+	if cmd.Process != nil {
+		killErr := cmd.Process.Kill()
+		if killErr != nil {
+			print.Erro(killErr)
+		}
 	}
 
 	return

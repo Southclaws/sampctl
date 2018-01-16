@@ -87,7 +87,7 @@ func Build(pkg *types.Package, build, cacheDir, platform string, ensure bool, bu
 }
 
 // BuildWatch runs the Build code on file changes
-func BuildWatch(pkg *types.Package, build, cacheDir, platform string, ensure bool, buildFile string) (err error) {
+func BuildWatch(ctx context.Context, pkg *types.Package, build, cacheDir, platform string, ensure bool, buildFile string, trigger chan []types.BuildProblem) (err error) {
 	config := GetBuildConfig(*pkg, build)
 	if config == nil {
 		err = errors.Errorf("no build config named '%s'", build)
@@ -152,8 +152,9 @@ func BuildWatch(pkg *types.Package, build, cacheDir, platform string, ensure boo
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
 	var (
-		running     atomic.Value
-		ctx, cancel = context.WithCancel(context.Background())
+		running          atomic.Value
+		ctxInner, cancel = context.WithCancel(ctx)
+		problems         []types.BuildProblem
 	)
 
 	running.Store(false)
@@ -183,7 +184,7 @@ loop:
 				cancel()
 				fmt.Println("watch-build: finished", buildNumber)
 				// re-create context and canceler
-				ctx, cancel = context.WithCancel(context.Background())
+				ctxInner, cancel = context.WithCancel(context.Background())
 			}
 
 			atomic.AddUint32(&buildNumber, 1)
@@ -191,8 +192,12 @@ loop:
 			fmt.Println("watch-build: starting compilation", buildNumber)
 			go func() {
 				running.Store(true)
-				_, _, err = compiler.CompileSource(ctx, pkg.Local, cacheDir, platform, *config)
+				problems, _, err = compiler.CompileSource(ctxInner, pkg.Local, cacheDir, platform, *config)
 				running.Store(false)
+
+				if trigger != nil {
+					trigger <- problems
+				}
 
 				if err != nil {
 					if err.Error() == "signal: killed" {
