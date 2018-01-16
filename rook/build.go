@@ -164,7 +164,7 @@ loop:
 		select {
 		case sig := <-signals:
 			fmt.Println("") // insert newline after the ^C
-			print.Info("signal received", sig, "stopping watcher...")
+			print.Info("signal received", sig, "stopping build watcher...")
 			break loop
 		case err := <-errorCh:
 			print.Erro("Error encountered during build:", err)

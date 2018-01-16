@@ -3,14 +3,16 @@ package rook
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
-
-	"github.com/Southclaws/sampctl/print"
+	"syscall"
 
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/runtime"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
@@ -72,6 +74,7 @@ func RunWatch(pkg types.Package, cfg types.Runtime, cacheDir, build string, forc
 
 	var (
 		errorCh     = make(chan error)
+		signals     = make(chan os.Signal, 1)
 		trigger     = make(chan []types.BuildProblem)
 		filename    = util.FullPath(pkg.Output)
 		running     atomic.Value
@@ -81,10 +84,16 @@ func RunWatch(pkg types.Package, cfg types.Runtime, cacheDir, build string, forc
 	running.Store(false)
 
 	go BuildWatch(ctx, &pkg, build, cacheDir, cfg.Platform, forceEnsure, buildFile, trigger)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
 loop:
 	for {
 		select {
+		case sig := <-signals:
+			fmt.Println("") // insert newline after the ^C
+			print.Info("signal received", sig, "stopping run watcher...")
+			break loop
+
 		case err = <-errorCh:
 			cancel()
 			break loop
