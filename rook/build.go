@@ -196,10 +196,6 @@ loop:
 				problems, _, err = compiler.CompileSource(ctxInner, pkg.Local, cacheDir, platform, *config)
 				running.Store(false)
 
-				if trigger != nil {
-					trigger <- problems
-				}
-
 				if err != nil {
 					if err.Error() == "signal: killed" || err.Error() == "context canceled" {
 						return
@@ -208,6 +204,10 @@ loop:
 					errorCh <- errors.Wrapf(err, "failed to compile package, run: %d", buildNumber)
 				}
 				fmt.Println("watch-build: finished", buildNumber)
+
+				if trigger != nil {
+					trigger <- problems
+				}
 
 				if buildFile != "" {
 					err2 := ioutil.WriteFile(buildFile, []byte(fmt.Sprint(buildNumber)), 0755)
