@@ -87,3 +87,14 @@ func Exists(path string) bool {
 	}
 	return true
 }
+
+// DirEmpty checks if the given directory is empty
+func DirEmpty(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	_, err = f.Readdirnames(1)
+	return err == io.EOF
+}
