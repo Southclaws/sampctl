@@ -162,7 +162,7 @@ What also happens here is `maddinat0r/sscanf` tells sampctl to automatically get
 ---
 # `sampctl`
 
-1.5.17 - Southclaws <southclaws@gmail.com>
+1.6.0 - Southclaws <southclaws@gmail.com>
 
 Compiles server configuration JSON to server.cfg format. Executes the server and monitors it for crashes, restarting if necessary. Provides a way to quickly download server binaries of a specified version. Provides dependency management and package build tools for library maintainers and gamemode writers alike.
 
@@ -226,8 +226,8 @@ Generates a `server.cfg` file based on the configuration inside `samp.json`/`sam
 - `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
 - `--container`: starts the server as a Linux container instead of running it in the current directory
 - `--mountCache --container`: if --container is set, mounts the local cache directory inside the container
-- `--forceEnsure`: forces plugin and binaries ensure before run
-- `--noCache --forceEnsure`: forces download of plugins if --forceEnsure is set
+- `--ensurePlugins`: forces plugin binaries ensure before run
+- `--noCache`: forces download of plugins
 
 
 ---
@@ -238,7 +238,7 @@ Usage: `sampctl package <subcommand>`
 
 For managing Pawn packages such as gamemodes and libraries.
 
-#### Subcommands (5)
+#### Subcommands (6)
 
 ### `sampctl package init`
 
@@ -274,6 +274,16 @@ Installs a new package by adding it to the `dependencies` field in `pawn.json`/`
 - `--dir value`: working directory for the project - by default, uses the current directory (default: ".")
 - `--dev`: for specifying dependencies only necessary for development or testing of the package
 
+### `sampctl package get`
+
+Usage: `sampctl package get [package definition] (target path)`
+
+Clones a GitHub package to either a directory named after the repo or, if the cwd is empty, the cwd and then ensures the package.
+
+#### Flags
+
+- `--verbose`: output all detailed information - useful for debugging
+
 ### `sampctl package build`
 
 Usage: `sampctl package build`
@@ -285,7 +295,10 @@ Builds a package defined by a `pawn.json`/`pawn.yaml` file.
 - `--verbose`: output all detailed information - useful for debugging
 - `--dir value`: working directory for the project - by default, uses the current directory (default: ".")
 - `--build --forceBuild`: build configuration to use if --forceBuild is set
-- `--forceEnsure --forceBuild`: forces dependency ensure before build if --forceBuild is set
+- `--forceEnsure`: forces dependency ensure before build
+- `--dryRun`: does not run the build but outputs the command necessary to do so
+- `--watch`: keeps sampctl running and triggers builds whenever source files change
+- `--buildFile value`: declares a file to store the incrementing build number for easy versioning
 
 ### `sampctl package run`
 
@@ -305,6 +318,8 @@ Compiles and runs a package defined by a `pawn.json`/`pawn.yaml` file.
 - `--forceBuild`: forces a build to run before executing the server
 - `--forceEnsure --forceBuild`: forces dependency ensure before build if --forceBuild is set
 - `--noCache --forceEnsure`: forces download of plugins if --forceEnsure is set
+- `--watch`: keeps sampctl running and triggers builds whenever source files change
+- `--buildFile value`: declares a file to store the incrementing build number for easy versioning
 
 
 ---
