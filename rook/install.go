@@ -40,3 +40,8 @@ func Install(pkg types.Package, targets []versioning.DependencyString, developme
 
 	return
 }
+
+// Get simply performs a git clone of the given package to the specified directory then ensures it
+func Get(dep versioning.DependencyMeta, dir string) (err error) {
+	return
+}

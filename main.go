@@ -124,6 +124,13 @@ func main() {
 					Flags:       append(globalFlags, packageInstallFlags...),
 				},
 				{
+					Name:        "get",
+					Usage:       "sampctl package get [package definition] (target path)",
+					Description: "Clones a GitHub package to either a directory named after the repo or, if the cwd is empty, the cwd and then ensures the package.",
+					Action:      packageGet,
+					Flags:       append(globalFlags, packageGetFlags...),
+				},
+				{
 					Name:        "build",
 					Usage:       "sampctl package build",
 					Description: "Builds a package defined by a `pawn.json`/`pawn.yaml` file.",
