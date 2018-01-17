@@ -131,20 +131,19 @@ func runPrepare(pkg types.Package, cfg types.Runtime, cacheDir, build string, fo
 		}
 	}
 	if !canRun {
-		err = errors.New("Build failed, can not run")
+		err = errors.New("build failed, can not run")
+		return
+	}
+
+	err = runtime.PrepareRuntimeDirectory(cacheDir, cfg.Endpoint, cfg.Version, cfg.Platform)
+	if err != nil {
+		err = errors.Wrap(err, "failed to prepare temporary runtime area")
 		return
 	}
 
 	err = runtime.CopyFileToRuntime(cacheDir, cfg.Version, filename)
 	if err != nil {
 		err = errors.Wrap(err, "failed to copy amx file to temprary runtime directory")
-		return
-	}
-
-	runtimeDir := runtime.GetRuntimePath(cacheDir, cfg.Version)
-
-	err = runtime.PrepareRuntimeDirectory(cacheDir, cfg.Endpoint, cfg.Version, cfg.Platform)
-	if err != nil {
 		return
 	}
 
@@ -157,7 +156,7 @@ func runPrepare(pkg types.Package, cfg types.Runtime, cacheDir, build string, fo
 	config.Container = cfg.Container
 
 	config.Gamemodes = []string{strings.TrimSuffix(filepath.Base(pkg.Output), ".amx")}
-	config.WorkingDir = runtimeDir
+	config.WorkingDir = runtime.GetRuntimePath(cacheDir, cfg.Version)
 
 	config.Plugins = []types.Plugin{}
 	for _, pluginMeta := range pkg.AllPlugins {
