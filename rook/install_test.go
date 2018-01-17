@@ -74,3 +74,38 @@ func TestPackage_Install(t *testing.T) {
 		})
 	}
 }
+
+func TestGet(t *testing.T) {
+	type args struct {
+		dep versioning.DependencyMeta
+		dir string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{"direct", args{versioning.DependencyMeta{User: "Southclaws", Repo: "samp-logger"}, "./tests/get/direct"}, false},
+		{"get-auto", args{versioning.DependencyMeta{User: "Southclaws", Repo: "samp-logger"}, "./tests/get"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.args.dir == "./tests/get" {
+				if os.RemoveAll(filepath.Join(tt.args.dir, tt.args.dep.Repo)) != nil {
+					panic("failed to remove get test dir")
+				}
+			} else {
+				if os.RemoveAll(tt.args.dir) != nil {
+					panic("failed to remove get test dir")
+				}
+			}
+
+			err := Get(tt.args.dep, tt.args.dir)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

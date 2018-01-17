@@ -96,8 +96,5 @@ func DirEmpty(path string) bool {
 	}
 	defer f.Close()
 	_, err = f.Readdirnames(1)
-	if err == io.EOF {
-		panic(err)
-	}
-	return false
+	return err == io.EOF
 }

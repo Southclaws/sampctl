@@ -1,15 +1,12 @@
 package main
 
 import (
-	"path/filepath"
-
-	"github.com/Southclaws/sampctl/versioning"
-
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/rook"
 	"github.com/Southclaws/sampctl/util"
+	"github.com/Southclaws/sampctl/versioning"
 )
 
 var packageGetFlags = []cli.Flag{}
@@ -32,10 +29,6 @@ func packageGet(c *cli.Context) error {
 	dir := c.Args().Get(1)
 	if dir == "" {
 		dir = util.FullPath(".")
-
-		if !util.DirEmpty(dir) {
-			dir = filepath.Join(dir, dep.Repo)
-		}
 	}
 
 	err = rook.Get(dep, dir)
