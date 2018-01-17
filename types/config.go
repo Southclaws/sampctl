@@ -31,12 +31,17 @@ func LoadOrCreateConfig(cacheDir string) (cfg *Config, err error) {
 			return
 		}
 	} else {
-		var u *user.User
+		var (
+			u        *user.User
+			username string
+		)
 		u, err = user.Current()
 		if err != nil {
-			return
+			username = ""
+		} else {
+			username = u.Username
 		}
-		cfg.DefaultUser = u.Username
+		cfg.DefaultUser = username
 		contents, err = json.Marshal(cfg)
 		if err != nil {
 			return
