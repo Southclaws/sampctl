@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -22,7 +23,7 @@ import (
 )
 
 // Build compiles a package, dependencies are ensured and a list of paths are sent to the compiler.
-func Build(pkg *types.Package, build, cacheDir, platform string, ensure bool, buildFile string) (problems []types.BuildProblem, result types.BuildResult, err error) {
+func Build(pkg *types.Package, build, cacheDir, platform string, ensure, dry bool, buildFile string) (problems []types.BuildProblem, result types.BuildResult, err error) {
 	config := GetBuildConfig(*pkg, build)
 	if config == nil {
 		err = errors.Errorf("no build config named '%s'", build)
@@ -71,17 +72,26 @@ func Build(pkg *types.Package, build, cacheDir, platform string, ensure bool, bu
 		config.Includes = append(config.Includes, filepath.Join(depDir, incPath))
 	}
 
-	print.Verb("building", pkg, "with", config.Version)
-
-	problems, result, err = compiler.CompileSource(context.Background(), pkg.Local, cacheDir, platform, *config)
+	cmd, err := compiler.PrepareCommand(context.Background(), pkg.Local, cacheDir, platform, *config)
 	if err != nil {
-		err = errors.Wrap(err, "failed to compile package entry")
+		return
 	}
 
-	if buildFile != "" {
-		err2 := ioutil.WriteFile(buildFile, []byte(fmt.Sprint(buildNumber)), 0755)
-		if err2 != nil {
-			print.Erro("Failed to write buildfile:", err2)
+	if dry {
+		fmt.Println(strings.Join(cmd.Env, " "), strings.Join(cmd.Args, " "))
+	} else {
+		print.Verb("building", pkg, "with", config.Version)
+
+		problems, result, err = compiler.CompileWithCommand(cmd, config.WorkingDir)
+		if err != nil {
+			err = errors.Wrap(err, "failed to compile package entry")
+		}
+
+		if buildFile != "" {
+			err2 := ioutil.WriteFile(buildFile, []byte(fmt.Sprint(buildNumber)), 0755)
+			if err2 != nil {
+				print.Erro("Failed to write buildfile:", err2)
+			}
 		}
 	}
 

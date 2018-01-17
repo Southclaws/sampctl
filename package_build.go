@@ -30,6 +30,10 @@ var packageBuildFlags = []cli.Flag{
 		Usage: "forces dependency ensure before build",
 	},
 	cli.BoolFlag{
+		Name:  "dryRun",
+		Usage: "does not run the build but outputs the command necessary to do so",
+	},
+	cli.BoolFlag{
 		Name:  "watch",
 		Usage: "keeps sampctl running and triggers builds whenever source files change",
 	},
@@ -48,6 +52,7 @@ func packageBuild(c *cli.Context) error {
 	dir := util.FullPath(c.String("dir"))
 	build := c.String("build")
 	forceEnsure := c.Bool("forceEnsure")
+	dryRun := c.Bool("dryRun")
 	watch := c.Bool("watch")
 	buildFile := c.String("buildFile")
 
@@ -67,7 +72,7 @@ func packageBuild(c *cli.Context) error {
 			return cli.NewExitError(err.Error(), 1)
 		}
 	} else {
-		problems, result, err := rook.Build(&pkg, build, cacheDir, appRuntime.GOOS, forceEnsure, buildFile)
+		problems, result, err := rook.Build(&pkg, build, cacheDir, appRuntime.GOOS, forceEnsure, dryRun, buildFile)
 		if err != nil {
 			return cli.NewExitError(err.Error(), 1)
 		}

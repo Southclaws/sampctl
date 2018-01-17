@@ -21,37 +21,8 @@ import (
 // Run will create a temporary server runtime and run the package output AMX as a gamemode using the
 // runtime configuration in the package info.
 func Run(pkg types.Package, cfg types.Runtime, cacheDir, build string, forceBuild, forceEnsure, noCache bool, buildFile string) (err error) {
-	config, err := runPrepare(pkg, cfg, cacheDir, build, forceBuild, forceEnsure, noCache)
+	config, err := runPrepare(pkg, cfg, cacheDir, build, forceBuild, forceEnsure, noCache, buildFile)
 	if err != nil {
-		return
-	}
-
-	var (
-		filename = util.FullPath(pkg.Output)
-		problems []types.BuildProblem
-		canRun   = true
-	)
-	if !util.Exists(filename) || forceBuild {
-		problems, _, err = Build(&pkg, build, cacheDir, cfg.Platform, forceEnsure, buildFile)
-		if err != nil {
-			return
-		}
-
-		for _, problem := range problems {
-			if problem.Severity > types.ProblemWarning {
-				canRun = false
-				break
-			}
-		}
-	}
-	if !canRun {
-		err = errors.New("Build failed, can not run")
-		return
-	}
-
-	err = runtime.CopyFileToRuntime(cacheDir, cfg.Version, filename)
-	if err != nil {
-		err = errors.Wrap(err, "failed to copy amx file to temprary runtime directory")
 		return
 	}
 
@@ -62,36 +33,7 @@ func Run(pkg types.Package, cfg types.Runtime, cacheDir, build string, forceBuil
 
 // RunWatch runs the Run code on file changes
 func RunWatch(pkg types.Package, cfg types.Runtime, cacheDir, build string, forceBuild, forceEnsure, noCache bool, buildFile string) (err error) {
-	var (
-		filename = util.FullPath(pkg.Output)
-		problems []types.BuildProblem
-		canRun   = true
-	)
-	if !util.Exists(filename) || forceBuild {
-		problems, _, err = Build(&pkg, build, cacheDir, cfg.Platform, forceEnsure, buildFile)
-		if err != nil {
-			return
-		}
-
-		for _, problem := range problems {
-			if problem.Severity > types.ProblemWarning {
-				canRun = false
-				break
-			}
-		}
-	}
-	if !canRun {
-		err = errors.New("Build failed, can not run")
-		return
-	}
-
-	err = runtime.CopyFileToRuntime(cacheDir, cfg.Version, filename)
-	if err != nil {
-		err = errors.Wrap(err, "failed to copy amx file to temprary runtime directory")
-		return
-	}
-
-	config, err := runPrepare(pkg, cfg, cacheDir, build, forceBuild, forceEnsure, noCache)
+	config, err := runPrepare(pkg, cfg, cacheDir, build, forceBuild, forceEnsure, noCache, buildFile)
 	if err != nil {
 		err = errors.Wrap(err, "failed to prepare")
 		return
@@ -147,7 +89,7 @@ loop:
 				ctx, cancel = context.WithCancel(context.Background())
 			}
 
-			err = runtime.CopyFileToRuntime(cacheDir, cfg.Version, filename)
+			err = runtime.CopyFileToRuntime(cacheDir, cfg.Version, util.FullPath(pkg.Output))
 			if err != nil {
 				err = errors.Wrap(err, "failed to copy amx file to temprary runtime directory")
 				print.Erro(err)
@@ -169,7 +111,36 @@ loop:
 	return
 }
 
-func runPrepare(pkg types.Package, cfg types.Runtime, cacheDir, build string, forceBuild, forceEnsure, noCache bool) (config *types.Runtime, err error) {
+func runPrepare(pkg types.Package, cfg types.Runtime, cacheDir, build string, forceBuild, forceEnsure, noCache bool, buildFile string) (config *types.Runtime, err error) {
+	var (
+		filename = util.FullPath(pkg.Output)
+		problems []types.BuildProblem
+		canRun   = true
+	)
+	if !util.Exists(filename) || forceBuild {
+		problems, _, err = Build(&pkg, build, cacheDir, cfg.Platform, forceEnsure, false, buildFile)
+		if err != nil {
+			return
+		}
+
+		for _, problem := range problems {
+			if problem.Severity > types.ProblemWarning {
+				canRun = false
+				break
+			}
+		}
+	}
+	if !canRun {
+		err = errors.New("Build failed, can not run")
+		return
+	}
+
+	err = runtime.CopyFileToRuntime(cacheDir, cfg.Version, filename)
+	if err != nil {
+		err = errors.Wrap(err, "failed to copy amx file to temprary runtime directory")
+		return
+	}
+
 	runtimeDir := runtime.GetRuntimePath(cacheDir, cfg.Version)
 
 	err = runtime.PrepareRuntimeDirectory(cacheDir, cfg.Endpoint, cfg.Version, cfg.Platform)
