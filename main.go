@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
-	"github.com/fatih/color"
 	"github.com/google/go-github/github"
 	"gopkg.in/urfave/cli.v1"
 
@@ -216,24 +215,24 @@ func CheckForUpdates(thisVersion string) {
 
 		if latest.GreaterThan(this) {
 			print.Info("\n-\n")
-			print.Info(color.YellowString("sampctl version"), color.GreenString(latest.String()), color.YellowString("available!"))
-			print.Info(color.YellowString("You are currently using"), color.GreenString(thisVersion))
-			print.Info(color.YellowString("To upgrade, use the following command:"))
+			print.Info("sampctl version", latest.String(), "available!")
+			print.Info("You are currently using", thisVersion)
+			print.Info("To upgrade, use the following command:")
 			switch runtime.GOOS {
 			case "windows":
-				print.Info(color.BlueString("  scoop update"))
-				print.Info(color.BlueString("  scoop update sampctl"))
+				print.Info("  scoop update")
+				print.Info("  scoop update sampctl")
 			case "linux":
-				print.Info(color.YellowString("  Debian/Ubuntu based systems:"))
-				print.Info(color.BlueString("  curl https://raw.githubusercontent.com/Southclaws/sampctl/master/install-deb.sh | sh"))
-				print.Info(color.YellowString("  CentOS/Red Hat based systems"))
-				print.Info(color.BlueString("  curl https://raw.githubusercontent.com/Southclaws/sampctl/master/install-rpm.sh | sh"))
+				print.Info("  Debian/Ubuntu based systems:")
+				print.Info("  curl https://raw.githubusercontent.com/Southclaws/sampctl/master/install-deb.sh | sh")
+				print.Info("  CentOS/Red Hat based systems")
+				print.Info("  curl https://raw.githubusercontent.com/Southclaws/sampctl/master/install-rpm.sh | sh")
 			case "darwin":
-				print.Info(color.BlueString("  brew update"))
-				print.Info(color.BlueString("  brew upgrade sampctl"))
+				print.Info("  brew update")
+				print.Info("  brew upgrade sampctl")
 			}
-			print.Info(color.YellowString("If you have any problems upgrading, please open an issue:"))
-			print.Info(color.BlueString("  https://github.com/Southclaws/sampctl/issues/new"))
+			print.Info("If you have any problems upgrading, please open an issue:")
+			print.Info("  https://github.com/Southclaws/sampctl/issues/new")
 		}
 	}
 }
