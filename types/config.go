@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/json"
 	"io/ioutil"
+	"os/user"
 	"path/filepath"
 
 	"github.com/Southclaws/sampctl/util"
@@ -30,7 +31,12 @@ func LoadOrCreateConfig(cacheDir string) (cfg *Config, err error) {
 			return
 		}
 	} else {
-		cfg.DefaultUser = "username"
+		var u *user.User
+		u, err = user.Current()
+		if err != nil {
+			return
+		}
+		cfg.DefaultUser = u.Username
 		contents, err = json.Marshal(cfg)
 		if err != nil {
 			return
