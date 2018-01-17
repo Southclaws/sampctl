@@ -28,12 +28,12 @@ var serverRunFlags = []cli.Flag{
 		Usage: "if `--container` is set, mounts the local cache directory inside the container",
 	},
 	cli.BoolFlag{
-		Name:  "forceEnsure",
-		Usage: "forces plugin and binaries ensure before run",
+		Name:  "ensurePlugins",
+		Usage: "forces plugin binaries ensure before run",
 	},
 	cli.BoolFlag{
 		Name:  "noCache",
-		Usage: "forces download of plugins if `--forceEnsure` is set",
+		Usage: "forces download of plugins",
 	},
 }
 
@@ -45,7 +45,7 @@ func serverRun(c *cli.Context) error {
 	dir := util.FullPath(c.String("dir"))
 	container := c.Bool("container")
 	mountCache := c.Bool("mountCache")
-	forceEnsure := c.Bool("forceEnsure")
+	ensurePlugins := c.Bool("ensurePlugins")
 	noCache := c.Bool("noCache")
 
 	cfg, err := runtime.NewConfigFromEnvironment(dir)
@@ -53,11 +53,9 @@ func serverRun(c *cli.Context) error {
 		return errors.Wrap(err, "failed to interpret directory as server runtime environment")
 	}
 
-	if forceEnsure {
-		err = runtime.Ensure(&cfg, noCache)
-		if err != nil {
-			return err
-		}
+	err = runtime.Ensure(&cfg, noCache, ensurePlugins)
+	if err != nil {
+		return err
 	}
 
 	if container {

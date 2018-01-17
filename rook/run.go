@@ -170,7 +170,7 @@ func runPrepare(pkg types.Package, cfg types.Runtime, cacheDir, build string, fo
 		return
 	}
 
-	err = runtime.Ensure(config, noCache)
+	err = runtime.Ensure(config, noCache, true)
 	if err != nil {
 		err = errors.Wrap(err, "failed to ensure temporary runtime")
 		return
