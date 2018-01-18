@@ -143,6 +143,20 @@ func main() {
 					Action:      packageRun,
 					Flags:       append(globalFlags, packageRunFlags...),
 				},
+				{
+					Name:        "template",
+					Usage:       "sampctl package template <subcommand>",
+					Description: "Provides commands for package templates",
+					Subcommands: []cli.Command{
+						{
+							Name:        "make",
+							Usage:       "sampctl package template make [name]",
+							Description: "Creates a template package from the current directory if it is a package.",
+							Action:      packageTemplateMake,
+							Flags:       append(globalFlags, packageTemplateMakeFlags...),
+						},
+					},
+				},
 			},
 		},
 		{
