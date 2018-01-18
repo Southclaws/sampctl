@@ -26,6 +26,11 @@ var packageTemplateRunFlags = []cli.Flag{
 		Value: "http://files.sa-mp.com",
 		Usage: "endpoint to download packages from",
 	},
+	cli.StringFlag{
+		Name:  "mode",
+		Value: "main",
+		Usage: "runtime mode, one of: server, main, y_testing",
+	},
 }
 
 func packageTemplateRun(c *cli.Context) (err error) {
@@ -35,6 +40,7 @@ func packageTemplateRun(c *cli.Context) (err error) {
 
 	version := c.String("version")
 	endpoint := c.String("endpoint")
+	mode := c.String("mode")
 
 	if len(c.Args()) != 2 {
 		cli.ShowCommandHelpAndExit(c, "run", 0)
@@ -91,6 +97,8 @@ func packageTemplateRun(c *cli.Context) (err error) {
 		Version:    version,
 		Endpoint:   endpoint,
 	}
+	pkg.Runtime = new(types.Runtime)
+	pkg.Runtime.Mode = types.RunMode(mode)
 
 	err = rook.Run(pkg, cfg, cacheDir, "", false, false, false, "")
 	if err != nil {
