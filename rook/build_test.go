@@ -23,7 +23,7 @@ func TestPackage_Build(t *testing.T) {
 		name         string
 		sourceCode   []byte
 		args         args
-		wantProblems []types.BuildProblem
+		wantProblems types.BuildProblems
 		wantErr      bool
 	}{
 		{

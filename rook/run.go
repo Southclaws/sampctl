@@ -47,7 +47,7 @@ func RunWatch(pkg types.Package, cfg types.Runtime, cacheDir, build string, forc
 	var (
 		errorCh     = make(chan error)
 		signals     = make(chan os.Signal, 1)
-		trigger     = make(chan []types.BuildProblem)
+		trigger     = make(chan types.BuildProblems)
 		running     atomic.Value
 		ctx, cancel = context.WithCancel(context.Background())
 	)
@@ -113,8 +113,8 @@ loop:
 
 func runPrepare(pkg types.Package, cfg types.Runtime, cacheDir, build string, forceBuild, forceEnsure, noCache bool, buildFile string) (config *types.Runtime, err error) {
 	var (
-		filename = util.FullPath(pkg.Output)
-		problems []types.BuildProblem
+		filename = filepath.Join(pkg.Local, pkg.Output)
+		problems types.BuildProblems
 		canRun   = true
 	)
 	if !util.Exists(filename) || forceBuild {
