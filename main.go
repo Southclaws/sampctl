@@ -155,6 +155,13 @@ func main() {
 							Action:      packageTemplateMake,
 							Flags:       append(globalFlags, packageTemplateMakeFlags...),
 						},
+						{
+							Name:        "build",
+							Usage:       "sampctl package template build [template] [filename]",
+							Description: "Builds the specified file in the context of the given template.",
+							Action:      packageTemplateBuild,
+							Flags:       append(globalFlags, packageTemplateBuildFlags...),
+						},
 					},
 				},
 			},

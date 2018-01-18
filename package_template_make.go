@@ -23,9 +23,13 @@ var packageTemplateMakeFlags = []cli.Flag{
 }
 
 func packageTemplateMake(c *cli.Context) (err error) {
+	if c.Bool("verbose") {
+		print.SetVerbose()
+	}
+
 	dir := util.FullPath(c.String("dir"))
 
-	if len(c.Args()) == 0 {
+	if len(c.Args()) != 1 {
 		cli.ShowCommandHelpAndExit(c, "make", 0)
 		return nil
 	}
