@@ -238,7 +238,7 @@ Usage: `sampctl package <subcommand>`
 
 For managing Pawn packages such as gamemodes and libraries.
 
-#### Subcommands (6)
+#### Subcommands (7)
 
 ### `sampctl package init`
 
@@ -320,6 +320,49 @@ Compiles and runs a package defined by a `pawn.json`/`pawn.yaml` file.
 - `--noCache --forceEnsure`: forces download of plugins if --forceEnsure is set
 - `--watch`: keeps sampctl running and triggers builds whenever source files change
 - `--buildFile value`: declares a file to store the incrementing build number for easy versioning
+
+### `sampctl package template`
+
+Usage: `sampctl package template <subcommand>`
+
+Provides commands for package templates
+
+#### Subcommands (3)
+
+### `sampctl package template make`
+
+Usage: `sampctl package template make [name]`
+
+Creates a template package from the current directory if it is a package.
+
+#### Flags
+
+- `--verbose`: output all detailed information - useful for debugging
+- `--dir value`: working directory for the package - by default, uses the current directory (default: ".")
+
+### `sampctl package template build`
+
+Usage: `sampctl package template build [template] [filename]`
+
+Builds the specified file in the context of the given template.
+
+#### Flags
+
+- `--verbose`: output all detailed information - useful for debugging
+
+### `sampctl package template run`
+
+Usage: `sampctl package template run [template] [filename]`
+
+Builds and runs the specified file in the context of the given template.
+
+#### Flags
+
+- `--verbose`: output all detailed information - useful for debugging
+- `--version value`: the SA:MP server version to use (default: "0.3.7")
+- `--endpoint value`: endpoint to download packages from (default: "http://files.sa-mp.com")
+- `--mode value`: runtime mode, one of: server, main, y_testing (default: "main")
+
 
 
 ---
