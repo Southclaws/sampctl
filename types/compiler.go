@@ -64,6 +64,34 @@ func (bp BuildProblem) String() string {
 	return fmt.Sprintf("%s:%d (%s) %s", bp.File, bp.Line, bp.Severity, bp.Description)
 }
 
+// BuildProblems is a slice of BuildProblem objects with additional methods
+type BuildProblems []BuildProblem
+
+// Warnings returns a slice of only warnings from a BuildProblems object
+func (bps BuildProblems) Warnings() (warnings []BuildProblem) {
+	for _, b := range bps {
+		if b.Severity == ProblemWarning {
+			warnings = append(warnings, b)
+		}
+	}
+	return
+}
+
+// Errors returns a slice of only errors from a BuildProblems object
+func (bps BuildProblems) Errors() (warnings []BuildProblem) {
+	for _, b := range bps {
+		if b.Severity == ProblemError {
+			warnings = append(warnings, b)
+		}
+	}
+	return
+}
+
+// IsValid returns true if the BuildProblems only contains warnings, if there are errors it's false
+func (bps BuildProblems) IsValid() bool {
+	return len(bps.Errors()) == 0
+}
+
 // BuildResult represents the final statistics (in bytes) of a successfully built .amx file.
 type BuildResult struct {
 	Header    int

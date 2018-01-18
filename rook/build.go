@@ -23,7 +23,7 @@ import (
 )
 
 // Build compiles a package, dependencies are ensured and a list of paths are sent to the compiler.
-func Build(pkg *types.Package, build, cacheDir, platform string, ensure, dry bool, buildFile string) (problems []types.BuildProblem, result types.BuildResult, err error) {
+func Build(pkg *types.Package, build, cacheDir, platform string, ensure, dry bool, buildFile string) (problems types.BuildProblems, result types.BuildResult, err error) {
 	config := GetBuildConfig(*pkg, build)
 	if config == nil {
 		err = errors.Errorf("no build config named '%s'", build)
@@ -99,7 +99,7 @@ func Build(pkg *types.Package, build, cacheDir, platform string, ensure, dry boo
 }
 
 // BuildWatch runs the Build code on file changes
-func BuildWatch(ctx context.Context, pkg *types.Package, build, cacheDir, platform string, ensure bool, buildFile string, trigger chan []types.BuildProblem) (err error) {
+func BuildWatch(ctx context.Context, pkg *types.Package, build, cacheDir, platform string, ensure bool, buildFile string, trigger chan types.BuildProblems) (err error) {
 	config := GetBuildConfig(*pkg, build)
 	if config == nil {
 		err = errors.Errorf("no build config named '%s'", build)

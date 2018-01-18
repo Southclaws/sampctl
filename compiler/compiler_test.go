@@ -20,7 +20,7 @@ func TestCompileSource(t *testing.T) {
 	tests := []struct {
 		name         string
 		args         args
-		wantProblems []types.BuildProblem
+		wantProblems types.BuildProblems
 		wantResult   types.BuildResult
 		wantErr      bool
 		wantOutput   bool
@@ -66,7 +66,7 @@ func TestCompileSource(t *testing.T) {
 				Includes:   []string{},
 				Version:    "3.10.4",
 			}},
-			[]types.BuildProblem{
+			types.BuildProblems{
 				{"script.pwn", 1, types.ProblemError, `invalid function or declaration`},
 				{"script.pwn", 3, types.ProblemError, `invalid function or declaration`},
 				{"script.pwn", 6, types.ProblemWarning, `symbol is never used: "a"`},
@@ -104,7 +104,7 @@ func TestCompileSource(t *testing.T) {
 				Includes:   []string{},
 				Version:    "3.10.4",
 			}},
-			[]types.BuildProblem{
+			types.BuildProblems{
 				{"library.inc", 6, types.ProblemWarning, `symbol is never used: "b"`},
 				{"script.pwn", 5, types.ProblemWarning, `symbol is never used: "a"`},
 			},
@@ -127,7 +127,7 @@ func TestCompileSource(t *testing.T) {
 				Includes:   []string{},
 				Version:    "3.10.4",
 			}},
-			[]types.BuildProblem{
+			types.BuildProblems{
 				{"script.pwn", 1, types.ProblemFatal, `cannot read from file: "idonotexist"`},
 			},
 			types.BuildResult{},

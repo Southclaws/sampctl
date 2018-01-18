@@ -42,7 +42,7 @@ var (
 )
 
 // CompileSource compiles a given input script to the specified output path using compiler version
-func CompileSource(ctx context.Context, execDir, cacheDir, platform string, config types.BuildConfig) (problems []types.BuildProblem, result types.BuildResult, err error) {
+func CompileSource(ctx context.Context, execDir, cacheDir, platform string, config types.BuildConfig) (problems types.BuildProblems, result types.BuildResult, err error) {
 	print.Info("Compiling", config.Input, "with compiler version", config.Version)
 
 	cmd, err := PrepareCommand(ctx, execDir, cacheDir, platform, config)
@@ -158,7 +158,7 @@ func PrepareCommand(ctx context.Context, execDir, cacheDir, platform string, con
 }
 
 // CompileWithCommand takes a prepared command and executes it
-func CompileWithCommand(cmd *exec.Cmd, workingDir string) (problems []types.BuildProblem, result types.BuildResult, err error) {
+func CompileWithCommand(cmd *exec.Cmd, workingDir string) (problems types.BuildProblems, result types.BuildResult, err error) {
 	var (
 		outputReader, outputWriter = io.Pipe()
 		problemChan                = make(chan types.BuildProblem, 2048)

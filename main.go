@@ -162,6 +162,13 @@ func main() {
 							Action:      packageTemplateBuild,
 							Flags:       append(globalFlags, packageTemplateBuildFlags...),
 						},
+						{
+							Name:        "run",
+							Usage:       "sampctl package template run [template] [filename]",
+							Description: "Builds and runs the specified file in the context of the given template.",
+							Action:      packageTemplateRun,
+							Flags:       append(globalFlags, packageTemplateRunFlags...),
+						},
 					},
 				},
 			},

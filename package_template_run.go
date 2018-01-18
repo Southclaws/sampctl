@@ -11,20 +11,33 @@ import (
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/rook"
+	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
 
-var packageTemplateBuildFlags = []cli.Flag{
-//
+var packageTemplateRunFlags = []cli.Flag{
+	cli.StringFlag{
+		Name:  "version",
+		Value: "0.3.7",
+		Usage: "the SA:MP server version to use",
+	},
+	cli.StringFlag{
+		Name:  "endpoint",
+		Value: "http://files.sa-mp.com",
+		Usage: "endpoint to download packages from",
+	},
 }
 
-func packageTemplateBuild(c *cli.Context) (err error) {
+func packageTemplateRun(c *cli.Context) (err error) {
 	if c.Bool("verbose") {
 		print.SetVerbose()
 	}
 
+	version := c.String("version")
+	endpoint := c.String("endpoint")
+
 	if len(c.Args()) != 2 {
-		cli.ShowCommandHelpAndExit(c, "build", 0)
+		cli.ShowCommandHelpAndExit(c, "run", 0)
 		return nil
 	}
 
@@ -67,6 +80,22 @@ func packageTemplateBuild(c *cli.Context) (err error) {
 		result.StackHeap,
 		result.Estimate,
 		result.Total))
+
+	if !problems.IsValid() {
+		return errors.New("cannot run with build errors")
+	}
+
+	cfg := types.Runtime{
+		Platform:   runtime.GOOS,
+		AppVersion: c.App.Version,
+		Version:    version,
+		Endpoint:   endpoint,
+	}
+
+	err = rook.Run(pkg, cfg, cacheDir, "", false, false, false, "")
+	if err != nil {
+		return
+	}
 
 	return
 }
