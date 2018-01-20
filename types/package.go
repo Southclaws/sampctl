@@ -59,8 +59,8 @@ type Package struct {
 	Website      string   `json:"website,omitempty" yaml:"website,omitempty"`           // website or forum topic associated with the package
 
 	// Functional, set by the package author to declare relevant files and dependencies
-	Entry        string                        `json:"entry"`                                                        // entry point script to compile the project
-	Output       string                        `json:"output"`                                                       // output amx file
+	Entry        string                        `json:"entry,omitempty"`                                              // entry point script to compile the project
+	Output       string                        `json:"output,omitempty"`                                             // output amx file
 	Dependencies []versioning.DependencyString `json:"dependencies,omitempty" yaml:"dependencies,omitempty"`         // list of packages that the package depends on
 	Development  []versioning.DependencyString `json:"dev_dependencies,omitempty" yaml:"dev_dependencies,omitempty"` // list of packages that only the package builds depend on
 	Builds       []BuildConfig                 `json:"builds,omitempty" yaml:"builds,omitempty"`                     // list of build configurations
