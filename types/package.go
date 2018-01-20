@@ -1,11 +1,14 @@
 package types
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"path/filepath"
 
+	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
@@ -177,6 +180,61 @@ func (pkg Package) WriteDefinition() (err error) {
 	default:
 		err = errors.New("package has no format associated with it")
 	}
+
+	return
+}
+
+// GetPluginRemotePackage attempts to get a package definition for the given dependency meta
+// it first checks the repository itself, if that fails it falls back to using the sampctl central
+// plugin metadata repository
+func GetPluginRemotePackage(client *github.Client, meta versioning.DependencyMeta) (pkg Package, err error) {
+	repo, _, err := client.Repositories.Get(context.Background(), meta.User, meta.Repo)
+	if err == nil {
+		var resp *http.Response
+
+		resp, err = http.Get(fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/pawn.json", meta.User, meta.Repo, *repo.DefaultBranch))
+		if err != nil {
+			return
+		}
+
+		if resp.StatusCode == 200 {
+			var contents []byte
+			contents, err = ioutil.ReadAll(resp.Body)
+			if err != nil {
+				return
+			}
+			err = json.Unmarshal(contents, &pkg)
+			return
+		}
+
+		resp, err = http.Get(fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/pawn.yaml", meta.User, meta.Repo, *repo.DefaultBranch))
+		if err != nil {
+			return
+		}
+
+		if resp.StatusCode == 200 {
+			var contents []byte
+			contents, err = ioutil.ReadAll(resp.Body)
+			if err != nil {
+				return
+			}
+			err = yaml.Unmarshal(contents, &pkg)
+			return
+		}
+	}
+
+	resp, err := http.Get(fmt.Sprintf("https://raw.githubusercontent.com/sampctl/plugins/master/%s-%s.json", meta.User, meta.Repo))
+	if err != nil {
+		return
+	}
+
+	if resp.StatusCode == 200 {
+		dec := json.NewDecoder(resp.Body)
+		err = dec.Decode(&pkg)
+		return
+	}
+
+	err = errors.New("could not find plugin package definition")
 
 	return
 }

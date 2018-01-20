@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/google/go-github/github"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Southclaws/sampctl/types"
@@ -147,9 +148,10 @@ func TestGetPluginRemotePackage(t *testing.T) {
 			},
 		}, false},
 	}
+	client := github.NewClient(nil)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotPkg, err := GetPluginRemotePackage(tt.args.meta)
+			gotPkg, err := types.GetPluginRemotePackage(client, tt.args.meta)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

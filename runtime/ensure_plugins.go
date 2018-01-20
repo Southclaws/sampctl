@@ -1,11 +1,8 @@
 package runtime
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -13,7 +10,6 @@ import (
 
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
 
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
@@ -191,7 +187,8 @@ func PluginFromNet(meta versioning.DependencyMeta, platform, cacheDir string) (f
 		return
 	}
 
-	pkg, err := GetPluginRemotePackage(meta)
+	client := github.NewClient(nil)
+	pkg, err := types.GetPluginRemotePackage(client, meta)
 	if err != nil {
 		err = errors.Wrap(err, "failed to get remote package definition file")
 		return
@@ -226,62 +223,6 @@ func PluginFromNet(meta versioning.DependencyMeta, platform, cacheDir string) (f
 	if err != nil {
 		return
 	}
-
-	return
-}
-
-// GetPluginRemotePackage attempts to get a package definition for the given dependency meta
-// it first checks the repository itself, if that fails it falls back to using the sampctl central
-// plugin metadata repository
-func GetPluginRemotePackage(meta versioning.DependencyMeta) (pkg types.Package, err error) {
-	client := github.NewClient(nil)
-	repo, _, err := client.Repositories.Get(context.Background(), meta.User, meta.Repo)
-	if err == nil {
-		var resp *http.Response
-
-		resp, err = http.Get(fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/pawn.json", meta.User, meta.Repo, *repo.DefaultBranch))
-		if err != nil {
-			return
-		}
-
-		if resp.StatusCode == 200 {
-			var contents []byte
-			contents, err = ioutil.ReadAll(resp.Body)
-			if err != nil {
-				return
-			}
-			err = json.Unmarshal(contents, &pkg)
-			return
-		}
-
-		resp, err = http.Get(fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/pawn.yaml", meta.User, meta.Repo, *repo.DefaultBranch))
-		if err != nil {
-			return
-		}
-
-		if resp.StatusCode == 200 {
-			var contents []byte
-			contents, err = ioutil.ReadAll(resp.Body)
-			if err != nil {
-				return
-			}
-			err = yaml.Unmarshal(contents, &pkg)
-			return
-		}
-	}
-
-	resp, err := http.Get(fmt.Sprintf("https://raw.githubusercontent.com/sampctl/plugins/master/%s-%s.json", meta.User, meta.Repo))
-	if err != nil {
-		return
-	}
-
-	if resp.StatusCode == 200 {
-		dec := json.NewDecoder(resp.Body)
-		err = dec.Decode(&pkg)
-		return
-	}
-
-	err = errors.New("could not find plugin package definition")
 
 	return
 }
