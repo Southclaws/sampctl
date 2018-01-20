@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -151,7 +152,7 @@ func TestGetPluginRemotePackage(t *testing.T) {
 	client := github.NewClient(nil)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotPkg, err := types.GetPluginRemotePackage(client, tt.args.meta)
+			gotPkg, err := types.GetRemotePackage(context.Background(), client, tt.args.meta)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"os"
@@ -188,7 +189,7 @@ func PluginFromNet(meta versioning.DependencyMeta, platform, cacheDir string) (f
 	}
 
 	client := github.NewClient(nil)
-	pkg, err := types.GetPluginRemotePackage(client, meta)
+	pkg, err := types.GetRemotePackage(context.Background(), client, meta)
 	if err != nil {
 		err = errors.Wrap(err, "failed to get remote package definition file")
 		return

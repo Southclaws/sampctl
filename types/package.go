@@ -184,11 +184,11 @@ func (pkg Package) WriteDefinition() (err error) {
 	return
 }
 
-// GetPluginRemotePackage attempts to get a package definition for the given dependency meta
+// GetRemotePackage attempts to get a package definition for the given dependency meta
 // it first checks the repository itself, if that fails it falls back to using the sampctl central
 // plugin metadata repository
-func GetPluginRemotePackage(client *github.Client, meta versioning.DependencyMeta) (pkg Package, err error) {
-	repo, _, err := client.Repositories.Get(context.Background(), meta.User, meta.Repo)
+func GetRemotePackage(ctx context.Context, client *github.Client, meta versioning.DependencyMeta) (pkg Package, err error) {
+	repo, _, err := client.Repositories.Get(ctx, meta.User, meta.Repo)
 	if err == nil {
 		var resp *http.Response
 
