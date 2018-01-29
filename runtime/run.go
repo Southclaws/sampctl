@@ -152,8 +152,10 @@ func run(ctx context.Context, binary string, runType types.RunMode) (err error) 
 			startTime = time.Now()
 			cmdError := cmd.Wait()
 
-			if cmdError.Error() == "exit status 1" {
-				break
+			if cmdError != nil {
+				if cmdError.Error() == "exit status 1" {
+					break
+				}
 			}
 
 			runTime := time.Since(startTime)
