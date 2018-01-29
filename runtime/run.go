@@ -45,13 +45,15 @@ func Run(ctx context.Context, cfg types.Runtime, cacheDir string) (err error) {
 }
 
 func run(ctx context.Context, binary string, runType types.RunMode) (err error) {
+	// termination is an internal instruction for communicating successful or failed runs.
+	// It contains an error and a boolean to indicate whether or not to terminate the process.
+	type termination struct {
+		err  error
+		exit bool
+	}
+
 	outputReader, outputWriter := io.Pipe()
-	cmd := exec.CommandContext(ctx, binary)
-	cmd.Dir = filepath.Dir(binary)
-	cmd.Stdout = outputWriter
-	cmd.Stderr = outputWriter
-	errChan := make(chan error)        // channel for sending runtime errors to watchdog
-	endChan := make(chan struct{})     // channel for internal end signals
+	errChan := make(chan termination)  // channel for sending runtime errors to watchdog
 	sigChan := make(chan os.Signal, 1) // channel for capturing host signals
 
 	defer func() {
@@ -81,7 +83,7 @@ func run(ctx context.Context, binary string, runType types.RunMode) (err error) 
 				}
 
 				if matchMainEnd.MatchString(line) {
-					endChan <- struct{}{} // end the server process
+					errChan <- termination{nil, true}
 					break
 				}
 
@@ -112,10 +114,10 @@ func run(ctx context.Context, binary string, runType types.RunMode) (err error) 
 					testResults := testResultsFromLine(line)
 					if testResults.Fails > 0 {
 						print.Erro(testResults.Tests, "tests, with:", testResults.Fails, "failures.")
-						errChan <- errors.New("tests failed")
+						errChan <- termination{errors.New("tests failed"), true}
 					} else {
 						print.Info(testResults.Tests, "tests passed!")
-						endChan <- struct{}{} // end the server process
+						errChan <- termination{nil, true} // end the server process, no error
 					}
 
 					break
@@ -138,15 +140,21 @@ func run(ctx context.Context, binary string, runType types.RunMode) (err error) 
 
 	print.Verb("running with mode", runType)
 
+	var cmd *exec.Cmd
 	go func() {
 		var (
 			startTime          time.Time     // time of most recent start/restart
 			exponentialBackoff = time.Second // exponential backoff cooldown
 		)
 		for {
+			cmd = exec.CommandContext(ctx, binary)
+			cmd.Dir = filepath.Dir(binary)
+			cmd.Stdout = outputWriter
+			cmd.Stderr = outputWriter
+
 			errInline := cmd.Start()
 			if errInline != nil {
-				errChan <- errInline
+				errChan <- termination{errInline, false}
 				break
 			}
 			startTime = time.Now()
@@ -164,34 +172,38 @@ func run(ctx context.Context, binary string, runType types.RunMode) (err error) 
 			} else {
 				exponentialBackoff = time.Second
 			}
-
-			if exponentialBackoff > time.Second*15 {
-				errChan <- errors.Errorf("too many crashloops, last error: %v", errInline)
-				break
+			if exponentialBackoff < time.Second*15 {
+				print.Warn("crash loop backoff for", exponentialBackoff, "reason:", errInline)
+				time.Sleep(exponentialBackoff)
+				continue
 			}
 
-			print.Warn("crash loop backoff for", exponentialBackoff, "reason:", errInline)
-			time.Sleep(exponentialBackoff)
+			errChan <- termination{errors.Errorf("too many crashloops, last error: %v", errInline), false}
+			break
 		}
 	}()
 
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
+	var term termination
 	select {
 	case s := <-sigChan:
 		err = errors.Errorf("received signal: %v", s)
-	case err = <-errChan:
-		err = errors.Wrap(err, "received runtime error")
-	case <-endChan:
-		print.Verb("received internal termination")
-		err = nil
+	case term = <-errChan:
+		break
 	}
 
-	if cmd.Process != nil && cmd.ProcessState != nil {
-		if !cmd.ProcessState.Exited() {
-			killErr := cmd.Process.Kill()
-			if killErr != nil {
-				print.Erro("Failed to kill", killErr)
+	if term.err != nil {
+		err = errors.Wrap(err, "received runtime error")
+	}
+
+	if term.exit {
+		if cmd.Process != nil && cmd.ProcessState != nil {
+			if !cmd.ProcessState.Exited() {
+				killErr := cmd.Process.Kill()
+				if killErr != nil {
+					print.Erro("Failed to kill", killErr)
+				}
 			}
 		}
 	}
