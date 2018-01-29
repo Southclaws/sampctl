@@ -55,9 +55,9 @@ func run(ctx context.Context, binary string, runType types.RunMode) (err error) 
 	sigChan := make(chan os.Signal, 1) // channel for capturing host signals
 
 	defer func() {
-		err = outputWriter.Close()
-		if err != nil {
-			print.Erro("Compiler output read error:", err)
+		errClose := outputWriter.Close()
+		if errClose != nil {
+			print.Erro("Compiler output read error:", errClose)
 		}
 	}()
 
@@ -144,16 +144,16 @@ func run(ctx context.Context, binary string, runType types.RunMode) (err error) 
 			exponentialBackoff = time.Second // exponential backoff cooldown
 		)
 		for {
-			err = cmd.Start()
-			if err != nil {
-				errChan <- err
+			errInline := cmd.Start()
+			if errInline != nil {
+				errChan <- errInline
 				break
 			}
 			startTime = time.Now()
-			cmdError := cmd.Wait()
+			errInline = cmd.Wait()
 
-			if cmdError != nil {
-				if cmdError.Error() == "exit status 1" {
+			if errInline != nil {
+				if errInline.Error() == "exit status 1" {
 					break
 				}
 			}
@@ -166,11 +166,11 @@ func run(ctx context.Context, binary string, runType types.RunMode) (err error) 
 			}
 
 			if exponentialBackoff > time.Second*15 {
-				errChan <- errors.Errorf("too many crashloops, last error: %v", cmdError)
+				errChan <- errors.Errorf("too many crashloops, last error: %v", errInline)
 				break
 			}
 
-			print.Warn("crash loop backoff for", exponentialBackoff, "reason:", cmdError)
+			print.Warn("crash loop backoff for", exponentialBackoff, "reason:", errInline)
 			time.Sleep(exponentialBackoff)
 		}
 	}()
@@ -183,17 +183,20 @@ func run(ctx context.Context, binary string, runType types.RunMode) (err error) 
 	case err = <-errChan:
 		err = errors.Wrap(err, "received runtime error")
 	case <-endChan:
+		print.Verb("received internal termination")
 		err = nil
 	}
 
-	if cmd.Process != nil {
-		killErr := cmd.Process.Kill()
-		if killErr != nil {
-			print.Erro(killErr)
+	if cmd.Process != nil && cmd.ProcessState != nil {
+		if !cmd.ProcessState.Exited() {
+			killErr := cmd.Process.Kill()
+			if killErr != nil {
+				print.Erro("Failed to kill", killErr)
+			}
 		}
 	}
 
-	return
+	return err
 }
 
 func testResultsFromLine(line string) (results testResults) {
