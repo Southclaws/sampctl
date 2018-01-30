@@ -57,7 +57,11 @@ run:
 	docker run --name sampctl-test southclaws/sampctl:$(VERSION)
 
 enter:
-	docker run -it --entrypoint=bash southclaws/sampctl:$(VERSION)
+	docker run \
+		-it \
+		-v ~/.samp:/root/.samp \
+		--entrypoint=bash \
+		southclaws/sampctl:$(VERSION)
 
 enter-mount:
 	docker run \
