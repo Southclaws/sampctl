@@ -77,8 +77,15 @@ func packageBuild(c *cli.Context) error {
 			return cli.NewExitError(err.Error(), 1)
 		}
 
-		print.Info("Build complete with", len(problems), "problems")
-		print.Info(fmt.Sprintf("Results, in bytes: Header: %d, Code: %d, Data: %d, Stack/Heap: %d, Estimated usage: %d, Total: %d\n",
+		if len(problems.Errors()) > 0 {
+			print.Erro("Build failed with", len(problems), "problems")
+		} else if len(problems.Warnings()) > 0 {
+			print.Warn("Build complete with", len(problems), "problems")
+		} else {
+			print.Info("Build successful with", len(problems), "problems")
+		}
+
+		print.Verb(fmt.Sprintf("Results, in bytes: Header: %d, Code: %d, Data: %d, Stack/Heap: %d, Estimated usage: %d, Total: %d\n",
 			result.Header,
 			result.Code,
 			result.Data,
