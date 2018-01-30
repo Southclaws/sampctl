@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"html/template"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"text/template"
 
 	"github.com/fatih/color"
 	"gopkg.in/AlecAivazis/survey.v1"
