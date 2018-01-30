@@ -258,11 +258,15 @@ func GetBuildConfig(pkg types.Package, name string) (config *types.BuildConfig) 
 			for _, cfg := range pkg.Builds {
 				if cfg.Name == name {
 					config = &cfg
+					break
 				}
 			}
 		}
 		if config.Version == "" {
 			config.Version = def.Version
+		}
+		if len(config.Args) == 0 {
+			config.Args = def.Args
 		}
 	}
 
