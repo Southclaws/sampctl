@@ -136,7 +136,8 @@ func EnsurePackage(pkgPath string, meta versioning.DependencyMeta) (err error) {
 	if needToClone {
 		print.Verb(meta, "cloning dependency package:", meta)
 		repo, err = git.PlainClone(pkgPath, false, &git.CloneOptions{
-			URL: meta.URL(),
+			URL:   meta.URL(),
+			Depth: 1,
 		})
 		if err != nil {
 			err = errors.Wrap(err, "failed to clone dependency repository")
