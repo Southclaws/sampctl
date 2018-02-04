@@ -29,6 +29,10 @@ func TestRuntimeFromDir(t *testing.T) {
 				"rivershell",
 				"baserace",
 			},
+			Plugins: []Plugin{
+				"streamer",
+				"zeex/samp-plugin-crashdetect",
+			},
 			RCONPassword: &[]string{"test"}[0],
 			Port:         &[]int{8080}[0],
 			Hostname:     &[]string{"Test"}[0],
