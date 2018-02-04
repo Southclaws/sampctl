@@ -153,9 +153,9 @@ func InitialiseServer(version, dir, platform string) (err error) {
 	print.Info("Plugins: ", answers.Plugins)
 
 	if answers.Format == "json" {
-		err = GenerateJSON(config)
+		err = types.RuntimeToJSON(config)
 	} else if answers.Format == "yaml" {
-		err = GenerateYAML(config)
+		err = types.RuntimeToYAML(config)
 	}
 	return
 }
