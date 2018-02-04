@@ -141,6 +141,7 @@ func RuntimeFromJSON(file string) (cfg Runtime, err error) {
 		err = errors.Wrap(err, "failed to unmarshal samp.json")
 		return
 	}
+	cfg.Format = "json"
 
 	return
 }
@@ -159,6 +160,7 @@ func RuntimeFromYAML(file string) (cfg Runtime, err error) {
 		err = errors.Wrap(err, "failed to unmarshal samp.json")
 		return
 	}
+	cfg.Format = "yaml"
 
 	return
 }
@@ -194,8 +196,22 @@ func (plugin Plugin) AsDep() (dep versioning.DependencyMeta, err error) {
 	return depStr.Explode()
 }
 
-// RuntimeToJSON simply marshals the data to a samp.json file in dir
-func RuntimeToJSON(cfg Runtime) (err error) {
+// ToFile creates a JSON or YAML file for a config object, the format depends
+// on the `Format` field of the package.
+func (cfg Runtime) ToFile() (err error) {
+	switch cfg.Format {
+	case "json":
+		err = cfg.ToJSON()
+	case "yaml":
+		err = cfg.ToYAML()
+	default:
+		err = errors.New("package has no format associated with it")
+	}
+	return
+}
+
+// ToJSON simply marshals the data to a samp.json file in dir
+func (cfg Runtime) ToJSON() (err error) {
 	path := filepath.Join(cfg.WorkingDir, "samp.json")
 
 	if util.Exists(path) {
@@ -224,8 +240,8 @@ func RuntimeToJSON(cfg Runtime) (err error) {
 	return
 }
 
-// RuntimeToYAML simply marshals the data to a samp.yaml file in dir
-func RuntimeToYAML(cfg Runtime) (err error) {
+// ToYAML simply marshals the data to a samp.yaml file in dir
+func (cfg Runtime) ToYAML() (err error) {
 	path := filepath.Join(cfg.WorkingDir, "samp.yaml")
 
 	if util.Exists(path) {

@@ -163,7 +163,7 @@ func runPrepare(pkg types.Package, cfg types.Runtime, cacheDir, build string, fo
 		config.Plugins = append(config.Plugins, types.Plugin(pluginMeta.String()))
 	}
 
-	err = types.RuntimeToJSON(*config)
+	err = config.ToJSON()
 	if err != nil {
 		err = errors.Wrap(err, "failed to generate temporary samp.json")
 		return

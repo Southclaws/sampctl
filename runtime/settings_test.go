@@ -42,6 +42,7 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 				RCON:       &[]bool{true}[0],
 			},
 			types.Runtime{
+				Format:     "json",
 				Version:    "0.3.7",
 				Endpoint:   "http://files.sa-mp.com",
 				WorkingDir: "./tests/from-env",
@@ -63,7 +64,7 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := types.RuntimeToJSON(tt.genCfg)
+			err := tt.genCfg.ToJSON()
 			assert.NoError(t, err)
 
 			for k, v := range tt.env {

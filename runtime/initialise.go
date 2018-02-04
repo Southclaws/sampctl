@@ -129,6 +129,7 @@ func InitialiseServer(version, dir, platform string) (err error) {
 
 	config := types.Runtime{
 		WorkingDir:    dir,
+		Format:        answers.Format,
 		Hostname:      &answers.Hostname,
 		RCONPassword:  &answers.RCONPassword,
 		Port:          &answers.Port,
@@ -152,11 +153,8 @@ func InitialiseServer(version, dir, platform string) (err error) {
 	print.Info("Filterscripts: ", answers.Filterscripts)
 	print.Info("Plugins: ", answers.Plugins)
 
-	if answers.Format == "json" {
-		err = types.RuntimeToJSON(config)
-	} else if answers.Format == "yaml" {
-		err = types.RuntimeToYAML(config)
-	}
+	err = config.ToFile()
+
 	return
 }
 

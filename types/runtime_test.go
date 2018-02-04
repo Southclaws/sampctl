@@ -19,10 +19,12 @@ func TestRuntimeFromDir(t *testing.T) {
 		wantErr bool
 	}{
 		{"both basic", args{"./tests/load-both"}, Runtime{
+			Format:       "json",
 			Gamemodes:    []string{"rivershell"},
 			RCONPassword: &[]string{"hello"}[0],
 		}, false},
 		{"both large", args{"./tests/load-yaml"}, Runtime{
+			Format: "json",
 			Gamemodes: []string{
 				"rivershell",
 				"baserace",
@@ -41,8 +43,8 @@ func TestRuntimeFromDir(t *testing.T) {
 			dir := tt.args.dir
 			tt.wantCfg.WorkingDir = dir
 
-			RuntimeToJSON(tt.wantCfg)
-			RuntimeToYAML(tt.wantCfg)
+			tt.wantCfg.ToJSON()
+			tt.wantCfg.ToYAML()
 
 			gotCfg, err := RuntimeFromDir(tt.args.dir)
 			if tt.wantErr {
@@ -66,10 +68,12 @@ func TestRuntimeFromJSON(t *testing.T) {
 		wantErr bool
 	}{
 		{"json basic", args{"./tests/load-json/samp.json"}, Runtime{
+			Format:       "json",
 			Gamemodes:    []string{"rivershell"},
 			RCONPassword: &[]string{"hello"}[0],
 		}, false},
 		{"json large", args{"./tests/load-json/samp.json"}, Runtime{
+			Format: "json",
 			Gamemodes: []string{
 				"rivershell",
 				"baserace",
@@ -87,7 +91,7 @@ func TestRuntimeFromJSON(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := filepath.Dir(tt.args.file)
 			tt.wantCfg.WorkingDir = dir
-			RuntimeToJSON(tt.wantCfg)
+			tt.wantCfg.ToJSON()
 
 			gotCfg, err := RuntimeFromJSON(tt.args.file)
 			if (err != nil) != tt.wantErr {
@@ -115,10 +119,12 @@ func TestRuntimeFromYAML(t *testing.T) {
 		wantErr bool
 	}{
 		{"yaml basic", args{"./tests/load-yaml/samp.yaml"}, Runtime{
+			Format:       "yaml",
 			Gamemodes:    []string{"rivershell"},
 			RCONPassword: &[]string{"hello"}[0],
 		}, false},
 		{"yaml large", args{"./tests/load-yaml/samp.yaml"}, Runtime{
+			Format: "yaml",
 			Gamemodes: []string{
 				"rivershell",
 				"baserace",
@@ -136,7 +142,7 @@ func TestRuntimeFromYAML(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := filepath.Dir(tt.args.file)
 			tt.wantCfg.WorkingDir = dir
-			RuntimeToYAML(tt.wantCfg)
+			tt.wantCfg.ToYAML()
 
 			gotCfg, err := RuntimeFromYAML(tt.args.file)
 			if tt.wantErr {
@@ -194,7 +200,7 @@ func TestRuntimeToJSON(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := RuntimeToJSON(tt.config)
+			err := tt.config.ToJSON()
 			assert.NoError(t, err)
 
 			contents, err := ioutil.ReadFile(filepath.Join(tt.config.WorkingDir, "samp.json"))
@@ -244,7 +250,7 @@ rcon: true
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := RuntimeToYAML(tt.config)
+			err := tt.config.ToYAML()
 			assert.NoError(t, err)
 
 			contents, err := ioutil.ReadFile(filepath.Join(tt.config.WorkingDir, "samp.yaml"))
