@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"runtime"
@@ -54,7 +55,7 @@ func packageTemplateBuild(c *cli.Context) (err error) {
 		return errors.Wrap(err, "failed to copy target script to template package directory")
 	}
 
-	problems, result, err := rook.Build(&pkg, "", cacheDir, runtime.GOOS, false, false, "")
+	problems, result, err := rook.Build(context.Background(), gh, &pkg, "", cacheDir, runtime.GOOS, false, false, "")
 	if err != nil {
 		return
 	}

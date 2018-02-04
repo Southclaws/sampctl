@@ -11,18 +11,6 @@ import (
 	"github.com/Southclaws/sampctl/versioning"
 )
 
-func TestMain(m *testing.M) {
-	os.MkdirAll("./tests/deps", 0755)
-
-	// Make sure our ensure tests dir is empty before running tests
-	err := os.RemoveAll("./tests/deps")
-	if err != nil {
-		panic(err)
-	}
-
-	os.Exit(m.Run())
-}
-
 func TestPackage_EnsureDependencies(t *testing.T) {
 	tests := []struct {
 		name     string

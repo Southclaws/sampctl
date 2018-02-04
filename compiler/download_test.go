@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"testing"
@@ -32,7 +33,7 @@ func Test_CompilerFromNet(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotPkg, err := FromNet(tt.args.meta, tt.args.dir, tt.args.platform, tt.args.cacheDir)
+			gotPkg, err := FromNet(context.Background(), gh, tt.args.meta, tt.args.dir, tt.args.platform, tt.args.cacheDir)
 			assert.NoError(t, err)
 
 			if gotPkg != nil {

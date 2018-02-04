@@ -1,15 +1,18 @@
 package runtime
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/google/go-github/github"
+	"github.com/pkg/errors"
+
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
-	"github.com/pkg/errors"
 )
 
 // Ensure will make sure a Config's dir is representative of the held configuration.
@@ -18,7 +21,7 @@ import (
 // - Plugin binaries
 // - Scripts: gamemodes and filterscripts
 // and a `server.cfg` is generated based on the contents of the Config fields.
-func Ensure(cfg *types.Runtime, noCache, ensurePlugins bool) (err error) {
+func Ensure(ctx context.Context, gh *github.Client, cfg *types.Runtime, noCache, ensurePlugins bool) (err error) {
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
 		return
@@ -30,7 +33,7 @@ func Ensure(cfg *types.Runtime, noCache, ensurePlugins bool) (err error) {
 	}
 
 	if ensurePlugins {
-		err = EnsurePlugins(cfg, cacheDir, noCache)
+		err = EnsurePlugins(ctx, gh, cfg, cacheDir, noCache)
 		if err != nil {
 			return errors.Wrap(err, "failed to ensure plugins")
 		}

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Southclaws/sampctl/types"
+	"github.com/Southclaws/sampctl/versioning"
 )
 
 func TestNewConfigFromEnvironment(t *testing.T) {
@@ -34,6 +35,10 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 					"rivershell",
 					"baserace",
 				},
+				Plugins: []types.Plugin{
+					"streamer",
+					"zeex/samp-plugin-crashdetect",
+				},
 				Port:       &[]int{8080}[0],
 				Hostname:   &[]string{"Test"}[0],
 				MaxPlayers: &[]int{32}[0],
@@ -42,6 +47,9 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 				RCON:       &[]bool{true}[0],
 			},
 			types.Runtime{
+				PluginDeps: []versioning.DependencyMeta{
+					{User: "zeex", Repo: "samp-plugin-crashdetect"},
+				},
 				Format:     "json",
 				Version:    "0.3.7",
 				Endpoint:   "http://files.sa-mp.com",
@@ -50,7 +58,9 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 					"rivershell",
 					"baserace",
 				},
-				Plugins:      []types.Plugin{},
+				Plugins: []types.Plugin{
+					"streamer",
+				},
 				RCONPassword: &[]string{"changed"}[0],
 				Port:         &[]int{8080}[0],
 				Hostname:     &[]string{"Test"}[0],

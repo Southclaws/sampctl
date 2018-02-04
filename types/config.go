@@ -12,6 +12,7 @@ import (
 // Config represents a local configuration for sampctl
 type Config struct {
 	DefaultUser string `json:"default_user"`
+	GitHubToken string `json:"github_token,omitempty"`
 }
 
 // LoadOrCreateConfig reads a config file from the given cache directory

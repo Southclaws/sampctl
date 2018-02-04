@@ -53,7 +53,7 @@ func serverRun(c *cli.Context) error {
 		return errors.Wrap(err, "failed to interpret directory as server runtime environment")
 	}
 
-	err = runtime.Ensure(&cfg, noCache, ensurePlugins)
+	err = runtime.Ensure(context.Background(), gh, &cfg, noCache, ensurePlugins)
 	if err != nil {
 		return err
 	}

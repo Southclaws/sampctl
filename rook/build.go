@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/compiler"
@@ -23,7 +24,7 @@ import (
 )
 
 // Build compiles a package, dependencies are ensured and a list of paths are sent to the compiler.
-func Build(pkg *types.Package, build, cacheDir, platform string, ensure, dry bool, buildFile string) (problems types.BuildProblems, result types.BuildResult, err error) {
+func Build(ctx context.Context, gh *github.Client, pkg *types.Package, build, cacheDir, platform string, ensure, dry bool, buildFile string) (problems types.BuildProblems, result types.BuildResult, err error) {
 	config := GetBuildConfig(*pkg, build)
 	if config == nil {
 		err = errors.Errorf("no build config named '%s'", build)
@@ -72,7 +73,7 @@ func Build(pkg *types.Package, build, cacheDir, platform string, ensure, dry boo
 		config.Includes = append(config.Includes, filepath.Join(depDir, incPath))
 	}
 
-	cmd, err := compiler.PrepareCommand(context.Background(), pkg.Local, cacheDir, platform, *config)
+	cmd, err := compiler.PrepareCommand(ctx, gh, pkg.Local, cacheDir, platform, *config)
 	if err != nil {
 		return
 	}
@@ -99,7 +100,7 @@ func Build(pkg *types.Package, build, cacheDir, platform string, ensure, dry boo
 }
 
 // BuildWatch runs the Build code on file changes
-func BuildWatch(ctx context.Context, pkg *types.Package, build, cacheDir, platform string, ensure bool, buildFile string, trigger chan types.BuildProblems) (err error) {
+func BuildWatch(ctx context.Context, gh *github.Client, pkg *types.Package, build, cacheDir, platform string, ensure bool, buildFile string, trigger chan types.BuildProblems) (err error) {
 	config := GetBuildConfig(*pkg, build)
 	if config == nil {
 		err = errors.Errorf("no build config named '%s'", build)
@@ -212,7 +213,7 @@ loop:
 			fmt.Println("watch-build: starting compilation", buildNumber)
 			go func() {
 				running.Store(true)
-				problems, _, err = compiler.CompileSource(ctxInner, pkg.Local, cacheDir, platform, *config)
+				problems, _, err = compiler.CompileSource(ctxInner, gh, pkg.Local, cacheDir, platform, *config)
 				running.Store(false)
 
 				if err != nil {

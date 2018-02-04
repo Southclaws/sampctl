@@ -84,18 +84,17 @@ func FromNet(url, cacheDir, filename string) (result string, err error) {
 }
 
 // ReleaseAssetByPattern downloads a resource file, which is a GitHub release asset
-func ReleaseAssetByPattern(meta versioning.DependencyMeta, matcher *regexp.Regexp, dir, outputFile, cacheDir string) (filename string, err error) {
+func ReleaseAssetByPattern(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, matcher *regexp.Regexp, dir, outputFile, cacheDir string) (filename string, err error) {
 	var (
-		client = github.NewClient(nil)
 		asset  *github.ReleaseAsset
 		assets []string
 	)
 
 	var release *github.RepositoryRelease
 	if meta.Version == "" {
-		release, _, err = client.Repositories.GetLatestRelease(context.Background(), meta.User, meta.Repo)
+		release, _, err = gh.Repositories.GetLatestRelease(ctx, meta.User, meta.Repo)
 	} else {
-		release, _, err = client.Repositories.GetReleaseByTag(context.Background(), meta.User, meta.Repo, meta.Version)
+		release, _, err = gh.Repositories.GetReleaseByTag(ctx, meta.User, meta.Repo, meta.Version)
 	}
 	if err != nil {
 		return

@@ -9,6 +9,7 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/google/go-github/github"
+	"golang.org/x/oauth2"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
@@ -16,9 +17,11 @@ import (
 	"github.com/Southclaws/sampctl/types"
 )
 
-var version = "master"
-
-var config *types.Config
+var (
+	version = "master"
+	config  *types.Config  // global config
+	gh      *github.Client // a github client to use for API requests
+)
 
 func main() {
 	app := cli.NewApp()
@@ -50,6 +53,12 @@ func main() {
 	if err != nil {
 		print.Erro("Failed to load or create sampctl config in", cacheDir, "-", err)
 		return
+	}
+
+	if config.GitHubToken == "" {
+		gh = github.NewClient(nil)
+	} else {
+		gh = github.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(&oauth2.Token{AccessToken: config.GitHubToken})))
 	}
 
 	globalFlags := []cli.Flag{
@@ -224,10 +233,9 @@ func main() {
 
 // CheckForUpdates uses the GitHub API to check if a new release is available.
 func CheckForUpdates(thisVersion string) {
-	client := github.NewClient(nil)
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*10)
 
-	release, _, err := client.Repositories.GetLatestRelease(ctx, "Southclaws", "sampctl")
+	release, _, err := gh.Repositories.GetLatestRelease(ctx, "Southclaws", "sampctl")
 	if err != nil {
 		print.Erro("Failed to check for latest sampctl release:", err)
 	} else {

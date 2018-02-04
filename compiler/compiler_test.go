@@ -135,7 +135,7 @@ func TestCompileSource(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotProblems, gotResult, err := CompileSource(context.Background(), ".", tt.args.cacheDir, runtime.GOOS, tt.args.config)
+			gotProblems, gotResult, err := CompileSource(context.Background(), gh, ".", tt.args.cacheDir, runtime.GOOS, tt.args.config)
 
 			if tt.wantErr {
 				assert.Error(t, err)

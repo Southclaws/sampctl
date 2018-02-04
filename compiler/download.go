@@ -1,18 +1,19 @@
 package compiler
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"regexp"
 
-	"github.com/Southclaws/sampctl/versioning"
-
+	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
+	"github.com/Southclaws/sampctl/versioning"
 )
 
 // Package represents a compiler package for a specific OS
@@ -82,7 +83,7 @@ func FromCache(meta versioning.DependencyMeta, dir, platform, cacheDir string) (
 }
 
 // FromNet downloads a compiler package to the cache
-func FromNet(meta versioning.DependencyMeta, dir, platform, cacheDir string) (pkg *Package, err error) {
+func FromNet(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, dir, platform, cacheDir string) (pkg *Package, err error) {
 	print.Info("Downloading compiler package", meta.Version)
 
 	pkg = GetCompilerPackageInfo(platform)
@@ -101,7 +102,7 @@ func FromNet(meta versioning.DependencyMeta, dir, platform, cacheDir string) (pk
 		}
 	}
 
-	path, err := download.ReleaseAssetByPattern(meta, pkg.Match, "", fmt.Sprintf("pawn-%s-%s", meta.Version, platform), cacheDir)
+	path, err := download.ReleaseAssetByPattern(ctx, gh, meta, pkg.Match, "", fmt.Sprintf("pawn-%s-%s", meta.Version, platform), cacheDir)
 	if err != nil {
 		return
 	}
@@ -115,7 +116,7 @@ func FromNet(meta versioning.DependencyMeta, dir, platform, cacheDir string) (pk
 }
 
 // GetCompilerPackage downloads and installs a Pawn compiler to a user directory
-func GetCompilerPackage(version types.CompilerVersion, dir, platform, cacheDir string) (pkg *Package, err error) {
+func GetCompilerPackage(ctx context.Context, gh *github.Client, version types.CompilerVersion, dir, platform, cacheDir string) (pkg *Package, err error) {
 	meta := versioning.DependencyMeta{"Zeex", "pawn", "", string(version)}
 	if meta.Version == "" {
 		meta.Version = "3.10.5"
@@ -132,7 +133,7 @@ func GetCompilerPackage(version types.CompilerVersion, dir, platform, cacheDir s
 		return
 	}
 
-	pkg, err = FromNet(meta, dir, platform, cacheDir)
+	pkg, err = FromNet(ctx, gh, meta, dir, platform, cacheDir)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get package %s from net", version)
 	}

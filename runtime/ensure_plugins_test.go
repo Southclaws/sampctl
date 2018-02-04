@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/google/go-github/github"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Southclaws/sampctl/types"
@@ -29,13 +28,13 @@ func TestEnsurePlugins(t *testing.T) {
 			types.Runtime{
 				WorkingDir: "./tests/ensure/linux",
 				Platform:   "linux",
-				Plugins: []types.Plugin{
-					"samp-incognito/samp-streamer-plugin",
-					"Zeex/samp-plugin-crashdetect",
-					"pBlueG/SA-MP-MySQL",
-					"ziggi/FCNPC",
-					"BigETI/pawn-memory",
-					"Southclaws/samp-nolog",
+				PluginDeps: []versioning.DependencyMeta{
+					{User: "samp-incognito", Repo: "samp-streamer-plugin"},
+					{User: "Zeex", Repo: "samp-plugin-crashdetect"},
+					{User: "pBlueG", Repo: "SA-MP-MySQL"},
+					{User: "ziggi", Repo: "FCNPC"},
+					{User: "BigETI", Repo: "pawn-memory"},
+					{User: "Southclaws", Repo: "samp-nolog"},
 				},
 			},
 		}, []string{
@@ -57,13 +56,13 @@ func TestEnsurePlugins(t *testing.T) {
 			types.Runtime{
 				WorkingDir: "./tests/ensure/windows",
 				Platform:   "windows",
-				Plugins: []types.Plugin{
-					"samp-incognito/samp-streamer-plugin",
-					"Zeex/samp-plugin-crashdetect",
-					"pBlueG/SA-MP-MySQL",
-					"ziggi/FCNPC",
-					"BigETI/pawn-memory",
-					"urShadow/Pawn.RakNet",
+				PluginDeps: []versioning.DependencyMeta{
+					{User: "samp-incognito", Repo: "samp-streamer-plugin"},
+					{User: "Zeex", Repo: "samp-plugin-crashdetect"},
+					{User: "pBlueG", Repo: "SA-MP-MySQL"},
+					{User: "ziggi", Repo: "FCNPC"},
+					{User: "BigETI", Repo: "pawn-memory"},
+					{User: "urShadow", Repo: "Pawn.RakNet"},
 				},
 			},
 		}, []string{
@@ -87,15 +86,18 @@ func TestEnsurePlugins(t *testing.T) {
 			os.MkdirAll(tt.args.cfg.WorkingDir, 0755)
 
 			t.Log("First call to Ensure - from internet")
-			err := EnsurePlugins(&tt.args.cfg, "./tests/cache", true)
+			err := EnsurePlugins(context.Background(), gh, &tt.args.cfg, "./tests/cache", true)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
 			}
 			assert.NoError(t, err)
 
+			// the first clal to EnsurePlugins modifies this list, we don't want duplicates in the next test, so clear it
+			tt.args.cfg.Plugins = []types.Plugin{}
+
 			t.Log("Second call to Ensure - from cache")
-			err = EnsurePlugins(&tt.args.cfg, "./tests/cache", false)
+			err = EnsurePlugins(context.Background(), gh, &tt.args.cfg, "./tests/cache", false)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -149,10 +151,9 @@ func TestGetPluginRemotePackage(t *testing.T) {
 			},
 		}, false},
 	}
-	client := github.NewClient(nil)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotPkg, err := types.GetRemotePackage(context.Background(), client, tt.args.meta)
+			gotPkg, err := types.GetRemotePackage(context.Background(), gh, tt.args.meta)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
