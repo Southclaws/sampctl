@@ -91,10 +91,10 @@ func ReleaseAssetByPattern(ctx context.Context, gh *github.Client, meta versioni
 	)
 
 	var release *github.RepositoryRelease
-	if meta.Version == "" {
+	if meta.Tag == "" {
 		release, _, err = gh.Repositories.GetLatestRelease(ctx, meta.User, meta.Repo)
 	} else {
-		release, _, err = gh.Repositories.GetReleaseByTag(ctx, meta.User, meta.Repo, meta.Version)
+		release, _, err = gh.Repositories.GetReleaseByTag(ctx, meta.User, meta.Repo, meta.Tag)
 	}
 	if err != nil {
 		return

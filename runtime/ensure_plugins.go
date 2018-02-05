@@ -241,7 +241,7 @@ func GetResourceForPlatform(resources []types.Resource, platform string) (resour
 
 // GetResourcePath returns a path where a resource should be stored given the metadata
 func GetResourcePath(meta versioning.DependencyMeta) (path string) {
-	version := meta.Version
+	version := meta.Tag
 	if version == "" {
 		version = "latest"
 	}

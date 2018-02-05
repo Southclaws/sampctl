@@ -123,7 +123,7 @@ func TestGetPluginRemotePackage(t *testing.T) {
 		wantPkg types.Package
 		wantErr bool
 	}{
-		{"streamer", args{versioning.DependencyMeta{"samp-incognito", "samp-streamer-plugin", "", ""}}, types.Package{
+		{"streamer", args{versioning.DependencyMeta{Site: "github.com", User: "samp-incognito", Repo: "samp-streamer-plugin"}}, types.Package{
 			DependencyMeta: versioning.DependencyMeta{
 				User: "samp-incognito",
 				Repo: "samp-streamer-plugin",

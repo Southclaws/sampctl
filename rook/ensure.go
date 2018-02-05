@@ -151,7 +151,7 @@ func EnsurePackage(pkgPath string, meta versioning.DependencyMeta) (err error) {
 		return
 	}
 
-	if meta.Version == "" {
+	if meta.Tag == "" {
 		print.Verb(meta, "package does not have version constraint, using latest")
 
 		err = wt.Pull(&git.PullOptions{})
@@ -167,7 +167,7 @@ func EnsurePackage(pkgPath string, meta versioning.DependencyMeta) (err error) {
 			return errors.Wrap(err, "failed to get package repository tags")
 		}
 
-		ref, err = getRefFromConstraint(meta, versionedTags, meta.Version)
+		ref, err = getRefFromConstraint(meta, versionedTags, meta.Tag)
 		if err != nil {
 			return
 		}
@@ -230,13 +230,13 @@ func getRefFromConstraint(meta versioning.DependencyMeta, versionedTags Versione
 
 	for _, version := range versionedTags {
 		if constraint.Check(version.Tag) {
-			print.Verb(meta, "discovered tag", version.Tag, "that matches constraint", meta.Version)
+			print.Verb(meta, "discovered tag", version.Tag, "that matches constraint", meta.Tag)
 			ref = version.Ref
 			return
 		}
 
 		// these messages will be removed in future versions
-		print.Verb(meta, "incompatible tag", version.Tag, "does not satisfy constraint", meta.Version)
+		print.Verb(meta, "incompatible tag", version.Tag, "does not satisfy constraint", meta.Tag)
 	}
 	err = errors.Errorf("failed to satisfy constraint, no tag found by that name, available tags: %v", versionedTags)
 	return

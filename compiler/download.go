@@ -68,7 +68,7 @@ func FromCache(meta versioning.DependencyMeta, dir, platform, cacheDir string) (
 		return
 	}
 
-	filename := fmt.Sprintf("pawn-%s-%s", meta.Version, platform)
+	filename := fmt.Sprintf("pawn-%s-%s", meta.Tag, platform)
 
 	print.Verb("Checking for cached package", filename, "in", cacheDir)
 
@@ -84,7 +84,7 @@ func FromCache(meta versioning.DependencyMeta, dir, platform, cacheDir string) (
 
 // FromNet downloads a compiler package to the cache
 func FromNet(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, dir, platform, cacheDir string) (pkg *Package, err error) {
-	print.Info("Downloading compiler package", meta.Version)
+	print.Info("Downloading compiler package", meta.Tag)
 
 	pkg = GetCompilerPackageInfo(platform)
 
@@ -102,7 +102,7 @@ func FromNet(ctx context.Context, gh *github.Client, meta versioning.DependencyM
 		}
 	}
 
-	path, err := download.ReleaseAssetByPattern(ctx, gh, meta, pkg.Match, "", fmt.Sprintf("pawn-%s-%s", meta.Version, platform), cacheDir)
+	path, err := download.ReleaseAssetByPattern(ctx, gh, meta, pkg.Match, "", fmt.Sprintf("pawn-%s-%s", meta.Tag, platform), cacheDir)
 	if err != nil {
 		return
 	}
@@ -117,12 +117,18 @@ func FromNet(ctx context.Context, gh *github.Client, meta versioning.DependencyM
 
 // GetCompilerPackage downloads and installs a Pawn compiler to a user directory
 func GetCompilerPackage(ctx context.Context, gh *github.Client, version types.CompilerVersion, dir, platform, cacheDir string) (pkg *Package, err error) {
-	meta := versioning.DependencyMeta{"Zeex", "pawn", "", string(version)}
-	if meta.Version == "" {
-		meta.Version = "3.10.5"
+	meta := versioning.DependencyMeta{
+		Site: "github.com",
+		User: "pawn-lang",
+		Repo: "compiler",
+		Tag:  string(version),
 	}
-	if meta.Version[0] != 'v' {
-		meta.Version = "v" + meta.Version
+
+	if meta.Tag == "" {
+		meta.Tag = "3.10.4"
+	}
+	if meta.Tag[0] != 'v' {
+		meta.Tag = "v" + meta.Tag
 	}
 
 	pkg, hit, err := FromCache(meta, dir, platform, cacheDir)

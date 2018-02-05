@@ -70,7 +70,7 @@ type Package struct {
 }
 
 func (pkg Package) String() string {
-	return fmt.Sprintf("%s/%s:%s", pkg.User, pkg.Repo, pkg.Version)
+	return fmt.Sprint(pkg.DependencyMeta)
 }
 
 // Validate checks a package for missing fields
@@ -92,7 +92,7 @@ func (pkg Package) GetAllDependencies() (result []versioning.DependencyString) {
 // PackageFromDep creates a Package object from a Dependency String
 func PackageFromDep(depString versioning.DependencyString) (pkg Package, err error) {
 	dep, err := depString.Explode()
-	pkg.User, pkg.Repo, pkg.Path, pkg.Version = dep.User, dep.Repo, dep.Path, dep.Version
+	pkg.Site, pkg.User, pkg.Repo, pkg.Path, pkg.Tag, pkg.Branch, pkg.Commit = dep.Site, dep.User, dep.Repo, dep.Path, dep.Tag, dep.Branch, dep.Commit
 	return
 }
 
