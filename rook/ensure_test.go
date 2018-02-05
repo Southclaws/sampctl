@@ -24,8 +24,8 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 				"sampctl/samp-stdlib",
 			}},
 			[]versioning.DependencyMeta{
-				versioning.DependencyMeta{Site: "https://github.com", User: "sampctl", Repo: "samp-stdlib", Path: "", Tag: ""},
-				versioning.DependencyMeta{Site: "https://github.com", User: "sampctl", Repo: "pawn-stdlib", Path: "", Tag: ""},
+				versioning.DependencyMeta{Site: "https://github.com", User: "sampctl", Repo: "samp-stdlib"},
+				versioning.DependencyMeta{Site: "https://github.com", User: "sampctl", Repo: "pawn-stdlib"},
 			}, false},
 		{"circular", &types.Package{
 			Local: util.FullPath("./tests/deps-cirular"),
@@ -33,8 +33,17 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 				"sampctl/AAA",
 			}},
 			[]versioning.DependencyMeta{
-				versioning.DependencyMeta{Site: "https://github.com", User: "sampctl", Repo: "AAA", Path: "", Tag: ""},
-				versioning.DependencyMeta{Site: "https://github.com", User: "sampctl", Repo: "BBB", Path: "", Tag: ""},
+				versioning.DependencyMeta{Site: "https://github.com", User: "sampctl", Repo: "AAA"},
+				versioning.DependencyMeta{Site: "https://github.com", User: "sampctl", Repo: "BBB"},
+			}, false},
+		{"tag", &types.Package{
+			Local: util.FullPath("./tests/deps-tag"),
+			Dependencies: []versioning.DependencyString{
+				"sampctl/samp-stdlib:0.3z-R4",
+			}},
+			[]versioning.DependencyMeta{
+				versioning.DependencyMeta{Site: "https://github.com", User: "sampctl", Repo: "samp-stdlib", Tag: "0.3z-R4"},
+				versioning.DependencyMeta{Site: "https://github.com", User: "sampctl", Repo: "pawn-stdlib"},
 			}, false},
 	}
 	for _, tt := range tests {
