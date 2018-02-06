@@ -80,13 +80,13 @@ sampctl provides a simple and intuitive way to _declare_ what includes your proj
 
 If you release scripts, you know it's awkward to test even simple code. You need to set up a server, compile the include into a gamemode, configure the server and run it.
 
-Forget all that. Just make a `pawn.json` in your project directory with `sampctl package init` and use `sampctl package install` the includes you need:
+Forget all that. Just make a [`pawn.json`/`pawn.yaml`](https://github.com/Southclaws/sampctl/wiki/Package-Definition-Reference) in your project directory with `sampctl package init` and use `sampctl package install` to get the includes you need:
 
 ```json
 {
     "entry": "test.pwn",
     "output": "test.amx",
-    "dependencies": ["Southclaws/samp-stdlib", "Southclaws/formatex"]
+    "dependencies": ["sampctl/samp-stdlib", "Southclaws/formatex"]
 }
 ```
 
@@ -103,7 +103,7 @@ main() {
 }
 ```
 
-And run it!
+Build with `sampctl package build` and run it with `sampctl package run`!
 
 ```bash
 sampctl package run
@@ -162,7 +162,7 @@ What also happens here is `maddinat0r/sscanf` tells sampctl to automatically get
 ---
 # `sampctl`
 
-1.6.3 - Southclaws <southclaws@gmail.com>
+1.6.4 - Southclaws <southclaws@gmail.com>
 
 Compiles server configuration JSON to server.cfg format. Executes the server and monitors it for crashes, restarting if necessary. Provides a way to quickly download server binaries of a specified version. Provides dependency management and package build tools for library maintainers and gamemode writers alike.
 
