@@ -11,6 +11,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/plumbing/storer"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/types"
@@ -33,7 +34,7 @@ type VersionedTag struct {
 type VersionedTags []VersionedTag
 
 // EnsureDependencies traverses package dependencies and ensures they are up to date
-func EnsureDependencies(pkg *types.Package) (err error) {
+func EnsureDependencies(pkg *types.Package, auth transport.AuthMethod) (err error) {
 	if pkg.Local == "" {
 		return errors.New("package does not represent a locally stored package")
 	}
@@ -51,7 +52,7 @@ func EnsureDependencies(pkg *types.Package) (err error) {
 	recurse = func(meta versioning.DependencyMeta) {
 		pkgPath := filepath.Join(pkg.Vendor, meta.Repo)
 
-		err = EnsurePackage(pkgPath, meta)
+		err = EnsurePackage(pkgPath, meta, auth)
 		if err != nil {
 			print.Warn(errors.Wrapf(err, "failed to ensure package %s", meta))
 			return
@@ -105,7 +106,7 @@ func checkConflicts(dependencies []versioning.DependencyMeta) (result []versioni
 // EnsurePackage will make sure a vendor directory contains the specified package.
 // If the package is not present, it will clone it at the correct version tag, sha1 or HEAD
 // If the package is present, it will ensure the directory contains the correct version
-func EnsurePackage(pkgPath string, meta versioning.DependencyMeta) (err error) {
+func EnsurePackage(pkgPath string, meta versioning.DependencyMeta, auth transport.AuthMethod) (err error) {
 	var (
 		needToClone  = false // do we need to clone a new repo?
 		needToUpdate = true  // do we need to do anything after once the repo is on-disk?
@@ -133,8 +134,10 @@ func EnsurePackage(pkgPath string, meta versioning.DependencyMeta) (err error) {
 
 	if needToClone {
 		print.Verb(meta, "cloning dependency package")
+
 		cloneOpts := &git.CloneOptions{
-			URL: meta.URL(),
+			URL:  meta.URL(),
+			Auth: auth,
 		}
 
 		if meta.Branch != "" {
@@ -151,7 +154,7 @@ func EnsurePackage(pkgPath string, meta versioning.DependencyMeta) (err error) {
 
 	if needToUpdate {
 		print.Verb(meta, "updating dependency package")
-		err = updateRepoState(repo, meta)
+		err = updateRepoState(repo, meta, auth)
 		if err != nil {
 			return errors.Wrap(err, "failed to update repo state")
 		}
@@ -167,12 +170,14 @@ func EnsurePackage(pkgPath string, meta versioning.DependencyMeta) (err error) {
 }
 
 // updateRepoState takes a repo that exists on disk and ensures it matches tag, branch or commit constraints
-func updateRepoState(repo *git.Repository, meta versioning.DependencyMeta) (err error) {
+func updateRepoState(repo *git.Repository, meta versioning.DependencyMeta, auth transport.AuthMethod) (err error) {
 	var wt *git.Worktree
 	wt, err = repo.Worktree()
 	if err != nil {
 		return errors.Wrap(err, "failed to get repo worktree")
 	}
+
+	print.Verb(meta, "updating repository state with", auth, "authentication method")
 
 	var (
 		ref  *plumbing.Reference
@@ -190,6 +195,7 @@ func updateRepoState(repo *git.Repository, meta versioning.DependencyMeta) (err 
 		print.Verb(meta, "package has branch constraint:", meta.Branch)
 
 		err = wt.Pull(&git.PullOptions{
+			Auth:          auth,
 			Depth:         1000, // get full history
 			ReferenceName: plumbing.ReferenceName("refs/heads/" + meta.Branch),
 		})
@@ -204,6 +210,7 @@ func updateRepoState(repo *git.Repository, meta versioning.DependencyMeta) (err 
 		hash = ref.Hash()
 	} else if meta.Commit != "" {
 		err = wt.Pull(&git.PullOptions{
+			Auth:  auth,
 			Depth: 1000, // get full history
 		})
 		if err != nil && err != git.NoErrAlreadyUpToDate {
@@ -229,7 +236,9 @@ func updateRepoState(repo *git.Repository, meta versioning.DependencyMeta) (err 
 	} else {
 		print.Verb(meta, "package does not have version constraint pulling latest")
 
-		err = wt.Pull(&git.PullOptions{})
+		err = wt.Pull(&git.PullOptions{
+			Auth: auth,
+		})
 		if err != nil {
 			if err == git.NoErrAlreadyUpToDate {
 				err = nil

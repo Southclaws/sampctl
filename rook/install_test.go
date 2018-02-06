@@ -50,7 +50,7 @@ func TestPackage_Install(t *testing.T) {
 				t.Error(err)
 			}
 
-			err = Install(pkg, tt.args.targets, tt.args.development)
+			err = Install(pkg, tt.args.targets, tt.args.development, nil)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -100,7 +100,7 @@ func TestGet(t *testing.T) {
 				}
 			}
 
-			err := Get(tt.args.dep, tt.args.dir)
+			err := Get(tt.args.dep, tt.args.dir, nil)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

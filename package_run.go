@@ -106,9 +106,9 @@ func packageRun(c *cli.Context) error {
 	}
 
 	if watch {
-		err = rook.RunWatch(context.Background(), gh, pkg, cfg, cacheDir, build, forceBuild, forceEnsure, noCache, buildFile)
+		err = rook.RunWatch(context.Background(), gh, gitAuth, pkg, cfg, cacheDir, build, forceBuild, forceEnsure, noCache, buildFile)
 	} else {
-		err = rook.Run(context.Background(), gh, pkg, cfg, cacheDir, build, forceBuild, forceEnsure, noCache, buildFile)
+		err = rook.Run(context.Background(), gh, gitAuth, pkg, cfg, cacheDir, build, forceBuild, forceEnsure, noCache, buildFile)
 	}
 	if err != nil {
 		return cli.NewExitError(err.Error(), 1)

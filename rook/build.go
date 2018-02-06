@@ -16,6 +16,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
 	"github.com/Southclaws/sampctl/compiler"
 	"github.com/Southclaws/sampctl/print"
@@ -24,7 +25,7 @@ import (
 )
 
 // Build compiles a package, dependencies are ensured and a list of paths are sent to the compiler.
-func Build(ctx context.Context, gh *github.Client, pkg *types.Package, build, cacheDir, platform string, ensure, dry bool, buildFile string) (problems types.BuildProblems, result types.BuildResult, err error) {
+func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pkg *types.Package, build, cacheDir, platform string, ensure, dry bool, buildFile string) (problems types.BuildProblems, result types.BuildResult, err error) {
 	config := GetBuildConfig(*pkg, build)
 	if config == nil {
 		err = errors.Errorf("no build config named '%s'", build)
@@ -36,7 +37,7 @@ func Build(ctx context.Context, gh *github.Client, pkg *types.Package, build, ca
 	config.Output = filepath.Join(pkg.Local, pkg.Output)
 
 	if ensure {
-		err = EnsureDependencies(pkg)
+		err = EnsureDependencies(pkg, auth)
 		if err != nil {
 			err = errors.Wrap(err, "failed to ensure dependencies before build")
 			return
@@ -100,7 +101,7 @@ func Build(ctx context.Context, gh *github.Client, pkg *types.Package, build, ca
 }
 
 // BuildWatch runs the Build code on file changes
-func BuildWatch(ctx context.Context, gh *github.Client, pkg *types.Package, build, cacheDir, platform string, ensure bool, buildFile string, trigger chan types.BuildProblems) (err error) {
+func BuildWatch(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pkg *types.Package, build, cacheDir, platform string, ensure bool, buildFile string, trigger chan types.BuildProblems) (err error) {
 	config := GetBuildConfig(*pkg, build)
 	if config == nil {
 		err = errors.Errorf("no build config named '%s'", build)
@@ -112,7 +113,7 @@ func BuildWatch(ctx context.Context, gh *github.Client, pkg *types.Package, buil
 	config.Output = filepath.Join(pkg.Local, pkg.Output)
 
 	if ensure {
-		err = EnsureDependencies(pkg)
+		err = EnsureDependencies(pkg, auth)
 		if err != nil {
 			err = errors.Wrap(err, "failed to ensure dependencies before build")
 			return

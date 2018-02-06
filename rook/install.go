@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/types"
@@ -14,7 +15,7 @@ import (
 )
 
 // Install adds a new dependency to an existing local parent package
-func Install(pkg types.Package, targets []versioning.DependencyString, development bool) (err error) {
+func Install(pkg types.Package, targets []versioning.DependencyString, development bool, auth transport.AuthMethod) (err error) {
 	// todo: version checks
 
 	exists := false
@@ -38,7 +39,7 @@ func Install(pkg types.Package, targets []versioning.DependencyString, developme
 		}
 	}
 
-	err = EnsureDependencies(&pkg)
+	err = EnsureDependencies(&pkg, auth)
 	if err != nil {
 		return
 	}
@@ -49,7 +50,7 @@ func Install(pkg types.Package, targets []versioning.DependencyString, developme
 }
 
 // Get simply performs a git clone of the given package to the specified directory then ensures it
-func Get(meta versioning.DependencyMeta, dir string) (err error) {
+func Get(meta versioning.DependencyMeta, dir string, auth transport.AuthMethod) (err error) {
 	err = os.MkdirAll(dir, 0755)
 	if err != nil {
 		return errors.Wrap(err, "failed to create directory for clone")
@@ -74,7 +75,7 @@ func Get(meta versioning.DependencyMeta, dir string) (err error) {
 		return errors.Wrap(err, "failed to read cloned repository as Pawn package")
 	}
 
-	err = EnsureDependencies(&pkg)
+	err = EnsureDependencies(&pkg, auth)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure dependencies for cloned package")
 	}

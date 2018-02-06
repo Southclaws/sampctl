@@ -31,7 +31,7 @@ func packageGet(c *cli.Context) error {
 		dir = util.FullPath(".")
 	}
 
-	err = rook.Get(dep, dir)
+	err = rook.Get(dep, dir, gitAuth)
 	if err != nil {
 		return err
 	}

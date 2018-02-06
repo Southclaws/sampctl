@@ -29,7 +29,7 @@ func packageEnsure(c *cli.Context) error {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	err = rook.EnsureDependencies(&pkg)
+	err = rook.EnsureDependencies(&pkg, gitAuth)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure")
 	}

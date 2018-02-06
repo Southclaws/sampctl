@@ -73,7 +73,7 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 		os.MkdirAll(tt.pkg.Local, 0755) //nolint
 
 		t.Run(tt.name, func(t *testing.T) {
-			err := EnsureDependencies(tt.pkg)
+			err := EnsureDependencies(tt.pkg, nil)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

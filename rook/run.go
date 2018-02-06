@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/runtime"
@@ -21,8 +22,8 @@ import (
 
 // Run will create a temporary server runtime and run the package output AMX as a gamemode using the
 // runtime configuration in the package info.
-func Run(ctx context.Context, gh *github.Client, pkg types.Package, cfg types.Runtime, cacheDir, build string, forceBuild, forceEnsure, noCache bool, buildFile string) (err error) {
-	config, err := runPrepare(ctx, gh, pkg, cfg, cacheDir, build, forceBuild, forceEnsure, noCache, buildFile)
+func Run(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pkg types.Package, cfg types.Runtime, cacheDir, build string, forceBuild, forceEnsure, noCache bool, buildFile string) (err error) {
+	config, err := runPrepare(ctx, gh, auth, pkg, cfg, cacheDir, build, forceBuild, forceEnsure, noCache, buildFile)
 	if err != nil {
 		return
 	}
@@ -33,8 +34,8 @@ func Run(ctx context.Context, gh *github.Client, pkg types.Package, cfg types.Ru
 }
 
 // RunWatch runs the Run code on file changes
-func RunWatch(ctx1 context.Context, gh *github.Client, pkg types.Package, cfg types.Runtime, cacheDir, build string, forceBuild, forceEnsure, noCache bool, buildFile string) (err error) {
-	config, err := runPrepare(ctx1, gh, pkg, cfg, cacheDir, build, forceBuild, forceEnsure, noCache, buildFile)
+func RunWatch(ctx1 context.Context, gh *github.Client, auth transport.AuthMethod, pkg types.Package, cfg types.Runtime, cacheDir, build string, forceBuild, forceEnsure, noCache bool, buildFile string) (err error) {
+	config, err := runPrepare(ctx1, gh, auth, pkg, cfg, cacheDir, build, forceBuild, forceEnsure, noCache, buildFile)
 	if err != nil {
 		err = errors.Wrap(err, "failed to prepare")
 		return
@@ -56,7 +57,7 @@ func RunWatch(ctx1 context.Context, gh *github.Client, pkg types.Package, cfg ty
 	running.Store(false)
 
 	go func() {
-		errorCh <- BuildWatch(ctx, gh, &pkg, build, cacheDir, cfg.Platform, forceEnsure, buildFile, trigger)
+		errorCh <- BuildWatch(ctx, gh, auth, &pkg, build, cacheDir, cfg.Platform, forceEnsure, buildFile, trigger)
 	}()
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
@@ -112,14 +113,14 @@ loop:
 	return
 }
 
-func runPrepare(ctx context.Context, gh *github.Client, pkg types.Package, cfg types.Runtime, cacheDir, build string, forceBuild, forceEnsure, noCache bool, buildFile string) (config *types.Runtime, err error) {
+func runPrepare(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pkg types.Package, cfg types.Runtime, cacheDir, build string, forceBuild, forceEnsure, noCache bool, buildFile string) (config *types.Runtime, err error) {
 	var (
 		filename = filepath.Join(pkg.Local, pkg.Output)
 		problems types.BuildProblems
 		canRun   = true
 	)
 	if !util.Exists(filename) || forceBuild {
-		problems, _, err = Build(ctx, gh, &pkg, build, cacheDir, cfg.Platform, forceEnsure, false, buildFile)
+		problems, _, err = Build(ctx, gh, auth, &pkg, build, cacheDir, cfg.Platform, forceEnsure, false, buildFile)
 		if err != nil {
 			return
 		}

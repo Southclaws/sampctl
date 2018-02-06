@@ -13,6 +13,8 @@ import (
 type Config struct {
 	DefaultUser string `json:"default_user"`
 	GitHubToken string `json:"github_token,omitempty"`
+	GitUsername string `json:"git_username,omitempty"`
+	GitPassword string `json:"git_password,omitempty"`
 }
 
 // LoadOrCreateConfig reads a config file from the given cache directory
