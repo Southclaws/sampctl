@@ -13,10 +13,10 @@ func TestDependencyMeta_String(t *testing.T) {
 		want string
 	}{
 		{"u/r", DependencyMeta{User: "user", Repo: "repo"}, "user/repo"},
-		{"s/u/r", DependencyMeta{Site: "github.com", User: "user", Repo: "repo"}, "https://github.com/user/repo"},
-		{"s/u/r:t", DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Tag: "1.2.3"}, "https://github.com/user/repo:1.2.3"},
-		{"s/u/r@b", DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Branch: "dev"}, "https://github.com/user/repo@dev"},
-		{"s/u/r#c", DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Commit: "123abc"}, "https://github.com/user/repo#123abc"},
+		{"s/u/r", DependencyMeta{Site: "github.com", User: "user", Repo: "repo"}, "github.com/user/repo"},
+		{"s/u/r:t", DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Tag: "1.2.3"}, "github.com/user/repo:1.2.3"},
+		{"s/u/r@b", DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Branch: "dev"}, "github.com/user/repo@dev"},
+		{"s/u/r#c", DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Commit: "123abc"}, "github.com/user/repo#123abc"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
