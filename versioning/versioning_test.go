@@ -12,6 +12,7 @@ func TestDependencyMeta_String(t *testing.T) {
 		meta DependencyMeta
 		want string
 	}{
+		{"u/r", DependencyMeta{User: "user", Repo: "repo"}, "user/repo"},
 		{"s/u/r", DependencyMeta{Site: "https://github.com", User: "user", Repo: "repo"}, "https://github.com/user/repo"},
 		{"s/u/r:t", DependencyMeta{Site: "https://github.com", User: "user", Repo: "repo", Tag: "1.2.3"}, "https://github.com/user/repo:1.2.3"},
 		{"s/u/r@b", DependencyMeta{Site: "https://github.com", User: "user", Repo: "repo", Branch: "dev"}, "https://github.com/user/repo@dev"},

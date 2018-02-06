@@ -23,14 +23,19 @@ type DependencyMeta struct {
 }
 
 func (dm DependencyMeta) String() string {
-	if dm.Tag != "" {
-		return fmt.Sprintf("%s/%s/%s:%s", dm.Site, dm.User, dm.Repo, dm.Tag)
-	} else if dm.Branch != "" {
-		return fmt.Sprintf("%s/%s/%s@%s", dm.Site, dm.User, dm.Repo, dm.Branch)
-	} else if dm.Commit != "" {
-		return fmt.Sprintf("%s/%s/%s#%s", dm.Site, dm.User, dm.Repo, dm.Commit)
+	var site string
+	if dm.Site != "" {
+		site = dm.Site + "/"
 	}
-	return fmt.Sprintf("%s/%s/%s", dm.Site, dm.User, dm.Repo)
+
+	if dm.Tag != "" {
+		return fmt.Sprintf("%s%s/%s:%s", site, dm.User, dm.Repo, dm.Tag)
+	} else if dm.Branch != "" {
+		return fmt.Sprintf("%s%s/%s@%s", site, dm.User, dm.Repo, dm.Branch)
+	} else if dm.Commit != "" {
+		return fmt.Sprintf("%s%s/%s#%s", site, dm.User, dm.Repo, dm.Commit)
+	}
+	return fmt.Sprintf("%s%s/%s", site, dm.User, dm.Repo)
 }
 
 var dependencyPattern = regexp.MustCompile(`^((?:[a-z]+://)[a-zA-Z0-9][a-zA-Z0-9-_]{0,61}[a-zA-Z0-9]{0,1}\.(?:[a-zA-Z]{1,6}|[a-zA-Z0-9-]{1,30}\.[a-zA-Z]{2,3})/)?([a-zA-Z0-9-]*)\/([a-zA-Z0-9-._]*)(?:\/)?([a-zA-Z0-9-_$\[\]{}().,\/]*)?((?:@)|(?:\:)|(?:#))?(.+)?$`)
