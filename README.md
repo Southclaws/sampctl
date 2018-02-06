@@ -160,9 +160,10 @@ What also happens here is `maddinat0r/sscanf` tells sampctl to automatically get
 [See documentation for more info.](https://github.com/Southclaws/sampctl/wiki/Runtime-Configuration-Reference)
 
 ---
+ERROR: Failed to set up SSH: error creating SSH agent: "SSH agent requested but Pageant not running"
 # `sampctl`
 
-1.6.5 - Southclaws <southclaws@gmail.com>
+1.6.6 - Southclaws <southclaws@gmail.com>
 
 Compiles server configuration JSON to server.cfg format. Executes the server and monitors it for crashes, restarting if necessary. Provides a way to quickly download server binaries of a specified version. Provides dependency management and package build tools for library maintainers and gamemode writers alike.
 
@@ -294,7 +295,7 @@ Builds a package defined by a `pawn.json`/`pawn.yaml` file.
 
 - `--verbose`: output all detailed information - useful for debugging
 - `--dir value`: working directory for the project - by default, uses the current directory (default: ".")
-- `--build --forceBuild`: build configuration to use if --forceBuild is set
+- `--build value`: build configuration to use
 - `--forceEnsure`: forces dependency ensure before build
 - `--dryRun`: does not run the build but outputs the command necessary to do so
 - `--watch`: keeps sampctl running and triggers builds whenever source files change
