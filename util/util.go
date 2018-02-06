@@ -67,12 +67,20 @@ func copyFileContents(src, dst string) (err error) {
 }
 
 // FullPath wraps filepath.Abs and panics on error
-func FullPath(dir string) (path string) {
+func FullPath(dir string) string {
 	path, err := filepath.Abs(dir)
 	if err != nil {
 		panic(err)
 	}
+	return path
+}
 
+// RelPath makes a path relative to the cwd
+func RelPath(dir string) string {
+	path, err := filepath.Rel(FullPath(filepath.Dir(os.Args[0])), dir)
+	if err != nil {
+		panic(err)
+	}
 	return path
 }
 
