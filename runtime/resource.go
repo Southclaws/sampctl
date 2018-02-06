@@ -114,11 +114,11 @@ var AllPackages = Packages{
 			},
 		},
 		Package{
-			"0.3z-R1",
-			"samp03zsvr_R1.tar.gz",
-			"samp03z_svr_R1_win32.zip",
-			"60dace014f6f812e77377e24dde540af",
-			"df2aa201e74a92003456c509576db8bf",
+			"0.3z-R1-2",
+			"samp03zsvr_R1-2.tar.gz",
+			"samp03z_svr_R1-2_win32.zip",
+			"a84f1247d6bbf1e3ecaa634ecc5e5d1d",
+			"723f0a00d4f4f3dfb1e1b5fd9d36133c",
 			map[string]string{
 				"samp03/samp03svr": "samp03svr",
 				"samp03/announce":  "announce",
@@ -131,11 +131,11 @@ var AllPackages = Packages{
 			},
 		},
 		Package{
-			"0.3z-R1-2",
-			"samp03zsvr_R1-2.tar.gz",
-			"samp03z_svr_R1-2_win32.zip",
-			"a84f1247d6bbf1e3ecaa634ecc5e5d1d",
-			"723f0a00d4f4f3dfb1e1b5fd9d36133c",
+			"0.3z-R1",
+			"samp03zsvr_R1.tar.gz",
+			"samp03z_svr_R1_win32.zip",
+			"60dace014f6f812e77377e24dde540af",
+			"df2aa201e74a92003456c509576db8bf",
 			map[string]string{
 				"samp03/samp03svr": "samp03svr",
 				"samp03/announce":  "announce",
@@ -159,8 +159,8 @@ var AllPackages = Packages{
 		"0.3z-R4":      "0.3z-R4",
 		"0.3z-R3":      "0.3z-R3",
 		"0.3z-R2-2":    "0.3z-R2-2",
-		"0.3z-R1":      "0.3z-R1",
 		"0.3z-R1-2":    "0.3z-R1-2",
+		"0.3z-R1":      "0.3z-R1",
 	},
 }
 
