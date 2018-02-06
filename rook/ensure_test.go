@@ -59,8 +59,17 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 				versioning.DependencyMeta{Site: "https://github.com", User: "Y-Less", Repo: "indirection"},
 				versioning.DependencyMeta{Site: "https://github.com", User: "Zeex", Repo: "amx_assembly"},
 			}, false},
+		{"commit", &types.Package{
+			Local: util.FullPath("./tests/deps-commit"),
+			Dependencies: []versioning.DependencyString{
+				"sampctl/pawn-stdlib#7a13c662e619a478b0e8d1d6d113e3aa41cb6d37",
+			}},
+			[]versioning.DependencyMeta{
+				versioning.DependencyMeta{Site: "https://github.com", User: "sampctl", Repo: "pawn-stdlib", Commit: "7a13c662e619a478b0e8d1d6d113e3aa41cb6d37"},
+			}, false},
 	}
 	for _, tt := range tests {
+		os.RemoveAll(tt.pkg.Local)
 		os.MkdirAll(tt.pkg.Local, 0755) //nolint
 
 		t.Run(tt.name, func(t *testing.T) {

@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/plumbing/storer"
 
 	"github.com/Southclaws/sampctl/print"
@@ -173,14 +174,18 @@ func updateRepoState(repo *git.Repository, meta versioning.DependencyMeta) (err 
 		return errors.Wrap(err, "failed to get repo worktree")
 	}
 
-	var ref *plumbing.Reference
+	var (
+		ref  *plumbing.Reference
+		hash plumbing.Hash
+	)
 	if meta.Tag != "" {
 		print.Verb(meta, "package has tag constraint:", meta.Tag)
 
 		ref, err = RefFromTag(repo, meta)
 		if err != nil {
-			return
+			return errors.Wrap(err, "failed to get ref from tag")
 		}
+		hash = ref.Hash()
 	} else if meta.Branch != "" {
 		print.Verb(meta, "package has branch constraint:", meta.Branch)
 
@@ -188,22 +193,33 @@ func updateRepoState(repo *git.Repository, meta versioning.DependencyMeta) (err 
 			ReferenceName: plumbing.ReferenceName("refs/heads/" + meta.Branch),
 		})
 		if err != nil && err != git.NoErrAlreadyUpToDate {
-			return errors.Wrap(err, "failed to pull branch")
+			return errors.Wrap(err, "failed to pull repo branch")
 		}
 
 		ref, err = RefFromBranch(repo, meta)
 		if err != nil {
-			return
+			return errors.Wrap(err, "failed to get ref from branch")
 		}
+		hash = ref.Hash()
 	} else if meta.Commit != "" {
-		// todo
+		err = wt.Pull(&git.PullOptions{
+			Depth: 1000, // get full history
+		})
+		if err != nil && err != git.NoErrAlreadyUpToDate {
+			return errors.Wrap(err, "failed to pull repo")
+		}
+
+		hash, err = RefFromCommit(repo, meta)
+		if err != nil {
+			return errors.Wrap(err, "failed to get ref from commit")
+		}
 	}
 
 	if ref != nil {
 		print.Verb(meta, "checking out ref determined from constraint:", ref)
 
 		err = wt.Checkout(&git.CheckoutOptions{
-			Hash:  ref.Hash(),
+			Hash:  hash,
 			Force: true,
 		})
 		if err != nil {
@@ -292,7 +308,7 @@ func RefFromBranch(repo *git.Repository, meta versioning.DependencyMeta) (ref *p
 	branches.ForEach(func(pr *plumbing.Reference) error {
 		branch := pr.Name().Short()
 
-		print.Verb(meta, "checking branch", branch, "against constraint", meta.Branch)
+		print.Verb(meta, "checking branch", branch)
 		if branch == meta.Branch {
 			ref = pr
 			return storer.ErrStop
@@ -303,6 +319,32 @@ func RefFromBranch(repo *git.Repository, meta versioning.DependencyMeta) (ref *p
 	})
 	if ref == nil {
 		err = errors.Errorf("no branch named '%s' found in %v", meta.Branch, branchList)
+	}
+	return
+}
+
+// RefFromCommit returns a ref from a commit hash
+func RefFromCommit(repo *git.Repository, meta versioning.DependencyMeta) (result plumbing.Hash, err error) {
+	commits, err := repo.CommitObjects()
+	if err != nil {
+		err = errors.Wrap(err, "failed to get repo commits")
+		return
+	}
+	defer commits.Close()
+
+	commits.ForEach(func(commit *object.Commit) error {
+		hash := commit.Hash.String()
+
+		print.Verb(meta, "checking commit", hash)
+		if hash == meta.Commit {
+			result = commit.Hash
+			return storer.ErrStop
+		}
+
+		return nil
+	})
+	if result.IsZero() {
+		err = errors.Errorf("no commit named '%s' found", meta.Commit)
 	}
 	return
 }
