@@ -18,3 +18,6 @@ sampctl
 
 # the one thing I hate about mac...
 .DS_Store
+
+# .env files for environment variables
+*.env

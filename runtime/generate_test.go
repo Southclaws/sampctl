@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"io/ioutil"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -163,108 +162,6 @@ output 1
 			gotCfg := string(raw)
 
 			assert.Equal(t, tt.wantCfg, gotCfg)
-		})
-	}
-}
-
-func TestConfig_GenerateJSON(t *testing.T) {
-	tests := []struct {
-		name    string
-		config  types.Runtime
-		want    []byte
-		wantErr bool
-	}{
-		{
-			"minimal",
-			types.Runtime{
-				WorkingDir: "./tests/generate-json",
-				Gamemodes: []string{
-					"rivershell",
-					"baserace",
-				},
-				RCONPassword: &[]string{"test"}[0],
-				Port:         &[]int{8080}[0],
-				Hostname:     &[]string{"Test"}[0],
-				MaxPlayers:   &[]int{32}[0],
-				Language:     &[]string{"English"}[0],
-				Announce:     &[]bool{true}[0],
-				RCON:         &[]bool{true}[0],
-			},
-			[]byte(`{
-	"gamemodes": [
-		"rivershell",
-		"baserace"
-	],
-	"rcon_password": "test",
-	"port": 8080,
-	"hostname": "Test",
-	"maxplayers": 32,
-	"language": "English",
-	"announce": true,
-	"rcon": true
-}`),
-			false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := GenerateJSON(tt.config)
-			assert.NoError(t, err)
-
-			contents, err := ioutil.ReadFile(filepath.Join(tt.config.WorkingDir, "samp.json"))
-			assert.NoError(t, err)
-
-			assert.Equal(t, string(tt.want), string(contents))
-		})
-	}
-}
-
-func TestConfig_GenerateYAML(t *testing.T) {
-	tests := []struct {
-		name    string
-		config  types.Runtime
-		want    []byte
-		wantErr bool
-	}{
-		{
-			"minimal",
-			types.Runtime{
-				WorkingDir: "./tests/generate-yaml",
-				Gamemodes: []string{
-					"rivershell",
-					"baserace",
-				},
-				RCONPassword: &[]string{"test"}[0],
-				Port:         &[]int{8080}[0],
-				Hostname:     &[]string{"Test"}[0],
-				MaxPlayers:   &[]int{32}[0],
-				Language:     &[]string{"English"}[0],
-				Announce:     &[]bool{true}[0],
-				RCON:         &[]bool{true}[0],
-			},
-			[]byte(`announce: true
-gamemodes:
-- rivershell
-- baserace
-hostname: Test
-language: English
-maxplayers: 32
-port: 8080
-rcon: true
-rcon_password: test
-`),
-			false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := GenerateYAML(tt.config)
-			assert.NoError(t, err)
-
-			contents, err := ioutil.ReadFile(filepath.Join(tt.config.WorkingDir, "samp.yaml"))
-			assert.NoError(t, err)
-
-			assert.Equal(t, string(tt.want), string(contents))
 		})
 	}
 }

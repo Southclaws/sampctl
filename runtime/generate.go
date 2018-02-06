@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,72 +8,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/types"
-	"github.com/Southclaws/sampctl/util"
 )
-
-// GenerateJSON simply marshals the data to a samp.json file in dir
-func GenerateJSON(cfg types.Runtime) (err error) {
-	path := filepath.Join(cfg.WorkingDir, "samp.json")
-
-	if util.Exists(path) {
-		if err := os.Remove(path); err != nil {
-			panic(err)
-		}
-	}
-
-	fh, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0755)
-	if err != nil {
-		return
-	}
-	defer func() {
-		err := fh.Close()
-		if err != nil {
-			panic(err)
-		}
-	}()
-
-	contents, err := json.MarshalIndent(cfg, "", "\t")
-	if err != nil {
-		return
-	}
-
-	_, err = fh.Write(contents)
-	return
-}
-
-// GenerateYAML simply marshals the data to a samp.yaml file in dir
-func GenerateYAML(cfg types.Runtime) (err error) {
-	path := filepath.Join(cfg.WorkingDir, "samp.yaml")
-
-	if util.Exists(path) {
-		if err := os.Remove(path); err != nil {
-			panic(err)
-		}
-	}
-
-	fh, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0755)
-	if err != nil {
-		return
-	}
-	defer func() {
-		err := fh.Close()
-		if err != nil {
-			panic(err)
-		}
-	}()
-
-	contents, err := yaml.Marshal(cfg)
-	if err != nil {
-		return
-	}
-
-	_, err = fh.Write(contents)
-	return
-}
 
 // GenerateServerCfg creates a settings file in the SA:MP "server.cfg" format at the specified location
 func GenerateServerCfg(cfg *types.Runtime) (err error) {

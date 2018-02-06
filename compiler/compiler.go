@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/print"
@@ -42,10 +43,10 @@ var (
 )
 
 // CompileSource compiles a given input script to the specified output path using compiler version
-func CompileSource(ctx context.Context, execDir, cacheDir, platform string, config types.BuildConfig) (problems types.BuildProblems, result types.BuildResult, err error) {
+func CompileSource(ctx context.Context, gh *github.Client, execDir, cacheDir, platform string, config types.BuildConfig) (problems types.BuildProblems, result types.BuildResult, err error) {
 	print.Info("Compiling", config.Input, "with compiler version", config.Version)
 
-	cmd, err := PrepareCommand(ctx, execDir, cacheDir, platform, config)
+	cmd, err := PrepareCommand(ctx, gh, execDir, cacheDir, platform, config)
 	if err != nil {
 		return
 	}
@@ -54,7 +55,7 @@ func CompileSource(ctx context.Context, execDir, cacheDir, platform string, conf
 }
 
 // PrepareCommand prepares a build command for compiling the given input script
-func PrepareCommand(ctx context.Context, execDir, cacheDir, platform string, config types.BuildConfig) (cmd *exec.Cmd, err error) {
+func PrepareCommand(ctx context.Context, gh *github.Client, execDir, cacheDir, platform string, config types.BuildConfig) (cmd *exec.Cmd, err error) {
 	var (
 		input  string
 		output string
@@ -76,7 +77,7 @@ func PrepareCommand(ctx context.Context, execDir, cacheDir, platform string, con
 	}
 
 	runtimeDir := filepath.Join(cacheDir, "pawn", string(config.Version))
-	pkg, err := GetCompilerPackage(config.Version, runtimeDir, platform, cacheDir)
+	pkg, err := GetCompilerPackage(ctx, gh, config.Version, runtimeDir, platform, cacheDir)
 	if err != nil {
 		err = errors.Wrap(err, "failed to get compiler package")
 		return

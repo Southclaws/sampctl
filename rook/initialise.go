@@ -15,6 +15,7 @@ import (
 
 	"github.com/fatih/color"
 	"gopkg.in/AlecAivazis/survey.v1"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/types"
@@ -23,7 +24,7 @@ import (
 )
 
 // Init prompts the user to initialise a package
-func Init(dir string, config *types.Config) (err error) {
+func Init(dir string, config *types.Config, auth transport.AuthMethod) (err error) {
 	var (
 		pwnFiles []string
 		incFiles []string
@@ -276,7 +277,7 @@ func Init(dir string, config *types.Config) (err error) {
 
 	wg.Wait()
 
-	err = EnsureDependencies(&pkg)
+	err = EnsureDependencies(&pkg, auth)
 
 	return
 }

@@ -4,12 +4,12 @@ LDFLAGS := -ldflags "-X main.version=$(VERSION)"
 .PHONY: version
 
 test:
-	go test -race -v ./compiler
-	go test -race -v ./download
-	go test -race -v ./rook
-	go test -race -v ./runtime
-	go test -race -v ./util
 	go test -race -v ./versioning
+	go test -race -v ./util
+	go test -race -v ./download
+	go test -race -v ./compiler
+	go test -race -v ./runtime
+	go test -race -v ./rook
 	echo SUCCESS!
 
 fast:

@@ -66,7 +66,7 @@ func packageTemplateMake(c *cli.Context) (err error) {
 		return errors.Wrap(err, "failed to write package template definition file")
 	}
 
-	err = rook.EnsureDependencies(&pkg)
+	err = rook.EnsureDependencies(&pkg, gitAuth)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure dependencies of template package")
 	}

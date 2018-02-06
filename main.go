@@ -9,6 +9,9 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/google/go-github/github"
+	"golang.org/x/oauth2"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
@@ -16,9 +19,12 @@ import (
 	"github.com/Southclaws/sampctl/types"
 )
 
-var version = "master"
-
-var config *types.Config
+var (
+	version = "master"
+	config  *types.Config        // global config
+	gh      *github.Client       // a github client to use for API requests
+	gitAuth transport.AuthMethod // for private dependencies
+)
 
 func main() {
 	app := cli.NewApp()
@@ -49,6 +55,22 @@ func main() {
 	config, err = types.LoadOrCreateConfig(cacheDir)
 	if err != nil {
 		print.Erro("Failed to load or create sampctl config in", cacheDir, "-", err)
+		return
+	}
+
+	if config.GitHubToken == "" {
+		gh = github.NewClient(nil)
+	} else {
+		gh = github.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(&oauth2.Token{AccessToken: config.GitHubToken})))
+	}
+
+	// if config.GitUsername != "" && config.GitPassword != "" {
+	// 	gitAuth = http.NewBasicAuth(config.GitUsername, config.GitPassword)
+	// }
+
+	gitAuth, err = ssh.DefaultAuthBuilder("git")
+	if err != nil {
+		print.Erro("Failed to set up SSH:", err)
 		return
 	}
 
@@ -224,10 +246,9 @@ func main() {
 
 // CheckForUpdates uses the GitHub API to check if a new release is available.
 func CheckForUpdates(thisVersion string) {
-	client := github.NewClient(nil)
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*10)
 
-	release, _, err := client.Repositories.GetLatestRelease(ctx, "Southclaws", "sampctl")
+	release, _, err := gh.Repositories.GetLatestRelease(ctx, "Southclaws", "sampctl")
 	if err != nil {
 		print.Erro("Failed to check for latest sampctl release:", err)
 	} else {

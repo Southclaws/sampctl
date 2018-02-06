@@ -20,7 +20,7 @@ import (
 )
 
 // EnsurePlugins validates and downloads plugin binary files
-func EnsurePlugins(cfg *types.Runtime, cacheDir string, noCache bool) (err error) {
+func EnsurePlugins(ctx context.Context, gh *github.Client, cfg *types.Runtime, cacheDir string, noCache bool) (err error) {
 	pluginsDir := util.FullPath(filepath.Join(cfg.WorkingDir, "plugins"))
 
 	err = os.MkdirAll(pluginsDir, 0755)
@@ -33,30 +33,19 @@ func EnsurePlugins(cfg *types.Runtime, cacheDir string, noCache bool) (err error
 	var (
 		newPlugins = []types.Plugin{}
 		files      = []types.Plugin{}
-		meta       versioning.DependencyMeta
 	)
 
-	for _, plugin := range cfg.Plugins {
-		meta, err = plugin.AsDep()
+	for _, plugin := range cfg.PluginDeps {
+		print.Verb("plugin", plugin, "is a package dependency")
+		files, err = EnsureVersionedPlugin(ctx, gh, *cfg, plugin, cacheDir, noCache)
 		if err != nil {
-			print.Verb("plugin", plugin, "is a local plugin")
-			fullpath := filepath.Join(pluginsDir, string(plugin)+fileExt)
-			if !util.Exists(fullpath) {
-				print.Warn("plugin", plugin, "is missing", fileExt, "file from the plugins directory")
-			}
-			newPlugins = append(newPlugins, plugin)
-		} else {
-			print.Verb("plugin", plugin, "is a package dependency")
-			files, err = EnsureVersionedPlugin(*cfg, meta, cacheDir, noCache)
-			if err != nil {
-				print.Warn(err)
-			}
-			newPlugins = append(newPlugins, files...)
+			print.Warn(err)
+			err = nil
+			continue
 		}
-		err = nil
+		newPlugins = append(newPlugins, files...)
 	}
 
-	cfg.Plugins = []types.Plugin{}
 	added := make(map[types.Plugin]struct{})
 
 	// trim extensions for plugins list, they are added later by GenerateServerCFG if needed
@@ -75,7 +64,7 @@ func EnsurePlugins(cfg *types.Runtime, cacheDir string, noCache bool) (err error
 }
 
 // EnsureVersionedPlugin automatically downloads a plugin binary from its github releases page
-func EnsureVersionedPlugin(cfg types.Runtime, meta versioning.DependencyMeta, cacheDir string, noCache bool) (files []types.Plugin, err error) {
+func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, cfg types.Runtime, meta versioning.DependencyMeta, cacheDir string, noCache bool) (files []types.Plugin, err error) {
 	var (
 		hit      bool
 		filename string
@@ -89,7 +78,7 @@ func EnsureVersionedPlugin(cfg types.Runtime, meta versioning.DependencyMeta, ca
 		}
 	}
 	if !hit {
-		filename, resource, err = PluginFromNet(meta, cfg.Platform, cacheDir)
+		filename, resource, err = PluginFromNet(ctx, gh, meta, cfg.Platform, cacheDir)
 		if err != nil {
 			err = errors.Wrapf(err, "failed to get plugin %s from net", meta)
 			return
@@ -177,7 +166,7 @@ func PluginFromCache(meta versioning.DependencyMeta, platform, cacheDir string) 
 }
 
 // PluginFromNet downloads a plugin from the given metadata to the cache directory
-func PluginFromNet(meta versioning.DependencyMeta, platform, cacheDir string) (filename string, resource types.Resource, err error) {
+func PluginFromNet(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, platform, cacheDir string) (filename string, resource types.Resource, err error) {
 	resourcePath := filepath.Join(cacheDir, GetResourcePath(meta))
 
 	print.Info("downloading plugin resource", meta)
@@ -188,8 +177,7 @@ func PluginFromNet(meta versioning.DependencyMeta, platform, cacheDir string) (f
 		return
 	}
 
-	client := github.NewClient(nil)
-	pkg, err := types.GetRemotePackage(context.Background(), client, meta)
+	pkg, err := types.GetRemotePackage(ctx, gh, meta)
 	if err != nil {
 		err = errors.Wrap(err, "failed to get remote package definition file")
 		return
@@ -220,7 +208,7 @@ func PluginFromNet(meta versioning.DependencyMeta, platform, cacheDir string) (f
 		return
 	}
 
-	filename, err = download.ReleaseAssetByPattern(meta, matcher, GetResourcePath(meta), "", cacheDir)
+	filename, err = download.ReleaseAssetByPattern(ctx, gh, meta, matcher, GetResourcePath(meta), "", cacheDir)
 	if err != nil {
 		return
 	}
@@ -253,7 +241,7 @@ func GetResourceForPlatform(resources []types.Resource, platform string) (resour
 
 // GetResourcePath returns a path where a resource should be stored given the metadata
 func GetResourcePath(meta versioning.DependencyMeta) (path string) {
-	version := meta.Version
+	version := meta.Tag
 	if version == "" {
 		version = "latest"
 	}

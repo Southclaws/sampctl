@@ -11,18 +11,6 @@ import (
 	"github.com/Southclaws/sampctl/versioning"
 )
 
-func TestMain(m *testing.M) {
-	os.MkdirAll("./tests/deps", 0755)
-
-	// Make sure our ensure tests dir is empty before running tests
-	err := os.RemoveAll("./tests/deps")
-	if err != nil {
-		panic(err)
-	}
-
-	os.Exit(m.Run())
-}
-
 func TestPackage_EnsureDependencies(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -36,8 +24,8 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 				"sampctl/samp-stdlib",
 			}},
 			[]versioning.DependencyMeta{
-				versioning.DependencyMeta{User: "sampctl", Repo: "samp-stdlib", Path: "", Version: ""},
-				versioning.DependencyMeta{User: "sampctl", Repo: "pawn-stdlib", Path: "", Version: ""},
+				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "samp-stdlib"},
+				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
 			}, false},
 		{"circular", &types.Package{
 			Local: util.FullPath("./tests/deps-cirular"),
@@ -45,15 +33,47 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 				"sampctl/AAA",
 			}},
 			[]versioning.DependencyMeta{
-				versioning.DependencyMeta{User: "sampctl", Repo: "AAA", Path: "", Version: ""},
-				versioning.DependencyMeta{User: "sampctl", Repo: "BBB", Path: "", Version: ""},
+				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "AAA"},
+				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "BBB"},
+			}, false},
+		{"tag", &types.Package{
+			Local: util.FullPath("./tests/deps-tag"),
+			Dependencies: []versioning.DependencyString{
+				"sampctl/samp-stdlib:0.3z-R4",
+			}},
+			[]versioning.DependencyMeta{
+				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "samp-stdlib", Tag: "0.3z-R4"},
+				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
+			}, false},
+		{"branch", &types.Package{
+			Local: util.FullPath("./tests/deps-branch"),
+			Dependencies: []versioning.DependencyString{
+				"pawn-lang/YSI-Includes@5.x",
+			}},
+			[]versioning.DependencyMeta{
+				versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "YSI-Includes", Branch: "5.x"},
+				versioning.DependencyMeta{Site: "github.com", User: "oscar-broman", Repo: "md-sort"},
+				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "samp-stdlib"},
+				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
+				versioning.DependencyMeta{Site: "github.com", User: "Y-Less", Repo: "code-parse.inc"},
+				versioning.DependencyMeta{Site: "github.com", User: "Y-Less", Repo: "indirection"},
+				versioning.DependencyMeta{Site: "github.com", User: "Zeex", Repo: "amx_assembly"},
+			}, false},
+		{"commit", &types.Package{
+			Local: util.FullPath("./tests/deps-commit"),
+			Dependencies: []versioning.DependencyString{
+				"sampctl/pawn-stdlib#7a13c662e619a478b0e8d1d6d113e3aa41cb6d37",
+			}},
+			[]versioning.DependencyMeta{
+				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib", Commit: "7a13c662e619a478b0e8d1d6d113e3aa41cb6d37"},
 			}, false},
 	}
 	for _, tt := range tests {
+		os.RemoveAll(tt.pkg.Local)
 		os.MkdirAll(tt.pkg.Local, 0755) //nolint
 
 		t.Run(tt.name, func(t *testing.T) {
-			err := EnsureDependencies(tt.pkg)
+			err := EnsureDependencies(tt.pkg, nil)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

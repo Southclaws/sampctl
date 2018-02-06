@@ -50,7 +50,7 @@ func TestPackage_Install(t *testing.T) {
 				t.Error(err)
 			}
 
-			err = Install(pkg, tt.args.targets, tt.args.development)
+			err = Install(pkg, tt.args.targets, tt.args.development, nil)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -85,8 +85,8 @@ func TestGet(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{"direct", args{versioning.DependencyMeta{User: "Southclaws", Repo: "samp-logger"}, "./tests/get/direct"}, false},
-		{"get-auto", args{versioning.DependencyMeta{User: "Southclaws", Repo: "samp-logger"}, "./tests/get"}, false},
+		{"direct", args{versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "samp-logger"}, "./tests/get/direct"}, false},
+		{"get-auto", args{versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "samp-logger"}, "./tests/get"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -100,7 +100,7 @@ func TestGet(t *testing.T) {
 				}
 			}
 
-			err := Get(tt.args.dep, tt.args.dir)
+			err := Get(tt.args.dep, tt.args.dir, nil)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
