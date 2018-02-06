@@ -23,7 +23,7 @@ var packageBuildFlags = []cli.Flag{
 	cli.StringFlag{
 		Name:  "build",
 		Value: "",
-		Usage: "build configuration to use if `--forceBuild` is set",
+		Usage: "build configuration to use",
 	},
 	cli.BoolFlag{
 		Name:  "forceEnsure",
