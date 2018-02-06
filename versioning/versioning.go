@@ -83,7 +83,6 @@ var (
 func (d DependencyString) Explode() (dep DependencyMeta, err error) {
 	u, err := url.Parse(string(d))
 	if err == nil {
-		fmt.Println("attempting to explode path of url:", u.Path)
 
 		path := u.Path
 
@@ -96,12 +95,10 @@ func (d DependencyString) Explode() (dep DependencyMeta, err error) {
 	} else {
 		user, host, path, success := attemptGitSSH(string(d))
 		if success {
-			fmt.Println("attempting to explode path of ssh url:", path)
 			dep, err = explodePath(path)
 			dep.Site = host
 			dep.SSH = user
 		} else {
-			fmt.Println("attempting to explode raw string:", d)
 			dep, err = explodePath(string(d))
 		}
 	}
@@ -172,5 +169,9 @@ func explodePath(d string) (dep DependencyMeta, err error) {
 
 // URL generates a GitHub URL for a package - it does not test the validity of the URL
 func (dm DependencyMeta) URL() string {
+	if dm.SSH != "" {
+		return fmt.Sprintf("%s@%s:%s/%s", dm.SSH, dm.Site, dm.User, dm.Repo)
+	}
+
 	return fmt.Sprintf("https://%s/%s/%s", dm.Site, dm.User, dm.Repo)
 }

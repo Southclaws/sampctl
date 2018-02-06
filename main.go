@@ -11,7 +11,6 @@ import (
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 	"gopkg.in/urfave/cli.v1"
 
@@ -65,14 +64,14 @@ func main() {
 		gh = github.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(&oauth2.Token{AccessToken: config.GitHubToken})))
 	}
 
-	if config.GitUsername != "" && config.GitPassword != "" {
-		gitAuth = http.NewBasicAuth(config.GitUsername, config.GitPassword)
-	} else {
-		gitAuth, err = ssh.DefaultAuthBuilder("git")
-		if err != nil {
-			print.Erro("Failed to set up SSH:", err)
-			return
-		}
+	// if config.GitUsername != "" && config.GitPassword != "" {
+	// 	gitAuth = http.NewBasicAuth(config.GitUsername, config.GitPassword)
+	// }
+
+	gitAuth, err = ssh.DefaultAuthBuilder("git")
+	if err != nil {
+		print.Erro("Failed to set up SSH:", err)
+		return
 	}
 
 	globalFlags := []cli.Flag{

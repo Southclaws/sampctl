@@ -136,8 +136,11 @@ func EnsurePackage(pkgPath string, meta versioning.DependencyMeta, auth transpor
 		print.Verb(meta, "cloning dependency package")
 
 		cloneOpts := &git.CloneOptions{
-			URL:  meta.URL(),
-			Auth: auth,
+			URL: meta.URL(),
+		}
+
+		if meta.SSH != "" {
+			cloneOpts.Auth = auth
 		}
 
 		if meta.Branch != "" {
@@ -194,11 +197,16 @@ func updateRepoState(repo *git.Repository, meta versioning.DependencyMeta, auth 
 	} else if meta.Branch != "" {
 		print.Verb(meta, "package has branch constraint:", meta.Branch)
 
-		err = wt.Pull(&git.PullOptions{
-			Auth:          auth,
+		pullOpts := &git.PullOptions{
 			Depth:         1000, // get full history
 			ReferenceName: plumbing.ReferenceName("refs/heads/" + meta.Branch),
-		})
+		}
+
+		if meta.SSH != "" {
+			pullOpts.Auth = auth
+		}
+
+		err = wt.Pull(pullOpts)
 		if err != nil && err != git.NoErrAlreadyUpToDate {
 			return errors.Wrap(err, "failed to pull repo branch")
 		}
@@ -209,10 +217,15 @@ func updateRepoState(repo *git.Repository, meta versioning.DependencyMeta, auth 
 		}
 		hash = ref.Hash()
 	} else if meta.Commit != "" {
-		err = wt.Pull(&git.PullOptions{
-			Auth:  auth,
+		pullOpts := &git.PullOptions{
 			Depth: 1000, // get full history
-		})
+		}
+
+		if meta.SSH != "" {
+			pullOpts.Auth = auth
+		}
+
+		err = wt.Pull(pullOpts)
 		if err != nil && err != git.NoErrAlreadyUpToDate {
 			return errors.Wrap(err, "failed to pull repo")
 		}
@@ -236,9 +249,13 @@ func updateRepoState(repo *git.Repository, meta versioning.DependencyMeta, auth 
 	} else {
 		print.Verb(meta, "package does not have version constraint pulling latest")
 
-		err = wt.Pull(&git.PullOptions{
-			Auth: auth,
-		})
+		pullOpts := &git.PullOptions{}
+
+		if meta.SSH != "" {
+			pullOpts.Auth = auth
+		}
+
+		err = wt.Pull(pullOpts)
 		if err != nil {
 			if err == git.NoErrAlreadyUpToDate {
 				err = nil
