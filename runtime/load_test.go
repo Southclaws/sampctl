@@ -48,7 +48,7 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 			},
 			types.Runtime{
 				PluginDeps: []versioning.DependencyMeta{
-					{Site: "https://github.com", User: "zeex", Repo: "samp-plugin-crashdetect"},
+					{Site: "github.com", User: "zeex", Repo: "samp-plugin-crashdetect"},
 				},
 				Format:     "json",
 				Version:    "0.3.7",

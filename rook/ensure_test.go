@@ -24,8 +24,8 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 				"sampctl/samp-stdlib",
 			}},
 			[]versioning.DependencyMeta{
-				versioning.DependencyMeta{Site: "https://github.com", User: "sampctl", Repo: "samp-stdlib"},
-				versioning.DependencyMeta{Site: "https://github.com", User: "sampctl", Repo: "pawn-stdlib"},
+				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "samp-stdlib"},
+				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
 			}, false},
 		{"circular", &types.Package{
 			Local: util.FullPath("./tests/deps-cirular"),
@@ -33,8 +33,8 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 				"sampctl/AAA",
 			}},
 			[]versioning.DependencyMeta{
-				versioning.DependencyMeta{Site: "https://github.com", User: "sampctl", Repo: "AAA"},
-				versioning.DependencyMeta{Site: "https://github.com", User: "sampctl", Repo: "BBB"},
+				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "AAA"},
+				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "BBB"},
 			}, false},
 		{"tag", &types.Package{
 			Local: util.FullPath("./tests/deps-tag"),
@@ -42,8 +42,8 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 				"sampctl/samp-stdlib:0.3z-R4",
 			}},
 			[]versioning.DependencyMeta{
-				versioning.DependencyMeta{Site: "https://github.com", User: "sampctl", Repo: "samp-stdlib", Tag: "0.3z-R4"},
-				versioning.DependencyMeta{Site: "https://github.com", User: "sampctl", Repo: "pawn-stdlib"},
+				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "samp-stdlib", Tag: "0.3z-R4"},
+				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
 			}, false},
 		{"branch", &types.Package{
 			Local: util.FullPath("./tests/deps-branch"),
@@ -51,13 +51,13 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 				"pawn-lang/YSI-Includes@5.x",
 			}},
 			[]versioning.DependencyMeta{
-				versioning.DependencyMeta{Site: "https://github.com", User: "pawn-lang", Repo: "YSI-Includes", Branch: "5.x"},
-				versioning.DependencyMeta{Site: "https://github.com", User: "oscar-broman", Repo: "md-sort"},
-				versioning.DependencyMeta{Site: "https://github.com", User: "sampctl", Repo: "samp-stdlib"},
-				versioning.DependencyMeta{Site: "https://github.com", User: "sampctl", Repo: "pawn-stdlib"},
-				versioning.DependencyMeta{Site: "https://github.com", User: "Y-Less", Repo: "code-parse.inc"},
-				versioning.DependencyMeta{Site: "https://github.com", User: "Y-Less", Repo: "indirection"},
-				versioning.DependencyMeta{Site: "https://github.com", User: "Zeex", Repo: "amx_assembly"},
+				versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "YSI-Includes", Branch: "5.x"},
+				versioning.DependencyMeta{Site: "github.com", User: "oscar-broman", Repo: "md-sort"},
+				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "samp-stdlib"},
+				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
+				versioning.DependencyMeta{Site: "github.com", User: "Y-Less", Repo: "code-parse.inc"},
+				versioning.DependencyMeta{Site: "github.com", User: "Y-Less", Repo: "indirection"},
+				versioning.DependencyMeta{Site: "github.com", User: "Zeex", Repo: "amx_assembly"},
 			}, false},
 		{"commit", &types.Package{
 			Local: util.FullPath("./tests/deps-commit"),
@@ -65,7 +65,7 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 				"sampctl/pawn-stdlib#7a13c662e619a478b0e8d1d6d113e3aa41cb6d37",
 			}},
 			[]versioning.DependencyMeta{
-				versioning.DependencyMeta{Site: "https://github.com", User: "sampctl", Repo: "pawn-stdlib", Commit: "7a13c662e619a478b0e8d1d6d113e3aa41cb6d37"},
+				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib", Commit: "7a13c662e619a478b0e8d1d6d113e3aa41cb6d37"},
 			}, false},
 	}
 	for _, tt := range tests {
