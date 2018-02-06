@@ -190,6 +190,7 @@ func updateRepoState(repo *git.Repository, meta versioning.DependencyMeta) (err 
 		print.Verb(meta, "package has branch constraint:", meta.Branch)
 
 		err = wt.Pull(&git.PullOptions{
+			Depth:         1000, // get full history
 			ReferenceName: plumbing.ReferenceName("refs/heads/" + meta.Branch),
 		})
 		if err != nil && err != git.NoErrAlreadyUpToDate {
