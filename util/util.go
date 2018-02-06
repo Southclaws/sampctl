@@ -75,11 +75,11 @@ func FullPath(dir string) string {
 	return path
 }
 
-// RelPath makes a path relative to the cwd
+// RelPath makes a path relative to the cwd, if it fails it simply returns the original path
 func RelPath(dir string) string {
 	path, err := filepath.Rel(FullPath(filepath.Dir(os.Args[0])), dir)
 	if err != nil {
-		panic(err)
+		return dir
 	}
 	return path
 }
