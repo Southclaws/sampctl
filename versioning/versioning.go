@@ -2,8 +2,8 @@ package versioning
 
 import (
 	"fmt"
+	"net/url"
 	"regexp"
-	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -20,6 +20,7 @@ type DependencyMeta struct {
 	Tag    string `json:"tag,omitempty" yaml:"tag,omitempty"`       // Target tag
 	Branch string `json:"branch,omitempty" yaml:"branch,omitempty"` // Target branch
 	Commit string `json:"commit,omitempty" yaml:"commit,omitempty"` // Target commit sha
+	SSH    string `json:"ssh,omitempty" yaml:"ssh,omitempty"`       // SSH user (usually 'git')
 }
 
 func (dm DependencyMeta) String() string {
@@ -38,7 +39,23 @@ func (dm DependencyMeta) String() string {
 	return fmt.Sprintf("%s%s/%s", site, dm.User, dm.Repo)
 }
 
-var dependencyPattern = regexp.MustCompile(`^((?:[a-z]+://)[a-zA-Z0-9][a-zA-Z0-9-_]{0,61}[a-zA-Z0-9]{0,1}\.(?:[a-zA-Z]{1,6}|[a-zA-Z0-9-]{1,30}\.[a-zA-Z]{2,3})/)?([a-zA-Z0-9-]*)\/([a-zA-Z0-9-._]*)(?:\/)?([a-zA-Z0-9-_$\[\]{}().,\/]*)?((?:@)|(?:\:)|(?:#))?(.+)?$`)
+// Validate checks for errors in a DependencyMeta object
+func (dm DependencyMeta) Validate() (err error) {
+	if dm.User == "" {
+		return errors.New("dependency meta missing user")
+	}
+	if dm.Repo == "" {
+		return errors.New("dependency meta missing repo")
+	}
+	return
+}
+
+var (
+	// MatchGitSSH matches ssh URLs such as 'git@github.com:Southclaws/sampctl'
+	MatchGitSSH = regexp.MustCompile(`^([a-zA-Z][a-zA-Z0-9_]+)\@((?:[a-zA-Z][a-zA-Z0-9\-]*\.)*[a-zA-Z][a-zA-Z0-9\-]*)\:((?:[A-Za-z0-9_\-\.]+\/?)*)$`)
+	// MatchDependencyString matches a dependency string such as 'Username/Repository:tag', 'Username/Repository@branch', 'Username/Repository#commit'
+	MatchDependencyString = regexp.MustCompile(`^\/?([a-zA-Z0-9-]+)\/([a-zA-Z0-9-._]+)(?:\/)?([a-zA-Z0-9-_$\[\]{}().,\/]*)?((?:@)|(?:\:)|(?:#))?(.+)?$`)
+)
 
 // Explode splits a dependency string into its component parts and returns a meta object
 // a valid pattern is either a git URL or just a user/repo combination followed by an optional
@@ -64,46 +81,96 @@ var dependencyPattern = regexp.MustCompile(`^((?:[a-z]+://)[a-zA-Z0-9][a-zA-Z0-9
 //   github.com/user/repo/includes:1.2.3
 //   user/repo/includes:1.2.3
 func (d DependencyString) Explode() (dep DependencyMeta, err error) {
-	if !dependencyPattern.MatchString(string(d)) {
-		err = errors.New("dependency string does not match pattern")
-		return
-	}
+	u, err := url.Parse(string(d))
+	if err == nil {
+		fmt.Println("attempting to explode path of url:", u.Path)
 
-	captures := dependencyPattern.FindStringSubmatch(string(d))
-	if len(captures) != 7 {
-		err = errors.New("dependency pattern match count != 7")
-		return
-	}
+		path := u.Path
 
-	if captures[1] == "" {
-		dep.Site = "https://github.com"
-	} else {
-		dep.Site = strings.TrimRight(captures[1], "/")
-	}
-	dep.User = captures[2]
-	dep.Repo = captures[3]
-	dep.Path = captures[4]
-
-	if len(captures[5]) == 1 && len(captures[6]) > 0 {
-		switch captures[5][0] {
-		case ':':
-			dep.Tag = captures[6]
-		case '@':
-			dep.Branch = captures[6]
-		case '#':
-			if len(captures[6]) != 40 {
-				err = errors.Errorf("dependency string specifies a commit hash with an incorrect length (%d)", len(captures[6]))
-			}
-			dep.Commit = captures[6]
-		default:
-			err = errors.New("version must be a branch (@) or a tag (:)")
+		if u.Fragment != "" {
+			path += "#" + u.Fragment
 		}
+
+		dep, err = explodePath(path)
+		dep.Site = u.Host
+	} else {
+		user, host, path, success := attemptGitSSH(string(d))
+		if success {
+			fmt.Println("attempting to explode path of ssh url:", path)
+			dep, err = explodePath(path)
+			dep.Site = host
+			dep.SSH = user
+		} else {
+			fmt.Println("attempting to explode raw string:", d)
+			dep, err = explodePath(string(d))
+		}
+	}
+
+	// default to github
+	if dep.Site == "" {
+		dep.Site = "github.com"
+	}
+
+	if err == nil {
+		err = dep.Validate()
+	}
+
+	// if there's an error, return an empty meta object
+	if err != nil {
+		return DependencyMeta{}, err
 	}
 
 	return
 }
 
+func attemptGitSSH(d string) (username, host, path string, success bool) {
+	if !MatchGitSSH.MatchString(d) {
+		return
+	}
+
+	captures := MatchGitSSH.FindStringSubmatch(d)
+	if len(captures) != 4 {
+		return
+	}
+
+	return captures[1], captures[2], captures[3], true
+}
+
+func explodePath(d string) (dep DependencyMeta, err error) {
+	if !MatchDependencyString.MatchString(d) {
+		err = errors.New("dependency string does not match pattern")
+		return
+	}
+
+	captures := MatchDependencyString.FindStringSubmatch(d)
+	if len(captures) != 6 {
+		err = errors.New("dependency pattern match count != 6")
+		return
+	}
+
+	dep.User = captures[1]
+	dep.Repo = captures[2]
+	dep.Path = captures[3]
+
+	if len(captures[4]) == 1 && len(captures[5]) > 0 {
+		switch captures[4][0] {
+		case ':':
+			dep.Tag = captures[5]
+		case '@':
+			dep.Branch = captures[5]
+		case '#':
+			if len(captures[5]) != 40 {
+				err = errors.Errorf("dependency string specifies a commit hash with an incorrect length (%d)", len(captures[5]))
+			}
+			dep.Commit = captures[5]
+		default:
+			err = errors.New("version must be a branch (@) or a tag (:)")
+		}
+	}
+	return
+}
+
 // URL generates a GitHub URL for a package - it does not test the validity of the URL
 func (dm DependencyMeta) URL() string {
-	return fmt.Sprintf("%s/%s/%s", dm.Site, dm.User, dm.Repo)
+	return fmt.Sprintf("https://%s/%s/%s", dm.Site, dm.User, dm.Repo)
 }
