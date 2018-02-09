@@ -77,6 +77,9 @@ type Runtime struct {
 	ConnectCookies    *bool    `default:"1"             required:"0" json:"conncookies,omitempty"       yaml:"conncookies,omitempty"`       // 1
 	CookieLogging     *bool    `default:"0"             required:"0" json:"cookielogging,omitempty"     yaml:"cookielogging,omitempty"`     // 1
 	Output            *bool    `default:"1"             required:"0" json:"output,omitempty"            yaml:"output,omitempty"`            // 1
+
+	// Extra properties for plugins etc
+	Extra map[string]string `required:"0" json:"extra" yaml:"extra"`
 }
 
 // ContainerConfig is used if the runtime is specified to run inside a container
