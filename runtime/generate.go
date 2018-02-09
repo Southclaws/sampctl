@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -220,9 +221,12 @@ func fromMap(name string, obj reflect.Value, required bool, defaultValue string)
 		return
 	}
 
+	lines := []string{}
 	for _, key := range obj.MapKeys() {
-		result += fmt.Sprintf("%s %s\n", key.String(), obj.MapIndex(key).String())
+		lines = append(lines, fmt.Sprintf("%s %s", key.String(), obj.MapIndex(key).String()))
 	}
+	sort.Strings(lines)
+	result = strings.Join(lines, "\n") + "\n"
 
 	return
 }
