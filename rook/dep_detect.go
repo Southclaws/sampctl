@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"regexp"
+	"sort"
 	"sync"
 
 	"github.com/Southclaws/sampctl/print"
@@ -62,5 +63,6 @@ func FindIncludes(files []string) (includes []versioning.DependencyString) {
 		}()
 	}
 	wg.Wait()
+	sort.Slice(includes, func(i, j int) bool { return includes[i] < includes[j] })
 	return
 }

@@ -19,8 +19,8 @@ func TestFindIncludes(t *testing.T) {
 	}{
 		{"one-file", args{[]string{"./tests/detect/test1.pwn"}},
 			[]versioning.DependencyString{
-				"samp-incognito/samp-streamer-plugin",
 				"pawn-lang/YSI-Includes",
+				"samp-incognito/samp-streamer-plugin",
 			}},
 	}
 	for _, tt := range tests {
