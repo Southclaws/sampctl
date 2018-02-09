@@ -111,6 +111,10 @@ func Init(dir string, config *types.Config, auth transport.AuthMethod) (err erro
 			Name:   "StdLib",
 			Prompt: &survey.Confirm{Message: "Add standard library dependency?", Default: true},
 		},
+		{
+			Name:   "Scan",
+			Prompt: &survey.Confirm{Message: "Scan for dependencies?", Default: true},
+		},
 	}
 
 	if len(pwnFiles) > 0 {
@@ -150,6 +154,7 @@ func Init(dir string, config *types.Config, auth transport.AuthMethod) (err erro
 		Readme        bool
 		Editor        string
 		StdLib        bool
+		Scan          bool
 		EntryGenerate bool
 		Entry         string
 	}{}
@@ -268,6 +273,10 @@ func Init(dir string, config *types.Config, auth transport.AuthMethod) (err erro
 
 	if answers.StdLib {
 		pkg.Dependencies = append(pkg.Dependencies, versioning.DependencyString("sampctl/samp-stdlib"))
+	}
+
+	if answers.Scan {
+		pkg.Dependencies = append(pkg.Dependencies, FindIncludes(incFiles)...)
 	}
 
 	err = pkg.WriteDefinition()

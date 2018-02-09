@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -71,6 +72,8 @@ func GenerateServerCfg(cfg *types.Runtime) (err error) {
 			line, err = fromInt(name, fieldval, required, defaultValue)
 		case "*float32":
 			line, err = fromFloat(name, fieldval, required, defaultValue)
+		case "map[string]string":
+			line, err = fromMap(name, fieldval, required, defaultValue)
 		default:
 			err = errors.Errorf("unknown kind '%s'", stype.Type.String())
 		}
@@ -208,4 +211,22 @@ func fromFloat(name string, obj reflect.Value, required bool, defaultValue strin
 	}
 
 	return fmt.Sprintf("%s %f\n", name, value), nil
+}
+
+func fromMap(name string, obj reflect.Value, required bool, defaultValue string) (result string, err error) {
+	if obj.IsNil() {
+		if required {
+			return "", errors.Errorf("field %s is required", name)
+		}
+		return
+	}
+
+	lines := []string{}
+	for _, key := range obj.MapKeys() {
+		lines = append(lines, fmt.Sprintf("%s %s", key.String(), obj.MapIndex(key).String()))
+	}
+	sort.Strings(lines)
+	result = strings.Join(lines, "\n") + "\n"
+
+	return
 }
