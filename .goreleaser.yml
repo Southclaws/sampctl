@@ -52,10 +52,10 @@ brew:
     name: homebrew-sampctl
   homepage: https://github.com/Southclaws/sampctl
   description: The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
-# scoop:
-#   bucket:
-#     owner: Southclaws
-#     name: scoops
-#   homepage: http://sampctl.com
-#   description: The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
-license: GPLv3
+scoop:
+  bucket:
+    owner: Southclaws
+    name: scoops
+  homepage: http://sampctl.com
+  description: The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
+  license: GPLv3
