@@ -11,17 +11,29 @@ language: go
 jobs:
   include:
     - stage: test versioning
-      script: go test -race -v -p 4 ./versioning
+      script:
+        - go test -race -v -p 4 -coverprofile=coverage.txt ./versioning
+        - bash <(curl -s https://codecov.io/bash)
     - stage: test util
-      script: go test -race -v -p 4 ./util
+      script:
+        - go test -race -v -p 4 -coverprofile=coverage.txt ./util
+        - bash <(curl -s https://codecov.io/bash)
     - stage: test download
-      script: go test -race -v -p 4 ./download
+      script:
+        - go test -race -v -p 4 -coverprofile=coverage.txt ./download
+        - bash <(curl -s https://codecov.io/bash)
     - stage: test compiler
-      script: go test -race -v -p 4 ./compiler
+      script:
+        - go test -race -v -p 4 -coverprofile=coverage.txt ./compiler
+        - bash <(curl -s https://codecov.io/bash)
     - stage: test runtime
-      script: go test -race -v -p 4 ./runtime
+      script:
+        - go test -race -v -p 4 -coverprofile=coverage.txt ./runtime
+        - bash <(curl -s https://codecov.io/bash)
     - stage: test rook
-      script: go test -race -v -p 4 ./rook
+      script:
+        - go test -race -v -p 4 -coverprofile=coverage.txt ./rook
+        - bash <(curl -s https://codecov.io/bash)
     - stage: deploy
       if: branch =~ ^(v?(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[\da-z-]+(?:\.[\da-z-]+)*)?(?:\+[\da-z-]+(?:\.[\da-z-]+)*)?)$
       script:
