@@ -41,7 +41,7 @@ fpm:
   vendor: Southclaws
   homepage: https://github.com/Southclaws/sampctl
   maintainer: Southclaws <hello@southcla.ws>
-  description: A small utility for starting and managing SA:MP servers with better settings handling and crash resiliency.
+  description: The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
   license: GPLv3
   formats:
     - deb
@@ -51,10 +51,11 @@ brew:
     owner: Southclaws
     name: homebrew-sampctl
   homepage: https://github.com/Southclaws/sampctl
-  description: A small utility for starting and managing SA:MP servers with better settings handling and crash resiliency.
+  description: The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
 # scoop:
 #   bucket:
 #     owner: Southclaws
 #     name: scoops
-#   homepage: https://github.com/Southclaws/sampctl
-#   description: A small utility for starting and managing SA:MP servers with better settings handling and crash resiliency.
+#   homepage: http://sampctl.com
+#   description: The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
+license: GPLv3
