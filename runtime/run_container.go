@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -15,7 +17,6 @@ import (
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/print"
@@ -56,29 +57,64 @@ func RunContainer(cfg sampctltypes.Runtime, cacheDir string) (err error) {
 		})
 	}
 
-	cnt, err := cli.ContainerCreate(
-		context.Background(),
-		&container.Config{
-			Image:        "southclaws/sampctl:" + cfg.AppVersion,
-			Entrypoint:   args,
-			Tty:          true,
-			AttachStdout: true,
-			AttachStderr: true,
-		},
-		&container.HostConfig{
-			Mounts: mounts,
-			PortBindings: nat.PortMap{
-				nat.Port(port): []nat.PortBinding{
-					{HostIP: "0.0.0.0", HostPort: port},
-				},
+	hostConfig := &container.HostConfig{
+		Mounts: mounts,
+		PortBindings: nat.PortMap{
+			nat.Port(port): []nat.PortBinding{
+				{HostIP: "0.0.0.0", HostPort: port},
 			},
-			SecurityOpt: []string{"seccomp=unconfined"},
-			Privileged:  true,
 		},
-		&network.NetworkingConfig{},
-		"sampctl-"+uuid.New().String())
+		SecurityOpt: []string{"seccomp=unconfined"},
+		Privileged:  true,
+	}
+
+	netConfig := &network.NetworkingConfig{
+	//
+	}
+
+	ref := "southclaws/sampctl:" + cfg.AppVersion
+	containerConfig := &container.Config{
+		Image:        ref,
+		Entrypoint:   args,
+		Tty:          true,
+		AttachStdout: true,
+		AttachStderr: true,
+	}
+
+	containerName := fmt.Sprintf("sampctl-%d", time.Now().Unix())
+
+	var cnt container.ContainerCreateCreatedBody
+	cnt, err = cli.ContainerCreate(
+		context.Background(),
+		containerConfig,
+		hostConfig,
+		netConfig,
+		containerName)
 	if err != nil {
-		return errors.Wrap(err, "failed to create container")
+		if client.IsErrNotFound(err) {
+			print.Info("Pulling image:", ref)
+			pullReader, err := cli.ImagePull(context.Background(), ref, types.ImagePullOptions{})
+			if err != nil {
+				return errors.Wrap(err, "failed to pull image")
+			}
+			defer pullReader.Close()
+			_, err = ioutil.ReadAll(pullReader)
+			if err != nil {
+				return errors.Wrap(err, "failed to read pull output")
+			}
+
+			cnt, err = cli.ContainerCreate(
+				context.Background(),
+				containerConfig,
+				hostConfig,
+				netConfig,
+				containerName)
+			if err != nil {
+				return errors.Wrap(err, "failed to create container")
+			}
+		} else {
+			return errors.Wrap(err, "failed to create container")
+		}
 	}
 
 	print.Info("Starting container...")
