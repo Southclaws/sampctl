@@ -10,9 +10,9 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"syscall"
-	"time"
 
 	"github.com/pkg/errors"
 
@@ -142,45 +142,28 @@ func run(ctx context.Context, binary string, runType types.RunMode) (err error) 
 
 	var cmd *exec.Cmd
 	go func() {
-		var (
-			startTime          time.Time     // time of most recent start/restart
-			exponentialBackoff = time.Second // exponential backoff cooldown
-		)
-		for {
+		// on linux, must use unbuffer to disable stream buffering because samp03svr is weird...
+		if runtime.GOOS == "windows" {
 			cmd = exec.CommandContext(ctx, binary)
-			cmd.Dir = filepath.Dir(binary)
-			cmd.Stdout = outputWriter
-			cmd.Stderr = outputWriter
-
-			errInline := cmd.Start()
-			if errInline != nil {
-				errChan <- termination{errInline, false}
-				break
-			}
-			startTime = time.Now()
-			errInline = cmd.Wait()
-
-			if errInline != nil {
-				if errInline.Error() == "exit status 1" {
-					break
-				}
-			}
-
-			runTime := time.Since(startTime)
-			if runTime < time.Minute {
-				exponentialBackoff *= 2
-			} else {
-				exponentialBackoff = time.Second
-			}
-			if exponentialBackoff < time.Second*15 {
-				print.Warn("crash loop backoff for", exponentialBackoff, "reason:", errInline)
-				time.Sleep(exponentialBackoff)
-				continue
-			}
-
-			errChan <- termination{errors.Errorf("too many crashloops, last error: %v", errInline), false}
-			break
+		} else {
+			cmd = exec.CommandContext(ctx, "unbuffer", binary)
 		}
+		cmd.Dir = filepath.Dir(binary)
+		cmd.Stdout = outputWriter
+
+		errInline := cmd.Start()
+		if errInline != nil {
+			errChan <- termination{errInline, false}
+			return
+		}
+
+		errInline = cmd.Wait()
+		if errInline != nil {
+			errChan <- termination{errInline, false}
+			return
+		}
+
+		print.Verb("child exec thread finished, pid:", cmd.Process.Pid)
 	}()
 
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
@@ -192,21 +175,23 @@ func run(ctx context.Context, binary string, runType types.RunMode) (err error) 
 	case term = <-errChan:
 		break
 	}
+	print.Verb("finished server execution with:", term)
 
-	if term.err != nil {
-		err = errors.Wrap(err, "received runtime error")
-	}
+	err = errors.Wrap(term.err, "received runtime error")
 
 	if term.exit {
-		if cmd.Process != nil && cmd.ProcessState != nil {
-			if !cmd.ProcessState.Exited() {
-				killErr := cmd.Process.Kill()
-				if killErr != nil {
-					print.Erro("Failed to kill", killErr)
-				}
+		if cmd.Process != nil {
+			killErr := cmd.Process.Signal(syscall.SIGINT)
+			if killErr != nil {
+				print.Erro("Failed to kill", killErr)
 			}
+			print.Verb("sent a SIGINT to child process")
+		} else {
+			print.Verb("not attempting to kill server: cmd.Process is nil")
 		}
 	}
+
+	print.Verb("finished run() with", err)
 
 	return err
 }
