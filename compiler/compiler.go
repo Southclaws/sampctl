@@ -236,8 +236,9 @@ func CompileWithCommand(cmd *exec.Cmd, workingDir string) (problems types.BuildP
 		}
 		if cmdError.Error() != "exit status 1" {
 			// if the failure was not caused by a simple compile error
-			print.Info("** if you're on a 64 bit system this may be because the system is not set up to execute 32 bit binaries")
-			print.Info("** please enable this by allowing i386 packages and/or installing g++-multilib")
+			print.Erro("Failed to execute compiler")
+			print.Erro("if you're on a 64 bit system this may be because the system is not set up to execute 32 bit binaries")
+			print.Erro("please enable this by allowing i386 packages and/or installing g++-multilib")
 			err = errors.Wrap(cmdError, "failed to execute compiler")
 		}
 	}
