@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -166,6 +167,28 @@ func RuntimeFromYAML(file string) (cfg Runtime, err error) {
 	cfg.Format = "yaml"
 
 	return
+}
+
+// ResolveRemotePlugins separates simple plugin filenames from dependency strings
+func (cfg *Runtime) ResolveRemotePlugins() {
+	if cfg == nil {
+		return
+	}
+
+	print.Verb("separating dep plugins from:", cfg.Plugins)
+
+	tmpPlugins := cfg.Plugins
+	cfg.Plugins = []Plugin{}
+
+	// separate depstrings from regular plugins
+	for _, plugin := range tmpPlugins {
+		dep, err := plugin.AsDep()
+		if err != nil {
+			cfg.Plugins = append(cfg.Plugins, plugin)
+		} else {
+			cfg.PluginDeps = append(cfg.PluginDeps, dep)
+		}
+	}
 }
 
 // GetRuntimeDefault returns a default config for temporary runtimes

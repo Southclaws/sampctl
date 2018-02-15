@@ -36,18 +36,7 @@ func NewConfigFromEnvironment(dir string) (cfg types.Runtime, err error) {
 		cfg.Endpoint = "http://files.sa-mp.com"
 	}
 
-	tmpPlugins := cfg.Plugins
-	cfg.Plugins = []types.Plugin{}
-
-	// separate depstrings from regular plugins
-	for _, plugin := range tmpPlugins {
-		dep, err := plugin.AsDep()
-		if err != nil {
-			cfg.Plugins = append(cfg.Plugins, plugin)
-		} else {
-			cfg.PluginDeps = append(cfg.PluginDeps, dep)
-		}
-	}
+	cfg.ResolveRemotePlugins()
 
 	return
 }

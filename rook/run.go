@@ -18,6 +18,7 @@ import (
 	"github.com/Southclaws/sampctl/runtime"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
+	"github.com/Southclaws/sampctl/versioning"
 )
 
 // Run will create a temporary server runtime and run the package output AMX as a gamemode using the
@@ -160,10 +161,12 @@ func runPrepare(ctx context.Context, gh *github.Client, auth transport.AuthMetho
 	config.Gamemodes = []string{strings.TrimSuffix(filepath.Base(pkg.Output), ".amx")}
 	config.WorkingDir = runtime.GetRuntimePath(cacheDir, cfg.Version)
 
-	config.Plugins = []types.Plugin{}
+	config.PluginDeps = []versioning.DependencyMeta{}
 	for _, pluginMeta := range pkg.AllPlugins {
-		config.Plugins = append(config.Plugins, types.Plugin(pluginMeta.String()))
+		print.Verb("read plugin from dependency:", pluginMeta)
+		config.PluginDeps = append(config.PluginDeps, pluginMeta)
 	}
+	print.Verb(config.PluginDeps)
 
 	err = config.ToJSON()
 	if err != nil {

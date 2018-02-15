@@ -72,6 +72,13 @@ enter-mount:
 
 # Test environments
 
+ubuntu-build:
+	docker run \
+		-it \
+		-w /go/src/github.com/Southclaws/sampctl \
+		-v$(shell pwd):/go/src/github.com/Southclaws/sampctl \
+		golang
+
 ubuntu:
 	docker run \
 		-it \
