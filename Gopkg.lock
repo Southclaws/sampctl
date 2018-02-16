@@ -98,12 +98,6 @@
   revision = "53e6ce116135b80d037921a7fdd5138cf32d7a8a"
 
 [[projects]]
-  name = "github.com/google/uuid"
-  packages = ["."]
-  revision = "064e2069ce9c359c118179501254f67d7d37ba24"
-  version = "0.2"
-
-[[projects]]
   branch = "master"
   name = "github.com/jbenet/go-context"
   packages = ["io"]
@@ -114,6 +108,12 @@
   packages = ["."]
   revision = "a79fa1e548e2c689c241d10173efd51e5d689d5b"
   version = "v1.2.0"
+
+[[projects]]
+  name = "github.com/kr/pty"
+  packages = ["."]
+  revision = "282ce0e5322c82529687d609ee670fac7c7d917c"
+  version = "v1.1.1"
 
 [[projects]]
   name = "github.com/mattn/go-colorable"
@@ -366,6 +366,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "e04b30128b2fd59d7795f6255a4df827a149ea33bf5bed6d5112239353ea95ea"
+  inputs-digest = "9065913437d1aca30ce5b0e72441aab525c3fec8db42df5575f9f3a4e04c763d"
   solver-name = "gps-cdcl"
   solver-version = 1
