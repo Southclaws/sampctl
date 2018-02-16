@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/kr/pty"
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/print"
@@ -143,27 +144,31 @@ func run(ctx context.Context, binary string, runType types.RunMode) (err error) 
 	var cmd *exec.Cmd
 	go func() {
 		// on linux, must use unbuffer to disable stream buffering because samp03svr is weird...
-		if runtime.GOOS == "windows" {
-			cmd = exec.CommandContext(ctx, binary)
-		} else {
-			cmd = exec.CommandContext(ctx, "unbuffer", binary)
-		}
+		cmd = exec.CommandContext(ctx, binary)
 		cmd.Dir = filepath.Dir(binary)
-		cmd.Stdout = outputWriter
 
-		errInline := cmd.Start()
-		if errInline != nil {
-			errChan <- termination{errInline, false}
-			return
-		}
-
-		errInline = cmd.Wait()
-		if errInline != nil {
-			errChan <- termination{errInline, false}
-			return
+		if runtime.GOOS == "windows" {
+			cmd.Stdout = os.Stdout
+			errInline := cmd.Run()
+			if errInline != nil {
+				errChan <- termination{errInline, false}
+				return
+			}
+		} else {
+			ptmx, errInline := pty.Start(cmd)
+			if errInline != nil {
+				errChan <- termination{errInline, false}
+				return
+			}
+			defer ptmx.Close()
+			_, errInline = io.Copy(outputWriter, ptmx)
+			if errInline != nil {
+				errChan <- termination{errInline, false} // no error, no exit
+			}
 		}
 
 		print.Verb("child exec thread finished, pid:", cmd.Process.Pid)
+		errChan <- termination{} // no error, no exit
 	}()
 
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
