@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/kr/pty"
 	"github.com/pkg/errors"
@@ -130,6 +131,7 @@ func run(ctx context.Context, binary string, runType types.RunMode) (err error) 
 			}
 		}()
 	default:
+		runType = types.Server // set default for later use
 		go func() {
 			scanner := bufio.NewScanner(outputReader)
 			for scanner.Scan() {
@@ -143,31 +145,61 @@ func run(ctx context.Context, binary string, runType types.RunMode) (err error) 
 
 	var cmd *exec.Cmd
 	go func() {
-		cmd = exec.CommandContext(ctx, binary)
-		cmd.Dir = filepath.Dir(binary)
+		var (
+			startTime          time.Time     // time of most recent start/restart
+			exponentialBackoff = time.Second // exponential backoff cooldown
+		)
+		for {
+			cmd = exec.CommandContext(ctx, binary)
+			cmd.Dir = filepath.Dir(binary)
 
-		if runtime.GOOS == "windows" {
-			cmd.Stdout = os.Stdout
-			errInline := cmd.Run()
-			if errInline != nil {
-				errChan <- termination{errInline, false}
-				return
+			startTime = time.Now()
+			var errInline error
+			if runtime.GOOS == "windows" {
+				cmd.Stdout = os.Stdout
+				errInline = cmd.Run()
+				if errInline.Error() == "exit status 1" {
+					errInline = errors.New("server crashed")
+				}
+			} else {
+				var ptmx *os.File
+				ptmx, errInline = pty.Start(cmd)
+				if errInline != nil {
+					errChan <- termination{errors.Wrap(errInline, "failed to start server"), false}
+					break
+				}
+
+				defer ptmx.Close()
+				_, errInline = io.Copy(outputWriter, ptmx)
+				if errInline.Error() == "read /dev/ptmx: input/output error" {
+					errInline = errors.New("server crashed")
+				}
 			}
-		} else {
-			ptmx, errInline := pty.Start(cmd)
-			if errInline != nil {
-				errChan <- termination{errInline, false}
-				return
+			print.Verb("child exec thread finished, pid:", cmd.Process.Pid, "error:", errInline)
+
+			if runType == types.Server {
+				runTime := time.Since(startTime)
+
+				if runTime < time.Minute {
+					exponentialBackoff *= 2
+					print.Verb("doubling backoff time", exponentialBackoff)
+				} else {
+					exponentialBackoff = time.Second
+					print.Verb("initial backoff", exponentialBackoff)
+				}
+
+				if exponentialBackoff < time.Second*15 {
+					print.Warn("crash loop backoff for", exponentialBackoff, "reason:", errInline)
+					time.Sleep(exponentialBackoff)
+					continue
+				}
+				errChan <- termination{errors.Errorf("too many crashloops, last error: %v", errInline), false}
+			} else {
+				errChan <- termination{}
 			}
-			defer ptmx.Close()
-			_, errInline = io.Copy(outputWriter, ptmx)
-			if errInline != nil {
-				errChan <- termination{errInline, false} // no error, no exit
-			}
+
+			break
 		}
-
-		print.Verb("child exec thread finished, pid:", cmd.Process.Pid)
-		errChan <- termination{} // no error, no exit
 	}()
 
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
