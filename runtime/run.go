@@ -162,8 +162,31 @@ func run(ctx context.Context, binary string, runType types.RunMode) (err error) 
 					errInline = errors.New("server crashed")
 				}
 			} else {
+				// pty.Start is not exported for Windows so we have to copy the function here so
+				// the Windows build actually works properly. This could have been done with build
+				// tags but the quick and dirty approach is good enough for now.
 				var ptmx *os.File
-				ptmx, errInline = pty.Start(cmd)
+				ptmx, errInline = func(c *exec.Cmd) (ptyx *os.File, err error) {
+					ptyx, tty, err := pty.Open()
+					if err != nil {
+						return nil, err
+					}
+					defer tty.Close()
+					c.Stdout = tty
+					c.Stdin = tty
+					c.Stderr = tty
+					if c.SysProcAttr == nil {
+						c.SysProcAttr = &syscall.SysProcAttr{}
+					}
+					c.SysProcAttr.Setctty = true
+					c.SysProcAttr.Setsid = true
+					err = c.Start()
+					if err != nil {
+						ptyx.Close()
+						return nil, err
+					}
+					return ptyx, err
+				}(cmd)
 				if errInline != nil {
 					errChan <- termination{errors.Wrap(errInline, "failed to start server"), false}
 					break
