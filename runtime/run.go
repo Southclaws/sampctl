@@ -143,7 +143,6 @@ func run(ctx context.Context, binary string, runType types.RunMode) (err error) 
 
 	var cmd *exec.Cmd
 	go func() {
-		// on linux, must use unbuffer to disable stream buffering because samp03svr is weird...
 		cmd = exec.CommandContext(ctx, binary)
 		cmd.Dir = filepath.Dir(binary)
 
