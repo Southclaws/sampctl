@@ -143,7 +143,7 @@
   branch = "master"
   name = "github.com/minio/go-homedir"
   packages = ["."]
-  revision = "21304a94172ae3a09dee2cd86a12fb6f842138c7"
+  revision = "4d76aabb80b22bad8695d3904e943f1fb5e6199f"
 
 [[projects]]
   branch = "master"
@@ -366,6 +366,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "9065913437d1aca30ce5b0e72441aab525c3fec8db42df5575f9f3a4e04c763d"
+  inputs-digest = "fed7dbef6da4dc5b4cb08b7297c8d3e7c645c7da3be09e660289a17d66a51563"
   solver-name = "gps-cdcl"
   solver-version = 1

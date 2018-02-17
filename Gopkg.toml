@@ -39,10 +39,6 @@
 
 [[constraint]]
   branch = "master"
-  name = "github.com/minio/go-homedir"
-
-[[constraint]]
-  branch = "master"
   name = "github.com/nbutton23/zxcvbn-go"
 
 [[constraint]]
