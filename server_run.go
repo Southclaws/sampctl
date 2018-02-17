@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
+	"os"
 
-	"github.com/Southclaws/sampctl/print"
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/runtime"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
@@ -68,7 +69,7 @@ func serverRun(c *cli.Context) error {
 		return errors.Wrap(err, "failed to get or create cache directory")
 	}
 
-	err = runtime.Run(context.Background(), cfg, cacheDir)
+	err = runtime.Run(context.Background(), cfg, cacheDir, os.Stdout)
 
 	return err
 }

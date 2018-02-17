@@ -10,12 +10,10 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"syscall"
 	"time"
 
-	"github.com/kr/pty"
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/print"
@@ -34,7 +32,7 @@ type testResults struct {
 }
 
 // Run handles the actual running of the server process - it collects log output too
-func Run(ctx context.Context, cfg types.Runtime, cacheDir string) (err error) {
+func Run(ctx context.Context, cfg types.Runtime, cacheDir string, output io.Writer) (err error) {
 	if cfg.Container != nil {
 		return RunContainer(cfg, cacheDir)
 	}
@@ -43,10 +41,10 @@ func Run(ctx context.Context, cfg types.Runtime, cacheDir string) (err error) {
 	fullPath := filepath.Join(cfg.WorkingDir, binary)
 	print.Verb("starting", binary, "in", cfg.WorkingDir)
 
-	return run(ctx, fullPath, cfg.Mode)
+	return run(ctx, fullPath, cfg.Mode, output)
 }
 
-func run(ctx context.Context, binary string, runType types.RunMode) (err error) {
+func run(ctx context.Context, binary string, runType types.RunMode, output io.Writer) (err error) {
 	// termination is an internal instruction for communicating successful or failed runs.
 	// It contains an error and a boolean to indicate whether or not to terminate the process.
 	type termination struct {
@@ -90,7 +88,7 @@ func run(ctx context.Context, binary string, runType types.RunMode) (err error) 
 				}
 
 				if !preamble {
-					fmt.Println(line)
+					fmt.Fprintf(output, line)
 				}
 			}
 		}()
@@ -126,7 +124,7 @@ func run(ctx context.Context, binary string, runType types.RunMode) (err error) 
 				}
 
 				if !preamble {
-					fmt.Println(line)
+					fmt.Fprintf(output, line)
 				}
 			}
 		}()
@@ -136,7 +134,7 @@ func run(ctx context.Context, binary string, runType types.RunMode) (err error) 
 			scanner := bufio.NewScanner(outputReader)
 			for scanner.Scan() {
 				line := scanner.Text()
-				fmt.Println(line)
+				fmt.Fprintf(output, line)
 			}
 		}()
 	}
@@ -154,50 +152,13 @@ func run(ctx context.Context, binary string, runType types.RunMode) (err error) 
 			cmd.Dir = filepath.Dir(binary)
 
 			startTime = time.Now()
-			var errInline error
-			if runtime.GOOS == "windows" {
-				cmd.Stdout = os.Stdout
-				errInline = cmd.Run()
-				if errInline.Error() == "exit status 1" {
-					errInline = errors.New("server crashed")
-				}
-			} else {
-				// pty.Start is not exported for Windows so we have to copy the function here so
-				// the Windows build actually works properly. This could have been done with build
-				// tags but the quick and dirty approach is good enough for now.
-				var ptmx *os.File
-				ptmx, errInline = func(c *exec.Cmd) (ptyx *os.File, err error) {
-					ptyx, tty, err := pty.Open()
-					if err != nil {
-						return nil, err
-					}
-					defer tty.Close()
-					c.Stdout = tty
-					c.Stdin = tty
-					c.Stderr = tty
-					if c.SysProcAttr == nil {
-						c.SysProcAttr = &syscall.SysProcAttr{}
-					}
-					c.SysProcAttr.Setctty = true
-					c.SysProcAttr.Setsid = true
-					err = c.Start()
-					if err != nil {
-						ptyx.Close()
-						return nil, err
-					}
-					return ptyx, err
-				}(cmd)
-				if errInline != nil {
-					errChan <- termination{errors.Wrap(errInline, "failed to start server"), false}
-					break
-				}
-
-				defer ptmx.Close()
-				_, errInline = io.Copy(outputWriter, ptmx)
-				if errInline.Error() == "read /dev/ptmx: input/output error" {
-					errInline = errors.New("server crashed")
+			errInline := platformRun(cmd, outputWriter)
+			if err != nil {
+				if err.Error() != "server crashed" {
+					errChan <- termination{errors.Wrap(err, "failed to start server"), false}
 				}
 			}
+
 			print.Verb("child exec thread finished, pid:", cmd.Process.Pid, "error:", errInline)
 
 			if runType == types.Server {

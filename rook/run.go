@@ -29,7 +29,7 @@ func Run(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pkg 
 		return
 	}
 
-	err = runtime.Run(ctx, *config, cacheDir)
+	err = runtime.Run(ctx, *config, cacheDir, os.Stdout)
 
 	return
 }
@@ -100,7 +100,7 @@ loop:
 
 			fmt.Println("watch-run: executing package code")
 			go func() {
-				err = runtime.Run(ctx, *config, cacheDir)
+				err = runtime.Run(ctx, *config, cacheDir, os.Stdout)
 				if err != nil {
 					print.Erro(err)
 				}
