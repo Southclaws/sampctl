@@ -1,6 +1,6 @@
 package runtime
 
-// +build !windows
+// +build linux, darwin
 
 import (
 	"io"
