@@ -59,15 +59,16 @@ func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pk
 		return
 	}
 
+	var pkgInner types.Package
 	for _, depMeta := range pkg.AllDependencies {
 		depDir := filepath.Join(pkg.Local, "dependencies", depMeta.Repo)
 		incPath := depMeta.Path
 
 		// check if local package has a definition, if so, check if it has an IncludePath field
-		pkg, err := types.PackageFromDir(depDir)
+		pkgInner, err = types.PackageFromDir(depDir)
 		if err == nil {
-			if pkg.IncludePath != "" {
-				incPath = pkg.IncludePath
+			if pkgInner.IncludePath != "" {
+				incPath = pkgInner.IncludePath
 			}
 		}
 
@@ -135,15 +136,16 @@ func BuildWatch(ctx context.Context, gh *github.Client, auth transport.AuthMetho
 		return
 	}
 
+	var pkgInner types.Package
 	for _, depMeta := range pkg.AllDependencies {
 		depDir := filepath.Join(pkg.Local, "dependencies", depMeta.Repo)
 		incPath := depMeta.Path
 
 		// check if local package has a definition, if so, check if it has an IncludePath field
-		pkg, err := types.PackageFromDir(depDir)
+		pkgInner, err = types.PackageFromDir(depDir)
 		if err == nil {
-			if pkg.IncludePath != "" {
-				incPath = pkg.IncludePath
+			if pkgInner.IncludePath != "" {
+				incPath = pkgInner.IncludePath
 			}
 		}
 
@@ -182,8 +184,8 @@ loop:
 			fmt.Println("") // insert newline after the ^C
 			print.Info("signal received", sig, "stopping build watcher...")
 			break loop
-		case err := <-errorCh:
-			print.Erro("Error encountered during build:", err)
+		case errInner := <-errorCh:
+			print.Erro("Error encountered during build:", errInner)
 			break loop
 
 		case event := <-watcher.Events:

@@ -23,8 +23,8 @@ func Untar(src, dst string, paths map[string]string) (err error) {
 		return errors.Wrap(err, "failed to open archive")
 	}
 	defer func() {
-		if closeErr := r.Close(); closeErr != nil {
-			panic(closeErr)
+		if errClose := r.Close(); errClose != nil {
+			panic(errClose)
 		}
 	}()
 
@@ -32,20 +32,21 @@ func Untar(src, dst string, paths map[string]string) (err error) {
 
 	gz, err := gzip.NewReader(r)
 	if err != nil {
-		zl, err := zlib.NewReader(r)
+		var zl io.ReadCloser
+		zl, err = zlib.NewReader(r)
 		if err != nil {
 			return errors.Wrap(err, "failed to create new zlib reader after failed attempt at gzip")
 		}
 		defer func() {
-			if err := zl.Close(); err != nil {
-				panic(err)
+			if err = zl.Close(); err != nil {
+				return
 			}
 		}()
 		tr = tar.NewReader(zl)
 	} else {
 		defer func() {
-			if err := gz.Close(); err != nil {
-				panic(err)
+			if err = gz.Close(); err != nil {
+				return
 			}
 		}()
 		tr = tar.NewReader(gz)
@@ -107,18 +108,19 @@ loop:
 		// fi := header.FileInfo()
 
 		if header.Typeflag == tar.TypeReg {
-			f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
+			var f *os.File
+			f, err = os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
 			if err != nil {
 				return errors.Wrap(err, "failed to open extract target file")
 			}
 			defer func() {
-				if err := f.Close(); err != nil {
-					panic(err)
+				if err = f.Close(); err != nil {
+					return
 				}
 			}()
 
 			// copy over contents
-			if _, err := io.Copy(f, tr); err != nil {
+			if _, err = io.Copy(f, tr); err != nil {
 				return errors.Wrap(err, "failed to copy contents to extract target file")
 			}
 		}
@@ -137,8 +139,8 @@ func Unzip(src, dst string, paths map[string]string) (err error) {
 		return err
 	}
 	defer func() {
-		if err := r.Close(); err != nil {
-			panic(err)
+		if errClose := r.Close(); errClose != nil {
+			panic(errClose)
 		}
 	}()
 
@@ -176,8 +178,8 @@ func Unzip(src, dst string, paths map[string]string) (err error) {
 			return err
 		}
 		defer func() {
-			if err := rc.Close(); err != nil {
-				panic(err)
+			if err = rc.Close(); err != nil {
+				return
 			}
 		}()
 
@@ -192,8 +194,8 @@ func Unzip(src, dst string, paths map[string]string) (err error) {
 				return err
 			}
 			defer func() {
-				if err := f.Close(); err != nil {
-					panic(err)
+				if err = f.Close(); err != nil {
+					return
 				}
 			}()
 

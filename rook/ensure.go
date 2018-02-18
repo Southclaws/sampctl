@@ -63,14 +63,16 @@ func EnsureDependencies(pkg *types.Package, auth transport.AuthMethod) (err erro
 		pkg.AllDependencies = append(pkg.AllDependencies, meta)
 		visited[meta.Repo] = true
 
-		subPkg, err := PackageFromDir(false, pkgPath, pkg.Vendor)
+		var subPkg types.Package
+		subPkg, err = PackageFromDir(false, pkgPath, pkg.Vendor)
 		if err != nil {
 			print.Warn(pkg, meta, err)
 			return
 		}
 
+		var subPkgDepMeta versioning.DependencyMeta
 		for _, subPkgDep := range subPkg.Dependencies {
-			subPkgDepMeta, err := subPkgDep.Explode()
+			subPkgDepMeta, err = subPkgDep.Explode()
 			if err != nil {
 				continue
 			}
@@ -110,6 +112,7 @@ func EnsurePackage(pkgPath string, meta versioning.DependencyMeta, auth transpor
 	var (
 		needToClone  = false // do we need to clone a new repo?
 		needToUpdate = true  // do we need to do anything after once the repo is on-disk?
+		head         *plumbing.Reference
 	)
 
 	repo, err := git.PlainOpen(pkgPath)
@@ -119,7 +122,7 @@ func EnsurePackage(pkgPath string, meta versioning.DependencyMeta, auth transpor
 		print.Verb(meta, "package does not exist at", util.RelPath(pkgPath), "cloning new copy")
 		needToClone = true
 	} else {
-		head, err := repo.Head()
+		head, err = repo.Head()
 		if err != nil {
 			print.Verb(meta, "package already exists but failed to get repository HEAD:", err)
 			needToClone = true
@@ -163,7 +166,7 @@ func EnsurePackage(pkgPath string, meta versioning.DependencyMeta, auth transpor
 		}
 	}
 
-	head, err := repo.Head()
+	head, err = repo.Head()
 	if err != nil {
 		return errors.Wrap(err, "failed to check repo HEAD after update")
 	}

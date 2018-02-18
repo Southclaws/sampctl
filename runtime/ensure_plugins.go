@@ -104,9 +104,9 @@ func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, cfg types.Run
 
 	// get plugins
 	for _, plugin := range resource.Plugins {
-		filename := filepath.Base(plugin)
-		paths[plugin] = filepath.Join("plugins", filename)
-		files = append(files, types.Plugin(filename))
+		pluginFileName := filepath.Base(plugin)
+		paths[plugin] = filepath.Join("plugins", pluginFileName)
+		files = append(files, types.Plugin(pluginFileName))
 	}
 
 	// get additional files

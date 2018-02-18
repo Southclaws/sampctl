@@ -241,7 +241,7 @@ func (cfg Runtime) ToJSON() (err error) {
 	path := filepath.Join(cfg.WorkingDir, "samp.json")
 
 	if util.Exists(path) {
-		if err := os.Remove(path); err != nil {
+		if err = os.Remove(path); err != nil {
 			panic(err)
 		}
 	}
@@ -251,7 +251,7 @@ func (cfg Runtime) ToJSON() (err error) {
 		return
 	}
 	defer func() {
-		err := fh.Close()
+		err = fh.Close()
 		if err != nil {
 			panic(err)
 		}
@@ -271,7 +271,7 @@ func (cfg Runtime) ToYAML() (err error) {
 	path := filepath.Join(cfg.WorkingDir, "samp.yaml")
 
 	if util.Exists(path) {
-		if err := os.Remove(path); err != nil {
+		if err = os.Remove(path); err != nil {
 			panic(err)
 		}
 	}
@@ -281,8 +281,7 @@ func (cfg Runtime) ToYAML() (err error) {
 		return
 	}
 	defer func() {
-		err := fh.Close()
-		if err != nil {
+		if err = fh.Close(); err != nil {
 			panic(err)
 		}
 	}()

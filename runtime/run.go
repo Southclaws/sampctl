@@ -112,12 +112,12 @@ func run(ctx context.Context, binary string, runType types.RunMode, output io.Wr
 				}
 
 				if matchTestEnd.MatchString(line) {
-					testResults := testResultsFromLine(line)
-					if testResults.Fails > 0 {
-						print.Erro(testResults.Tests, "tests, with:", testResults.Fails, "failures.")
+					results := testResultsFromLine(line)
+					if results.Fails > 0 {
+						print.Erro(results.Tests, "tests, with:", results.Fails, "failures.")
 						errChan <- termination{errors.New("tests failed"), true}
 					} else {
-						print.Info(testResults.Tests, "tests passed!")
+						print.Info(results.Tests, "tests passed!")
 						errChan <- termination{nil, true} // end the server process, no error
 					}
 

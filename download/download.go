@@ -61,8 +61,8 @@ func FromNet(url, cacheDir, filename string) (result string, err error) {
 		return
 	}
 	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			panic(closeErr)
+		if errClose := resp.Body.Close(); errClose != nil {
+			panic(errClose)
 		}
 	}()
 
