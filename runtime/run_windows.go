@@ -1,6 +1,6 @@
-package runtime
-
 // +build windows
+
+package runtime
 
 import (
 	"io"
@@ -8,6 +8,6 @@ import (
 )
 
 func platformRun(cmd *exec.Cmd, w io.Writer) (err error) {
-	cmd.Stdout = outputWriter
+	cmd.Stdout = w
 	return cmd.Run()
 }
