@@ -88,7 +88,7 @@ func run(ctx context.Context, binary string, runType types.RunMode, output io.Wr
 				}
 
 				if !preamble {
-					fmt.Fprintf(output, line)
+					fmt.Fprintln(output, line)
 				}
 			}
 		}()
@@ -124,7 +124,7 @@ func run(ctx context.Context, binary string, runType types.RunMode, output io.Wr
 				}
 
 				if !preamble {
-					fmt.Fprintf(output, line)
+					fmt.Fprintln(output, line)
 				}
 			}
 		}()
@@ -134,7 +134,7 @@ func run(ctx context.Context, binary string, runType types.RunMode, output io.Wr
 			scanner := bufio.NewScanner(outputReader)
 			for scanner.Scan() {
 				line := scanner.Text()
-				fmt.Fprintf(output, line)
+				fmt.Fprintln(output, line)
 			}
 		}()
 	}
