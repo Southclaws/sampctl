@@ -99,7 +99,6 @@ func run(ctx context.Context, binary string, runType types.RunMode, output io.Wr
 			preambleSpace := false
 			scanner := bufio.NewScanner(outputReader)
 			for scanner.Scan() {
-				ptx := 1
 				line := scanner.Text()
 
 				if matchPreamble.MatchString(line) {

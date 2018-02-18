@@ -113,7 +113,8 @@ func ReleaseAssetByPattern(ctx context.Context, gh *github.Client, meta versioni
 	}
 
 	if outputFile == "" {
-		u, err := url.Parse(*asset.BrowserDownloadURL)
+		var u *url.URL
+		u, err = url.Parse(*asset.BrowserDownloadURL)
 		outputFile = filepath.Join(dir, filepath.Base(u.Path))
 	} else {
 		outputFile = filepath.Join(dir, outputFile)
