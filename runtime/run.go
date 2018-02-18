@@ -201,7 +201,7 @@ func run(ctx context.Context, binary string, runType types.RunMode, output io.Wr
 
 	if term.exit {
 		if cmd.Process != nil {
-			killErr := cmd.Process.Signal(syscall.SIGINT)
+			killErr := cmd.Process.Kill()
 			if killErr != nil {
 				print.Erro("Failed to kill", killErr)
 			}
