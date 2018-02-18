@@ -96,7 +96,7 @@ loop:
 
 			err = runtime.CopyFileToRuntime(cacheDir, cfg.Version, util.FullPath(pkg.Output))
 			if err != nil {
-				err = errors.Wrap(err, "failed to copy amx file to temprary runtime directory")
+				err = errors.Wrap(err, "failed to copy amx file to temporary runtime directory")
 				print.Erro(err)
 			}
 
@@ -148,7 +148,7 @@ func runPrepare(ctx context.Context, gh *github.Client, auth transport.AuthMetho
 
 	err = runtime.CopyFileToRuntime(cacheDir, cfg.Version, filename)
 	if err != nil {
-		err = errors.Wrap(err, "failed to copy amx file to temprary runtime directory")
+		err = errors.Wrap(err, "failed to copy amx file to temporary runtime directory")
 		return
 	}
 

@@ -1,0 +1,64 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "lint",
+            "type": "shell",
+            "command": "gometalinter",
+            "isBackground": false,
+            "presentation": {
+                "echo": true,
+                "reveal": "never",
+                "focus": false,
+                "panel": "shared"
+            },
+            "identifier": "lint",
+            "args": [
+                "--deadline=10m",
+                "--vendor",
+                "--aggregate",
+                "--disable-all",
+                "--enable=interfacer",
+                "--enable=misspell",
+                "--enable=unused",
+                "--enable=gas",
+                "--enable=gotype",
+                "--enable=ineffassign",
+                "--enable=staticcheck",
+                "--enable=dupl",
+                "--enable=errcheck",
+                "--enable=safesql",
+                "--enable=vet",
+                "--enable=golint",
+                "--enable=gosimple",
+                "--enable=gocyclo",
+                "--enable=structcheck",
+                "--enable=aligncheck",
+                "--enable=deadcode",
+                "--enable=vetshadow",
+                "--enable=unconvert",
+                "--enable=varcheck",
+                "--enable-gc",
+                "--debug",
+                "./..."
+            ],
+            "problemMatcher": {
+                "fileLocation": "relative",
+                "pattern": {
+                    "regexp": "^(.+):([0-9]+):([0-9]*):(warning|error): (.+)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}

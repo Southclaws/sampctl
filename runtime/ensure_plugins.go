@@ -32,7 +32,7 @@ func EnsurePlugins(ctx context.Context, gh *github.Client, cfg *types.Runtime, c
 
 	var (
 		newPlugins = []types.Plugin{}
-		files      = []types.Plugin{}
+		files      []types.Plugin
 	)
 
 	for _, plugin := range cfg.PluginDeps {
