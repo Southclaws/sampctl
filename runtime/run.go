@@ -59,7 +59,7 @@ func run(ctx context.Context, binary string, runType types.RunMode, output io.Wr
 	defer func() {
 		errClose := outputWriter.Close()
 		if errClose != nil {
-			print.Erro("Compiler output read error:", errClose)
+			print.Erro("Server output read error:", errClose)
 		}
 	}()
 
