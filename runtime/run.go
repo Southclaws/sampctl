@@ -153,9 +153,9 @@ func run(ctx context.Context, binary string, runType types.RunMode, output io.Wr
 
 			startTime = time.Now()
 			errInline := platformRun(cmd, outputWriter)
-			if err != nil {
-				if err.Error() != "server crashed" {
-					errChan <- termination{errors.Wrap(err, "failed to start server"), false}
+			if errInline != nil {
+				if errInline.Error() != "server crashed" {
+					errChan <- termination{errors.Wrap(errInline, "failed to start server"), false}
 				}
 			}
 
