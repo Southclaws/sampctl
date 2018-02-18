@@ -95,7 +95,6 @@ func packageRun(c *cli.Context) error {
 	}
 
 	cfg := types.Runtime{
-		Platform:   runtime.GOOS,
 		AppVersion: c.App.Version,
 		Version:    version,
 		Endpoint:   endpoint,
@@ -103,6 +102,9 @@ func packageRun(c *cli.Context) error {
 
 	if container {
 		cfg.Container = &types.ContainerConfig{MountCache: mountCache}
+		cfg.Platform = "linux"
+	} else {
+		cfg.Platform = runtime.GOOS
 	}
 
 	if watch {
