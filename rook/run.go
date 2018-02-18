@@ -55,6 +55,7 @@ func RunWatch(ctx1 context.Context, gh *github.Client, auth transport.AuthMethod
 		ctx, cancel = context.WithCancel(ctx1)
 	)
 
+	defer cancel()
 	running.Store(false)
 
 	go func() {
@@ -90,6 +91,7 @@ loop:
 				fmt.Println("watch-run: finished")
 				// re-create context and canceler
 				ctx, cancel = context.WithCancel(context.Background())
+				defer cancel()
 			}
 
 			err = runtime.CopyFileToRuntime(cacheDir, cfg.Version, util.FullPath(pkg.Output))

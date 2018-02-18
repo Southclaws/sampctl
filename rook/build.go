@@ -172,6 +172,7 @@ func BuildWatch(ctx context.Context, gh *github.Client, auth transport.AuthMetho
 		lastEvent        time.Time
 	)
 
+	defer cancel()
 	running.Store(false)
 
 loop:
@@ -207,6 +208,7 @@ loop:
 				fmt.Println("watch-build: finished", buildNumber)
 				// re-create context and canceler
 				ctxInner, cancel = context.WithCancel(context.Background())
+				defer cancel()
 			}
 
 			atomic.AddUint32(&buildNumber, 1)

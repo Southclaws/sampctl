@@ -16,14 +16,15 @@ import (
 // Untar takes a destination path and a reader; a tar reader loops over the tarfile
 // creating the file structure at 'dst' along the way, and writing any files
 // from https://medium.com/@skdomino/taring-untaring-files-in-go-6b07cf56bc07
+// nolint:gocyclo
 func Untar(src, dst string, paths map[string]string) (err error) {
 	r, err := os.Open(src)
 	if err != nil {
 		return errors.Wrap(err, "failed to open archive")
 	}
 	defer func() {
-		if err := r.Close(); err != nil {
-			panic(err)
+		if closeErr := r.Close(); closeErr != nil {
+			panic(closeErr)
 		}
 	}()
 

@@ -42,8 +42,8 @@ func FindIncludes(files []string) (includes []versioning.DependencyString) {
 	wg := sync.WaitGroup{}
 	for _, file := range files {
 		wg.Add(1)
-		go func() {
-			content, err := ioutil.ReadFile(file)
+		go func(innerFile string) {
+			content, err := ioutil.ReadFile(innerFile)
 			if err != nil {
 				print.Erro(err)
 				return
@@ -60,7 +60,7 @@ func FindIncludes(files []string) (includes []versioning.DependencyString) {
 				}
 			}
 			wg.Done()
-		}()
+		}(file)
 	}
 	wg.Wait()
 	sort.Slice(includes, func(i, j int) bool { return includes[i] < includes[j] })

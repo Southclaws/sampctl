@@ -44,6 +44,7 @@ func Run(ctx context.Context, cfg types.Runtime, cacheDir string, output io.Writ
 	return run(ctx, fullPath, cfg.Mode, output)
 }
 
+// nolint:gocyclo
 func run(ctx context.Context, binary string, runType types.RunMode, output io.Writer) (err error) {
 	// termination is an internal instruction for communicating successful or failed runs.
 	// It contains an error and a boolean to indicate whether or not to terminate the process.
@@ -98,6 +99,7 @@ func run(ctx context.Context, binary string, runType types.RunMode, output io.Wr
 			preambleSpace := false
 			scanner := bufio.NewScanner(outputReader)
 			for scanner.Scan() {
+				ptx := 1
 				line := scanner.Text()
 
 				if matchPreamble.MatchString(line) {

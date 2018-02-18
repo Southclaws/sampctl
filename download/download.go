@@ -31,7 +31,7 @@ func GetCacheDir() (string, error) {
 	}
 
 	dir := filepath.Join(home, ".samp")
-	return dir, os.MkdirAll(dir, 0755)
+	return dir, os.MkdirAll(dir, 0700)
 }
 
 // FromCache first checks if a file is cached, then
@@ -61,8 +61,8 @@ func FromNet(url, cacheDir, filename string) (result string, err error) {
 		return
 	}
 	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			panic(err)
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			panic(closeErr)
 		}
 	}()
 
@@ -113,7 +113,7 @@ func ReleaseAssetByPattern(ctx context.Context, gh *github.Client, meta versioni
 	}
 
 	if outputFile == "" {
-		u, _ := url.Parse(*asset.BrowserDownloadURL)
+		u, err := url.Parse(*asset.BrowserDownloadURL)
 		outputFile = filepath.Join(dir, filepath.Base(u.Path))
 	} else {
 		outputFile = filepath.Join(dir, outputFile)

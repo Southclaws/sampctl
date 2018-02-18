@@ -67,10 +67,10 @@ func TestCompileSource(t *testing.T) {
 				Version:    "3.10.4",
 			}},
 			types.BuildProblems{
-				{"script.pwn", 1, types.ProblemError, `invalid function or declaration`},
-				{"script.pwn", 3, types.ProblemError, `invalid function or declaration`},
-				{"script.pwn", 6, types.ProblemWarning, `symbol is never used: "a"`},
-				{"script.pwn", 6, types.ProblemError, `no entry point (no public functions)`},
+				{File: "script.pwn", Line: 1, Severity: types.ProblemError, Description: `invalid function or declaration`},
+				{File: "script.pwn", Line: 3, Severity: types.ProblemError, Description: `invalid function or declaration`},
+				{File: "script.pwn", Line: 6, Severity: types.ProblemWarning, Description: `symbol is never used: "a"`},
+				{File: "script.pwn", Line: 6, Severity: types.ProblemError, Description: `no entry point (no public functions)`},
 			},
 			types.BuildResult{},
 			false, false},
@@ -105,8 +105,8 @@ func TestCompileSource(t *testing.T) {
 				Version:    "3.10.4",
 			}},
 			types.BuildProblems{
-				{"library.inc", 6, types.ProblemWarning, `symbol is never used: "b"`},
-				{"script.pwn", 5, types.ProblemWarning, `symbol is never used: "a"`},
+				{File: "library.inc", Line: 6, Severity: types.ProblemWarning, Description: `symbol is never used: "b"`},
+				{File: "script.pwn", Line: 5, Severity: types.ProblemWarning, Description: `symbol is never used: "a"`},
 			},
 			types.BuildResult{
 				Header:    60,
@@ -128,7 +128,7 @@ func TestCompileSource(t *testing.T) {
 				Version:    "3.10.4",
 			}},
 			types.BuildProblems{
-				{"script.pwn", 1, types.ProblemFatal, `cannot read from file: "idonotexist"`},
+				{File: "script.pwn", Line: 1, Severity: types.ProblemFatal, Description: `cannot read from file: "idonotexist"`},
 			},
 			types.BuildResult{},
 			false, false},
