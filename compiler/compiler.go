@@ -187,6 +187,11 @@ func CompileWithCommand(cmd *exec.Cmd, workingDir string) (problems types.BuildP
 					problem.File = filepath.Join(workingDir, groups[1])
 				}
 
+				if string(filepath.Separator) != "\\" {
+					problem.File = strings.Replace(problem.File, "\\", "/", -1)
+				}
+				problem.File = filepath.Clean(problem.File)
+
 				problem.Line, _ = strconv.Atoi(groups[2])
 
 				switch groups[3] {
