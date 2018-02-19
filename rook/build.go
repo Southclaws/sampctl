@@ -89,6 +89,8 @@ func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pk
 			err = errors.Wrap(err, "failed to compile package entry")
 		}
 
+		atomic.AddUint32(&buildNumber, 1)
+
 		if buildFile != "" {
 			err2 := ioutil.WriteFile(buildFile, []byte(fmt.Sprint(buildNumber)), 0755)
 			if err2 != nil {
