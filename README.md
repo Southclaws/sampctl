@@ -228,6 +228,7 @@ Generates a `server.cfg` file based on the configuration inside `samp.json`/`sam
 - `--mountCache --container`: if --container is set, mounts the local cache directory inside the container
 - `--ensurePlugins`: forces plugin binaries ensure before run
 - `--noCache`: forces download of plugins
+- `--absolutePath`: output the absolute path of files
 
 
 ---
@@ -297,6 +298,7 @@ Builds a package defined by a `pawn.json`/`pawn.yaml` file.
 - `--build value`: build configuration to use
 - `--forceEnsure`: forces dependency ensure before build
 - `--dryRun`: does not run the build but outputs the command necessary to do so
+- `--absolutePath`: output the absolute path of files
 - `--watch`: keeps sampctl running and triggers builds whenever source files change
 - `--buildFile value`: declares a file to store the incrementing build number for easy versioning
 
