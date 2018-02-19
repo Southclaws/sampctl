@@ -25,7 +25,7 @@ import (
 )
 
 // RunContainer does what Run does but inside a Linux container
-func RunContainer(cfg sampctltypes.Runtime, cacheDir string) (err error) {
+func RunContainer(cfg sampctltypes.Runtime, cacheDir string, output io.Writer, input io.Reader) (err error) {
 	cli, err := client.NewEnvClient()
 	if err != nil {
 		return
@@ -70,7 +70,7 @@ func RunContainer(cfg sampctltypes.Runtime, cacheDir string) (err error) {
 	}
 
 	netConfig := &network.NetworkingConfig{
-	//
+		//
 	}
 
 	ref := "southclaws/sampctl:" + cfg.AppVersion
@@ -80,6 +80,7 @@ func RunContainer(cfg sampctltypes.Runtime, cacheDir string) (err error) {
 		Tty:          true,
 		AttachStdout: true,
 		AttachStderr: true,
+		AttachStdin:  true,
 	}
 
 	containerName := fmt.Sprintf("sampctl-%d", time.Now().Unix())
@@ -143,7 +144,7 @@ func RunContainer(cfg sampctltypes.Runtime, cacheDir string) (err error) {
 
 		scanner := bufio.NewScanner(reader)
 		for scanner.Scan() {
-			fmt.Println(scanner.Text())
+			fmt.Fprintln(output, scanner.Text())
 		}
 	}()
 
