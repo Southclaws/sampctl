@@ -162,7 +162,7 @@ What also happens here is `maddinat0r/sscanf` tells sampctl to automatically get
 ---
 # `sampctl`
 
-1.6.10 - Southclaws <southclaws@gmail.com>
+1.6.11 - Southclaws <southclaws@gmail.com>
 
 Compiles server configuration JSON to server.cfg format. Executes the server and monitors it for crashes, restarting if necessary. Provides a way to quickly download server binaries of a specified version. Provides dependency management and package build tools for library maintainers and gamemode writers alike.
 
@@ -226,7 +226,6 @@ Generates a `server.cfg` file based on the configuration inside `samp.json`/`sam
 - `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
 - `--container`: starts the server as a Linux container instead of running it in the current directory
 - `--mountCache --container`: if --container is set, mounts the local cache directory inside the container
-- `--ensurePlugins`: forces plugin binaries ensure before run
 - `--noCache`: forces download of plugins
 
 
