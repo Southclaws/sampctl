@@ -98,7 +98,7 @@ Write your quick test code:
 
 main() {
     new str[128];
-    formatex(str, sizeof str, "My favourite vehicle is: '%%v'!", 400); // should print "Landstalker"
+    formatex(str, sizeof str, "My favourite vehicle is: '%v'!", 400); // should print "Landstalker"
     print(str);
 }
 ```
