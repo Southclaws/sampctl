@@ -162,7 +162,7 @@ What also happens here is `maddinat0r/sscanf` tells sampctl to automatically get
 ---
 # `sampctl`
 
-1.6.9 - Southclaws <southclaws@gmail.com>
+1.6.10 - Southclaws <southclaws@gmail.com>
 
 Compiles server configuration JSON to server.cfg format. Executes the server and monitors it for crashes, restarting if necessary. Provides a way to quickly download server binaries of a specified version. Provides dependency management and package build tools for library maintainers and gamemode writers alike.
 
@@ -228,7 +228,6 @@ Generates a `server.cfg` file based on the configuration inside `samp.json`/`sam
 - `--mountCache --container`: if --container is set, mounts the local cache directory inside the container
 - `--ensurePlugins`: forces plugin binaries ensure before run
 - `--noCache`: forces download of plugins
-- `--relativePath`: output the relative path of files
 
 
 ---
@@ -298,9 +297,9 @@ Builds a package defined by a `pawn.json`/`pawn.yaml` file.
 - `--build value`: build configuration to use
 - `--forceEnsure`: forces dependency ensure before build
 - `--dryRun`: does not run the build but outputs the command necessary to do so
-- `--relativePath`: output the relative path of files
 - `--watch`: keeps sampctl running and triggers builds whenever source files change
 - `--buildFile value`: declares a file to store the incrementing build number for easy versioning
+- `--relativePaths`: force compiler output to use relative paths instead of absolute
 
 ### `sampctl package run`
 
@@ -322,6 +321,7 @@ Compiles and runs a package defined by a `pawn.json`/`pawn.yaml` file.
 - `--noCache --forceEnsure`: forces download of plugins if --forceEnsure is set
 - `--watch`: keeps sampctl running and triggers builds whenever source files change
 - `--buildFile value`: declares a file to store the incrementing build number for easy versioning
+- `--relativePaths`: force compiler output to use relative paths instead of absolute
 
 ### `sampctl package template`
 
