@@ -70,7 +70,7 @@ func main() {
 
 	gitAuth, err = ssh.DefaultAuthBuilder("git")
 	if err != nil {
-		print.Erro("Failed to set up SSH:", err)
+		print.Warn("Could not set up SSH:", err)
 	}
 
 	globalFlags := []cli.Flag{
