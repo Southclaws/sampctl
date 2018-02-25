@@ -16,6 +16,7 @@ func TestCompileSource(t *testing.T) {
 	type args struct {
 		cacheDir string
 		config   types.BuildConfig
+		relative bool
 	}
 	tests := []struct {
 		name         string
@@ -33,7 +34,7 @@ func TestCompileSource(t *testing.T) {
 				Output:     "./tests/build-simple-pass/script.amx",
 				Includes:   []string{},
 				Version:    "3.10.4",
-			}},
+			}, false},
 			nil,
 			types.BuildResult{},
 			false, true},
@@ -46,7 +47,7 @@ func TestCompileSource(t *testing.T) {
 				Args:       []string{"-d3"},
 				Includes:   []string{},
 				Version:    "3.10.4",
-			}},
+			}, false},
 			nil,
 			types.BuildResult{
 				Header:    60,
@@ -65,7 +66,24 @@ func TestCompileSource(t *testing.T) {
 				Output:     "./tests/build-simple-fail/script.amx",
 				Includes:   []string{},
 				Version:    "3.10.4",
-			}},
+			}, false},
+			types.BuildProblems{
+				{File: "script.pwn", Line: 1, Severity: types.ProblemError, Description: `invalid function or declaration`},
+				{File: "script.pwn", Line: 3, Severity: types.ProblemError, Description: `invalid function or declaration`},
+				{File: "script.pwn", Line: 6, Severity: types.ProblemWarning, Description: `symbol is never used: "a"`},
+				{File: "script.pwn", Line: 6, Severity: types.ProblemError, Description: `no entry point (no public functions)`},
+			},
+			types.BuildResult{},
+			false, false},
+		{"simple-fail-rel", args{
+			util.FullPath("./tests/cache-compile"),
+			types.BuildConfig{
+				WorkingDir: "./tests/build-simple-fail",
+				Input:      "./tests/build-simple-fail/script.pwn",
+				Output:     "./tests/build-simple-fail/script.amx",
+				Includes:   []string{},
+				Version:    "3.10.4",
+			}, true},
 			types.BuildProblems{
 				{File: "script.pwn", Line: 1, Severity: types.ProblemError, Description: `invalid function or declaration`},
 				{File: "script.pwn", Line: 3, Severity: types.ProblemError, Description: `invalid function or declaration`},
@@ -83,7 +101,7 @@ func TestCompileSource(t *testing.T) {
 				Args:       []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
 				Includes:   []string{},
 				Version:    "3.10.4",
-			}},
+			}, false},
 			nil,
 			types.BuildResult{
 				Header:    60,
@@ -103,7 +121,7 @@ func TestCompileSource(t *testing.T) {
 				Args:       []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
 				Includes:   []string{},
 				Version:    "3.10.4",
-			}},
+			}, false},
 			types.BuildProblems{
 				{File: "library.inc", Line: 6, Severity: types.ProblemWarning, Description: `symbol is never used: "b"`},
 				{File: "script.pwn", Line: 5, Severity: types.ProblemWarning, Description: `symbol is never used: "a"`},
@@ -126,7 +144,7 @@ func TestCompileSource(t *testing.T) {
 				Args:       []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
 				Includes:   []string{},
 				Version:    "3.10.4",
-			}},
+			}, false},
 			types.BuildProblems{
 				{File: "script.pwn", Line: 1, Severity: types.ProblemFatal, Description: `cannot read from file: "idonotexist"`},
 			},
@@ -135,7 +153,7 @@ func TestCompileSource(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotProblems, gotResult, err := CompileSource(context.Background(), gh, ".", tt.args.cacheDir, runtime.GOOS, tt.args.config)
+			gotProblems, gotResult, err := CompileSource(context.Background(), gh, ".", tt.args.cacheDir, runtime.GOOS, tt.args.config, tt.args.relative)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -144,7 +162,9 @@ func TestCompileSource(t *testing.T) {
 			}
 
 			for i, p := range tt.wantProblems {
-				tt.wantProblems[i].File = util.FullPath(filepath.Join(tt.args.config.WorkingDir, p.File))
+				if !tt.args.relative {
+					tt.wantProblems[i].File = util.FullPath(filepath.Join(tt.args.config.WorkingDir, p.File))
+				}
 			}
 
 			assert.Equal(t, tt.wantProblems, gotProblems)
