@@ -59,7 +59,7 @@ func packageBuild(c *cli.Context) error {
 	dryRun := c.Bool("dryRun")
 	watch := c.Bool("watch")
 	buildFile := c.String("buildFile")
-	relativePath := c.Bool("relativePath")
+	relativePaths := c.Bool("relativePaths")
 
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
@@ -72,12 +72,12 @@ func packageBuild(c *cli.Context) error {
 	}
 
 	if watch {
-		err := rook.BuildWatch(context.Background(), gh, gitAuth, &pkg, build, cacheDir, appRuntime.GOOS, forceEnsure, buildFile, relativePath, nil)
+		err := rook.BuildWatch(context.Background(), gh, gitAuth, &pkg, build, cacheDir, appRuntime.GOOS, forceEnsure, buildFile, relativePaths, nil)
 		if err != nil {
 			return cli.NewExitError(err.Error(), 1)
 		}
 	} else {
-		problems, result, err := rook.Build(context.Background(), gh, gitAuth, &pkg, build, cacheDir, appRuntime.GOOS, forceEnsure, dryRun, relativePath, buildFile)
+		problems, result, err := rook.Build(context.Background(), gh, gitAuth, &pkg, build, cacheDir, appRuntime.GOOS, forceEnsure, dryRun, relativePaths, buildFile)
 		if err != nil {
 			return cli.NewExitError(err.Error(), 1)
 		}
