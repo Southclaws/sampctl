@@ -43,8 +43,8 @@ var packageBuildFlags = []cli.Flag{
 		Usage: "declares a file to store the incrementing build number for easy versioning",
 	},
 	cli.BoolFlag{
-		Name:  "relativePath",
-		Usage: "output the relative path of files",
+		Name:  "relativePaths",
+		Usage: "force compiler output to use relative paths instead of absolute",
 	},
 }
 
