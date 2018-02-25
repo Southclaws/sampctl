@@ -29,10 +29,6 @@ var serverRunFlags = []cli.Flag{
 		Usage: "if `--container` is set, mounts the local cache directory inside the container",
 	},
 	cli.BoolFlag{
-		Name:  "ensurePlugins",
-		Usage: "forces plugin binaries ensure before run",
-	},
-	cli.BoolFlag{
 		Name:  "noCache",
 		Usage: "forces download of plugins",
 	},
@@ -46,7 +42,6 @@ func serverRun(c *cli.Context) error {
 	dir := util.FullPath(c.String("dir"))
 	container := c.Bool("container")
 	mountCache := c.Bool("mountCache")
-	ensurePlugins := c.Bool("ensurePlugins")
 	noCache := c.Bool("noCache")
 
 	cfg, err := runtime.NewConfigFromEnvironment(dir)
@@ -54,7 +49,7 @@ func serverRun(c *cli.Context) error {
 		return errors.Wrap(err, "failed to interpret directory as server runtime environment")
 	}
 
-	err = runtime.Ensure(context.Background(), gh, &cfg, noCache, ensurePlugins)
+	err = runtime.Ensure(context.Background(), gh, &cfg, noCache)
 	if err != nil {
 		return err
 	}

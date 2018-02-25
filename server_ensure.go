@@ -36,7 +36,7 @@ func serverEnsure(c *cli.Context) error {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	err = runtime.Ensure(context.Background(), gh, &cfg, noCache, true)
+	err = runtime.Ensure(context.Background(), gh, &cfg, noCache)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}

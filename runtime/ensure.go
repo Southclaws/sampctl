@@ -21,7 +21,7 @@ import (
 // - Plugin binaries
 // - Scripts: gamemodes and filterscripts
 // and a `server.cfg` is generated based on the contents of the Config fields.
-func Ensure(ctx context.Context, gh *github.Client, cfg *types.Runtime, noCache, ensurePlugins bool) (err error) {
+func Ensure(ctx context.Context, gh *github.Client, cfg *types.Runtime, noCache bool) (err error) {
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
 		return
@@ -32,11 +32,9 @@ func Ensure(ctx context.Context, gh *github.Client, cfg *types.Runtime, noCache,
 		return errors.Wrap(err, "failed to ensure runtime binaries")
 	}
 
-	if ensurePlugins {
-		err = EnsurePlugins(ctx, gh, cfg, cacheDir, noCache)
-		if err != nil {
-			return errors.Wrap(err, "failed to ensure plugins")
-		}
+	err = EnsurePlugins(ctx, gh, cfg, cacheDir, noCache)
+	if err != nil {
+		return errors.Wrap(err, "failed to ensure plugins")
 	}
 
 	err = EnsureScripts(*cfg)

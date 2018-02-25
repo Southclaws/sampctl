@@ -176,7 +176,7 @@ func runPrepare(ctx context.Context, gh *github.Client, auth transport.AuthMetho
 		return
 	}
 
-	err = runtime.Ensure(ctx, gh, config, noCache, true)
+	err = runtime.Ensure(ctx, gh, config, noCache)
 	if err != nil {
 		err = errors.Wrap(err, "failed to ensure temporary runtime")
 		return
