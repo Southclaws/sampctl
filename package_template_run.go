@@ -74,7 +74,7 @@ func packageTemplateRun(c *cli.Context) (err error) {
 		return errors.Wrap(err, "failed to copy target script to template package directory")
 	}
 
-	problems, result, err := rook.Build(context.Background(), gh, gitAuth, &pkg, "", cacheDir, runtime.GOOS, false, false, "")
+	problems, result, err := rook.Build(context.Background(), gh, gitAuth, &pkg, "", cacheDir, runtime.GOOS, false, false, true, "")
 	if err != nil {
 		return
 	}
@@ -101,7 +101,7 @@ func packageTemplateRun(c *cli.Context) (err error) {
 	pkg.Runtime = new(types.Runtime)
 	pkg.Runtime.Mode = types.RunMode(mode)
 
-	err = rook.Run(context.Background(), gh, gitAuth, pkg, cfg, cacheDir, "", false, false, false, "")
+	err = rook.Run(context.Background(), gh, gitAuth, pkg, cfg, cacheDir, "", false, false, false, "", true)
 	if err != nil {
 		return
 	}
