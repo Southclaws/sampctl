@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -93,24 +94,24 @@ func RunContainer(cfg sampctltypes.Runtime, cacheDir string) (err error) {
 	if err != nil {
 		if client.IsErrNotFound(err) {
 			print.Info("Pulling image:", ref)
-			pullReader, err := cli.ImagePull(context.Background(), ref, types.ImagePullOptions{})
-			if err != nil {
-				return errors.Wrap(err, "failed to pull image")
+			pullReader, errInner := cli.ImagePull(context.Background(), ref, types.ImagePullOptions{})
+			if errInner != nil {
+				return errors.Wrap(errInner, "failed to pull image")
 			}
 			defer pullReader.Close()
-			_, err = ioutil.ReadAll(pullReader)
-			if err != nil {
-				return errors.Wrap(err, "failed to read pull output")
+			_, errInner = ioutil.ReadAll(pullReader)
+			if errInner != nil {
+				return errors.Wrap(errInner, "failed to read pull output")
 			}
 
-			cnt, err = cli.ContainerCreate(
+			cnt, errInner = cli.ContainerCreate(
 				context.Background(),
 				containerConfig,
 				hostConfig,
 				netConfig,
 				containerName)
-			if err != nil {
-				return errors.Wrap(err, "failed to create container")
+			if errInner != nil {
+				return errors.Wrap(errInner, "failed to create container")
 			}
 		} else {
 			return errors.Wrap(err, "failed to create container")
@@ -124,7 +125,8 @@ func RunContainer(cfg sampctltypes.Runtime, cacheDir string) (err error) {
 	}
 
 	go func() {
-		reader, err := cli.ContainerLogs(context.Background(), cnt.ID, types.ContainerLogsOptions{
+		var reader io.ReadCloser
+		reader, err = cli.ContainerLogs(context.Background(), cnt.ID, types.ContainerLogsOptions{
 			ShowStdout: true,
 			ShowStderr: true,
 			Follow:     true,
@@ -134,8 +136,8 @@ func RunContainer(cfg sampctltypes.Runtime, cacheDir string) (err error) {
 			panic(err)
 		}
 		defer func() {
-			if err := reader.Close(); err != nil {
-				panic(err)
+			if errClose := reader.Close(); errClose != nil {
+				panic(errClose)
 			}
 		}()
 

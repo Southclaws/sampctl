@@ -42,6 +42,10 @@ var packageBuildFlags = []cli.Flag{
 		Value: "",
 		Usage: "declares a file to store the incrementing build number for easy versioning",
 	},
+	cli.BoolFlag{
+		Name:  "relativePaths",
+		Usage: "force compiler output to use relative paths instead of absolute",
+	},
 }
 
 func packageBuild(c *cli.Context) error {
@@ -55,6 +59,7 @@ func packageBuild(c *cli.Context) error {
 	dryRun := c.Bool("dryRun")
 	watch := c.Bool("watch")
 	buildFile := c.String("buildFile")
+	relativePath := c.Bool("relativePath")
 
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
@@ -67,12 +72,12 @@ func packageBuild(c *cli.Context) error {
 	}
 
 	if watch {
-		err := rook.BuildWatch(context.Background(), gh, gitAuth, &pkg, build, cacheDir, appRuntime.GOOS, forceEnsure, buildFile, nil)
+		err := rook.BuildWatch(context.Background(), gh, gitAuth, &pkg, build, cacheDir, appRuntime.GOOS, forceEnsure, buildFile, relativePath, nil)
 		if err != nil {
 			return cli.NewExitError(err.Error(), 1)
 		}
 	} else {
-		problems, result, err := rook.Build(context.Background(), gh, gitAuth, &pkg, build, cacheDir, appRuntime.GOOS, forceEnsure, dryRun, buildFile)
+		problems, result, err := rook.Build(context.Background(), gh, gitAuth, &pkg, build, cacheDir, appRuntime.GOOS, forceEnsure, dryRun, relativePath, buildFile)
 		if err != nil {
 			return cli.NewExitError(err.Error(), 1)
 		}

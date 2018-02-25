@@ -21,9 +21,9 @@ func GenerateServerCfg(cfg *types.Runtime) (err error) {
 		return
 	}
 	defer func() {
-		err := file.Close()
-		if err != nil {
-			panic(err)
+		errClose := file.Close()
+		if errClose != nil {
+			panic(errClose)
 		}
 	}()
 

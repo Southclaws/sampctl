@@ -230,23 +230,23 @@ func Init(dir string, config *types.Config, auth transport.AuthMethod) (err erro
 			path := filepath.Join(dir, "README.md")
 			getTemplateFile(dir, "README.md")
 			defer wg.Done()
-			contents, err := ioutil.ReadFile(path)
-			if err != nil {
-				print.Erro("Failed to open readme template:", err)
+			contents, errInner := ioutil.ReadFile(path)
+			if errInner != nil {
+				print.Erro("Failed to open readme template:", errInner)
 				return
 			}
-			tmpl, err := template.New("readme").Parse(string(contents))
-			if err != nil {
-				print.Erro("Failed to parse readme template:", err)
+			tmpl, errInner := template.New("readme").Parse(string(contents))
+			if errInner != nil {
+				print.Erro("Failed to parse readme template:", errInner)
 				return
 			}
-			out, err := os.OpenFile(path, os.O_WRONLY, 0755)
-			if err != nil {
-				print.Erro("Failed to open readme file for writing:", err)
+			out, errInner := os.OpenFile(path, os.O_WRONLY, 0755)
+			if errInner != nil {
+				print.Erro("Failed to open readme file for writing:", errInner)
 				return
 			}
 			defer out.Close()
-			err = tmpl.Execute(out, struct {
+			errInner = tmpl.Execute(out, struct {
 				User        string
 				Repo        string
 				RepoEscaped string
@@ -255,8 +255,8 @@ func Init(dir string, config *types.Config, auth transport.AuthMethod) (err erro
 				Repo:        answers.Repo,
 				RepoEscaped: strings.Replace(answers.Repo, "-", "--", -1),
 			})
-			if err != nil {
-				print.Erro("Failed to execute template:", err)
+			if errInner != nil {
+				print.Erro("Failed to execute template:", errInner)
 				return
 			}
 		}()

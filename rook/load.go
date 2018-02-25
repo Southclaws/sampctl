@@ -89,7 +89,8 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 		pkg.AllDependencies = append(pkg.AllDependencies, meta)
 		visited[meta.Repo] = true
 
-		subPkg, err := PackageFromDir(false, dependencyDir, depsDir)
+		var subPkg types.Package
+		subPkg, err = PackageFromDir(false, dependencyDir, depsDir)
 		if err != nil {
 			print.Verb(pkg, "not a package:", meta, err)
 			return
@@ -106,8 +107,9 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 			}
 		}
 
+		var subPkgDepMeta versioning.DependencyMeta
 		for _, subPkgDep := range subPkg.Dependencies {
-			subPkgDepMeta, err := subPkgDep.Explode()
+			subPkgDepMeta, err = subPkgDep.Explode()
 			if err != nil {
 				print.Verb(pkg, "invalid dependency string:", subPkgDepMeta, "in", subPkg, err)
 				continue

@@ -23,8 +23,8 @@ import (
 
 // Run will create a temporary server runtime and run the package output AMX as a gamemode using the
 // runtime configuration in the package info.
-func Run(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pkg types.Package, cfg types.Runtime, cacheDir, build string, forceBuild, forceEnsure, noCache bool, buildFile string) (err error) {
-	config, err := runPrepare(ctx, gh, auth, pkg, cfg, cacheDir, build, forceBuild, forceEnsure, noCache, buildFile)
+func Run(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pkg types.Package, cfg types.Runtime, cacheDir, build string, forceBuild, forceEnsure, noCache bool, buildFile string, relative bool) (err error) {
+	config, err := runPrepare(ctx, gh, auth, pkg, cfg, cacheDir, build, forceBuild, forceEnsure, noCache, buildFile, relative)
 	if err != nil {
 		return
 	}
@@ -35,8 +35,8 @@ func Run(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pkg 
 }
 
 // RunWatch runs the Run code on file changes
-func RunWatch(ctx1 context.Context, gh *github.Client, auth transport.AuthMethod, pkg types.Package, cfg types.Runtime, cacheDir, build string, forceBuild, forceEnsure, noCache bool, buildFile string) (err error) {
-	config, err := runPrepare(ctx1, gh, auth, pkg, cfg, cacheDir, build, forceBuild, forceEnsure, noCache, buildFile)
+func RunWatch(ctx1 context.Context, gh *github.Client, auth transport.AuthMethod, pkg types.Package, cfg types.Runtime, cacheDir, build string, forceBuild, forceEnsure, noCache bool, buildFile string, relative bool) (err error) {
+	config, err := runPrepare(ctx1, gh, auth, pkg, cfg, cacheDir, build, forceBuild, forceEnsure, noCache, buildFile, relative)
 	if err != nil {
 		err = errors.Wrap(err, "failed to prepare")
 		return
@@ -55,10 +55,11 @@ func RunWatch(ctx1 context.Context, gh *github.Client, auth transport.AuthMethod
 		ctx, cancel = context.WithCancel(ctx1)
 	)
 
+	defer cancel()
 	running.Store(false)
 
 	go func() {
-		errorCh <- BuildWatch(ctx, gh, auth, &pkg, build, cacheDir, cfg.Platform, forceEnsure, buildFile, trigger)
+		errorCh <- BuildWatch(ctx, gh, auth, &pkg, build, cacheDir, cfg.Platform, forceEnsure, buildFile, relative, trigger)
 	}()
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
@@ -90,11 +91,12 @@ loop:
 				fmt.Println("watch-run: finished")
 				// re-create context and canceler
 				ctx, cancel = context.WithCancel(context.Background())
+				defer cancel()
 			}
 
 			err = runtime.CopyFileToRuntime(cacheDir, cfg.Version, util.FullPath(pkg.Output))
 			if err != nil {
-				err = errors.Wrap(err, "failed to copy amx file to temprary runtime directory")
+				err = errors.Wrap(err, "failed to copy amx file to temporary runtime directory")
 				print.Erro(err)
 			}
 
@@ -114,14 +116,14 @@ loop:
 	return
 }
 
-func runPrepare(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pkg types.Package, cfg types.Runtime, cacheDir, build string, forceBuild, forceEnsure, noCache bool, buildFile string) (config *types.Runtime, err error) {
+func runPrepare(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pkg types.Package, cfg types.Runtime, cacheDir, build string, forceBuild, forceEnsure, noCache bool, buildFile string, relative bool) (config *types.Runtime, err error) {
 	var (
 		filename = filepath.Join(pkg.Local, pkg.Output)
 		problems types.BuildProblems
 		canRun   = true
 	)
 	if !util.Exists(filename) || forceBuild {
-		problems, _, err = Build(ctx, gh, auth, &pkg, build, cacheDir, cfg.Platform, forceEnsure, false, buildFile)
+		problems, _, err = Build(ctx, gh, auth, &pkg, build, cacheDir, cfg.Platform, forceEnsure, false, relative, buildFile)
 		if err != nil {
 			return
 		}
@@ -146,7 +148,7 @@ func runPrepare(ctx context.Context, gh *github.Client, auth transport.AuthMetho
 
 	err = runtime.CopyFileToRuntime(cacheDir, cfg.Version, filename)
 	if err != nil {
-		err = errors.Wrap(err, "failed to copy amx file to temprary runtime directory")
+		err = errors.Wrap(err, "failed to copy amx file to temporary runtime directory")
 		return
 	}
 

@@ -132,7 +132,7 @@ func TestPackage_Build(t *testing.T) {
 		}
 
 		t.Run(tt.name, func(t *testing.T) {
-			gotProblems, _, err := Build(context.Background(), gh, nil, tt.args.pkg, tt.args.build, "tests/cache", runtime.GOOS, tt.args.ensure, false, "")
+			gotProblems, _, err := Build(context.Background(), gh, nil, tt.args.pkg, tt.args.build, "tests/cache", runtime.GOOS, tt.args.ensure, false, false, "")
 			if tt.wantErr {
 				assert.Error(t, err)
 				return

@@ -43,7 +43,7 @@ var (
 )
 
 // CompileSource compiles a given input script to the specified output path using compiler version
-func CompileSource(ctx context.Context, gh *github.Client, execDir, cacheDir, platform string, config types.BuildConfig) (problems types.BuildProblems, result types.BuildResult, err error) {
+func CompileSource(ctx context.Context, gh *github.Client, execDir, cacheDir, platform string, config types.BuildConfig, relative bool) (problems types.BuildProblems, result types.BuildResult, err error) {
 	print.Info("Compiling", config.Input, "with compiler version", config.Version)
 
 	cmd, err := PrepareCommand(ctx, gh, execDir, cacheDir, platform, config)
@@ -51,7 +51,7 @@ func CompileSource(ctx context.Context, gh *github.Client, execDir, cacheDir, pl
 		return
 	}
 
-	return CompileWithCommand(cmd, config.WorkingDir)
+	return CompileWithCommand(cmd, config.WorkingDir, relative)
 }
 
 // PrepareCommand prepares a build command for compiling the given input script
@@ -159,7 +159,7 @@ func PrepareCommand(ctx context.Context, gh *github.Client, execDir, cacheDir, p
 }
 
 // CompileWithCommand takes a prepared command and executes it
-func CompileWithCommand(cmd *exec.Cmd, workingDir string) (problems types.BuildProblems, result types.BuildResult, err error) {
+func CompileWithCommand(cmd *exec.Cmd, workingDir string, relative bool) (problems types.BuildProblems, result types.BuildResult, err error) {
 	var (
 		outputReader, outputWriter = io.Pipe()
 		problemChan                = make(chan types.BuildProblem, 2048)
@@ -185,6 +185,18 @@ func CompileWithCommand(cmd *exec.Cmd, workingDir string) (problems types.BuildP
 					problem.File = groups[1]
 				} else {
 					problem.File = filepath.Join(workingDir, groups[1])
+				}
+
+				if string(filepath.Separator) != `\` {
+					problem.File = strings.Replace(problem.File, "\\", "/", -1)
+				}
+				problem.File = filepath.Clean(problem.File)
+				if relative {
+					var rel string
+					rel, err = filepath.Rel(workingDir, problem.File)
+					if err == nil {
+						problem.File = rel
+					}
 				}
 
 				problem.Line, _ = strconv.Atoi(groups[2])

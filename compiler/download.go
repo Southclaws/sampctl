@@ -89,14 +89,14 @@ func FromNet(ctx context.Context, gh *github.Client, meta versioning.DependencyM
 	pkg = GetCompilerPackageInfo(platform)
 
 	if !util.Exists(dir) {
-		err := os.MkdirAll(dir, 0755)
+		err = os.MkdirAll(dir, 0700)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to create dir %s", dir)
 		}
 	}
 
 	if !util.Exists(cacheDir) {
-		err := os.MkdirAll(cacheDir, 0755)
+		err = os.MkdirAll(cacheDir, 0700)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to create cache %s", cacheDir)
 		}

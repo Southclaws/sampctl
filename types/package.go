@@ -184,57 +184,74 @@ func (pkg Package) WriteDefinition() (err error) {
 	return
 }
 
-// GetRemotePackage attempts to get a package definition for the given dependency meta
-// it first checks the repository itself, if that fails it falls back to using the sampctl central
+// GetRemotePackage attempts to get a package definition for the given dependency meta.
+// It first checks the repository itself, if that fails it falls back to using the sampctl central
 // plugin metadata repository
 func GetRemotePackage(ctx context.Context, client *github.Client, meta versioning.DependencyMeta) (pkg Package, err error) {
-	repo, _, err := client.Repositories.Get(ctx, meta.User, meta.Repo)
-	if err == nil {
-		var resp *http.Response
-
-		resp, err = http.Get(fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/pawn.json", meta.User, meta.Repo, *repo.DefaultBranch))
-		if err != nil {
-			return
-		}
-
-		if resp.StatusCode == 200 {
-			var contents []byte
-			contents, err = ioutil.ReadAll(resp.Body)
-			if err != nil {
-				return
-			}
-			err = json.Unmarshal(contents, &pkg)
-			return
-		}
-
-		resp, err = http.Get(fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/pawn.yaml", meta.User, meta.Repo, *repo.DefaultBranch))
-		if err != nil {
-			return
-		}
-
-		if resp.StatusCode == 200 {
-			var contents []byte
-			contents, err = ioutil.ReadAll(resp.Body)
-			if err != nil {
-				return
-			}
-			err = yaml.Unmarshal(contents, &pkg)
-			return
-		}
+	pkg, err = PackageFromRepo(ctx, client, meta)
+	if err != nil {
+		return PackageFromOfficialRepo(ctx, client, meta)
 	}
+	return
+}
 
-	resp, err := http.Get(fmt.Sprintf("https://raw.githubusercontent.com/sampctl/plugins/master/%s-%s.json", meta.User, meta.Repo))
+// PackageFromRepo attempts to get a package from the given package definition's public repo
+func PackageFromRepo(ctx context.Context, client *github.Client, meta versioning.DependencyMeta) (pkg Package, err error) {
+	repo, _, err := client.Repositories.Get(ctx, meta.User, meta.Repo)
 	if err != nil {
 		return
 	}
+	var resp *http.Response
 
+	resp, err = http.Get(fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/pawn.json", meta.User, meta.Repo, *repo.DefaultBranch))
+	if err != nil {
+		return
+	}
 	if resp.StatusCode == 200 {
-		dec := json.NewDecoder(resp.Body)
-		err = dec.Decode(&pkg)
+		var contents []byte
+		contents, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return
+		}
+		err = json.Unmarshal(contents, &pkg)
 		return
 	}
 
-	err = errors.New("could not find plugin package definition")
+	resp, err = http.Get(fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/pawn.yaml", meta.User, meta.Repo, *repo.DefaultBranch))
+	if err != nil {
+		return
+	}
+	if resp.StatusCode == 200 {
+		var contents []byte
+		contents, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return
+		}
+		err = yaml.Unmarshal(contents, &pkg)
+		return
+	}
+
+	err = errors.Wrap(err, "package does not point to a valid remote package")
+
+	return
+}
+
+// PackageFromOfficialRepo attempts to get a package from the sampctl/plugins official repository
+// this repo is mainly only used for testing plugins before being PR'd into their respective repos.
+func PackageFromOfficialRepo(ctx context.Context, client *github.Client, meta versioning.DependencyMeta) (pkg Package, err error) {
+	resp, err := http.Get(fmt.Sprintf("https://raw.githubusercontent.com/sampctl/plugins/master/%s-%s.json", meta.User, meta.Repo))
+	if err != nil {
+		err = errors.Wrapf(err, "failed to get plugin '%s' from official repo", meta)
+		return
+	}
+
+	if resp.StatusCode != 200 {
+		err = errors.Wrapf(err, "plugin '%s' does not exist in official repo", meta)
+		return
+	}
+
+	dec := json.NewDecoder(resp.Body)
+	err = dec.Decode(&pkg)
 
 	return
 }

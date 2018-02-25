@@ -44,6 +44,7 @@ func Run(ctx context.Context, cfg types.Runtime, cacheDir string, output io.Writ
 	return run(ctx, fullPath, cfg.Mode, output)
 }
 
+// nolint:gocyclo
 func run(ctx context.Context, binary string, runType types.RunMode, output io.Writer) (err error) {
 	// termination is an internal instruction for communicating successful or failed runs.
 	// It contains an error and a boolean to indicate whether or not to terminate the process.
@@ -59,7 +60,7 @@ func run(ctx context.Context, binary string, runType types.RunMode, output io.Wr
 	defer func() {
 		errClose := outputWriter.Close()
 		if errClose != nil {
-			print.Erro("Compiler output read error:", errClose)
+			print.Erro("Server output read error:", errClose)
 		}
 	}()
 
@@ -111,12 +112,12 @@ func run(ctx context.Context, binary string, runType types.RunMode, output io.Wr
 				}
 
 				if matchTestEnd.MatchString(line) {
-					testResults := testResultsFromLine(line)
-					if testResults.Fails > 0 {
-						print.Erro(testResults.Tests, "tests, with:", testResults.Fails, "failures.")
+					results := testResultsFromLine(line)
+					if results.Fails > 0 {
+						print.Erro(results.Tests, "tests, with:", results.Fails, "failures.")
 						errChan <- termination{errors.New("tests failed"), true}
 					} else {
-						print.Info(testResults.Tests, "tests passed!")
+						print.Info(results.Tests, "tests passed!")
 						errChan <- termination{nil, true} // end the server process, no error
 					}
 

@@ -25,7 +25,7 @@ import (
 )
 
 // Build compiles a package, dependencies are ensured and a list of paths are sent to the compiler.
-func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pkg *types.Package, build, cacheDir, platform string, ensure, dry bool, buildFile string) (problems types.BuildProblems, result types.BuildResult, err error) {
+func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pkg *types.Package, build, cacheDir, platform string, ensure, dry bool, relative bool, buildFile string) (problems types.BuildProblems, result types.BuildResult, err error) {
 	config := GetBuildConfig(*pkg, build)
 	if config == nil {
 		err = errors.Errorf("no build config named '%s'", build)
@@ -59,15 +59,16 @@ func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pk
 		return
 	}
 
+	var pkgInner types.Package
 	for _, depMeta := range pkg.AllDependencies {
 		depDir := filepath.Join(pkg.Local, "dependencies", depMeta.Repo)
 		incPath := depMeta.Path
 
 		// check if local package has a definition, if so, check if it has an IncludePath field
-		pkg, err := types.PackageFromDir(depDir)
+		pkgInner, err = types.PackageFromDir(depDir)
 		if err == nil {
-			if pkg.IncludePath != "" {
-				incPath = pkg.IncludePath
+			if pkgInner.IncludePath != "" {
+				incPath = pkgInner.IncludePath
 			}
 		}
 
@@ -84,10 +85,12 @@ func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pk
 	} else {
 		print.Verb("building", pkg, "with", config.Version)
 
-		problems, result, err = compiler.CompileWithCommand(cmd, config.WorkingDir)
+		problems, result, err = compiler.CompileWithCommand(cmd, config.WorkingDir, relative)
 		if err != nil {
 			err = errors.Wrap(err, "failed to compile package entry")
 		}
+
+		atomic.AddUint32(&buildNumber, 1)
 
 		if buildFile != "" {
 			err2 := ioutil.WriteFile(buildFile, []byte(fmt.Sprint(buildNumber)), 0755)
@@ -101,7 +104,7 @@ func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pk
 }
 
 // BuildWatch runs the Build code on file changes
-func BuildWatch(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pkg *types.Package, build, cacheDir, platform string, ensure bool, buildFile string, trigger chan types.BuildProblems) (err error) {
+func BuildWatch(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pkg *types.Package, build, cacheDir, platform string, ensure bool, buildFile string, relative bool, trigger chan types.BuildProblems) (err error) {
 	config := GetBuildConfig(*pkg, build)
 	if config == nil {
 		err = errors.Errorf("no build config named '%s'", build)
@@ -135,15 +138,16 @@ func BuildWatch(ctx context.Context, gh *github.Client, auth transport.AuthMetho
 		return
 	}
 
+	var pkgInner types.Package
 	for _, depMeta := range pkg.AllDependencies {
 		depDir := filepath.Join(pkg.Local, "dependencies", depMeta.Repo)
 		incPath := depMeta.Path
 
 		// check if local package has a definition, if so, check if it has an IncludePath field
-		pkg, err := types.PackageFromDir(depDir)
+		pkgInner, err = types.PackageFromDir(depDir)
 		if err == nil {
-			if pkg.IncludePath != "" {
-				incPath = pkg.IncludePath
+			if pkgInner.IncludePath != "" {
+				incPath = pkgInner.IncludePath
 			}
 		}
 
@@ -172,6 +176,7 @@ func BuildWatch(ctx context.Context, gh *github.Client, auth transport.AuthMetho
 		lastEvent        time.Time
 	)
 
+	defer cancel()
 	running.Store(false)
 
 loop:
@@ -181,8 +186,8 @@ loop:
 			fmt.Println("") // insert newline after the ^C
 			print.Info("signal received", sig, "stopping build watcher...")
 			break loop
-		case err := <-errorCh:
-			print.Erro("Error encountered during build:", err)
+		case errInner := <-errorCh:
+			print.Erro("Error encountered during build:", errInner)
 			break loop
 
 		case event := <-watcher.Events:
@@ -207,6 +212,7 @@ loop:
 				fmt.Println("watch-build: finished", buildNumber)
 				// re-create context and canceler
 				ctxInner, cancel = context.WithCancel(context.Background())
+				defer cancel()
 			}
 
 			atomic.AddUint32(&buildNumber, 1)
@@ -214,7 +220,7 @@ loop:
 			fmt.Println("watch-build: starting compilation", buildNumber)
 			go func() {
 				running.Store(true)
-				problems, _, err = compiler.CompileSource(ctxInner, gh, pkg.Local, cacheDir, platform, *config)
+				problems, _, err = compiler.CompileSource(ctxInner, gh, pkg.Local, cacheDir, platform, *config, relative)
 				running.Store(false)
 
 				if err != nil {
