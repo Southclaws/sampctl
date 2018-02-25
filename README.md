@@ -98,7 +98,7 @@ Write your quick test code:
 
 main() {
     new str[128];
-    formatex(str, sizeof str, "My favourite vehicle is: '%%v'!", 400); // should print "Landstalker"
+    formatex(str, sizeof str, "My favourite vehicle is: '%v'!", 400); // should print "Landstalker"
     print(str);
 }
 ```
@@ -228,6 +228,7 @@ Generates a `server.cfg` file based on the configuration inside `samp.json`/`sam
 - `--mountCache --container`: if --container is set, mounts the local cache directory inside the container
 - `--ensurePlugins`: forces plugin binaries ensure before run
 - `--noCache`: forces download of plugins
+- `--relativePath`: output the relative path of files
 
 
 ---
@@ -297,6 +298,7 @@ Builds a package defined by a `pawn.json`/`pawn.yaml` file.
 - `--build value`: build configuration to use
 - `--forceEnsure`: forces dependency ensure before build
 - `--dryRun`: does not run the build but outputs the command necessary to do so
+- `--relativePath`: output the relative path of files
 - `--watch`: keeps sampctl running and triggers builds whenever source files change
 - `--buildFile value`: declares a file to store the incrementing build number for easy versioning
 

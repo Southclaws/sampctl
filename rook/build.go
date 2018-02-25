@@ -25,7 +25,7 @@ import (
 )
 
 // Build compiles a package, dependencies are ensured and a list of paths are sent to the compiler.
-func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pkg *types.Package, build, cacheDir, platform string, ensure, dry bool, buildFile string) (problems types.BuildProblems, result types.BuildResult, err error) {
+func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pkg *types.Package, build, cacheDir, platform string, ensure, dry bool, relative bool, buildFile string) (problems types.BuildProblems, result types.BuildResult, err error) {
 	config := GetBuildConfig(*pkg, build)
 	if config == nil {
 		err = errors.Errorf("no build config named '%s'", build)
@@ -85,7 +85,7 @@ func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pk
 	} else {
 		print.Verb("building", pkg, "with", config.Version)
 
-		problems, result, err = compiler.CompileWithCommand(cmd, config.WorkingDir)
+		problems, result, err = compiler.CompileWithCommand(cmd, config.WorkingDir, relative)
 		if err != nil {
 			err = errors.Wrap(err, "failed to compile package entry")
 		}
@@ -104,7 +104,7 @@ func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pk
 }
 
 // BuildWatch runs the Build code on file changes
-func BuildWatch(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pkg *types.Package, build, cacheDir, platform string, ensure bool, buildFile string, trigger chan types.BuildProblems) (err error) {
+func BuildWatch(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pkg *types.Package, build, cacheDir, platform string, ensure bool, buildFile string, relative bool, trigger chan types.BuildProblems) (err error) {
 	config := GetBuildConfig(*pkg, build)
 	if config == nil {
 		err = errors.Errorf("no build config named '%s'", build)
@@ -220,7 +220,7 @@ loop:
 			fmt.Println("watch-build: starting compilation", buildNumber)
 			go func() {
 				running.Store(true)
-				problems, _, err = compiler.CompileSource(ctxInner, gh, pkg.Local, cacheDir, platform, *config)
+				problems, _, err = compiler.CompileSource(ctxInner, gh, pkg.Local, cacheDir, platform, *config, relative)
 				running.Store(false)
 
 				if err != nil {
