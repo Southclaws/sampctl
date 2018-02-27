@@ -43,7 +43,7 @@ var (
 )
 
 // CompileSource compiles a given input script to the specified output path using compiler version
-func CompileSource(ctx context.Context, gh *github.Client, execDir, cacheDir, platform string, config types.BuildConfig, relative bool) (problems types.BuildProblems, result types.BuildResult, err error) {
+func CompileSource(ctx context.Context, gh *github.Client, execDir, errorDir, cacheDir, platform string, config types.BuildConfig, relative bool) (problems types.BuildProblems, result types.BuildResult, err error) {
 	print.Info("Compiling", config.Input, "with compiler version", config.Version)
 
 	cmd, err := PrepareCommand(ctx, gh, execDir, cacheDir, platform, config)
@@ -51,7 +51,7 @@ func CompileSource(ctx context.Context, gh *github.Client, execDir, cacheDir, pl
 		return
 	}
 
-	return CompileWithCommand(cmd, config.WorkingDir, relative)
+	return CompileWithCommand(cmd, config.WorkingDir, errorDir, relative)
 }
 
 // PrepareCommand prepares a build command for compiling the given input script
@@ -159,12 +159,16 @@ func PrepareCommand(ctx context.Context, gh *github.Client, execDir, cacheDir, p
 }
 
 // CompileWithCommand takes a prepared command and executes it
-func CompileWithCommand(cmd *exec.Cmd, workingDir string, relative bool) (problems types.BuildProblems, result types.BuildResult, err error) {
+func CompileWithCommand(cmd *exec.Cmd, workingDir, errorDir string, relative bool) (problems types.BuildProblems, result types.BuildResult, err error) {
 	var (
 		outputReader, outputWriter = io.Pipe()
 		problemChan                = make(chan types.BuildProblem, 2048)
 		resultChan                 = make(chan string, 6)
 	)
+
+	if errorDir == "" {
+		errorDir = util.FullPath(workingDir)
+	}
 
 	cmd.Stdout = outputWriter
 	cmd.Stderr = outputWriter
@@ -192,8 +196,9 @@ func CompileWithCommand(cmd *exec.Cmd, workingDir string, relative bool) (proble
 				}
 				problem.File = filepath.Clean(problem.File)
 				if relative {
+					fmt.Println("making relative to ", errorDir)
 					var rel string
-					rel, err = filepath.Rel(workingDir, problem.File)
+					rel, err = filepath.Rel(errorDir, problem.File)
 					if err == nil {
 						problem.File = rel
 					}
