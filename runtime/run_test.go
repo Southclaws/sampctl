@@ -1,7 +1,17 @@
 package runtime
 
 import (
+	"bytes"
+	"context"
+	"path/filepath"
+	"runtime"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/Southclaws/sampctl/types"
+	"github.com/Southclaws/sampctl/util"
 )
 
 func TestRun(t *testing.T) {
@@ -10,7 +20,7 @@ func TestRun(t *testing.T) {
 		wantOutput string
 		wantErr    bool
 	}{
-		{"sampctl/samp-bare", `----------
+		{"bare", `----------
 Loaded log file: "server_log.txt".
 ----------
 
@@ -43,24 +53,30 @@ Number of vehicle models: 0`,
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-			// defer cancel()
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
 
-			// config := types.MergeRuntimeDefault(&types.Runtime{})
+			config := types.MergeRuntimeDefault(&types.Runtime{})
+			config.AppVersion = Version
+			config.Platform = runtime.GOOS
+			config.Version = "0.3.7"
+			config.Gamemodes = []string{tt.name}
+			config.WorkingDir = util.FullPath(filepath.Join("./tests/run/", tt.name))
 
-			// config.Platform = runtime.GOOS
-			// config.Version = "0.3.7"
+			GetServerPackage("http://files.sa-mp.com", "0.3.7", config.WorkingDir, runtime.GOOS)
 
-			// config.Gamemodes = []string{"bare"}
-			// config.WorkingDir = GetRuntimePath(cacheDir, cfg.Version)
+			if runtime.GOOS == "darwin" {
+				config.Container = &types.ContainerConfig{
+					MountCache: false,
+				}
+			}
 
-			// output := &bytes.Buffer{}
-			// err = Run(ctx, config, "./tests/cache", output, nil)
-			// assert.NoError(t, err)
+			output := &bytes.Buffer{}
+			err := Run(ctx, *config, util.FullPath("./tests/cache"), output, nil)
+			assert.NoError(t, err)
 
-			// if gotOutput := output.String(); gotOutput != tt.wantOutput {
-			// 	t.Errorf("Run() = %v, want %v", gotOutput, tt.wantOutput)
-			// }
+			gotOutput := output.String()
+			assert.Equal(t, tt.wantOutput, gotOutput)
 		})
 	}
 }
