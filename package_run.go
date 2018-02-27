@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"os"
 	"runtime"
 
 	"github.com/pkg/errors"
@@ -99,23 +100,35 @@ func packageRun(c *cli.Context) error {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	cfg := types.Runtime{
-		AppVersion: c.App.Version,
-		Version:    version,
-		Endpoint:   endpoint,
+	runner := rook.Runner{
+		Pkg: pkg,
+		Config: &types.Runtime{
+			AppVersion: c.App.Version,
+			Version:    version,
+			Endpoint:   endpoint,
+		},
+		GitHub:      gh,
+		Auth:        gitAuth,
+		CacheDir:    cacheDir,
+		Build:       build,
+		ForceBuild:  forceBuild,
+		ForceEnsure: forceEnsure,
+		NoCache:     noCache,
+		BuildFile:   buildFile,
+		Relative:    relativePaths,
 	}
 
 	if container {
-		cfg.Container = &types.ContainerConfig{MountCache: mountCache}
-		cfg.Platform = "linux"
+		runner.Config.Container = &types.ContainerConfig{MountCache: mountCache}
+		runner.Config.Platform = "linux"
 	} else {
-		cfg.Platform = runtime.GOOS
+		runner.Config.Platform = runtime.GOOS
 	}
 
 	if watch {
-		err = rook.RunWatch(context.Background(), gh, gitAuth, pkg, cfg, cacheDir, build, forceBuild, forceEnsure, noCache, buildFile, relativePaths)
+		err = runner.RunWatch(context.Background())
 	} else {
-		err = rook.Run(context.Background(), gh, gitAuth, pkg, cfg, cacheDir, build, forceBuild, forceEnsure, noCache, buildFile, relativePaths)
+		err = runner.Run(context.Background(), os.Stdout, os.Stdin)
 	}
 	if err != nil {
 		return cli.NewExitError(err.Error(), 1)

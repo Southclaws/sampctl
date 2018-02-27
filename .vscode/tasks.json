@@ -27,7 +27,6 @@
                 "--enable=gotype",
                 "--enable=ineffassign",
                 "--enable=staticcheck",
-                "--enable=dupl",
                 "--enable=errcheck",
                 "--enable=safesql",
                 "--enable=vet",
