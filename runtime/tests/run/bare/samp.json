@@ -1,0 +1,7 @@
+{
+    "gamemodes": ["bare"],
+    "rcon_password": "test",
+    "port": 7777,
+    "hostname": "test",
+    "maxplayers": 32
+}
