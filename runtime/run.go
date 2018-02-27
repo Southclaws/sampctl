@@ -32,20 +32,20 @@ type testResults struct {
 }
 
 // Run handles the actual running of the server process - it collects log output too
-func Run(ctx context.Context, cfg types.Runtime, cacheDir string, output io.Writer) (err error) {
+func Run(ctx context.Context, cfg types.Runtime, cacheDir string, output io.Writer, input io.Reader) (err error) {
 	if cfg.Container != nil {
-		return RunContainer(cfg, cacheDir)
+		return RunContainer(cfg, cacheDir, os.Stdout, os.Stdin)
 	}
 
 	binary := "./" + getServerBinary(cfg.Platform)
 	fullPath := filepath.Join(cfg.WorkingDir, binary)
 	print.Verb("starting", binary, "in", cfg.WorkingDir)
 
-	return run(ctx, fullPath, cfg.Mode, output)
+	return run(ctx, fullPath, cfg.Mode, output, input)
 }
 
 // nolint:gocyclo
-func run(ctx context.Context, binary string, runType types.RunMode, output io.Writer) (err error) {
+func run(ctx context.Context, binary string, runType types.RunMode, output io.Writer, input io.Reader) (err error) {
 	// termination is an internal instruction for communicating successful or failed runs.
 	// It contains an error and a boolean to indicate whether or not to terminate the process.
 	type termination struct {
@@ -153,7 +153,7 @@ func run(ctx context.Context, binary string, runType types.RunMode, output io.Wr
 			cmd.Dir = filepath.Dir(binary)
 
 			startTime = time.Now()
-			errInline := platformRun(cmd, outputWriter)
+			errInline := platformRun(cmd, outputWriter, input)
 			if errInline != nil {
 				if errInline.Error() != "server crashed" {
 					errChan <- termination{errors.Wrap(errInline, "failed to start server"), false}

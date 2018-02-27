@@ -64,7 +64,7 @@ func serverRun(c *cli.Context) error {
 		return errors.Wrap(err, "failed to get or create cache directory")
 	}
 
-	err = runtime.Run(context.Background(), cfg, cacheDir, os.Stdout)
+	err = runtime.Run(context.Background(), cfg, cacheDir, os.Stdout, os.Stdin)
 
 	return err
 }

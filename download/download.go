@@ -119,7 +119,6 @@ func ReleaseAssetByPattern(ctx context.Context, gh *github.Client, meta versioni
 			err = errors.Wrap(err, "failed to parse download URL from GitHub API")
 			return
 		}
-
 		outputFile = filepath.Join(dir, filepath.Base(u.Path))
 	} else {
 		outputFile = filepath.Join(dir, outputFile)
