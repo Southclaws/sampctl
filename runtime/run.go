@@ -160,7 +160,11 @@ func run(ctx context.Context, binary string, runType types.RunMode, output io.Wr
 				}
 			}
 
-			print.Verb("child exec thread finished, pid:", cmd.Process.Pid, "error:", errInline)
+			if cmd.Process != nil {
+				print.Verb("child exec thread finished, pid:", cmd.Process.Pid, "error:", errInline)
+			} else {
+				print.Verb("child exec thread finished, error:", errInline)
+			}
 
 			if runType == types.Server {
 				runTime := time.Since(startTime)
