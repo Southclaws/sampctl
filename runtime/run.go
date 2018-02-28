@@ -54,6 +54,7 @@ func run(ctx context.Context, binary string, runType types.RunMode, output io.Wr
 	}
 
 	outputReader, outputWriter := io.Pipe()
+	streamChan := make(chan string)    // channel for lines of output text
 	errChan := make(chan termination)  // channel for sending runtime errors to watchdog
 	sigChan := make(chan os.Signal, 1) // channel for capturing host signals
 
@@ -89,7 +90,7 @@ func run(ctx context.Context, binary string, runType types.RunMode, output io.Wr
 				}
 
 				if !preamble {
-					fmt.Fprintln(output, line)
+					streamChan <- line
 				}
 			}
 		}()
@@ -125,7 +126,7 @@ func run(ctx context.Context, binary string, runType types.RunMode, output io.Wr
 				}
 
 				if !preamble {
-					fmt.Fprintln(output, line)
+					streamChan <- line
 				}
 			}
 		}()
@@ -135,7 +136,7 @@ func run(ctx context.Context, binary string, runType types.RunMode, output io.Wr
 			scanner := bufio.NewScanner(outputReader)
 			for scanner.Scan() {
 				line := scanner.Text()
-				fmt.Fprintln(output, line)
+				streamChan <- line
 			}
 		}()
 	}
@@ -193,8 +194,12 @@ func run(ctx context.Context, binary string, runType types.RunMode, output io.Wr
 
 	var term termination
 	select {
+	case line := <-streamChan:
+		fmt.Fprintln(output, line)
+
 	case s := <-sigChan:
 		term.err = errors.Errorf("received signal: %v", s)
+
 	case term = <-errChan:
 		break
 	}
