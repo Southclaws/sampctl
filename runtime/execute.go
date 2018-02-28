@@ -13,7 +13,7 @@ import (
 func PrepareRuntimeDirectory(cacheDir, endpoint, version, platform string) (err error) {
 	dir := GetRuntimePath(cacheDir, version)
 
-	err = os.MkdirAll(dir, 0755)
+	err = os.MkdirAll(dir, 0700)
 	if err != nil {
 		return errors.Wrap(err, "failed to create temporary directory")
 	}
@@ -23,17 +23,17 @@ func PrepareRuntimeDirectory(cacheDir, endpoint, version, platform string) (err 
 		return errors.Wrap(err, "failed to get server package")
 	}
 
-	err = os.MkdirAll(filepath.Join(dir, "gamemodes"), 0755)
+	err = os.MkdirAll(filepath.Join(dir, "gamemodes"), 0700)
 	if err != nil {
 		return errors.Wrap(err, "failed to create gamemodes directory")
 	}
 
-	err = os.MkdirAll(filepath.Join(dir, "filterscripts"), 0755)
+	err = os.MkdirAll(filepath.Join(dir, "filterscripts"), 0700)
 	if err != nil {
 		return errors.Wrap(err, "failed to create filterscripts directory")
 	}
 
-	err = os.MkdirAll(filepath.Join(dir, "plugins"), 0755)
+	err = os.MkdirAll(filepath.Join(dir, "plugins"), 0700)
 	if err != nil {
 		return errors.Wrap(err, "failed to create plugins directory")
 	}

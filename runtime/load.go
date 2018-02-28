@@ -43,6 +43,7 @@ func NewConfigFromEnvironment(dir string) (cfg types.Runtime, err error) {
 
 // LoadEnvironmentVariables loads Config fields from environment variables - the variable names are
 // simply the `json` tag names uppercased and prefixed with `SAMP_`
+// nolint:gocyclo
 func LoadEnvironmentVariables(cfg *types.Runtime) {
 	v := reflect.ValueOf(cfg).Elem()
 	t := v.Type()

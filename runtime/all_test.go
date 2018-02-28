@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,10 +13,17 @@ import (
 )
 
 var gh *github.Client
+var Version = ""
 
 func TestMain(m *testing.M) {
 	godotenv.Load("../.env", "../../.env")
 	gh = github.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(&oauth2.Token{AccessToken: os.Getenv("GITHUB_TOKEN")})))
+
+	v, err := ioutil.ReadFile("../VERSION")
+	if err != nil {
+		panic(err)
+	}
+	Version = string(v)
 
 	fakeServerDir("./tests/from-env")
 	fakeServerDir("./tests/validate")

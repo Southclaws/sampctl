@@ -1,7 +1,7 @@
 package runtime
 
 import (
-	"crypto/md5"
+	"crypto/md5" //nolint:gas
 	"encoding/hex"
 	"io/ioutil"
 
@@ -164,21 +164,21 @@ var AllPackages = Packages{
 	},
 }
 
-func isBinary(filename string, platform string) bool {
-	switch platform {
-	case "windows":
-		switch filename {
-		case "samp-server.exe", "announce.exe", "samp-npc.exe":
-			return true
-		}
-	case "linux", "darwin":
-		switch filename {
-		case "samp03svr", "announce", "samp-npc":
-			return true
-		}
-	}
-	return false
-}
+// func isBinary(filename string, platform string) bool {
+// 	switch platform {
+// 	case "windows":
+// 		switch filename {
+// 		case "samp-server.exe", "announce.exe", "samp-npc.exe":
+// 			return true
+// 		}
+// 	case "linux", "darwin":
+// 		switch filename {
+// 		case "samp03svr", "announce", "samp-npc":
+// 			return true
+// 		}
+// 	}
+// 	return false
+// }
 
 func getServerBinary(platform string) string {
 	switch platform {
@@ -235,7 +235,7 @@ func MatchesChecksum(src, platform, version string) (ok bool, err error) {
 	default:
 		return false, errors.New("platform not supported")
 	}
-	hasher := md5.New()
+	hasher := md5.New() // nolint:gas
 	_, err = hasher.Write(contents)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to write to md5 hasher")

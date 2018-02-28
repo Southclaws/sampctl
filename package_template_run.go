@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 
@@ -91,17 +92,29 @@ func packageTemplateRun(c *cli.Context) (err error) {
 	if !problems.IsValid() {
 		return errors.New("cannot run with build errors")
 	}
-
-	cfg := types.Runtime{
-		Platform:   runtime.GOOS,
-		AppVersion: c.App.Version,
-		Version:    version,
-		Endpoint:   endpoint,
+	runner := rook.Runner{
+		Pkg: pkg,
+		Config: types.Runtime{
+			Platform:   runtime.GOOS,
+			AppVersion: c.App.Version,
+			Version:    version,
+			Endpoint:   endpoint,
+		},
+		GitHub:      gh,
+		Auth:        gitAuth,
+		CacheDir:    cacheDir,
+		Build:       "",
+		ForceBuild:  false,
+		ForceEnsure: false,
+		NoCache:     false,
+		BuildFile:   "",
+		Relative:    false,
 	}
+
 	pkg.Runtime = new(types.Runtime)
 	pkg.Runtime.Mode = types.RunMode(mode)
 
-	err = rook.Run(context.Background(), gh, gitAuth, pkg, cfg, cacheDir, "", false, false, false, "", true)
+	err = runner.Run(context.Background(), os.Stdout, os.Stdin)
 	if err != nil {
 		return
 	}

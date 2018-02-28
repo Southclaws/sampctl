@@ -96,7 +96,7 @@ func EnsureScripts(cfg types.Runtime) (err error) {
 			}
 		}
 	} else {
-		err = os.MkdirAll(gamemodes, 0755)
+		err = os.MkdirAll(gamemodes, 0700)
 	}
 
 	filterscripts := filepath.Join(cfg.WorkingDir, "filterscripts")
@@ -108,12 +108,12 @@ func EnsureScripts(cfg types.Runtime) (err error) {
 			}
 		}
 	} else {
-		err = os.MkdirAll(filterscripts, 0755)
+		err = os.MkdirAll(filterscripts, 0700)
 	}
 
 	scriptfiles := filepath.Join(cfg.WorkingDir, "scriptfiles")
 	if !util.Exists(scriptfiles) {
-		err = os.MkdirAll(scriptfiles, 0755)
+		err = os.MkdirAll(scriptfiles, 0700)
 	}
 
 	if len(errs) > 0 {

@@ -32,9 +32,9 @@ type testResults struct {
 }
 
 // Run handles the actual running of the server process - it collects log output too
-func Run(ctx context.Context, cfg types.Runtime, cacheDir string, output io.Writer, input io.Reader) (err error) {
+func Run(ctx context.Context, cfg types.Runtime, cacheDir string, passArgs bool, output io.Writer, input io.Reader) (err error) {
 	if cfg.Container != nil {
-		return RunContainer(cfg, cacheDir, os.Stdout, os.Stdin)
+		return RunContainer(ctx, cfg, cacheDir, passArgs, output, input)
 	}
 
 	binary := "./" + getServerBinary(cfg.Platform)
@@ -149,7 +149,7 @@ func run(ctx context.Context, binary string, runType types.RunMode, output io.Wr
 			exponentialBackoff = time.Second // exponential backoff cooldown
 		)
 		for {
-			cmd = exec.CommandContext(ctx, binary)
+			cmd = exec.CommandContext(ctx, binary) //nolint:gas
 			cmd.Dir = filepath.Dir(binary)
 
 			startTime = time.Now()
@@ -160,7 +160,11 @@ func run(ctx context.Context, binary string, runType types.RunMode, output io.Wr
 				}
 			}
 
-			print.Verb("child exec thread finished, pid:", cmd.Process.Pid, "error:", errInline)
+			if cmd.Process != nil {
+				print.Verb("child exec thread finished, pid:", cmd.Process.Pid, "error:", errInline)
+			} else {
+				print.Verb("child exec thread finished, error:", errInline)
+			}
 
 			if runType == types.Server {
 				runTime := time.Since(startTime)
@@ -192,7 +196,7 @@ func run(ctx context.Context, binary string, runType types.RunMode, output io.Wr
 	var term termination
 	select {
 	case s := <-sigChan:
-		err = errors.Errorf("received signal: %v", s)
+		term.err = errors.Errorf("received signal: %v", s)
 	case term = <-errChan:
 		break
 	}

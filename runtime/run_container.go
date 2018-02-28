@@ -25,19 +25,22 @@ import (
 )
 
 // RunContainer does what Run does but inside a Linux container
-func RunContainer(cfg sampctltypes.Runtime, cacheDir string, output io.Writer, input io.Reader) (err error) {
+// nolint:gocyclo
+func RunContainer(ctx context.Context, cfg sampctltypes.Runtime, cacheDir string, passArgs bool, output io.Writer, input io.Reader) (err error) {
 	cli, err := client.NewEnvClient()
 	if err != nil {
 		return
 	}
 
 	args := strslice.StrSlice{"sampctl", "server", "run"}
-	for i, arg := range os.Args {
-		// trim first 3 args and container specific flags
-		if arg == "--container" || arg == "--mountCache" || i < 3 {
-			continue
+	if passArgs {
+		for i, arg := range os.Args {
+			// trim first 3 args and container specific flags
+			if arg == "--container" || arg == "--mountCache" || i < 3 {
+				continue
+			}
+			args = append(args, arg)
 		}
-		args = append(args, arg)
 	}
 
 	port := fmt.Sprint(*cfg.Port)
@@ -85,9 +88,12 @@ func RunContainer(cfg sampctltypes.Runtime, cacheDir string, output io.Writer, i
 
 	containerName := fmt.Sprintf("sampctl-%d", time.Now().Unix())
 
+	ctxPrepare, cancel := context.WithTimeout(ctx, time.Second*30)
+	defer cancel()
+
 	var cnt container.ContainerCreateCreatedBody
 	cnt, err = cli.ContainerCreate(
-		context.Background(),
+		ctxPrepare,
 		containerConfig,
 		hostConfig,
 		netConfig,
@@ -95,18 +101,23 @@ func RunContainer(cfg sampctltypes.Runtime, cacheDir string, output io.Writer, i
 	if err != nil {
 		if client.IsErrNotFound(err) {
 			print.Info("Pulling image:", ref)
-			pullReader, errInner := cli.ImagePull(context.Background(), ref, types.ImagePullOptions{})
+			pullReader, errInner := cli.ImagePull(ctxPrepare, ref, types.ImagePullOptions{})
 			if errInner != nil {
 				return errors.Wrap(errInner, "failed to pull image")
 			}
-			defer pullReader.Close()
+			defer func() {
+				errDefer := pullReader.Close()
+				if errDefer != nil {
+					print.Erro(errDefer)
+				}
+			}()
 			_, errInner = ioutil.ReadAll(pullReader)
 			if errInner != nil {
 				return errors.Wrap(errInner, "failed to read pull output")
 			}
 
 			cnt, errInner = cli.ContainerCreate(
-				context.Background(),
+				ctxPrepare,
 				containerConfig,
 				hostConfig,
 				netConfig,
@@ -120,53 +131,64 @@ func RunContainer(cfg sampctltypes.Runtime, cacheDir string, output io.Writer, i
 	}
 
 	print.Info("Starting container...")
-	err = cli.ContainerStart(context.Background(), cnt.ID, types.ContainerStartOptions{})
+	err = cli.ContainerStart(ctx, cnt.ID, types.ContainerStartOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to start container")
 	}
 
-	go func() {
-		var reader io.ReadCloser
-		reader, err = cli.ContainerLogs(context.Background(), cnt.ID, types.ContainerLogsOptions{
-			ShowStdout: true,
-			ShowStderr: true,
-			Follow:     true,
-			Timestamps: false,
-		})
-		if err != nil {
-			panic(err)
-		}
-		defer func() {
-			if errClose := reader.Close(); errClose != nil {
-				panic(errClose)
-			}
-		}()
-
-		scanner := bufio.NewScanner(reader)
-		for scanner.Scan() {
-			fmt.Fprintln(output, scanner.Text())
-		}
-	}()
-
-	finished := make(chan struct{})
+	finished := make(chan error, 1)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
 	go func() {
 		sig := <-sigs
-		err = cli.ContainerKill(context.Background(), cnt.ID, "SIGINT")
-		print.Info("server killed:", sig, err)
-		finished <- struct{}{}
+		finished <- errors.Errorf("killed: %s", sig)
 	}()
 
 	go func() {
-		n, err := cli.ContainerWait(context.Background(), cnt.ID)
-		print.Erro("container exited:", n, err)
-		finished <- struct{}{}
+		n, errInner := cli.ContainerWait(context.Background(), cnt.ID)
+		if errInner != nil {
+			if errInner.Error() == "context deadline exceeded" {
+				errInner = nil
+			}
+		}
+		print.Erro("container exited:", n, errInner)
+		finished <- errInner
 	}()
 
-	<-finished
+	// Get logs and wait for exit
+
+	reader, err := cli.ContainerLogs(ctx, cnt.ID, types.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow:     true,
+		Timestamps: false,
+	})
+	if err != nil {
+		return
+	}
+	defer func() {
+		if errClose := reader.Close(); errClose != nil {
+			panic(errClose)
+		}
+	}()
+
+	scanner := bufio.NewScanner(reader)
+	for scanner.Scan() {
+		_, err = fmt.Fprintln(output, scanner.Text())
+		if err != nil {
+			break
+		}
+	}
+	if err != nil {
+		print.Erro("Failed to write to output:", err)
+	}
+
+	err = cli.ContainerKill(ctx, cnt.ID, "SIGINT")
+	if err != nil {
+		print.Verb("Failed to kill container:", err)
+		err = nil
+	}
 
 	return
 }

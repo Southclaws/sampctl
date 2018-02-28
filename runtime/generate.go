@@ -15,6 +15,7 @@ import (
 )
 
 // GenerateServerCfg creates a settings file in the SA:MP "server.cfg" format at the specified location
+// nolint:gocyclo
 func GenerateServerCfg(cfg *types.Runtime) (err error) {
 	file, err := os.Create(filepath.Join(cfg.WorkingDir, "server.cfg"))
 	if err != nil {

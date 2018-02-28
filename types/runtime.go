@@ -246,7 +246,7 @@ func (cfg Runtime) ToJSON() (err error) {
 		}
 	}
 
-	fh, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0755)
+	fh, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return
 	}
@@ -276,7 +276,7 @@ func (cfg Runtime) ToYAML() (err error) {
 		}
 	}
 
-	fh, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0755)
+	fh, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return
 	}

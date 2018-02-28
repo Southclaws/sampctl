@@ -40,7 +40,6 @@ func LoadOrCreateConfig(cacheDir string) (cfg *Config, err error) {
 		)
 		u, err = user.Current()
 		if err != nil {
-			err = nil // ignore error
 			username = ""
 		} else {
 			username = u.Username

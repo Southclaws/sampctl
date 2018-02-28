@@ -17,7 +17,9 @@ func platformRun(cmd *exec.Cmd, w io.Writer, r io.Reader) (err error) {
 		return
 	}
 
-	defer ptmx.Close()
+	defer func() {
+		err = ptmx.Close()
+	}()
 
 	wg := sync.WaitGroup{}
 	wg.Add(2)

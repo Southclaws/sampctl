@@ -101,14 +101,14 @@ func FromNet(endpoint, cacheDir, version, dir, platform string) (err error) {
 	}
 
 	if !util.Exists(dir) {
-		err = os.MkdirAll(dir, 0755)
+		err = os.MkdirAll(dir, 0700)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create dir %s", dir)
 		}
 	}
 
 	if !util.Exists(cacheDir) {
-		err = os.MkdirAll(cacheDir, 0755)
+		err = os.MkdirAll(cacheDir, 0700)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create cache %s", cacheDir)
 		}

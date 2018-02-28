@@ -23,7 +23,7 @@ import (
 func EnsurePlugins(ctx context.Context, gh *github.Client, cfg *types.Runtime, cacheDir string, noCache bool) (err error) {
 	pluginsDir := util.FullPath(filepath.Join(cfg.WorkingDir, "plugins"))
 
-	err = os.MkdirAll(pluginsDir, 0755)
+	err = os.MkdirAll(pluginsDir, 0700)
 	if err != nil {
 		return errors.Wrap(err, "failed to create runtime plugins directory")
 	}
@@ -171,7 +171,7 @@ func PluginFromNet(ctx context.Context, gh *github.Client, meta versioning.Depen
 
 	print.Info("downloading plugin resource", meta)
 
-	err = os.MkdirAll(resourcePath, 0755)
+	err = os.MkdirAll(resourcePath, 0700)
 	if err != nil {
 		err = errors.Wrap(err, "failed to create cache directory for package resources")
 		return
@@ -189,7 +189,7 @@ func PluginFromNet(ctx context.Context, gh *github.Client, meta versioning.Depen
 		return
 	}
 
-	err = ioutil.WriteFile(filepath.Join(resourcePath, "pawn.json"), pkgJSON, 0755)
+	err = ioutil.WriteFile(filepath.Join(resourcePath, "pawn.json"), pkgJSON, 0700)
 	if err != nil {
 		err = errors.Wrap(err, "failed to write package file to cache")
 		if err != nil {

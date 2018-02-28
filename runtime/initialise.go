@@ -16,6 +16,7 @@ import (
 )
 
 // InitialiseServer creates a samp.json by asking the user a series of questions
+// nolint:gocyclo
 func InitialiseServer(version, dir, platform string) (err error) {
 	var (
 		gamemodesDir      = filepath.Join(dir, "gamemodes")
