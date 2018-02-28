@@ -51,6 +51,11 @@ func CompileSource(ctx context.Context, gh *github.Client, execDir, errorDir, ca
 		return
 	}
 
+	err = RunPlugins(context.Background(), config, os.Stdout) // todo: context propagation
+	if err != nil {
+		return
+	}
+
 	return CompileWithCommand(cmd, config.WorkingDir, errorDir, relative)
 }
 
@@ -277,6 +282,24 @@ func CompileWithCommand(cmd *exec.Cmd, workingDir, errorDir string, relative boo
 			result.Estimate, _ = strconv.Atoi(g[2])
 		} else if g := matchTotal.FindStringSubmatch(line); len(g) == 2 {
 			result.Total, _ = strconv.Atoi(g[1])
+		}
+	}
+
+	return
+}
+
+// RunPlugins executes the plugins for a given build config
+func RunPlugins(ctx context.Context, cfg types.BuildConfig, output io.Writer) (err error) {
+	for _, command := range cfg.Plugins {
+		ctxInner, cancel := context.WithCancel(ctx)
+		defer cancel()
+
+		cmd := exec.CommandContext(ctxInner, command[0], command[1:]...)
+		cmd.Stdout = output
+
+		err = cmd.Run()
+		if err != nil {
+			return
 		}
 	}
 
