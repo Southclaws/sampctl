@@ -32,9 +32,9 @@ type testResults struct {
 }
 
 // Run handles the actual running of the server process - it collects log output too
-func Run(ctx context.Context, cfg types.Runtime, cacheDir string, output io.Writer, input io.Reader) (err error) {
+func Run(ctx context.Context, cfg types.Runtime, cacheDir string, passArgs bool, output io.Writer, input io.Reader) (err error) {
 	if cfg.Container != nil {
-		return RunContainer(cfg, cacheDir, os.Stdout, os.Stdin)
+		return RunContainer(ctx, cfg, cacheDir, passArgs, output, input)
 	}
 
 	binary := "./" + getServerBinary(cfg.Platform)

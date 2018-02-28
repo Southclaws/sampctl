@@ -102,7 +102,7 @@ func packageRun(c *cli.Context) error {
 
 	runner := rook.Runner{
 		Pkg: pkg,
-		Config: &types.Runtime{
+		Config: types.Runtime{
 			AppVersion: c.App.Version,
 			Version:    version,
 			Endpoint:   endpoint,

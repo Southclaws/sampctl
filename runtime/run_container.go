@@ -25,19 +25,21 @@ import (
 )
 
 // RunContainer does what Run does but inside a Linux container
-func RunContainer(cfg sampctltypes.Runtime, cacheDir string, output io.Writer, input io.Reader) (err error) {
+func RunContainer(ctx context.Context, cfg sampctltypes.Runtime, cacheDir string, passArgs bool, output io.Writer, input io.Reader) (err error) {
 	cli, err := client.NewEnvClient()
 	if err != nil {
 		return
 	}
 
 	args := strslice.StrSlice{"sampctl", "server", "run"}
-	for i, arg := range os.Args {
-		// trim first 3 args and container specific flags
-		if arg == "--container" || arg == "--mountCache" || i < 3 {
-			continue
+	if passArgs {
+		for i, arg := range os.Args {
+			// trim first 3 args and container specific flags
+			if arg == "--container" || arg == "--mountCache" || i < 3 {
+				continue
+			}
+			args = append(args, arg)
 		}
-		args = append(args, arg)
 	}
 
 	port := fmt.Sprint(*cfg.Port)
@@ -85,9 +87,12 @@ func RunContainer(cfg sampctltypes.Runtime, cacheDir string, output io.Writer, i
 
 	containerName := fmt.Sprintf("sampctl-%d", time.Now().Unix())
 
+	ctxPrepare, cancel := context.WithTimeout(ctx, time.Second*30)
+	defer cancel()
+
 	var cnt container.ContainerCreateCreatedBody
 	cnt, err = cli.ContainerCreate(
-		context.Background(),
+		ctxPrepare,
 		containerConfig,
 		hostConfig,
 		netConfig,
@@ -95,7 +100,7 @@ func RunContainer(cfg sampctltypes.Runtime, cacheDir string, output io.Writer, i
 	if err != nil {
 		if client.IsErrNotFound(err) {
 			print.Info("Pulling image:", ref)
-			pullReader, errInner := cli.ImagePull(context.Background(), ref, types.ImagePullOptions{})
+			pullReader, errInner := cli.ImagePull(ctxPrepare, ref, types.ImagePullOptions{})
 			if errInner != nil {
 				return errors.Wrap(errInner, "failed to pull image")
 			}
@@ -106,7 +111,7 @@ func RunContainer(cfg sampctltypes.Runtime, cacheDir string, output io.Writer, i
 			}
 
 			cnt, errInner = cli.ContainerCreate(
-				context.Background(),
+				ctxPrepare,
 				containerConfig,
 				hostConfig,
 				netConfig,
@@ -120,21 +125,20 @@ func RunContainer(cfg sampctltypes.Runtime, cacheDir string, output io.Writer, i
 	}
 
 	print.Info("Starting container...")
-	err = cli.ContainerStart(context.Background(), cnt.ID, types.ContainerStartOptions{})
+	err = cli.ContainerStart(ctx, cnt.ID, types.ContainerStartOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to start container")
 	}
 
 	go func() {
-		var reader io.ReadCloser
-		reader, err = cli.ContainerLogs(context.Background(), cnt.ID, types.ContainerLogsOptions{
+		reader, errInner := cli.ContainerLogs(context.Background(), cnt.ID, types.ContainerLogsOptions{
 			ShowStdout: true,
 			ShowStderr: true,
 			Follow:     true,
 			Timestamps: false,
 		})
-		if err != nil {
-			panic(err)
+		if errInner != nil {
+			panic(errInner) // todo: handle errors gracefully
 		}
 		defer func() {
 			if errClose := reader.Close(); errClose != nil {
@@ -148,25 +152,28 @@ func RunContainer(cfg sampctltypes.Runtime, cacheDir string, output io.Writer, i
 		}
 	}()
 
-	finished := make(chan struct{})
+	finished := make(chan error)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
 		sig := <-sigs
-		err = cli.ContainerKill(context.Background(), cnt.ID, "SIGINT")
-		print.Info("server killed:", sig, err)
-		finished <- struct{}{}
+		errInner := cli.ContainerKill(ctx, cnt.ID, "SIGINT")
+		print.Info("server killed:", sig, errInner)
+		finished <- errInner
 	}()
 
 	go func() {
-		n, err := cli.ContainerWait(context.Background(), cnt.ID)
-		print.Erro("container exited:", n, err)
-		finished <- struct{}{}
+		n, errInner := cli.ContainerWait(ctx, cnt.ID)
+		if errInner.Error() == "context deadline exceeded" {
+			errInner = nil
+		}
+		print.Erro("container exited:", n, errInner)
+		finished <- errInner
 	}()
 
-	<-finished
+	err = <-finished
 
 	return
 }

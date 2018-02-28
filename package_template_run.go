@@ -94,7 +94,7 @@ func packageTemplateRun(c *cli.Context) (err error) {
 	}
 	runner := rook.Runner{
 		Pkg: pkg,
-		Config: &types.Runtime{
+		Config: types.Runtime{
 			Platform:   runtime.GOOS,
 			AppVersion: c.App.Version,
 			Version:    version,

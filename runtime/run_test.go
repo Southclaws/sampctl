@@ -3,11 +3,13 @@ package runtime
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
 
+	textdistance "github.com/masatana/go-textdistance"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Southclaws/sampctl/types"
@@ -83,13 +85,21 @@ Number of vehicle models: 0
 			}
 
 			output := &bytes.Buffer{}
-			err = Run(ctx, config, util.FullPath("./tests/cache"), output, nil)
-			if err.Error() != "received runtime error: failed to start server: exit status 1" {
-				assert.NoError(t, err)
+			err = Run(ctx, config, util.FullPath("./tests/cache"), false, output, nil)
+			if err != nil {
+				if err.Error() != "received runtime error: failed to start server: exit status 1" {
+					assert.NoError(t, err)
+				}
 			}
 
 			gotOutput := output.String()
-			assert.Equal(t, tt.wantOutput, gotOutput)
+			distance := textdistance.LevenshteinDistance(gotOutput, tt.wantOutput)
+			fmt.Println(distance)
+			if distance > 150 {
+				assert.Fail(t, "Output not similar enough", distance, 150)
+				fmt.Println("\n%%", tt.wantOutput, "\n%%") // nolint
+				fmt.Println("\n%%", gotOutput, "\n%%")     // nolint
+			}
 		})
 	}
 }
