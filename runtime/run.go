@@ -193,15 +193,19 @@ func run(ctx context.Context, binary string, runType types.RunMode, output io.Wr
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	var term termination
-	select {
-	case line := <-streamChan:
-		fmt.Fprintln(output, line)
+loop:
+	for {
+		select {
+		case line := <-streamChan:
+			fmt.Fprintln(output, line)
 
-	case s := <-sigChan:
-		term.err = errors.Errorf("received signal: %v", s)
+		case s := <-sigChan:
+			term.err = errors.Errorf("received signal: %v", s)
+			break loop
 
-	case term = <-errChan:
-		break
+		case term = <-errChan:
+			break loop
+		}
 	}
 	print.Verb("finished server execution with:", term)
 
