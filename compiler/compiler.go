@@ -146,7 +146,11 @@ func PrepareCommand(ctx context.Context, gh *github.Client, execDir, cacheDir, p
 	}
 
 	for name, value := range config.Constants {
-		args = append(args, fmt.Sprintf("%s=%s", name, value))
+		if strings.HasPrefix(name, "$") {
+			args = append(args, fmt.Sprintf("%s=%s", name, os.Getenv(value)))
+		} else {
+			args = append(args, fmt.Sprintf("%s=%s", name, value))
+		}
 	}
 
 	cmd = exec.CommandContext(ctx, filepath.Join(runtimeDir, pkg.Binary), args...) //nolint:gas
