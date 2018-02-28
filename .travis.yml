@@ -2,7 +2,8 @@ sudo: required
 services:
   - docker
 before_install:
-  - sudo apt-get install -qq --force-yes build-essential gcc-multilib > /dev/null
+  - sudo dpkg --add-architecture i386
+  - sudo apt-get install -qq --force-yes build-essential gcc-multilib g++-multilib > /dev/null
 addons:
   apt:
     packages:
