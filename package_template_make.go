@@ -50,7 +50,7 @@ func packageTemplateMake(c *cli.Context) (err error) {
 		return errors.New("A template with that name already exists")
 	}
 
-	err = os.MkdirAll(templatePath, 0755)
+	err = os.MkdirAll(templatePath, 0700)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create template directory at '%s'", templatePath)
 	}

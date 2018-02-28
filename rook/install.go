@@ -51,7 +51,7 @@ func Install(pkg types.Package, targets []versioning.DependencyString, developme
 
 // Get simply performs a git clone of the given package to the specified directory then ensures it
 func Get(meta versioning.DependencyMeta, dir string, auth transport.AuthMethod) (err error) {
-	err = os.MkdirAll(dir, 0755)
+	err = os.MkdirAll(dir, 0700)
 	if err != nil {
 		return errors.Wrap(err, "failed to create directory for clone")
 	}

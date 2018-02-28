@@ -149,7 +149,7 @@ func PrepareCommand(ctx context.Context, gh *github.Client, execDir, cacheDir, p
 		args = append(args, fmt.Sprintf("%s=%s", name, value))
 	}
 
-	cmd = exec.CommandContext(ctx, filepath.Join(runtimeDir, pkg.Binary), args...)
+	cmd = exec.CommandContext(ctx, filepath.Join(runtimeDir, pkg.Binary), args...) //nolint:gas
 	cmd.Env = []string{
 		fmt.Sprintf("LD_LIBRARY_PATH=%s", runtimeDir),
 		fmt.Sprintf("DYLD_LIBRARY_PATH=%s", runtimeDir),

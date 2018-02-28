@@ -48,7 +48,7 @@ Number of vehicle models: 0
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 			defer cancel()
 
 			dir := util.FullPath(filepath.Join("./tests/run/", tt.name))

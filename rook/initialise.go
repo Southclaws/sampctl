@@ -41,7 +41,10 @@ func Init(dir string, config *types.Config, auth transport.AuthMethod) (err erro
 		}
 
 		// skip anything in dependencies
-		base, _ := filepath.Rel(dir, path)
+		base, errInner := filepath.Rel(dir, path)
+		if errInner != nil {
+			return errInner
+		}
 		if strings.Contains(filepath.Dir(base), "dependencies") {
 			return nil
 		}
@@ -201,7 +204,7 @@ func Init(dir string, config *types.Config, auth transport.AuthMethod) (err erro
 			buf.WriteString("\nmain() {\n")
 			buf.WriteString(`	// write tests for libraries here and run "sampctl package run"`)
 			buf.WriteString("\n}\n")
-			err = ioutil.WriteFile(filepath.Join(dir, "test.pwn"), buf.Bytes(), 0755)
+			err = ioutil.WriteFile(filepath.Join(dir, "test.pwn"), buf.Bytes(), 0600)
 			if err != nil {
 				color.Red("failed to write generated tests.pwn file: %v", err)
 			}
@@ -215,11 +218,17 @@ func Init(dir string, config *types.Config, auth transport.AuthMethod) (err erro
 	if answers.GitIgnore {
 		wg.Add(2)
 		go func() {
-			getTemplateFile(dir, ".gitignore")
+			errInner := getTemplateFile(dir, ".gitignore")
+			if errInner != nil {
+				print.Erro("Failed to get .gitignore template:", errInner)
+			}
 			wg.Done()
 		}()
 		go func() {
-			getTemplateFile(dir, ".gitattributes")
+			errInner := getTemplateFile(dir, ".gitattributes")
+			if errInner != nil {
+				print.Erro("Failed to get .gitattributes template:", errInner)
+			}
 			wg.Done()
 		}()
 	}
@@ -228,7 +237,11 @@ func Init(dir string, config *types.Config, auth transport.AuthMethod) (err erro
 		wg.Add(1)
 		go func() {
 			path := filepath.Join(dir, "README.md")
-			getTemplateFile(dir, "README.md")
+			errInner := getTemplateFile(dir, "README.md")
+			if err != nil {
+				print.Erro("Failed to get readme template:", errInner)
+				return
+			}
 			defer wg.Done()
 			contents, errInner := ioutil.ReadFile(path)
 			if errInner != nil {
@@ -240,12 +253,17 @@ func Init(dir string, config *types.Config, auth transport.AuthMethod) (err erro
 				print.Erro("Failed to parse readme template:", errInner)
 				return
 			}
-			out, errInner := os.OpenFile(path, os.O_WRONLY, 0755)
+			out, errInner := os.OpenFile(path, os.O_WRONLY, 0600)
 			if errInner != nil {
 				print.Erro("Failed to open readme file for writing:", errInner)
 				return
 			}
-			defer out.Close()
+			defer func() {
+				errDefer := out.Close()
+				if errDefer != nil {
+					panic(errDefer)
+				}
+			}()
 			errInner = tmpl.Execute(out, struct {
 				User        string
 				Repo        string
@@ -266,7 +284,10 @@ func Init(dir string, config *types.Config, auth transport.AuthMethod) (err erro
 	case "vscode":
 		wg.Add(1)
 		go func() {
-			getTemplateFile(dir, ".vscode/tasks.json")
+			errInner := getTemplateFile(dir, ".vscode/tasks.json")
+			if errInner != nil {
+				print.Erro("Failed to get tasks.json template:", errInner)
+			}
 			wg.Done()
 		}()
 	}
@@ -296,7 +317,12 @@ func getTemplateFile(dir, filename string) (err error) {
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		errDefer := resp.Body.Close()
+		if errDefer != nil {
+			panic(errDefer)
+		}
+	}()
 
 	outputFile := filepath.Join(dir, filename)
 
@@ -304,7 +330,7 @@ func getTemplateFile(dir, filename string) (err error) {
 		outputFile = outputFile + "-duplicate"
 	}
 
-	err = os.MkdirAll(filepath.Dir(outputFile), 0755)
+	err = os.MkdirAll(filepath.Dir(outputFile), 0600)
 	if err != nil {
 		return
 	}

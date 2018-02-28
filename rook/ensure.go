@@ -94,16 +94,16 @@ func EnsureDependencies(pkg *types.Package, auth transport.AuthMethod) (err erro
 	return
 }
 
-func checkConflicts(dependencies []versioning.DependencyMeta) (result []versioning.DependencyMeta) {
-	exists := make(map[versioning.DependencyMeta]bool)
-	for _, depMeta := range dependencies {
-		if !exists[depMeta] {
-			exists[depMeta] = true
-			result = append(result, depMeta)
-		}
-	}
-	return
-}
+// func checkConflicts(dependencies []versioning.DependencyMeta) (result []versioning.DependencyMeta) {
+// 	exists := make(map[versioning.DependencyMeta]bool)
+// 	for _, depMeta := range dependencies {
+// 		if !exists[depMeta] {
+// 			exists[depMeta] = true
+// 			result = append(result, depMeta)
+// 		}
+// 	}
+// 	return
+// }
 
 // EnsurePackage will make sure a vendor directory contains the specified package.
 // If the package is not present, it will clone it at the correct version tag, sha1 or HEAD
@@ -284,7 +284,7 @@ func RefFromTag(repo *git.Repository, meta versioning.DependencyMeta) (ref *plum
 		defer tags.Close()
 
 		tagList := []string{}
-		tags.ForEach(func(pr *plumbing.Reference) error {
+		err = tags.ForEach(func(pr *plumbing.Reference) error {
 			tag := pr.Name().Short()
 			if tag == meta.Tag {
 				ref = pr
@@ -293,6 +293,9 @@ func RefFromTag(repo *git.Repository, meta versioning.DependencyMeta) (ref *plum
 			tagList = append(tagList, tag)
 			return nil
 		})
+		if err != nil {
+			err = errors.Wrap(err, "failed to iterate tags")
+		}
 
 		if ref == nil {
 			err = errors.Errorf("failed to satisfy constraint, '%s' not in %v", meta.Tag, tagList)
@@ -335,7 +338,7 @@ func RefFromBranch(repo *git.Repository, meta versioning.DependencyMeta) (ref *p
 	defer branches.Close()
 
 	branchList := []string{}
-	branches.ForEach(func(pr *plumbing.Reference) error {
+	err = branches.ForEach(func(pr *plumbing.Reference) error {
 		branch := pr.Name().Short()
 
 		print.Verb(meta, "checking branch", branch)
@@ -347,6 +350,9 @@ func RefFromBranch(repo *git.Repository, meta versioning.DependencyMeta) (ref *p
 
 		return nil
 	})
+	if err != nil {
+		err = errors.Wrap(err, "failed to iterate branches")
+	}
 	if ref == nil {
 		err = errors.Errorf("no branch named '%s' found in %v", meta.Branch, branchList)
 	}
@@ -362,7 +368,7 @@ func RefFromCommit(repo *git.Repository, meta versioning.DependencyMeta) (result
 	}
 	defer commits.Close()
 
-	commits.ForEach(func(commit *object.Commit) error {
+	err = commits.ForEach(func(commit *object.Commit) error {
 		hash := commit.Hash.String()
 
 		print.Verb(meta, "checking commit", hash)
@@ -373,6 +379,9 @@ func RefFromCommit(repo *git.Repository, meta versioning.DependencyMeta) (result
 
 		return nil
 	})
+	if err != nil {
+		err = errors.Wrap(err, "failed to iterate commits")
+	}
 	if result.IsZero() {
 		err = errors.Errorf("no commit named '%s' found", meta.Commit)
 	}
@@ -409,11 +418,11 @@ func GetRepoSemverTags(repo *git.Repository) (versionedTags VersionedTags, err e
 	}
 	defer tags.Close()
 
-	tags.ForEach(func(pr *plumbing.Reference) error {
+	err = tags.ForEach(func(pr *plumbing.Reference) error {
 		tag := pr.Name().Short()
 
-		tagVersion, err := semver.NewVersion(tag)
-		if err != nil {
+		tagVersion, errInner := semver.NewVersion(tag)
+		if errInner != nil {
 			return nil
 		}
 
@@ -424,6 +433,9 @@ func GetRepoSemverTags(repo *git.Repository) (versionedTags VersionedTags, err e
 
 		return nil
 	})
+	if err != nil {
+		err = errors.Wrap(err, "failed to iterate commits")
+	}
 
 	return
 }

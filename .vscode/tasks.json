@@ -37,8 +37,6 @@
                 "--enable=vetshadow",
                 "--enable=unconvert",
                 "--enable=varcheck",
-                "--enable-gc",
-                "--debug",
                 "./..."
             ],
             "problemMatcher": {
