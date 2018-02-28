@@ -18,47 +18,43 @@ import (
 
 // Package represents a compiler package for a specific OS
 type Package struct {
-	Match  *regexp.Regexp       // the release asset name pattern
-	Method download.ExtractFunc // the extraction method
-	Binary string               // execution binary
-	Paths  map[string]string    // map of files to their target locations
+	Match  string                   // the release asset name pattern
+	Method download.ExtractFuncName // the extraction method
+	Binary string                   // execution binary
+	Paths  map[string]string        // map of files to their target locations
 }
 
-var (
-	matchAssetMacOS = regexp.MustCompile(`pawnc-(.+)-(darwin|macos)\.zip`)
-	matchAssetWin32 = regexp.MustCompile(`pawnc-(.+)-(windows)\.zip`)
-	matchAssetLinux = regexp.MustCompile(`pawnc-(.+)-(linux)\.tar\.gz`)
-)
-
-var (
-	pawnMacOS = Package{
-		matchAssetMacOS,
-		download.Unzip,
+// Packages is a hard coded map of platforms to Package objects
+// todo: store this remotely and load on startup
+var Packages = map[string]*Package{
+	"darwin": &Package{
+		`pawnc-(.+)-(darwin|macos)\.zip`,
+		"zip",
 		"pawncc",
 		map[string]string{
 			"pawnc-(.+)/bin/pawncc":         "pawncc",
 			"pawnc-(.+)/lib/libpawnc.dylib": "libpawnc.dylib",
 		},
-	}
-	pawnLinux = Package{
-		matchAssetLinux,
-		download.Untar,
+	},
+	"linux": &Package{
+		`pawnc-(.+)-(linux)\.tar\.gz`,
+		"tgz",
 		"pawncc",
 		map[string]string{
 			"pawnc-(.+)/bin/pawncc":      "pawncc",
 			"pawnc-(.+)/lib/libpawnc.so": "libpawnc.so",
 		},
-	}
-	pawnWin32 = Package{
-		matchAssetWin32,
-		download.Unzip,
+	},
+	"windows": &Package{
+		`pawnc-(.+)-(windows)\.zip`,
+		"zip",
 		"pawncc.exe",
 		map[string]string{
 			"pawnc-(.+)/bin/pawncc.exe": "pawncc.exe",
 			"pawnc-(.+)/bin/pawnc.dll":  "pawnc.dll",
 		},
-	}
-)
+	},
+}
 
 // FromCache attempts to get a compiler package from the cache, `hit` represents success
 func FromCache(meta versioning.DependencyMeta, dir, platform, cacheDir string) (pkg *Package, hit bool, err error) {
@@ -72,7 +68,7 @@ func FromCache(meta versioning.DependencyMeta, dir, platform, cacheDir string) (
 
 	print.Verb("Checking for cached package", filename, "in", cacheDir)
 
-	hit, err = download.FromCache(cacheDir, filename, dir, pkg.Method, pkg.Paths)
+	hit, err = download.FromCache(cacheDir, filename, dir, download.ExtractFuncFromName(pkg.Method), pkg.Paths)
 	if !hit {
 		return nil, false, nil
 	}
@@ -102,12 +98,17 @@ func FromNet(ctx context.Context, gh *github.Client, meta versioning.DependencyM
 		}
 	}
 
-	path, err := download.ReleaseAssetByPattern(ctx, gh, meta, pkg.Match, "", fmt.Sprintf("pawn-%s-%s", meta.Tag, platform), cacheDir)
+	path, err := download.ReleaseAssetByPattern(ctx, gh, meta, regexp.MustCompile(pkg.Match), "", fmt.Sprintf("pawn-%s-%s", meta.Tag, platform), cacheDir)
 	if err != nil {
 		return
 	}
 
-	err = pkg.Method(path, dir, pkg.Paths)
+	method := download.ExtractFuncFromName(pkg.Method)
+	if method == nil {
+		return nil, errors.Errorf("invalid extract type: %s", pkg.Method)
+	}
+
+	err = method(path, dir, pkg.Paths)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to unzip package %s", path)
 	}
@@ -149,14 +150,8 @@ func GetCompilerPackage(ctx context.Context, gh *github.Client, version types.Co
 
 // GetCompilerPackageInfo returns the URL for a specific compiler version
 func GetCompilerPackageInfo(platform string) (pkg *Package) {
-	switch platform {
-	case "darwin":
-		pkg = &pawnMacOS
-	case "windows":
-		pkg = &pawnWin32
-	case "linux":
-		pkg = &pawnLinux
-	default:
+	pkg, ok := Packages[platform]
+	if !ok {
 		pkg = nil
 	}
 	return

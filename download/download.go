@@ -23,6 +23,28 @@ import (
 // locations on the host filesystem (absolute paths).
 type ExtractFunc func(string, string, map[string]string) error
 
+// ExtractFuncName is a string identifier for an ExtractFunc
+type ExtractFuncName string
+
+const (
+	// ExtractZip is an extract function for .zip packages
+	ExtractZip ExtractFuncName = "zip"
+	// ExtractTgz is an extract function for .tar.gz packages
+	ExtractTgz ExtractFuncName = "tgz"
+)
+
+// ExtractFuncFromName returns an extract function for a given name
+func ExtractFuncFromName(name ExtractFuncName) ExtractFunc {
+	switch name {
+	case ExtractZip:
+		return Unzip
+	case ExtractTgz:
+		return Untar
+	default:
+		return nil
+	}
+}
+
 // GetCacheDir returns the full path to the user's cache directory
 func GetCacheDir() (string, error) {
 	home, err := homedir.Dir()
