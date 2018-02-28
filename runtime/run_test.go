@@ -87,7 +87,7 @@ Number of vehicle models: 0
 			gotOutput := output.String()
 
 			if !strings.HasSuffix(gotOutput, tt.wantOutput) {
-				assert.Fail(t, fmt.Sprintf("Output not similar enough:\n---Expected:\n%s---Actual\n:%s", tt.wantOutput, gotOutput))
+				assert.Fail(t, fmt.Sprintf("Output not similar enough:\n---Expected:\n%s---Actual:\n%s", tt.wantOutput, gotOutput))
 			}
 		})
 	}
