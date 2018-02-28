@@ -130,50 +130,53 @@ func RunContainer(ctx context.Context, cfg sampctltypes.Runtime, cacheDir string
 		return errors.Wrap(err, "failed to start container")
 	}
 
-	go func() {
-		reader, errInner := cli.ContainerLogs(context.Background(), cnt.ID, types.ContainerLogsOptions{
-			ShowStdout: true,
-			ShowStderr: true,
-			Follow:     true,
-			Timestamps: false,
-		})
-		if errInner != nil {
-			panic(errInner) // todo: handle errors gracefully
-		}
-		defer func() {
-			if errClose := reader.Close(); errClose != nil {
-				panic(errClose)
-			}
-		}()
-
-		scanner := bufio.NewScanner(reader)
-		for scanner.Scan() {
-			fmt.Fprintln(output, scanner.Text())
-		}
-	}()
-
-	finished := make(chan error)
+	finished := make(chan error, 1)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
 	go func() {
 		sig := <-sigs
-		errInner := cli.ContainerKill(ctx, cnt.ID, "SIGINT")
-		print.Info("server killed:", sig, errInner)
-		finished <- errInner
+		finished <- errors.Errorf("killed: %s", sig)
 	}()
 
 	go func() {
-		n, errInner := cli.ContainerWait(ctx, cnt.ID)
-		if errInner.Error() == "context deadline exceeded" {
-			errInner = nil
+		n, errInner := cli.ContainerWait(context.Background(), cnt.ID)
+		if errInner != nil {
+			if errInner.Error() == "context deadline exceeded" {
+				errInner = nil
+			}
 		}
 		print.Erro("container exited:", n, errInner)
 		finished <- errInner
 	}()
 
-	err = <-finished
+	// Get logs and wait for exit
+
+	reader, err := cli.ContainerLogs(ctx, cnt.ID, types.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow:     true,
+		Timestamps: false,
+	})
+	if err != nil {
+		return
+	}
+	defer func() {
+		if errClose := reader.Close(); errClose != nil {
+			panic(errClose)
+		}
+	}()
+
+	scanner := bufio.NewScanner(reader)
+	for scanner.Scan() {
+		fmt.Fprintln(output, scanner.Text())
+	}
+
+	err = cli.ContainerKill(ctx, cnt.ID, "SIGINT")
+	if err != nil {
+		print.Verb("Failed to kill container:", err)
+		err = nil
+	}
 
 	return
 }

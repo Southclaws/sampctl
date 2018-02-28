@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
-	textdistance "github.com/masatana/go-textdistance"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Southclaws/sampctl/types"
@@ -23,16 +23,6 @@ func TestRun(t *testing.T) {
 		wantErr    bool
 	}{
 		{"bare", `
-----------
-Loaded log file: "server_log.txt".
-----------
-
-SA-MP Dedicated Server
-----------------------
-v0.3.7-R2, (C)2005-2015 SA-MP Team
-
-plugins = ""  (string)
-
 Server Plugins
 --------------
  Loaded 0 plugins.
@@ -85,6 +75,7 @@ Number of vehicle models: 0
 			}
 
 			output := &bytes.Buffer{}
+
 			err = Run(ctx, config, util.FullPath("./tests/cache"), false, output, nil)
 			if err != nil {
 				if err.Error() != "received runtime error: failed to start server: exit status 1" {
@@ -93,12 +84,9 @@ Number of vehicle models: 0
 			}
 
 			gotOutput := output.String()
-			distance := textdistance.LevenshteinDistance(gotOutput, tt.wantOutput)
-			fmt.Println(distance)
-			if distance > 150 {
-				assert.Fail(t, "Output not similar enough", distance, 150)
-				fmt.Println("\n%%", tt.wantOutput, "\n%%") // nolint
-				fmt.Println("\n%%", gotOutput, "\n%%")     // nolint
+
+			if !strings.HasSuffix(gotOutput, tt.wantOutput) {
+				assert.Fail(t, fmt.Sprintf("Output not similar enough:\n\n%s\n\n%s", tt.wantOutput, gotOutput))
 			}
 		})
 	}
