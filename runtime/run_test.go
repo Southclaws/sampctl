@@ -48,7 +48,7 @@ Number of vehicle models: 0
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 			defer cancel()
 
 			dir := util.FullPath(filepath.Join("./tests/run/", tt.name))
@@ -75,10 +75,11 @@ Number of vehicle models: 0
 			}
 
 			output := &bytes.Buffer{}
+			input := &bytes.Buffer{}
 
-			err = Run(ctx, config, util.FullPath("./tests/cache"), false, output, nil)
+			err = Run(ctx, config, util.FullPath("./tests/cache"), false, output, input)
 			if err != nil {
-				if err.Error() != "received runtime error: failed to start server: exit status 1" {
+				if err.Error() != "received runtime error: failed to start server: failed to start pty: context deadline exceeded" {
 					assert.NoError(t, err)
 				}
 			}

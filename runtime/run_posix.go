@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"sync"
 
+	"github.com/Southclaws/sampctl/print"
 	"github.com/kr/pty"
 	"github.com/pkg/errors"
 )
@@ -14,11 +15,17 @@ import (
 func platformRun(cmd *exec.Cmd, w io.Writer, r io.Reader) (err error) {
 	ptmx, err := pty.Start(cmd)
 	if err != nil {
-		return
+		return errors.Wrap(err, "failed to start pty")
+	}
+	if ptmx == nil {
+		return errors.New("failed to create new pty, ptmx is null")
 	}
 
 	defer func() {
-		err = ptmx.Close()
+		errDefer := ptmx.Close()
+		if errDefer != nil {
+			panic(errDefer)
+		}
 	}()
 
 	wg := sync.WaitGroup{}
@@ -34,21 +41,20 @@ func platformRun(cmd *exec.Cmd, w io.Writer, r io.Reader) (err error) {
 	}()
 	go func() {
 		_, errInner := io.Copy(w, ptmx)
-		if errInner.Error() == "read /dev/ptmx: input/output error" {
-			errInner = errors.New("server crashed")
-		}
-		rdErrCh <- errInner
+		wrErrCh <- errInner
 		wg.Done()
 	}()
 
 	wg.Wait()
 
 	errRead := <-rdErrCh
+	if errRead != nil {
+		print.Verb("read error", errRead)
+	}
 	errWrite := <-wrErrCh
-
-	if errRead != nil || errWrite != nil {
-		err = errors.Errorf("read error: '%s' write error: '%s'", errRead, errWrite)
+	if errWrite != nil {
+		print.Verb("write error", errWrite)
 	}
 
-	return
+	return nil
 }
