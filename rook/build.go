@@ -85,7 +85,7 @@ func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pk
 	} else {
 		print.Verb("building", pkg, "with", config.Version)
 
-		problems, result, err = compiler.CompileWithCommand(cmd, config.WorkingDir, relative)
+		problems, result, err = compiler.CompileWithCommand(cmd, config.WorkingDir, pkg.Local, relative)
 		if err != nil {
 			err = errors.Wrap(err, "failed to compile package entry")
 		}
@@ -220,7 +220,7 @@ loop:
 			fmt.Println("watch-build: starting compilation", buildNumber)
 			go func() {
 				running.Store(true)
-				problems, _, err = compiler.CompileSource(ctxInner, gh, pkg.Local, cacheDir, platform, *config, relative)
+				problems, _, err = compiler.CompileSource(ctxInner, gh, pkg.Local, pkg.Local, cacheDir, platform, *config, relative)
 				running.Store(false)
 
 				if err != nil {
