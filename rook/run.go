@@ -215,7 +215,7 @@ func (runner Runner) prepare(ctx context.Context) (config *types.Runtime, err er
 		return
 	}
 
-	err = runtime.Ensure(ctx, runner.GitHub, &runner.Config, runner.NoCache)
+	err = runtime.Ensure(ctx, runner.GitHub, config, runner.NoCache)
 	if err != nil {
 		err = errors.Wrap(err, "failed to ensure temporary runtime")
 		return
