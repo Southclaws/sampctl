@@ -176,8 +176,14 @@ func BuildWatch(ctx context.Context, gh *github.Client, auth transport.AuthMetho
 		lastEvent        time.Time
 	)
 
-	defer cancel()
+	defer func() {
+		print.Warn("cancelled inner context")
+		cancel()
+	}()
 	running.Store(false)
+
+	// send a fake first event to trigger an initial build
+	go func() { watcher.Events <- fsnotify.Event{Name: pkg.Entry, Op: fsnotify.Write} }()
 
 loop:
 	for {
@@ -203,28 +209,31 @@ loop:
 				print.Verb("skipping duplicate write", time.Since(lastEvent), "since last file change")
 				continue
 			}
-
 			lastEvent = time.Now()
 
-			if running.Load().(bool) {
-				fmt.Println("watch-build: killing existing compiler process", buildNumber)
-				cancel()
-				fmt.Println("watch-build: finished", buildNumber)
-				// re-create context and canceler
-				ctxInner, cancel = context.WithCancel(context.Background())
-				defer cancel()
-			}
-
-			atomic.AddUint32(&buildNumber, 1)
-
-			fmt.Println("watch-build: starting compilation", buildNumber)
 			go func() {
+				if running.Load().(bool) {
+					fmt.Println("watch-build: killing existing compiler process")
+					cancel()
+					fmt.Println("watch-build: killed existing compiler process")
+					// re-create context and canceler
+					ctxInner, cancel = context.WithCancel(ctx)
+					defer func() {
+						print.Verb("cancelling existing compiler execution context")
+						cancel()
+					}()
+				}
+
+				atomic.AddUint32(&buildNumber, 1)
+				fmt.Println("watch-build: starting compilation", buildNumber)
+
 				running.Store(true)
 				problems, _, err = compiler.CompileSource(ctxInner, gh, pkg.Local, pkg.Local, cacheDir, platform, *config, relative)
 				running.Store(false)
 
 				if err != nil {
 					if err.Error() == "signal: killed" || err.Error() == "context canceled" {
+						print.Erro("non-fatal error occurred:", err)
 						return
 					}
 

@@ -248,6 +248,7 @@ func CompileWithCommand(cmd *exec.Cmd, workingDir, errorDir string, relative boo
 		close(resultChan)
 	}()
 
+	print.Verb("executing compiler in", workingDir)
 	cmdError := cmd.Run()
 
 	err = outputWriter.Close()
@@ -259,8 +260,7 @@ func CompileWithCommand(cmd *exec.Cmd, workingDir, errorDir string, relative boo
 		if cmdError.Error() == "signal: killed" || cmdError.Error() == "context canceled" {
 			err = cmdError
 			return
-		}
-		if cmdError.Error() != "exit status 1" {
+		} else if cmdError.Error() != "exit status 1" {
 			// if the failure was not caused by a simple compile error
 			print.Erro("Failed to execute compiler")
 			print.Erro("if you're on a 64 bit system this may be because the system is not set up to execute 32 bit binaries")
@@ -298,7 +298,7 @@ func RunPlugins(ctx context.Context, cfg types.BuildConfig, output io.Writer) (e
 		ctxInner, cancel := context.WithCancel(ctx)
 		defer cancel()
 
-		cmd := exec.CommandContext(ctxInner, command[0], command[1:]...)
+		cmd := exec.CommandContext(ctxInner, command[0], command[1:]...) //nolint:gas
 		cmd.Stdout = output
 
 		err = cmd.Run()

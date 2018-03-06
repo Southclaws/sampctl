@@ -46,14 +46,14 @@ func (runner Runner) Run(ctx context.Context, output io.Writer, input io.Reader)
 	}
 	runner.Config = *config
 
-	err = runtime.Run(ctx, runner.Config, runner.CacheDir, true, output, input)
+	err = runtime.Run(ctx, runner.Config, runner.CacheDir, true, false, output, input)
 
 	return
 }
 
 // RunWatch runs the Run code on file changes
-func (runner Runner) RunWatch(ctx1 context.Context) (err error) {
-	config, err := runner.prepare(ctx1)
+func (runner Runner) RunWatch(ctx context.Context) (err error) {
+	config, err := runner.prepare(ctx)
 	if err != nil {
 		err = errors.Wrap(err, "failed to prepare")
 		return
@@ -66,11 +66,11 @@ func (runner Runner) RunWatch(ctx1 context.Context) (err error) {
 	}
 
 	var (
-		errorCh     = make(chan error)
-		signals     = make(chan os.Signal, 1)
-		trigger     = make(chan types.BuildProblems)
-		running     atomic.Value
-		ctx, cancel = context.WithCancel(ctx1)
+		errorCh          = make(chan error)
+		signals          = make(chan os.Signal, 1)
+		trigger          = make(chan types.BuildProblems)
+		running          atomic.Value
+		ctxInner, cancel = context.WithCancel(ctx)
 	)
 
 	defer cancel()
@@ -117,9 +117,9 @@ loop:
 			if running.Load().(bool) {
 				fmt.Println("watch-run: killing existing runtime process")
 				cancel()
-				fmt.Println("watch-run: finished")
+				fmt.Println("watch-run: killed existing runtime process")
 				// re-create context and canceler
-				ctx, cancel = context.WithCancel(context.Background())
+				ctxInner, cancel = context.WithCancel(ctx)
 				defer cancel()
 			}
 
@@ -131,10 +131,14 @@ loop:
 
 			fmt.Println("watch-run: executing package code")
 			go func() {
-				err = runtime.Run(ctx, runner.Config, runner.CacheDir, true, os.Stdout, os.Stdin)
+				running.Store(true)
+				err = runtime.Run(ctxInner, runner.Config, runner.CacheDir, true, false, os.Stdout, os.Stdin)
+				running.Store(false)
+
 				if err != nil {
 					print.Erro(err)
 				}
+
 				fmt.Println("watch-run: finished")
 			}()
 		}
