@@ -58,6 +58,7 @@ func (runner Runner) RunWatch(ctx1 context.Context) (err error) {
 		err = errors.Wrap(err, "failed to prepare")
 		return
 	}
+	runner.Config = *config
 
 	if config.Mode == types.Server {
 		err = errors.New("cannot use --watch with runtime mode 'server'")
