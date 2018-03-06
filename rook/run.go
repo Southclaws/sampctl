@@ -179,7 +179,16 @@ func (runner Runner) prepare(ctx context.Context) (config *types.Runtime, err er
 		return
 	}
 
-	err = runtime.PrepareRuntimeDirectory(runner.CacheDir, runner.Config.Endpoint, runner.Config.Version, runner.Config.Platform)
+	scriptfiles := filepath.Join(runner.Pkg.Local, "scriptfiles")
+	if !util.Exists(scriptfiles) {
+		scriptfiles = ""
+	}
+	err = runtime.PrepareRuntimeDirectory(
+		runner.CacheDir,
+		runner.Config.Endpoint,
+		runner.Config.Version,
+		runner.Config.Platform,
+		scriptfiles)
 	if err != nil {
 		err = errors.Wrap(err, "failed to prepare temporary runtime area")
 		return

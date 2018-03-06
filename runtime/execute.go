@@ -10,7 +10,7 @@ import (
 )
 
 // PrepareRuntimeDirectory sets up a directory in ~/.samp that contains the server runtime
-func PrepareRuntimeDirectory(cacheDir, endpoint, version, platform string) (err error) {
+func PrepareRuntimeDirectory(cacheDir, endpoint, version, platform, scriptfiles string) (err error) {
 	dir := GetRuntimePath(cacheDir, version)
 
 	err = os.MkdirAll(dir, 0700)
@@ -36,6 +36,19 @@ func PrepareRuntimeDirectory(cacheDir, endpoint, version, platform string) (err 
 	err = os.MkdirAll(filepath.Join(dir, "plugins"), 0700)
 	if err != nil {
 		return errors.Wrap(err, "failed to create plugins directory")
+	}
+
+	scriptfilesTmp := filepath.Join(dir, "scriptfiles")
+	err = os.RemoveAll(scriptfilesTmp)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove scriptfiles directory")
+	}
+
+	if scriptfiles != "" {
+		err = os.Symlink(scriptfiles, scriptfilesTmp)
+		if err != nil {
+			return errors.Wrap(err, "failed to create scriptfiles symlink")
+		}
 	}
 
 	return
