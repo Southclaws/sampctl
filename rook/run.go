@@ -58,7 +58,7 @@ func (runner Runner) RunWatch(ctx context.Context) (err error) {
 		err = errors.Wrap(err, "failed to prepare")
 		return
 	}
-	runner.Config = *config
+	runner.Config = *config //nolint - staticcheck thinks this is ineffective for some reason...
 
 	if config.Mode == types.Server {
 		err = errors.New("cannot use --watch with runtime mode 'server'")
