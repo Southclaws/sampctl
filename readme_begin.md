@@ -1,10 +1,14 @@
 # sampctl
 
-[![Build Status](https://travis-ci.org/Southclaws/sampctl.svg?branch=master)](https://travis-ci.org/Southclaws/sampctl) [![Go Report Card](https://goreportcard.com/badge/github.com/Southclaws/sampctl)](https://goreportcard.com/report/github.com/Southclaws/sampctl) [![https://img.shields.io/badge/Ko--Fi-Buy%20Me%20a%20Coffee-brown.svg](https://img.shields.io/badge/Ko--Fi-Buy%20Me%20a%20Coffee-brown.svg)](https://ko-fi.com/southclaws)
+[![Build Status](https://travis-ci.org/Southclaws/sampctl.svg?branch=master)](https://travis-ci.org/Southclaws/sampctl)
+[![Go Report Card](https://goreportcard.com/badge/github.com/Southclaws/sampctl)](https://goreportcard.com/report/github.com/Southclaws/sampctl)
+[![https://img.shields.io/badge/Ko--Fi-Buy%20Me%20a%20Coffee-brown.svg](https://img.shields.io/badge/Ko--Fi-Buy%20Me%20a%20Coffee-brown.svg)](https://ko-fi.com/southclaws)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FSouthclaws%2Fsampctl.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2FSouthclaws%2Fsampctl?ref=badge_shield)
 
 ![sampctl-logo](sampctl-wordmark.png)
 
-The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
+The Swiss Army Knife of SA:MP - vital tools for any server owner or library
+maintainer.
 
 ## Features
 
@@ -20,7 +24,8 @@ Use on the command-line or integrate with any editor.
 
 ![images/sampctl-package-build-vscode.gif](images/sampctl-package-build-vscode.gif)
 
-Easily write and run tests for libraries or quickly run arbitrary code. Utilise the power of Docker to run on any platform!
+Easily write and run tests for libraries or quickly run arbitrary code. Utilise
+the power of Docker to run on any platform!
 
 ![images/sampctl-package-run-container.gif](images/sampctl-package-run-container.gif)
 
@@ -38,13 +43,15 @@ Manage your server settings in JSON or YAML format
 
 ### Automatic Server Restart - no more dodgy bash scripts
 
-Run the server from `sampctl` and let it worry about restarting in case of crashes.
+Run the server from `sampctl` and let it worry about restarting in case of
+crashes.
 
 ![images/sampctl-server-run.gif](images/sampctl-server-run.gif)
 
 ### Automatic Server and Plugin Installer
 
-Automatically download Windows/Linux server binaries and plugins when and where you need them.
+Automatically download Windows/Linux server binaries and plugins when and where
+you need them.
 
 ![images/sampctl-server-ensure.gif](images/sampctl-server-ensure.gif)
 
@@ -60,33 +67,44 @@ Installation is simple and fast on all platforms so why not give sampctl a try?
 
 Scroll to the end of this document for an overview of the commands.
 
-Or visit the [wiki](https://github.com/Southclaws/sampctl/wiki) for all the information you need.
+Or visit the [wiki](https://github.com/Southclaws/sampctl/wiki) for all the
+information you need.
 
 ---
 
 ## Overview
 
-sampctl is designed for both development of gamemodes/libraries and management of live servers.
+sampctl is designed for both development of gamemodes/libraries and management
+of live servers.
 
-Below is a quick overview of the best features that will help _you_ develop faster.
+Below is a quick overview of the best features that will help _you_ develop
+faster.
 
 ### Package Management and Build Tool
 
-If you've used platforms like NodeJS, Python, Go, Ruby, etc you know how useful tools like npm, pip, gem are.
+If you've used platforms like NodeJS, Python, Go, Ruby, etc you know how useful
+tools like npm, pip, gem are.
 
 It's about time Pawn had the same tool.
 
-sampctl provides a simple and intuitive way to _declare_ what includes your project needs. After that you simply let sampctl take care of the downloading and building.
+sampctl provides a simple and intuitive way to _declare_ what includes your
+project needs. After that you simply let sampctl take care of the downloading
+and building.
 
-If you release scripts, you know it's awkward to test even simple code. You need to set up a server, compile the include into a gamemode, configure the server and run it.
+If you release scripts, you know it's awkward to test even simple code. You need
+to set up a server, compile the include into a gamemode, configure the server
+and run it.
 
-Forget all that. Just make a [`pawn.json`/`pawn.yaml`](https://github.com/Southclaws/sampctl/wiki/Package-Definition-Reference) in your project directory with `sampctl package init` and use `sampctl package install` to get the includes you need:
+Forget all that. Just make a
+[`pawn.json`/`pawn.yaml`](https://github.com/Southclaws/sampctl/wiki/Package-Definition-Reference)
+in your project directory with `sampctl package init` and use
+`sampctl package install` to get the includes you need:
 
 ```json
 {
-    "entry": "test.pwn",
-    "output": "test.amx",
-    "dependencies": ["sampctl/samp-stdlib", "Southclaws/formatex"]
+  "entry": "test.pwn",
+  "output": "test.amx",
+  "dependencies": ["sampctl/samp-stdlib", "Southclaws/formatex"]
 }
 ```
 
@@ -138,10 +156,10 @@ Use JSON or YAML to write your server config:
 
 ```json
 {
-    "gamemodes": ["rivershell"],
-    "plugins": ["maddinat0r/sscanf"],
-    "rcon_password": "test",
-    "port": 8080
+  "gamemodes": ["rivershell"],
+  "plugins": ["maddinat0r/sscanf"],
+  "rcon_password": "test",
+  "port": 8080
 }
 ```
 
@@ -155,7 +173,9 @@ port 8080
 (... and the rest of the settings which have default values)
 ```
 
-What also happens here is `maddinat0r/sscanf` tells sampctl to automatically get the latest sscanf plugin and place the `.so` or `.dll` file into the `plugins/` directory.
+What also happens here is `maddinat0r/sscanf` tells sampctl to automatically get
+the latest sscanf plugin and place the `.so` or `.dll` file into the `plugins/`
+directory.
 
 [See documentation for more info.](https://github.com/Southclaws/sampctl/wiki/Runtime-Configuration-Reference)
 
