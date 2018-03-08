@@ -30,7 +30,7 @@ func main() {
 	app := cli.NewApp()
 
 	app.Author = "Southclaws"
-	app.Email = "southclaws@gmail.com"
+	app.Email = "hello@southcla.ws"
 	app.Name = "sampctl"
 	app.Usage = "sampctl [package|server] - operations are one of these two categories: `package` for working with Pawn code and packages and `server` for managing server configuration and runtime."
 	app.Description = "The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer."
