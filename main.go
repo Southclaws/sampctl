@@ -152,7 +152,7 @@ func main() {
 				},
 				{
 					Name:         "build",
-					Usage:        "sampctl package build",
+					Usage:        "sampctl package build [build name]",
 					Description:  "Builds a package defined by a `pawn.json`/`pawn.yaml` file.",
 					Action:       packageBuild,
 					Flags:        append(globalFlags, packageBuildFlags...),

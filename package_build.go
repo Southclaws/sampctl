@@ -54,12 +54,13 @@ func packageBuild(c *cli.Context) error {
 	}
 
 	dir := util.FullPath(c.String("dir"))
-	build := c.String("build")
 	forceEnsure := c.Bool("forceEnsure")
 	dryRun := c.Bool("dryRun")
 	watch := c.Bool("watch")
 	buildFile := c.String("buildFile")
 	relativePaths := c.Bool("relativePaths")
+
+	build := c.Args().Get(1)
 
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
@@ -110,9 +111,7 @@ func packageBuildBash(c *cli.Context) {
 		return
 	}
 
-	if lastFlagIs("build") {
-		for _, b := range pkg.Builds {
-			fmt.Println(b.Name)
-		}
+	for _, b := range pkg.Builds {
+		fmt.Println(b.Name)
 	}
 }
