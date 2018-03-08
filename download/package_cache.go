@@ -2,14 +2,16 @@ package download
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/types"
-	"github.com/Southclaws/sampctl/util"
 )
 
 // GetPackageList gets a list of known packages from the sampctl package service, if the list does
@@ -17,7 +19,21 @@ import (
 func GetPackageList(cacheDir string) (packages []types.Package, err error) {
 	packageFile := filepath.Join(cacheDir, "packages.json")
 
-	if !util.Exists(packageFile) {
+	var update bool
+
+	info, err := os.Stat(packageFile)
+	if os.IsNotExist(err) {
+		update = true
+	}
+
+	// update package list every week
+	if time.Since(info.ModTime()) > time.Hour*24*7 {
+		update = true
+	}
+
+	if update {
+		// print to stderr so bash doesn't pick it up as an auto-complete result
+		fmt.Fprintln(os.Stderr, "updating package list...")
 		err = UpdatePackageList(cacheDir)
 		if err != nil {
 			return
