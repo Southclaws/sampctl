@@ -227,13 +227,11 @@ func main() {
 		}
 		return nil
 	}
-
-	err = app.Run(os.Args)
-	if err != nil {
-		print.Erro(err)
-	}
-
 	app.After = func(c *cli.Context) error {
+		if c.GlobalIsSet("generate-bash-completion") {
+			return nil
+		}
+
 		// quick and dirty stateless check to make sure update check doesn't run on *every* execution
 		// instead, it will only check when the user happens to run the app during a minute and second
 		// that are even numbers. 12:56:44 will work, 12:57:44 will not, etc...
@@ -243,6 +241,11 @@ func main() {
 			CheckForUpdates(app.Version)
 		}
 		return nil
+	}
+
+	err = app.Run(os.Args)
+	if err != nil {
+		print.Erro(err)
 	}
 
 	err = types.WriteConfig(cacheDir, *config)
