@@ -1,8 +1,13 @@
 package main
 
 import (
+	"fmt"
+	"os"
+	"strings"
+
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/rook"
 	"github.com/Southclaws/sampctl/util"
@@ -39,4 +44,25 @@ func packageGet(c *cli.Context) error {
 	print.Info("successfully cloned package")
 
 	return nil
+}
+
+func packageGetBash(c *cli.Context) {
+	cacheDir, err := download.GetCacheDir()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Failed to retrieve cache directory path (attempted <user folder>/.samp) ", err)
+		return
+	}
+
+	packages, err := download.GetPackageList(cacheDir)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Failed to get package list:", err)
+		return
+	}
+
+	query := c.Args().First()
+	for _, pkg := range packages {
+		if strings.HasPrefix(pkg.String(), query) {
+			fmt.Println(pkg)
+		}
+	}
 }
