@@ -32,8 +32,8 @@ func main() {
 	app.Author = "Southclaws"
 	app.Email = "southclaws@gmail.com"
 	app.Name = "sampctl"
-	app.Usage = "The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer."
-	app.Description = "Compiles server configuration JSON to server.cfg format. Executes the server and monitors it for crashes, restarting if necessary. Provides a way to quickly download server binaries of a specified version. Provides dependency management and package build tools for library maintainers and gamemode writers alike."
+	app.Usage = "sampctl [package|server] - operations are one of these two categories: `package` for working with Pawn code and packages and `server` for managing server configuration and runtime."
+	app.Description = "The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer."
 	app.Version = version
 
 	cli.VersionFlag = cli.BoolFlag{
