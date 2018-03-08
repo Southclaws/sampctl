@@ -24,10 +24,8 @@ func GetPackageList(cacheDir string) (packages []types.Package, err error) {
 	info, err := os.Stat(packageFile)
 	if os.IsNotExist(err) {
 		update = true
-	}
-
-	// update package list every week
-	if time.Since(info.ModTime()) > time.Hour*24*7 {
+	} else if time.Since(info.ModTime()) > time.Hour*24*7 {
+		// update package list every week
 		update = true
 	}
 
