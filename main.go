@@ -32,9 +32,9 @@ func main() {
 	app.Author = "Southclaws"
 	app.Email = "hello@southcla.ws"
 	app.Name = "sampctl"
-	app.Usage = "sampctl [package|server] - operations are one of these two categories: `package` for working with Pawn code and packages and `server` for managing server configuration and runtime."
 	app.Description = "The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer."
 	app.Version = version
+	app.EnableBashCompletion = true
 
 	cli.VersionFlag = cli.BoolFlag{
 		Name:  "appVersion, V",
@@ -151,11 +151,12 @@ func main() {
 					Flags:       append(globalFlags, packageGetFlags...),
 				},
 				{
-					Name:        "build",
-					Usage:       "sampctl package build",
-					Description: "Builds a package defined by a `pawn.json`/`pawn.yaml` file.",
-					Action:      packageBuild,
-					Flags:       append(globalFlags, packageBuildFlags...),
+					Name:         "build",
+					Usage:        "sampctl package build",
+					Description:  "Builds a package defined by a `pawn.json`/`pawn.yaml` file.",
+					Action:       packageBuild,
+					Flags:        append(globalFlags, packageBuildFlags...),
+					BashComplete: packageBuildBash,
 				},
 				{
 					Name:        "run",
@@ -200,6 +201,11 @@ func main() {
 			Action:      cli.VersionPrinter,
 		},
 		{
+			Name:        "completion",
+			Description: "output bash autocomplete code",
+			Action:      autoComplete,
+		},
+		{
 			Name:        "docs",
 			Usage:       "sampctl docs > documentation.md",
 			Description: "Generate documentation in markdown format and print to standard out.",
@@ -227,13 +233,16 @@ func main() {
 		print.Erro(err)
 	}
 
-	// quick and dirty stateless check to make sure update check doesn't run on *every* execution
-	// instead, it will only check when the user happens to run the app during a minute and second
-	// that are even numbers. 12:56:44 will work, 12:57:44 will not, etc...
-	// this is done because the GitHub API has rate limits and we don't want to use all our requests
-	// up on version checks when package management is more important.
-	if time.Now().Minute()%2 == 0 && time.Now().Second()%2 == 0 {
-		CheckForUpdates(app.Version)
+	app.After = func(c *cli.Context) error {
+		// quick and dirty stateless check to make sure update check doesn't run on *every* execution
+		// instead, it will only check when the user happens to run the app during a minute and second
+		// that are even numbers. 12:56:44 will work, 12:57:44 will not, etc...
+		// this is done because the GitHub API has rate limits and we don't want to use all our requests
+		// up on version checks when package management is more important.
+		if !c.GlobalIsSet("generate-bash-completion") && time.Now().Minute()%2 == 0 && time.Now().Second()%2 == 0 {
+			CheckForUpdates(app.Version)
+		}
+		return nil
 	}
 
 	err = types.WriteConfig(cacheDir, *config)

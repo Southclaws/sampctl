@@ -101,3 +101,18 @@ func packageBuild(c *cli.Context) error {
 
 	return nil
 }
+
+func packageBuildBash(c *cli.Context) {
+	dir := util.FullPath(c.String("dir"))
+
+	pkg, err := rook.PackageFromDir(true, dir, "")
+	if err != nil {
+		return
+	}
+
+	if lastFlagIs("build") {
+		for _, b := range pkg.Builds {
+			fmt.Println(b.Name)
+		}
+	}
+}
