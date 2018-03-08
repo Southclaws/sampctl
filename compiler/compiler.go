@@ -151,8 +151,8 @@ func PrepareCommand(ctx context.Context, gh *github.Client, execDir, cacheDir, p
 	}
 
 	for name, value := range config.Constants {
-		if strings.HasPrefix(name, "$") {
-			args = append(args, fmt.Sprintf("%s=%s", name, os.Getenv(value)))
+		if strings.HasPrefix(value, "$") {
+			args = append(args, fmt.Sprintf("%s=%s", name, os.Getenv(value[1:])))
 		} else {
 			args = append(args, fmt.Sprintf("%s=%s", name, value))
 		}
@@ -248,7 +248,7 @@ func CompileWithCommand(cmd *exec.Cmd, workingDir, errorDir string, relative boo
 		close(resultChan)
 	}()
 
-	print.Verb("executing compiler in", workingDir)
+	print.Verb("executing compiler in", workingDir, "as", cmd.Args)
 	cmdError := cmd.Run()
 
 	err = outputWriter.Close()
