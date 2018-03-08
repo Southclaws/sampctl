@@ -77,7 +77,7 @@ Number of vehicle models: 0
 			output := &bytes.Buffer{}
 			input := &bytes.Buffer{}
 
-			err = Run(ctx, config, util.FullPath("./tests/cache"), false, output, input) //nolint
+			err = Run(ctx, config, util.FullPath("./tests/cache"), false, false, output, input) //nolint
 			if err != nil {
 				if err.Error() != "received runtime error: failed to start server: failed to start pty: context deadline exceeded" {
 					assert.NoError(t, err)
