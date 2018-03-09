@@ -21,11 +21,6 @@ var serverDownloadFlags = []cli.Flag{
 		Value: ".",
 		Usage: "working directory for the server - by default, uses the current directory",
 	},
-	cli.StringFlag{
-		Name:  "endpoint",
-		Value: "http://files.sa-mp.com",
-		Usage: "endpoint to download packages from",
-	},
 }
 
 func serverDownload(c *cli.Context) error {
@@ -35,6 +30,5 @@ func serverDownload(c *cli.Context) error {
 
 	version := c.String("version")
 	dir := util.FullPath(c.String("dir"))
-	endpoint := c.String("endpoint")
-	return runtime.GetServerPackage(endpoint, version, dir, appRuntime.GOOS)
+	return runtime.GetServerPackage(version, dir, appRuntime.GOOS)
 }

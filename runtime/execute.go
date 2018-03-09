@@ -10,7 +10,7 @@ import (
 )
 
 // PrepareRuntimeDirectory sets up a directory in ~/.samp that contains the server runtime
-func PrepareRuntimeDirectory(cacheDir, endpoint, version, platform, scriptfiles string) (err error) {
+func PrepareRuntimeDirectory(cacheDir, version, platform, scriptfiles string) (err error) {
 	dir := GetRuntimePath(cacheDir, version)
 
 	err = os.MkdirAll(dir, 0700)
@@ -18,7 +18,7 @@ func PrepareRuntimeDirectory(cacheDir, endpoint, version, platform, scriptfiles 
 		return errors.Wrap(err, "failed to create temporary directory")
 	}
 
-	err = GetServerPackage(endpoint, version, dir, platform)
+	err = GetServerPackage(version, dir, platform)
 	if err != nil {
 		return errors.Wrap(err, "failed to get server package")
 	}

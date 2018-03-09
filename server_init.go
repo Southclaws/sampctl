@@ -22,11 +22,6 @@ var serverInitFlags = []cli.Flag{
 		Value: ".",
 		Usage: "working directory for the server - by default, uses the current directory",
 	},
-	cli.StringFlag{
-		Name:  "endpoint",
-		Value: "http://files.sa-mp.com",
-		Usage: "endpoint to download packages from",
-	},
 }
 
 func serverInit(c *cli.Context) error {
@@ -36,14 +31,13 @@ func serverInit(c *cli.Context) error {
 
 	version := c.String("version")
 	dir := util.FullPath(c.String("dir"))
-	endpoint := c.String("endpoint")
 
 	err := runtime.InitialiseServer(version, dir, appRuntime.GOOS)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialise server")
 	}
 
-	err = runtime.GetServerPackage(endpoint, version, dir, appRuntime.GOOS)
+	err = runtime.GetServerPackage(version, dir, appRuntime.GOOS)
 	if err != nil {
 		return errors.Wrap(err, "failed to get package")
 	}

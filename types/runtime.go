@@ -25,9 +25,8 @@ type Runtime struct {
 	Format     string                      `ignore:"1" json:"-" yaml:"-"` // format stores the original format of the package definition file, either `json` or `yaml`
 
 	// Only used to configure sampctl, not used in server.cfg generation
-	Version  string  `ignore:"1" json:"version,omitempty"  yaml:"version,omitempty"`  // SA:MP server binaries version
-	Endpoint string  `ignore:"1" json:"endpoint,omitempty" yaml:"endpoint,omitempty"` // download endpoint for server binaries
-	Mode     RunMode `ignore:"1" json:"mode,omitempty"     yaml:"mode,omitempty"`     // the runtime mode
+	Version string  `ignore:"1" json:"version,omitempty"  yaml:"version,omitempty"` // runtime version
+	Mode    RunMode `ignore:"1" json:"mode,omitempty"     yaml:"mode,omitempty"`    // the runtime mode
 
 	// Echo - set automatically
 	Echo *string `default:"-" required:"0" json:"echo,omitempty" yaml:"echo,omitempty"`

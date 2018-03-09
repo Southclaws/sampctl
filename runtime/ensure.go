@@ -65,7 +65,7 @@ func EnsureBinaries(cacheDir string, cfg types.Runtime) (err error) {
 	}
 
 	if missing {
-		err = GetServerPackage(cfg.Endpoint, cfg.Version, cfg.WorkingDir, cfg.Platform)
+		err = GetServerPackage(cfg.Version, cfg.WorkingDir, cfg.Platform)
 		if err != nil {
 			return errors.Wrap(err, "failed to get runtime package")
 		}

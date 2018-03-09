@@ -9,7 +9,6 @@ import (
 
 func Test_ServerFromNet(t *testing.T) {
 	type args struct {
-		endpoint string
 		cacheDir string
 		version  string
 		dir      string
@@ -19,20 +18,20 @@ func Test_ServerFromNet(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{"valid", args{"http://files.sa-mp.com", "./tests/cache", "latest", "./tests/server-dir"}, false},
-		{"valid", args{"http://files.sa-mp.com", "./tests/cache", "0.3.7", "./tests/server-dir"}, false},
-		{"valid", args{"http://files.sa-mp.com", "./tests/cache", "0.3.7-R2-2-1", "./tests/server-dir"}, false},
-		{"valid", args{"http://files.sa-mp.com", "./tests/cache", "0.3.7-R2-1", "./tests/server-dir"}, false},
-		{"valid", args{"http://files.sa-mp.com", "./tests/cache", "0.3z", "./tests/server-dir"}, false},
-		{"valid", args{"http://files.sa-mp.com", "./tests/cache", "0.3z-R4", "./tests/server-dir"}, false},
-		{"valid", args{"http://files.sa-mp.com", "./tests/cache", "0.3z-R3", "./tests/server-dir"}, false},
-		{"valid", args{"http://files.sa-mp.com", "./tests/cache", "0.3z-R2-2", "./tests/server-dir"}, false},
-		{"valid", args{"http://files.sa-mp.com", "./tests/cache", "0.3z-R1", "./tests/server-dir"}, false},
-		{"valid", args{"http://files.sa-mp.com", "./tests/cache", "0.3z-R1-2", "./tests/server-dir"}, false},
+		{"valid", args{"./tests/cache", "latest", "./tests/server-dir"}, false},
+		{"valid", args{"./tests/cache", "0.3.7", "./tests/server-dir"}, false},
+		{"valid", args{"./tests/cache", "0.3.7-R2-2-1", "./tests/server-dir"}, false},
+		{"valid", args{"./tests/cache", "0.3.7-R2-1", "./tests/server-dir"}, false},
+		{"valid", args{"./tests/cache", "0.3z", "./tests/server-dir"}, false},
+		{"valid", args{"./tests/cache", "0.3z-R4", "./tests/server-dir"}, false},
+		{"valid", args{"./tests/cache", "0.3z-R3", "./tests/server-dir"}, false},
+		{"valid", args{"./tests/cache", "0.3z-R2-2", "./tests/server-dir"}, false},
+		{"valid", args{"./tests/cache", "0.3z-R1", "./tests/server-dir"}, false},
+		{"valid", args{"./tests/cache", "0.3z-R1-2", "./tests/server-dir"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := FromNet(tt.args.endpoint, tt.args.cacheDir, tt.args.version, tt.args.dir, runtime.GOOS)
+			err := FromNet(tt.args.cacheDir, tt.args.version, tt.args.dir, runtime.GOOS)
 			assert.NoError(t, err)
 		})
 	}

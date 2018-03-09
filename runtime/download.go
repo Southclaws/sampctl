@@ -3,7 +3,6 @@ package runtime
 import (
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 
 	"github.com/pkg/errors"
@@ -14,7 +13,7 @@ import (
 )
 
 // GetServerPackage checks if a cached package is available and if not, downloads it to dir
-func GetServerPackage(endpoint, version, dir, platform string) (err error) {
+func GetServerPackage(version, dir, platform string) (err error) {
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
 		return errors.Wrap(err, "failed to get or create cache directory")
@@ -28,7 +27,7 @@ func GetServerPackage(endpoint, version, dir, platform string) (err error) {
 		return
 	}
 
-	err = FromNet(endpoint, cacheDir, version, dir, platform)
+	err = FromNet(cacheDir, version, dir, platform)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get package %s from net", version)
 	}
@@ -73,11 +72,11 @@ func FromCache(cacheDir, version, dir, platform string) (hit bool, err error) {
 }
 
 // FromNet downloads a server package to the cache, then calls FromCache to finish the job
-func FromNet(endpoint, cacheDir, version, dir, platform string) (err error) {
-	print.Info("Downloading package", version, "from", endpoint, "into", dir)
+func FromNet(cacheDir, version, dir, platform string) (err error) {
+	print.Info("Downloading package", version, "into", dir)
 
 	var (
-		filename string
+		location string
 		method   download.ExtractFunc
 		paths    map[string]string
 	)
@@ -88,11 +87,11 @@ func FromNet(endpoint, cacheDir, version, dir, platform string) (err error) {
 	}
 
 	if platform == "windows" {
-		filename = pkg.Win32
+		location = pkg.Win32
 		method = download.Unzip
 		paths = pkg.Win32Paths
 	} else if platform == "linux" || platform == "darwin" {
-		filename = pkg.Linux
+		location = pkg.Linux
 		method = download.Untar
 		paths = pkg.LinuxPaths
 	} else {
@@ -114,12 +113,12 @@ func FromNet(endpoint, cacheDir, version, dir, platform string) (err error) {
 		}
 	}
 
-	u, err := url.Parse(endpoint)
+	u, err := url.Parse(location)
 	if err != nil {
-		err = errors.Wrapf(err, "failed to parse endpoint %s", endpoint)
+		err = errors.Wrapf(err, "failed to parse location %s", location)
 		return
 	}
-	u.Path = path.Join(u.Path, filename)
+	filename := filepath.Base(u.Path)
 
 	fullPath, err := download.FromNet(u.String(), cacheDir, filename)
 	if err != nil {

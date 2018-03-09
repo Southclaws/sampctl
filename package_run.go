@@ -26,11 +26,6 @@ var packageRunFlags = []cli.Flag{
 		Value: ".",
 		Usage: "working directory for the server - by default, uses the current directory",
 	},
-	cli.StringFlag{
-		Name:  "endpoint",
-		Value: "http://files.sa-mp.com",
-		Usage: "endpoint to download packages from",
-	},
 	cli.BoolFlag{
 		Name:  "container",
 		Usage: "starts the server as a Linux container instead of running it in the current directory",
@@ -78,7 +73,6 @@ func packageRun(c *cli.Context) error {
 
 	version := c.String("version")
 	dir := util.FullPath(c.String("dir"))
-	endpoint := c.String("endpoint")
 	container := c.Bool("container")
 	mountCache := c.Bool("mountCache")
 	build := c.String("build")
@@ -105,7 +99,6 @@ func packageRun(c *cli.Context) error {
 		Config: types.Runtime{
 			AppVersion: c.App.Version,
 			Version:    version,
-			Endpoint:   endpoint,
 		},
 		GitHub:      gh,
 		Auth:        gitAuth,

@@ -29,7 +29,6 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 			args{"./tests/from-env"},
 			types.Runtime{
 				Version:    "0.3.7",
-				Endpoint:   "http://files.sa-mp.com",
 				WorkingDir: "./tests/from-env",
 				Gamemodes: []string{
 					"rivershell",
@@ -52,7 +51,6 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 				},
 				Format:     "json",
 				Version:    "0.3.7",
-				Endpoint:   "http://files.sa-mp.com",
 				WorkingDir: "./tests/from-env",
 				Gamemodes: []string{
 					"rivershell",

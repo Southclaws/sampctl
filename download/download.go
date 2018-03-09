@@ -72,9 +72,9 @@ func FromCache(cacheDir, filename, dir string, method ExtractFunc, paths map[str
 	return true, nil
 }
 
-// FromNet downloads the server package by filename from the specified endpoint to the cache dir
-func FromNet(url, cacheDir, filename string) (result string, err error) {
-	resp, err := http.Get(url)
+// FromNet downloads the server package by filename from the specified location to the cache dir
+func FromNet(location, cacheDir, filename string) (result string, err error) {
+	resp, err := http.Get(location)
 	if err != nil {
 		err = errors.Wrap(err, "failed to download package")
 		return

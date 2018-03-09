@@ -32,10 +32,6 @@ func NewConfigFromEnvironment(dir string) (cfg types.Runtime, err error) {
 		cfg.Version = "0.3.7"
 	}
 
-	if cfg.Endpoint == "" {
-		cfg.Endpoint = "http://files.sa-mp.com"
-	}
-
 	cfg.ResolveRemotePlugins()
 
 	return

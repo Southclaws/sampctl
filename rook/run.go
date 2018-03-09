@@ -190,7 +190,6 @@ func (runner Runner) prepare(ctx context.Context) (config *types.Runtime, err er
 	}
 	err = runtime.PrepareRuntimeDirectory(
 		runner.CacheDir,
-		runner.Config.Endpoint,
 		runner.Config.Version,
 		runner.Config.Platform,
 		scriptfiles)
@@ -210,7 +209,6 @@ func (runner Runner) prepare(ctx context.Context) (config *types.Runtime, err er
 	config.Platform = runner.Config.Platform
 	config.AppVersion = runner.Config.AppVersion
 	config.Version = runner.Config.Version
-	config.Endpoint = runner.Config.Endpoint
 	config.Container = runner.Config.Container
 
 	config.Gamemodes = []string{strings.TrimSuffix(filepath.Base(runner.Pkg.Output), ".amx")}

@@ -24,11 +24,6 @@ var packageTemplateRunFlags = []cli.Flag{
 		Usage: "the SA:MP server version to use",
 	},
 	cli.StringFlag{
-		Name:  "endpoint",
-		Value: "http://files.sa-mp.com",
-		Usage: "endpoint to download packages from",
-	},
-	cli.StringFlag{
 		Name:  "mode",
 		Value: "main",
 		Usage: "runtime mode, one of: server, main, y_testing",
@@ -41,7 +36,6 @@ func packageTemplateRun(c *cli.Context) (err error) {
 	}
 
 	version := c.String("version")
-	endpoint := c.String("endpoint")
 	mode := c.String("mode")
 
 	if len(c.Args()) != 2 {
@@ -98,7 +92,6 @@ func packageTemplateRun(c *cli.Context) (err error) {
 			Platform:   runtime.GOOS,
 			AppVersion: c.App.Version,
 			Version:    version,
-			Endpoint:   endpoint,
 		},
 		GitHub:      gh,
 		Auth:        gitAuth,
