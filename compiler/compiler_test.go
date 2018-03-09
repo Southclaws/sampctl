@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -153,6 +154,9 @@ func TestCompileSource(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			err := os.MkdirAll(tt.args.cacheDir, 0700)
+			assert.NoError(t, err)
+
 			gotProblems, gotResult, err := CompileSource(context.Background(), gh, ".", "", tt.args.cacheDir, runtime.GOOS, tt.args.config, tt.args.relative)
 
 			if tt.wantErr {

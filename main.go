@@ -46,11 +46,6 @@ func main() {
 		print.Erro("Failed to retrieve cache directory path (attempted <user folder>/.samp) ", err)
 		return
 	}
-	err = os.MkdirAll(cacheDir, 0665)
-	if err != nil {
-		print.Erro("Failed to create cache directory at", cacheDir, "-", err)
-		return
-	}
 
 	config, err = types.LoadOrCreateConfig(cacheDir)
 	if err != nil {

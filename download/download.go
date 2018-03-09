@@ -42,15 +42,22 @@ func ExtractFuncFromName(name string) ExtractFunc {
 	}
 }
 
-// GetCacheDir returns the full path to the user's cache directory
-func GetCacheDir() (string, error) {
+// GetCacheDir returns the full path to the user's cache directory, creating it if it doesn't exist
+func GetCacheDir() (cacheDir string, err error) {
 	home, err := homedir.Dir()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get home directory")
 	}
 
-	dir := filepath.Join(home, ".samp")
-	return dir, os.MkdirAll(dir, 0700)
+	cacheDir = filepath.Join(home, ".samp")
+
+	err = os.MkdirAll(cacheDir, 0700)
+	if err != nil {
+		err = errors.Wrapf(err, "Failed to create cache directory %s", cacheDir)
+		return
+	}
+
+	return
 }
 
 // FromCache first checks if a file is cached, then
