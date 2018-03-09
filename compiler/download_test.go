@@ -2,7 +2,6 @@ package compiler
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -33,12 +32,8 @@ func Test_CompilerFromNet(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotPkg, err := FromNet(context.Background(), gh, tt.args.meta, tt.args.dir, tt.args.platform, tt.args.cacheDir)
+			_, err := FromNet(context.Background(), gh, tt.args.meta, tt.args.dir, tt.args.platform, tt.args.cacheDir)
 			assert.NoError(t, err)
-
-			if gotPkg != nil {
-				fmt.Printf("%#v\n", *gotPkg)
-			}
 
 			switch tt.args.platform {
 			case "linux":
@@ -77,16 +72,13 @@ func Test_CompilerFromCache(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotPkg, gotHit, err := FromCache(tt.args.meta, tt.args.dir, tt.args.platform, tt.args.cacheDir)
+			_, gotHit, err := FromCache(tt.args.meta, tt.args.dir, tt.args.platform, tt.args.cacheDir)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 			}
 
-			if gotPkg != nil {
-				fmt.Printf("%#v\n", *gotPkg)
-			}
 			assert.Equal(t, gotHit, tt.wantHit)
 		})
 	}

@@ -64,7 +64,7 @@ func UpdatePackageList(cacheDir string) (err error) {
 		return errors.Wrap(err, "failed to decode package list")
 	}
 
-	contents, err := json.Marshal(packages)
+	contents, err := json.MarshalIndent(packages, "", "    ")
 	if err != nil {
 		return errors.Wrap(err, "failed to encode packages list")
 	}

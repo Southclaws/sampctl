@@ -27,7 +27,7 @@ func Ensure(ctx context.Context, gh *github.Client, cfg *types.Runtime, noCache 
 		return
 	}
 
-	err = EnsureBinaries(*cfg)
+	err = EnsureBinaries(cacheDir, *cfg)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure runtime binaries")
 	}
@@ -51,7 +51,7 @@ func Ensure(ctx context.Context, gh *github.Client, cfg *types.Runtime, noCache 
 }
 
 // EnsureBinaries ensures the dir has all the necessary files to run a server
-func EnsureBinaries(cfg types.Runtime) (err error) {
+func EnsureBinaries(cacheDir string, cfg types.Runtime) (err error) {
 	missing := false
 
 	if !util.Exists(filepath.Join(cfg.WorkingDir, getNpcBinary(cfg.Platform))) {
@@ -73,7 +73,7 @@ func EnsureBinaries(cfg types.Runtime) (err error) {
 
 	serverBinary := filepath.Join(cfg.WorkingDir, getServerBinary(cfg.Platform))
 
-	ok, err := MatchesChecksum(serverBinary, cfg.Platform, cfg.Version)
+	ok, err := MatchesChecksum(serverBinary, cfg.Platform, cacheDir, cfg.Version)
 	if err != nil {
 		return errors.Wrap(err, "failed to match checksum")
 	} else if !ok {

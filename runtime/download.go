@@ -44,7 +44,7 @@ func FromCache(cacheDir, version, dir, platform string) (hit bool, err error) {
 		paths    map[string]string
 	)
 
-	pkg, err := FindPackage(version)
+	pkg, err := FindPackage(cacheDir, version)
 	if err != nil {
 		return
 	}
@@ -74,7 +74,7 @@ func FromCache(cacheDir, version, dir, platform string) (hit bool, err error) {
 
 // FromNet downloads a server package to the cache, then calls FromCache to finish the job
 func FromNet(endpoint, cacheDir, version, dir, platform string) (err error) {
-	print.Verb("Downloading package", version, "from", endpoint, "into", dir)
+	print.Info("Downloading package", version, "from", endpoint, "into", dir)
 
 	var (
 		filename string
@@ -82,7 +82,7 @@ func FromNet(endpoint, cacheDir, version, dir, platform string) (err error) {
 		paths    map[string]string
 	)
 
-	pkg, err := FindPackage(version)
+	pkg, err := FindPackage(cacheDir, version)
 	if err != nil {
 		return
 	}
@@ -131,7 +131,7 @@ func FromNet(endpoint, cacheDir, version, dir, platform string) (err error) {
 		return errors.Wrapf(err, "failed to unzip package %s", filename)
 	}
 
-	ok, err := MatchesChecksum(filepath.Join(dir, getServerBinary(platform)), platform, version)
+	ok, err := MatchesChecksum(filepath.Join(dir, getServerBinary(platform)), platform, cacheDir, version)
 	if err != nil {
 		return errors.Wrap(err, "failed to match checksum")
 	} else if !ok {

@@ -16,51 +16,10 @@ import (
 	"github.com/Southclaws/sampctl/versioning"
 )
 
-// Package represents a compiler package for a specific OS
-type Package struct {
-	Match  string                   // the release asset name pattern
-	Method download.ExtractFuncName // the extraction method
-	Binary string                   // execution binary
-	Paths  map[string]string        // map of files to their target locations
-}
-
-// Packages is a hard coded map of platforms to Package objects
-// todo: store this remotely and load on startup
-var Packages = map[string]*Package{
-	"darwin": &Package{
-		`pawnc-(.+)-(darwin|macos)\.zip`,
-		"zip",
-		"pawncc",
-		map[string]string{
-			"pawnc-(.+)/bin/pawncc":         "pawncc",
-			"pawnc-(.+)/lib/libpawnc.dylib": "libpawnc.dylib",
-		},
-	},
-	"linux": &Package{
-		`pawnc-(.+)-(linux)\.tar\.gz`,
-		"tgz",
-		"pawncc",
-		map[string]string{
-			"pawnc-(.+)/bin/pawncc":      "pawncc",
-			"pawnc-(.+)/lib/libpawnc.so": "libpawnc.so",
-		},
-	},
-	"windows": &Package{
-		`pawnc-(.+)-(windows)\.zip`,
-		"zip",
-		"pawncc.exe",
-		map[string]string{
-			"pawnc-(.+)/bin/pawncc.exe": "pawncc.exe",
-			"pawnc-(.+)/bin/pawnc.dll":  "pawnc.dll",
-		},
-	},
-}
-
 // FromCache attempts to get a compiler package from the cache, `hit` represents success
-func FromCache(meta versioning.DependencyMeta, dir, platform, cacheDir string) (pkg *Package, hit bool, err error) {
-	pkg = GetCompilerPackageInfo(platform)
-	if pkg == nil {
-		err = errors.Errorf("no compiler for platform '%s'", platform)
+func FromCache(meta versioning.DependencyMeta, dir, platform, cacheDir string) (compiler types.Compiler, hit bool, err error) {
+	compiler, err = GetCompilerPackageInfo(cacheDir, platform)
+	if err != nil {
 		return
 	}
 
@@ -68,9 +27,14 @@ func FromCache(meta versioning.DependencyMeta, dir, platform, cacheDir string) (
 
 	print.Verb("Checking for cached package", filename, "in", cacheDir)
 
-	hit, err = download.FromCache(cacheDir, filename, dir, download.ExtractFuncFromName(pkg.Method), pkg.Paths)
+	hit, err = download.FromCache(
+		cacheDir,
+		filename,
+		dir,
+		download.ExtractFuncFromName(compiler.Method),
+		compiler.Paths)
 	if !hit {
-		return nil, false, nil
+		return
 	}
 
 	print.Verb("Using cached package", filename)
@@ -79,45 +43,52 @@ func FromCache(meta versioning.DependencyMeta, dir, platform, cacheDir string) (
 }
 
 // FromNet downloads a compiler package to the cache
-func FromNet(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, dir, platform, cacheDir string) (pkg *Package, err error) {
+func FromNet(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, dir, platform, cacheDir string) (compiler types.Compiler, err error) {
 	print.Info("Downloading compiler package", meta.Tag)
 
-	pkg = GetCompilerPackageInfo(platform)
+	compiler, err = GetCompilerPackageInfo(cacheDir, platform)
+	if err != nil {
+		return
+	}
 
 	if !util.Exists(dir) {
 		err = os.MkdirAll(dir, 0700)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to create dir %s", dir)
+			err = errors.Wrapf(err, "failed to create dir %s", dir)
+			return
 		}
 	}
 
 	if !util.Exists(cacheDir) {
 		err = os.MkdirAll(cacheDir, 0700)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to create cache %s", cacheDir)
+			err = errors.Wrapf(err, "failed to create cache %s", cacheDir)
+			return
 		}
 	}
 
-	path, err := download.ReleaseAssetByPattern(ctx, gh, meta, regexp.MustCompile(pkg.Match), "", fmt.Sprintf("pawn-%s-%s", meta.Tag, platform), cacheDir)
+	path, err := download.ReleaseAssetByPattern(ctx, gh, meta, regexp.MustCompile(compiler.Match), "", fmt.Sprintf("pawn-%s-%s", meta.Tag, platform), cacheDir)
 	if err != nil {
 		return
 	}
 
-	method := download.ExtractFuncFromName(pkg.Method)
+	method := download.ExtractFuncFromName(compiler.Method)
 	if method == nil {
-		return nil, errors.Errorf("invalid extract type: %s", pkg.Method)
+		err = errors.Errorf("invalid extract type: %s", compiler.Method)
+		return
 	}
 
-	err = method(path, dir, pkg.Paths)
+	err = method(path, dir, compiler.Paths)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to unzip package %s", path)
+		err = errors.Wrapf(err, "failed to unzip package %s", path)
+		return
 	}
 
 	return
 }
 
 // GetCompilerPackage downloads and installs a Pawn compiler to a user directory
-func GetCompilerPackage(ctx context.Context, gh *github.Client, version types.CompilerVersion, dir, platform, cacheDir string) (pkg *Package, err error) {
+func GetCompilerPackage(ctx context.Context, gh *github.Client, version types.CompilerVersion, dir, platform, cacheDir string) (compiler types.Compiler, err error) {
 	meta := versioning.DependencyMeta{
 		Site: "github.com",
 		User: "pawn-lang",
@@ -132,27 +103,34 @@ func GetCompilerPackage(ctx context.Context, gh *github.Client, version types.Co
 		meta.Tag = "v" + meta.Tag
 	}
 
-	pkg, hit, err := FromCache(meta, dir, platform, cacheDir)
+	compiler, hit, err := FromCache(meta, dir, platform, cacheDir)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get package %s from cache", version)
+		err = errors.Wrapf(err, "failed to get package %s from cache", version)
+		return
 	}
 	if hit {
 		return
 	}
 
-	pkg, err = FromNet(ctx, gh, meta, dir, platform, cacheDir)
+	compiler, err = FromNet(ctx, gh, meta, dir, platform, cacheDir)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get package %s from net", version)
+		err = errors.Wrapf(err, "failed to get package %s from net", version)
+		return
 	}
 
 	return
 }
 
 // GetCompilerPackageInfo returns the URL for a specific compiler version
-func GetCompilerPackageInfo(platform string) (pkg *Package) {
-	pkg, ok := Packages[platform]
+func GetCompilerPackageInfo(cacheDir, platform string) (compiler types.Compiler, err error) {
+	compilers, err := download.GetCompilerList(cacheDir)
+	if err != nil {
+		return
+	}
+
+	compiler, ok := compilers[platform]
 	if !ok {
-		pkg = nil
+		err = errors.Errorf("no compiler for platform '%s'", platform)
 	}
 	return
 }

@@ -23,18 +23,15 @@ import (
 // locations on the host filesystem (absolute paths).
 type ExtractFunc func(string, string, map[string]string) error
 
-// ExtractFuncName is a string identifier for an ExtractFunc
-type ExtractFuncName string
-
 const (
 	// ExtractZip is an extract function for .zip packages
-	ExtractZip ExtractFuncName = "zip"
+	ExtractZip = "zip"
 	// ExtractTgz is an extract function for .tar.gz packages
-	ExtractTgz ExtractFuncName = "tgz"
+	ExtractTgz = "tgz"
 )
 
 // ExtractFuncFromName returns an extract function for a given name
-func ExtractFuncFromName(name ExtractFuncName) ExtractFunc {
+func ExtractFuncFromName(name string) ExtractFunc {
 	switch name {
 	case ExtractZip:
 		return Unzip
