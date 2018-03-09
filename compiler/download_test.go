@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -32,7 +33,10 @@ func Test_CompilerFromNet(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := FromNet(context.Background(), gh, tt.args.meta, tt.args.dir, tt.args.platform, tt.args.cacheDir)
+			err := os.MkdirAll(tt.args.cacheDir, 0700)
+			assert.NoError(t, err)
+
+			_, err = FromNet(context.Background(), gh, tt.args.meta, tt.args.dir, tt.args.platform, tt.args.cacheDir)
 			assert.NoError(t, err)
 
 			switch tt.args.platform {
@@ -72,6 +76,9 @@ func Test_CompilerFromCache(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			err := os.MkdirAll(tt.args.cacheDir, 0700)
+			assert.NoError(t, err)
+
 			_, gotHit, err := FromCache(tt.args.meta, tt.args.dir, tt.args.platform, tt.args.cacheDir)
 			if tt.wantErr {
 				assert.Error(t, err)

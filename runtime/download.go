@@ -106,13 +106,6 @@ func FromNet(cacheDir, version, dir, platform string) (err error) {
 		}
 	}
 
-	if !util.Exists(cacheDir) {
-		err = os.MkdirAll(cacheDir, 0700)
-		if err != nil {
-			return errors.Wrapf(err, "failed to create cache %s", cacheDir)
-		}
-	}
-
 	u, err := url.Parse(location)
 	if err != nil {
 		err = errors.Wrapf(err, "failed to parse location %s", location)

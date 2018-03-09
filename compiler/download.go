@@ -59,14 +59,6 @@ func FromNet(ctx context.Context, gh *github.Client, meta versioning.DependencyM
 		}
 	}
 
-	if !util.Exists(cacheDir) {
-		err = os.MkdirAll(cacheDir, 0700)
-		if err != nil {
-			err = errors.Wrapf(err, "failed to create cache %s", cacheDir)
-			return
-		}
-	}
-
 	path, err := download.ReleaseAssetByPattern(ctx, gh, meta, regexp.MustCompile(compiler.Match), "", fmt.Sprintf("pawn-%s-%s", meta.Tag, platform), cacheDir)
 	if err != nil {
 		return
