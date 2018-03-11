@@ -1,6 +1,10 @@
 package types
 
 import (
+	"crypto/md5"
+	"fmt"
+	"path/filepath"
+
 	"github.com/pkg/errors"
 )
 
@@ -23,4 +27,9 @@ func (res Resource) Validate() (err error) {
 		return errors.New("missing platform field in resource")
 	}
 	return
+}
+
+// Path returns a file path for a resource based on a hash of the label
+func (res Resource) Path(pkg Package) (path string) {
+	return filepath.Join(pkg.Repo + "-resource-" + fmt.Sprintf("%x", md5.Sum([]byte(res.Name))))
 }

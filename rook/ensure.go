@@ -1,11 +1,13 @@
 package rook
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"sort"
 
 	"github.com/Masterminds/semver"
+	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -14,6 +16,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
 	"github.com/Southclaws/sampctl/print"
+	"github.com/Southclaws/sampctl/runtime"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
@@ -34,7 +37,7 @@ type VersionedTag struct {
 type VersionedTags []VersionedTag
 
 // EnsureDependencies traverses package dependencies and ensures they are up to date
-func EnsureDependencies(pkg *types.Package, auth transport.AuthMethod) (err error) {
+func EnsureDependencies(ctx context.Context, gh *github.Client, pkg *types.Package, auth transport.AuthMethod, platform, cacheDir string) (err error) {
 	if pkg.Local == "" {
 		return errors.New("package does not represent a locally stored package")
 	}
@@ -69,6 +72,17 @@ func EnsureDependencies(pkg *types.Package, auth transport.AuthMethod) (err erro
 			print.Warn(pkg, meta, err)
 			return
 		}
+
+		var resIncs []string
+		for _, res := range subPkg.Resources {
+			if res.Archive {
+				resIncs, err = extractResourceDependencies(ctx, gh, subPkg, res, pkg.Vendor, platform, cacheDir)
+				if err != nil {
+					return
+				}
+			}
+		}
+		pkg.AllIncludePaths = append(pkg.AllIncludePaths, resIncs...)
 
 		var subPkgDepMeta versioning.DependencyMeta
 		for _, subPkgDep := range subPkg.Dependencies {
@@ -437,5 +451,26 @@ func GetRepoSemverTags(repo *git.Repository) (versionedTags VersionedTags, err e
 		err = errors.Wrap(err, "failed to iterate commits")
 	}
 
+	return
+}
+
+func extractResourceDependencies(ctx context.Context, gh *github.Client, pkg types.Package, res types.Resource, vendor, platform, cacheDir string) (resIncs []string, err error) {
+	dir := filepath.Join(vendor, res.Path(pkg))
+	print.Verb(pkg, "installing resource-based dependency", res.Name, "to", dir)
+
+	err = os.MkdirAll(dir, 0700)
+	if err != nil {
+		return
+	}
+
+	// todo: does not extract to target `dir`
+	_, err = runtime.EnsureVersionedPlugin(ctx, gh, pkg.DependencyMeta, dir, platform, cacheDir, false)
+	if err != nil {
+		return
+	}
+
+	for _, resInc := range res.Includes {
+		resIncs = append(resIncs, filepath.Join(pkg.Vendor, dir, resInc))
+	}
 	return
 }

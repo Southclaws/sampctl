@@ -1,7 +1,9 @@
 package rook
 
 import (
+	"context"
 	"os"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -73,7 +75,7 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 		os.MkdirAll(tt.pkg.Local, 0755) //nolint
 
 		t.Run(tt.name, func(t *testing.T) {
-			err := EnsureDependencies(tt.pkg, nil)
+			err := EnsureDependencies(context.Background(), gh, tt.pkg, nil, runtime.GOOS, "./tests/cache")
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

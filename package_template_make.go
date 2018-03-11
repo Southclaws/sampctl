@@ -1,17 +1,20 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"time"
 
+	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/rook"
 	"github.com/Southclaws/sampctl/util"
-	"github.com/pkg/errors"
 )
 
 var packageTemplateMakeFlags = []cli.Flag{
@@ -66,7 +69,10 @@ func packageTemplateMake(c *cli.Context) (err error) {
 		return errors.Wrap(err, "failed to write package template definition file")
 	}
 
-	err = rook.EnsureDependencies(&pkg, gitAuth)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
+	defer cancel()
+
+	err = rook.EnsureDependencies(ctx, gh, &pkg, gitAuth, runtime.GOOS, cacheDir)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure dependencies of template package")
 	}

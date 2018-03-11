@@ -37,7 +37,7 @@ func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pk
 	config.Output = filepath.Join(pkg.Local, pkg.Output)
 
 	if ensure {
-		err = EnsureDependencies(pkg, auth)
+		err = EnsureDependencies(ctx, gh, pkg, auth, platform, cacheDir)
 		if err != nil {
 			err = errors.Wrap(err, "failed to ensure dependencies before build")
 			return
@@ -74,6 +74,8 @@ func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pk
 
 		config.Includes = append(config.Includes, filepath.Join(depDir, incPath))
 	}
+
+	config.Includes = append(config.Includes, pkg.AllIncludePaths...)
 
 	cmd, err := compiler.PrepareCommand(ctx, gh, pkg.Local, cacheDir, platform, *config)
 	if err != nil {
@@ -116,7 +118,7 @@ func BuildWatch(ctx context.Context, gh *github.Client, auth transport.AuthMetho
 	config.Output = filepath.Join(pkg.Local, pkg.Output)
 
 	if ensure {
-		err = EnsureDependencies(pkg, auth)
+		err = EnsureDependencies(ctx, gh, pkg, auth, platform, cacheDir)
 		if err != nil {
 			err = errors.Wrap(err, "failed to ensure dependencies before build")
 			return

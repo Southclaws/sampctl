@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -40,6 +42,12 @@ func packageInstall(c *cli.Context) error {
 		return nil
 	}
 
+	cacheDir, err := download.GetCacheDir()
+	if err != nil {
+		print.Erro("Failed to retrieve cache directory path (attempted <user folder>/.samp) ")
+		return err
+	}
+
 	deps := []versioning.DependencyString{}
 	for _, dep := range c.Args() {
 		deps = append(deps, versioning.DependencyString(dep))
@@ -50,7 +58,7 @@ func packageInstall(c *cli.Context) error {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	err = rook.Install(pkg, deps, development, gitAuth)
+	err = rook.Install(context.Background(), gh, pkg, deps, development, gitAuth, runtime.GOOS, cacheDir)
 	if err != nil {
 		return err
 	}

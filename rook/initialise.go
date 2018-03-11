@@ -2,6 +2,7 @@ package rook
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"text/template"
 
 	"github.com/fatih/color"
+	"github.com/google/go-github/github"
 	"gopkg.in/AlecAivazis/survey.v1"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
@@ -24,7 +26,7 @@ import (
 )
 
 // Init prompts the user to initialise a package
-func Init(dir string, config *types.Config, auth transport.AuthMethod) (err error) {
+func Init(ctx context.Context, gh *github.Client, dir string, config *types.Config, auth transport.AuthMethod, platform, cacheDir string) (err error) {
 	var (
 		pwnFiles []string
 		incFiles []string
@@ -307,7 +309,7 @@ func Init(dir string, config *types.Config, auth transport.AuthMethod) (err erro
 
 	wg.Wait()
 
-	err = EnsureDependencies(&pkg, auth)
+	err = EnsureDependencies(ctx, gh, &pkg, auth, platform, cacheDir)
 
 	return
 }

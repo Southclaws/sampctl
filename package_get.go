@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"gopkg.in/urfave/cli.v1"
@@ -26,6 +28,12 @@ func packageGet(c *cli.Context) error {
 		return nil
 	}
 
+	cacheDir, err := download.GetCacheDir()
+	if err != nil {
+		print.Erro("Failed to retrieve cache directory path (attempted <user folder>/.samp) ")
+		return err
+	}
+
 	dep, err := versioning.DependencyString(c.Args().First()).Explode()
 	if err != nil {
 		return err
@@ -36,7 +44,7 @@ func packageGet(c *cli.Context) error {
 		dir = util.FullPath(".")
 	}
 
-	err = rook.Get(dep, dir, gitAuth)
+	err = rook.Get(context.Background(), gh, dep, dir, gitAuth, runtime.GOOS, cacheDir)
 	if err != nil {
 		return err
 	}

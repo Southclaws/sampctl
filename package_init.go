@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
+	"runtime"
+
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/rook"
 	"github.com/Southclaws/sampctl/util"
@@ -24,12 +28,18 @@ func packageInit(c *cli.Context) error {
 
 	dir := util.FullPath(c.String("dir"))
 
-	_, err := rook.PackageFromDir(true, dir, "")
+	cacheDir, err := download.GetCacheDir()
+	if err != nil {
+		print.Erro("Failed to retrieve cache directory path (attempted <user folder>/.samp) ")
+		return err
+	}
+
+	_, err = rook.PackageFromDir(true, dir, "")
 	if err == nil {
 		return errors.New("Directory already appears to be a package")
 	}
 
-	err = rook.Init(dir, config, gitAuth)
+	err = rook.Init(context.Background(), gh, dir, config, gitAuth, runtime.GOOS, cacheDir)
 
 	return err
 }

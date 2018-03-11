@@ -1,9 +1,11 @@
 package rook
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -50,7 +52,7 @@ func TestPackage_Install(t *testing.T) {
 				t.Error(err)
 			}
 
-			err = Install(pkg, tt.args.targets, tt.args.development, nil)
+			err = Install(context.Background(), gh, pkg, tt.args.targets, tt.args.development, nil, runtime.GOOS, "./tests/cache")
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -100,7 +102,7 @@ func TestGet(t *testing.T) {
 				}
 			}
 
-			err := Get(tt.args.dep, tt.args.dir, nil)
+			err := Get(context.Background(), gh, tt.args.dep, tt.args.dir, nil, runtime.GOOS, "./tests/cache")
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

@@ -65,9 +65,7 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 		return errors.New("package has no known local path")
 	}
 
-	depsDir := filepath.Join(pkg.Local, "dependencies")
-
-	if !util.Exists(depsDir) {
+	if !util.Exists(pkg.Vendor) {
 		return
 	}
 
@@ -80,9 +78,9 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 	visited[pkg.DependencyMeta.Repo] = true
 
 	recurse = func(meta versioning.DependencyMeta) {
-		dependencyDir := filepath.Join(depsDir, meta.Repo)
+		dependencyDir := filepath.Join(pkg.Vendor, meta.Repo)
 		if !util.Exists(dependencyDir) {
-			print.Verb(pkg, "dependency", meta, "does not exist locally in", depsDir, "run sampctl package ensure to update dependencies.")
+			print.Verb(pkg, "dependency", meta, "does not exist locally in", pkg.Vendor, "run sampctl package ensure to update dependencies.")
 			return
 		}
 
@@ -90,7 +88,7 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 		visited[meta.Repo] = true
 
 		var subPkg types.Package
-		subPkg, err = PackageFromDir(false, dependencyDir, depsDir)
+		subPkg, err = PackageFromDir(false, dependencyDir, pkg.Vendor)
 		if err != nil {
 			print.Verb(pkg, "not a package:", meta, err)
 			return
@@ -104,6 +102,16 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 					return
 				}
 				pkg.AllPlugins = append(pkg.AllPlugins, pluginMeta)
+			}
+		}
+
+		for _, res := range subPkg.Resources {
+			resPath := filepath.Join(pkg.Vendor, res.Path(subPkg))
+			for _, resInc := range res.Includes {
+				resIncPath := filepath.Join(resPath, filepath.Dir(resInc))
+				if util.Exists(resIncPath) {
+					subPkg.AllIncludePaths = append(subPkg.AllIncludePaths, resIncPath)
+				}
 			}
 		}
 

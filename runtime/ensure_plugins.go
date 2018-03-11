@@ -37,7 +37,7 @@ func EnsurePlugins(ctx context.Context, gh *github.Client, cfg *types.Runtime, c
 
 	for _, plugin := range cfg.PluginDeps {
 		print.Verb("plugin", plugin, "is a package dependency")
-		files, err = EnsureVersionedPlugin(ctx, gh, *cfg, plugin, cacheDir, noCache)
+		files, err = EnsureVersionedPlugin(ctx, gh, plugin, cfg.WorkingDir, cfg.Platform, cacheDir, noCache)
 		if err != nil {
 			print.Warn(err)
 			err = nil
@@ -64,21 +64,21 @@ func EnsurePlugins(ctx context.Context, gh *github.Client, cfg *types.Runtime, c
 }
 
 // EnsureVersionedPlugin automatically downloads a plugin binary from its github releases page
-func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, cfg types.Runtime, meta versioning.DependencyMeta, cacheDir string, noCache bool) (files []types.Plugin, err error) {
+func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, dir, platform, cacheDir string, noCache bool) (files []types.Plugin, err error) {
 	var (
 		hit      bool
 		filename string
 		resource types.Resource
 	)
 	if !noCache {
-		hit, filename, resource, err = PluginFromCache(meta, cfg.Platform, cacheDir)
+		hit, filename, resource, err = PluginFromCache(meta, platform, cacheDir)
 		if err != nil {
 			err = errors.Wrapf(err, "failed to get plugin %s from cache", meta)
 			return
 		}
 	}
 	if !hit {
-		filename, resource, err = PluginFromNet(ctx, gh, meta, cfg.Platform, cacheDir)
+		filename, resource, err = PluginFromNet(ctx, gh, meta, platform, cacheDir)
 		if err != nil {
 			err = errors.Wrapf(err, "failed to get plugin %s from net", meta)
 			return
@@ -114,7 +114,7 @@ func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, cfg types.Run
 		paths[src] = dest
 	}
 
-	err = method(filename, cfg.WorkingDir, paths)
+	err = method(filename, dir, paths)
 
 	return
 }

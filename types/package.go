@@ -50,6 +50,8 @@ type Package struct {
 	// allPlugins stores a list of all plugin dependency meta from this package and sub packages
 	// this field is only used if `parent` is true.
 	AllPlugins []versioning.DependencyMeta `json:"-" yaml:"-"`
+	// AllIncludePaths stores a list of all additional include paths to pass to the compiler.
+	AllIncludePaths []string `json:"include_paths"`
 
 	// Inferred metadata, not always explicitly set via JSON/YAML but inferred from the dependency path
 	versioning.DependencyMeta

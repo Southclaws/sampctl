@@ -1,9 +1,11 @@
 package rook
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 
+	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
@@ -15,7 +17,7 @@ import (
 )
 
 // Install adds a new dependency to an existing local parent package
-func Install(pkg types.Package, targets []versioning.DependencyString, development bool, auth transport.AuthMethod) (err error) {
+func Install(ctx context.Context, gh *github.Client, pkg types.Package, targets []versioning.DependencyString, development bool, auth transport.AuthMethod, platform, cacheDir string) (err error) {
 	// todo: version checks
 
 	exists := false
@@ -39,7 +41,7 @@ func Install(pkg types.Package, targets []versioning.DependencyString, developme
 		}
 	}
 
-	err = EnsureDependencies(&pkg, auth)
+	err = EnsureDependencies(ctx, gh, &pkg, auth, platform, cacheDir)
 	if err != nil {
 		return
 	}
@@ -50,7 +52,7 @@ func Install(pkg types.Package, targets []versioning.DependencyString, developme
 }
 
 // Get simply performs a git clone of the given package to the specified directory then ensures it
-func Get(meta versioning.DependencyMeta, dir string, auth transport.AuthMethod) (err error) {
+func Get(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, dir string, auth transport.AuthMethod, platform, cacheDir string) (err error) {
 	err = os.MkdirAll(dir, 0700)
 	if err != nil {
 		return errors.Wrap(err, "failed to create directory for clone")
@@ -75,7 +77,7 @@ func Get(meta versioning.DependencyMeta, dir string, auth transport.AuthMethod) 
 		return errors.Wrap(err, "failed to read cloned repository as Pawn package")
 	}
 
-	err = EnsureDependencies(&pkg, auth)
+	err = EnsureDependencies(ctx, gh, &pkg, auth, platform, cacheDir)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure dependencies for cloned package")
 	}
