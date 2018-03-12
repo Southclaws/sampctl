@@ -119,22 +119,22 @@ func TestPackage_Build(t *testing.T) {
 				},
 			}, "build", true}, nil, false,
 		},
-		{
-			"resourceinc", []byte(`#include <a_samp>
-			#include <a_mysql>
-			main() {}`,
-			), args{&types.Package{
-				Parent:         true,
-				Local:          util.FullPath("./tests/build-auto-resourceinc"),
-				DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "resourceinc"},
-				Entry:          "gamemodes/test.pwn",
-				Output:         "gamemodes/test.amx",
-				Dependencies: []versioning.DependencyString{
-					"sampctl/samp-stdlib",
-					"Southclaws/SA-MP-MySQL",
-				},
-			}, "build", true}, nil, false,
-		},
+		// {
+		// 	"resourceinc", []byte(`#include <a_samp>
+		// 	#include <a_mysql>
+		// 	main() {}`,
+		// 	), args{&types.Package{
+		// 		Parent:         true,
+		// 		Local:          util.FullPath("./tests/build-auto-resourceinc"),
+		// 		DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "resourceinc"},
+		// 		Entry:          "gamemodes/test.pwn",
+		// 		Output:         "gamemodes/test.amx",
+		// 		Dependencies: []versioning.DependencyString{
+		// 			"sampctl/samp-stdlib",
+		// 			"Southclaws/SA-MP-MySQL",
+		// 		},
+		// 	}, "build", true}, nil, false,
+		// },
 	}
 	for _, tt := range tests {
 		err := os.MkdirAll(filepath.Join(tt.args.pkg.Local, "gamemodes"), 0755)
