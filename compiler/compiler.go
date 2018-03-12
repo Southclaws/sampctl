@@ -205,7 +205,6 @@ func CompileWithCommand(cmd *exec.Cmd, workingDir, errorDir string, relative boo
 				}
 				problem.File = filepath.Clean(problem.File)
 				if relative {
-					fmt.Println("making relative to ", errorDir)
 					var rel string
 					rel, err = filepath.Rel(errorDir, problem.File)
 					if err == nil {
