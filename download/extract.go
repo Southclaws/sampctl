@@ -5,7 +5,6 @@ import (
 	"archive/zip"
 	"compress/gzip"
 	"compress/zlib"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -221,6 +220,5 @@ func nameInPaths(name string, paths map[string]string) (found bool, target strin
 	if target == "" {
 		target = name
 	}
-	fmt.Println("found:", found, "name", name, "matches", target)
 	return
 }
