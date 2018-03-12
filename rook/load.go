@@ -179,6 +179,10 @@ func resolveResourcePaths(pkg types.Package, platform string) (paths []string, e
 					return nil
 				})
 			}
+			if targetPath == "" {
+				continue
+			}
+
 			var info os.FileInfo
 			info, err = os.Stat(targetPath)
 			if err != nil {
