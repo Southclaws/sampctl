@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	appRuntime "runtime"
+	"runtime"
 
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
@@ -67,18 +67,18 @@ func packageBuild(c *cli.Context) error {
 		return errors.Wrap(err, "failed to get or create cache directory")
 	}
 
-	pkg, err := rook.PackageFromDir(true, dir, "")
+	pkg, err := rook.PackageFromDir(true, dir, runtime.GOOS, "")
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
 	if watch {
-		err := rook.BuildWatch(context.Background(), gh, gitAuth, &pkg, build, cacheDir, appRuntime.GOOS, forceEnsure, buildFile, relativePaths, nil)
+		err := rook.BuildWatch(context.Background(), gh, gitAuth, &pkg, build, cacheDir, runtime.GOOS, forceEnsure, buildFile, relativePaths, nil)
 		if err != nil {
 			return cli.NewExitError(err.Error(), 1)
 		}
 	} else {
-		problems, result, err := rook.Build(context.Background(), gh, gitAuth, &pkg, build, cacheDir, appRuntime.GOOS, forceEnsure, dryRun, relativePaths, buildFile)
+		problems, result, err := rook.Build(context.Background(), gh, gitAuth, &pkg, build, cacheDir, runtime.GOOS, forceEnsure, dryRun, relativePaths, buildFile)
 		if err != nil {
 			return cli.NewExitError(err.Error(), 1)
 		}
@@ -106,7 +106,7 @@ func packageBuild(c *cli.Context) error {
 func packageBuildBash(c *cli.Context) {
 	dir := util.FullPath(c.String("dir"))
 
-	pkg, err := rook.PackageFromDir(true, dir, "")
+	pkg, err := rook.PackageFromDir(true, dir, runtime.GOOS, "")
 	if err != nil {
 		return
 	}

@@ -67,7 +67,7 @@ func EnsureDependencies(ctx context.Context, gh *github.Client, pkg *types.Packa
 		visited[meta.Repo] = true
 
 		var subPkg types.Package
-		subPkg, err = PackageFromDir(false, pkgPath, pkg.Vendor)
+		subPkg, err = PackageFromDir(false, pkgPath, platform, pkg.Vendor)
 		if err != nil {
 			print.Warn(pkg, meta, err)
 			return
@@ -468,7 +468,7 @@ func extractResourceDependencies(ctx context.Context, gh *github.Client, pkg typ
 		return
 	}
 
-	resIncs, err = resolveResourcePaths(pkg)
+	resIncs, err = resolveResourcePaths(pkg, platform)
 	if err != nil {
 		return
 	}

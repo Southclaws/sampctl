@@ -59,7 +59,7 @@ func packageTemplateRun(c *cli.Context) (err error) {
 		return errors.Errorf("no such file or directory: %s", filename)
 	}
 
-	pkg, err := rook.PackageFromDir(true, templatePath, "")
+	pkg, err := rook.PackageFromDir(true, templatePath, runtime.GOOS, "")
 	if err != nil {
 		return errors.Wrap(err, "template package is invalid")
 	}

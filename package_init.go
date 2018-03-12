@@ -34,7 +34,7 @@ func packageInit(c *cli.Context) error {
 		return err
 	}
 
-	_, err = rook.PackageFromDir(true, dir, "")
+	_, err = rook.PackageFromDir(true, dir, runtime.GOOS, "")
 	if err == nil {
 		return errors.New("Directory already appears to be a package")
 	}

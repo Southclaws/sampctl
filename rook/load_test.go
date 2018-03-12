@@ -2,6 +2,7 @@ package rook
 
 import (
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -56,7 +57,7 @@ func TestPackageFromDir(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotPkg, err := PackageFromDir(true, tt.args.dir, "")
+			gotPkg, err := PackageFromDir(true, tt.args.dir, runtime.GOOS, "")
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

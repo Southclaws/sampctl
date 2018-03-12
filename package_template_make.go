@@ -43,7 +43,7 @@ func packageTemplateMake(c *cli.Context) (err error) {
 	}
 	name := c.Args().First()
 
-	pkg, err := rook.PackageFromDir(true, dir, "")
+	pkg, err := rook.PackageFromDir(true, dir, runtime.GOOS, "")
 	if err != nil {
 		return
 	}

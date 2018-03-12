@@ -35,7 +35,7 @@ func packageEnsure(c *cli.Context) error {
 
 	dir := util.FullPath(c.String("dir"))
 
-	pkg, err := rook.PackageFromDir(true, dir, "")
+	pkg, err := rook.PackageFromDir(true, dir, runtime.GOOS, "")
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}

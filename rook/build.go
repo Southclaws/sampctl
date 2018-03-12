@@ -53,7 +53,7 @@ func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pk
 	}
 
 	print.Verb(pkg, "resolving dependencies before build")
-	err = ResolveDependencies(pkg)
+	err = ResolveDependencies(pkg, platform)
 	if err != nil {
 		err = errors.Wrap(err, "failed to resolve dependencies before build")
 		return
@@ -134,7 +134,7 @@ func BuildWatch(ctx context.Context, gh *github.Client, auth transport.AuthMetho
 	}
 
 	print.Verb(pkg, "resolving dependencies before build watcher")
-	err = ResolveDependencies(pkg)
+	err = ResolveDependencies(pkg, platform)
 	if err != nil {
 		err = errors.Wrap(err, "failed to resolve dependencies before build watcher")
 		return
@@ -155,6 +155,8 @@ func BuildWatch(ctx context.Context, gh *github.Client, auth transport.AuthMetho
 
 		config.Includes = append(config.Includes, filepath.Join(depDir, incPath))
 	}
+
+	config.Includes = append(config.Includes, pkg.AllIncludePaths...)
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {

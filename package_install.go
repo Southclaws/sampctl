@@ -53,7 +53,7 @@ func packageInstall(c *cli.Context) error {
 		deps = append(deps, versioning.DependencyString(dep))
 	}
 
-	pkg, err := rook.PackageFromDir(true, dir, "")
+	pkg, err := rook.PackageFromDir(true, dir, runtime.GOOS, "")
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}

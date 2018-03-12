@@ -16,7 +16,7 @@ import (
 // PackageFromDir attempts to parse a directory as a Package by looking for a `pawn.json` or
 // `pawn.yaml` file and unmarshalling it - additional parameters are required to specify whether or
 // not the package is a "parent package" and where the vendor directory is.
-func PackageFromDir(parent bool, dir string, vendor string) (pkg types.Package, err error) {
+func PackageFromDir(parent bool, dir, platform, vendor string) (pkg types.Package, err error) {
 	pkg, err = types.PackageFromDir(dir)
 	if err != nil {
 		err = errors.Wrap(err, "failed to read package definition")
@@ -45,7 +45,7 @@ func PackageFromDir(parent bool, dir string, vendor string) (pkg types.Package, 
 
 	if parent && len(pkg.Dependencies) > 0 && len(pkg.AllDependencies) == 0 {
 		print.Verb(pkg, "resolving dependencies during package load")
-		err = ResolveDependencies(&pkg)
+		err = ResolveDependencies(&pkg, platform)
 		if err != nil {
 			print.Verb("failed to resolve dependency tree:", err)
 			err = nil // not a breaking error for PackageFromDir
@@ -57,7 +57,7 @@ func PackageFromDir(parent bool, dir string, vendor string) (pkg types.Package, 
 
 // ResolveDependencies is a function for use by parent packages to iterate through their
 // `dependencies/` directory discovering packages and getting their dependencies
-func ResolveDependencies(pkg *types.Package) (err error) {
+func ResolveDependencies(pkg *types.Package, platform string) (err error) {
 	print.Verb(pkg, "resolving dependency tree into a flattened list...")
 	if !pkg.Parent {
 		return errors.New("package is not a parent package")
@@ -90,7 +90,7 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 		visited[meta.Repo] = true
 
 		var subPkg types.Package
-		subPkg, err = PackageFromDir(false, dependencyDir, pkg.Vendor)
+		subPkg, err = PackageFromDir(false, dependencyDir, platform, pkg.Vendor)
 		if err != nil {
 			print.Verb(pkg, "not a package:", meta, err)
 			return
@@ -108,7 +108,7 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 		}
 
 		var incPaths []string
-		incPaths, err = resolveResourcePaths(subPkg)
+		incPaths, err = resolveResourcePaths(subPkg, platform)
 		if err != nil {
 			print.Warn(pkg, "Failed to resolve package resource paths:", err)
 		}
@@ -153,8 +153,12 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 	return
 }
 
-func resolveResourcePaths(pkg types.Package) (paths []string, err error) {
+func resolveResourcePaths(pkg types.Package, platform string) (paths []string, err error) {
 	for _, res := range pkg.Resources {
+		if res.Platform != platform {
+			continue
+		}
+
 		resPath := filepath.Join(pkg.Vendor, res.Path(pkg))
 		for _, resInc := range res.Includes {
 			targetPath := ""
@@ -168,7 +172,7 @@ func resolveResourcePaths(pkg types.Package) (paths []string, err error) {
 				}
 			} else {
 				filepath.Walk(resPath, func(path string, info os.FileInfo, err error) error {
-					if re.MatchString(path) {
+					if re.MatchString(path) && info.IsDir() {
 						print.Verb("adding resource incude path", path)
 						targetPath = path
 					}

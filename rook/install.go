@@ -72,7 +72,7 @@ func Get(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta,
 	}
 
 	print.Verb("ensuring cloned package", meta, "to", dir)
-	pkg, err := PackageFromDir(true, dir, "")
+	pkg, err := PackageFromDir(true, dir, platform, "")
 	if err != nil {
 		return errors.Wrap(err, "failed to read cloned repository as Pawn package")
 	}
