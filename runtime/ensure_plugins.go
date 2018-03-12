@@ -39,7 +39,7 @@ func EnsurePlugins(ctx context.Context, gh *github.Client, cfg *types.Runtime, c
 		print.Verb("plugin", plugin, "is a package dependency")
 		files, err = EnsureVersionedPlugin(ctx, gh, plugin, cfg.WorkingDir, cfg.Platform, cacheDir, noCache)
 		if err != nil {
-			print.Warn(err)
+			print.Warn("failed to ensure plugin", plugin, err)
 			err = nil
 			continue
 		}
@@ -120,6 +120,10 @@ func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioni
 	}
 
 	err = method(filename, dir, paths)
+	if err != nil {
+		err = errors.Wrapf(err, "failed to extract plugin %s to %s", meta, dir)
+		return
+	}
 
 	return
 }

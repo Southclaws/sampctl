@@ -5,6 +5,7 @@ import (
 	"archive/zip"
 	"compress/gzip"
 	"compress/zlib"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -19,35 +20,35 @@ import (
 // from https://medium.com/@skdomino/taring-untaring-files-in-go-6b07cf56bc07
 // nolint:gocyclo
 func Untar(src, dst string, paths map[string]string) (err error) {
-	r, err := os.Open(src)
+	reader, err := os.Open(src)
 	if err != nil {
 		return errors.Wrap(err, "failed to open archive")
 	}
 	defer func() {
-		if errClose := r.Close(); errClose != nil {
+		if errClose := reader.Close(); errClose != nil {
 			panic(errClose)
 		}
 	}()
 
 	var tr *tar.Reader
 
-	gz, err := gzip.NewReader(r)
+	gz, err := gzip.NewReader(reader)
 	if err != nil {
 		var zl io.ReadCloser
-		zl, err = zlib.NewReader(r)
+		zl, err = zlib.NewReader(reader)
 		if err != nil {
 			return errors.Wrap(err, "failed to create new zlib reader after failed attempt at gzip")
 		}
 		defer func() {
 			if err = zl.Close(); err != nil {
-				return
+				panic(err)
 			}
 		}()
 		tr = tar.NewReader(zl)
 	} else {
 		defer func() {
 			if err = gz.Close(); err != nil {
-				return
+				panic(err)
 			}
 		}()
 		tr = tar.NewReader(gz)
@@ -71,33 +72,17 @@ loop:
 			continue
 		}
 
-		// search by regular expression
-
-		var (
-			source string
-			target string
-			match  *regexp.Regexp
-			found  bool
-		)
-
-		for source, target = range paths {
-			match, err = regexp.Compile(source)
-			if err != nil {
-				if header.Name == source {
-					found = true
-					break
-				}
-			} else {
-				if match.MatchString(header.Name) {
-					found = true
-					if target == "" {
-						target = header.Name
-					}
-					break
-				}
-			}
+		if header.Typeflag != tar.TypeReg {
+			continue
 		}
 
+		if header.Name == "" {
+			continue
+		}
+
+		// path checking and dir extraction
+
+		found, target := nameInPaths(header.Name, paths)
 		if !found {
 			continue
 		}
@@ -105,14 +90,6 @@ loop:
 		// if the target is not absolute, make relative to destination dir
 		if !filepath.IsAbs(target) {
 			target = filepath.Join(dst, target)
-		}
-
-		// the following switch could also be done using fi.Mode(), not sure if there
-		// a benefit of using one vs. the other.
-		// fi := header.FileInfo()
-
-		if header.Typeflag != tar.TypeReg {
-			continue
 		}
 
 		if header.FileInfo().IsDir() {
@@ -129,20 +106,19 @@ loop:
 				}
 			}
 
-			var f *os.File
-			f, err = os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
+			var file *os.File
+			file, err = os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
 			if err != nil {
 				return errors.Wrap(err, "failed to open extract target file")
 			}
 			defer func() {
-				if err = f.Close(); err != nil {
-					return
+				if err = file.Close(); err != nil {
+					panic(err)
 				}
 			}()
 
-			// copy over contents
-			if _, err = io.Copy(f, tr); err != nil {
-				return errors.Wrap(err, "failed to copy contents to extract target file")
+			if _, err = io.Copy(file, tr); err != nil {
+				return errors.Wrap(err, "failed to copy archive file to destination")
 			}
 		}
 	}
@@ -155,36 +131,24 @@ loop:
 // Unzip will un-compress a zip archive, moving all files and folders to an output directory.
 // from: https://golangcode.com/unzip-files-in-go/
 func Unzip(src, dst string, paths map[string]string) (err error) {
-	r, err := zip.OpenReader(src)
+	reader, err := zip.OpenReader(src)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		if errClose := r.Close(); errClose != nil {
+		if errClose := reader.Close(); errClose != nil {
 			panic(errClose)
 		}
 	}()
 
-	for _, f := range r.File {
-		var (
-			source string
-			target string
-			match  *regexp.Regexp
-			found  bool
-		)
-
-		for source, target = range paths {
-			match, err = regexp.Compile(source)
-			if err != nil {
-				return
-			}
-
-			if match.MatchString(f.Name) {
-				found = true
-				break
-			}
+	for _, header := range reader.File {
+		if header.Name == "" {
+			continue
 		}
 
+		// path checking and dir extraction
+
+		found, target := nameInPaths(header.Name, paths)
 		if !found {
 			continue
 		}
@@ -194,37 +158,69 @@ func Unzip(src, dst string, paths map[string]string) (err error) {
 			target = filepath.Join(dst, target)
 		}
 
-		rc, err := f.Open()
-		if err != nil {
-			return err
-		}
-		defer func() {
-			if err = rc.Close(); err != nil {
-				return
-			}
-		}()
-
-		if !f.FileInfo().IsDir() {
-			err = os.MkdirAll(filepath.Dir(target), os.ModePerm)
+		if header.FileInfo().IsDir() {
+			err = os.MkdirAll(header.Name, 0700)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "failed to create dir for target")
+			}
+		} else {
+			targetDir := filepath.Dir(target)
+			if !util.Exists(targetDir) {
+				err = os.MkdirAll(targetDir, os.ModePerm)
+				if err != nil {
+					return errors.Wrap(err, "failed to create target dir for file")
+				}
 			}
 
-			f, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+			archivedFile, err := header.Open()
 			if err != nil {
 				return err
 			}
 			defer func() {
-				if err = f.Close(); err != nil {
-					return
+				if err = archivedFile.Close(); err != nil {
+					panic(err)
 				}
 			}()
 
-			_, err = io.Copy(f, rc)
+			var file *os.File
+			file, err = os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, header.Mode())
 			if err != nil {
-				return err
+				return errors.Wrap(err, "failed to open extract target file")
+			}
+			defer func() {
+				if err = file.Close(); err != nil {
+					panic(err)
+				}
+			}()
+
+			_, err = io.Copy(file, archivedFile)
+			if err != nil {
+				return errors.Wrap(err, "failed to copy archive file to destination")
 			}
 		}
 	}
+	return
+}
+
+func nameInPaths(name string, paths map[string]string) (found bool, target string) {
+	var source string
+	for source, target = range paths {
+		match, err := regexp.Compile(source)
+		if err != nil {
+			if name == source {
+				found = true
+				break
+			}
+		} else {
+			if match.MatchString(name) {
+				found = true
+				break
+			}
+		}
+	}
+	if target == "" {
+		target = name
+	}
+	fmt.Println("found:", found, "name", name, "matches", target)
 	return
 }
