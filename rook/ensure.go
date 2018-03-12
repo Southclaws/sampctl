@@ -460,16 +460,19 @@ func extractResourceDependencies(ctx context.Context, gh *github.Client, pkg typ
 
 	err = os.MkdirAll(dir, 0700)
 	if err != nil {
+		err = errors.Wrap(err, "failed to create target directory")
 		return
 	}
 
 	_, err = runtime.EnsureVersionedPlugin(ctx, gh, pkg.DependencyMeta, dir, platform, cacheDir, false)
 	if err != nil {
+		err = errors.Wrap(err, "failed to ensure asset")
 		return
 	}
 
 	resIncs, err = resolveResourcePaths(pkg, platform)
 	if err != nil {
+		err = errors.Wrap(err, "failed to resolve resource paths")
 		return
 	}
 

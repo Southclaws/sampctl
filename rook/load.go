@@ -182,6 +182,7 @@ func resolveResourcePaths(pkg types.Package, platform string) (paths []string, e
 			var info os.FileInfo
 			info, err = os.Stat(targetPath)
 			if err != nil {
+				err = errors.Wrapf(err, "failed to stat target path %s", targetPath)
 				return
 			}
 			if info.IsDir() {
