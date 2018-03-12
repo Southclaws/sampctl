@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 
+	"github.com/Southclaws/sampctl/util"
 	"github.com/pkg/errors"
 )
 
@@ -89,6 +90,9 @@ loop:
 			} else {
 				if match.MatchString(header.Name) {
 					found = true
+					if target == "" {
+						target = header.Name
+					}
 					break
 				}
 			}
@@ -107,7 +111,24 @@ loop:
 		// a benefit of using one vs. the other.
 		// fi := header.FileInfo()
 
-		if header.Typeflag == tar.TypeReg {
+		if header.Typeflag != tar.TypeReg {
+			continue
+		}
+
+		if header.FileInfo().IsDir() {
+			err = os.MkdirAll(target, 0700)
+			if err != nil {
+				return errors.Wrap(err, "failed to create dir for target")
+			}
+		} else {
+			targetDir := filepath.Dir(target)
+			if !util.Exists(targetDir) {
+				err = os.MkdirAll(targetDir, 0700)
+				if err != nil {
+					return errors.Wrap(err, "failed to create target dir for file")
+				}
+			}
+
 			var f *os.File
 			f, err = os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
 			if err != nil {

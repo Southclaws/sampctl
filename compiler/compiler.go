@@ -121,7 +121,7 @@ func PrepareCommand(ctx context.Context, gh *github.Client, execDir, cacheDir, p
 
 		contents, err = ioutil.ReadDir(fullPath)
 		if err != nil {
-			err = errors.Wrapf(err, "failed to list dependency include path:", inc)
+			err = errors.Wrapf(err, "failed to list dependency include path: %s", inc)
 			return
 		}
 

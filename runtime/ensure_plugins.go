@@ -109,6 +109,11 @@ func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioni
 		files = append(files, types.Plugin(pluginFileName))
 	}
 
+	// get include directories
+	for _, include := range resource.Includes {
+		paths[include] = ""
+	}
+
 	// get additional files
 	for src, dest := range resource.Files {
 		paths[src] = dest
@@ -122,6 +127,8 @@ func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioni
 // PluginFromCache tries to grab a plugin asset from the cache, `hit` indicates if it was successful
 func PluginFromCache(meta versioning.DependencyMeta, platform, cacheDir string) (hit bool, filename string, resource types.Resource, err error) {
 	resourcePath := filepath.Join(cacheDir, GetResourcePath(meta))
+
+	print.Verb("getting plugin resource from cache", meta, resourcePath)
 
 	pkg, err := types.PackageFromDir(resourcePath)
 	if err != nil {

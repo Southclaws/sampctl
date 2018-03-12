@@ -463,14 +463,15 @@ func extractResourceDependencies(ctx context.Context, gh *github.Client, pkg typ
 		return
 	}
 
-	// todo: does not extract to target `dir`
 	_, err = runtime.EnsureVersionedPlugin(ctx, gh, pkg.DependencyMeta, dir, platform, cacheDir, false)
 	if err != nil {
 		return
 	}
 
-	for _, resInc := range res.Includes {
-		resIncs = append(resIncs, filepath.Join(pkg.Vendor, dir, resInc))
+	resIncs, err = resolveResourcePaths(pkg)
+	if err != nil {
+		return
 	}
+
 	return
 }

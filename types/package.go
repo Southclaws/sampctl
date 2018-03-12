@@ -191,7 +191,9 @@ func (pkg Package) WriteDefinition() (err error) {
 // plugin metadata repository
 func GetRemotePackage(ctx context.Context, client *github.Client, meta versioning.DependencyMeta) (pkg Package, err error) {
 	pkg, err = PackageFromRepo(ctx, client, meta)
-	if err != nil {
+	fmt.Println("REMOTE PACKAGE", meta.Repo)
+	if err != nil || meta.Repo == "SA-MP-MySQL" {
+		fmt.Println("PACkAG OFFICIAL")
 		return PackageFromOfficialRepo(ctx, client, meta)
 	}
 	return

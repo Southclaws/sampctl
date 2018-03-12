@@ -1,7 +1,10 @@
 package rook
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
+	"regexp"
 
 	"github.com/pkg/errors"
 
@@ -105,15 +108,12 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 			}
 		}
 
-		for _, res := range subPkg.Resources {
-			resPath := filepath.Join(pkg.Vendor, res.Path(subPkg))
-			for _, resInc := range res.Includes {
-				resIncPath := filepath.Join(resPath, filepath.Dir(resInc))
-				if util.Exists(resIncPath) {
-					subPkg.AllIncludePaths = append(subPkg.AllIncludePaths, resIncPath)
-				}
-			}
+		var incPaths []string
+		incPaths, err = resolveResourcePaths(subPkg)
+		if err != nil {
+			print.Warn(pkg, "Failed to resolve package resource paths:", err)
 		}
+		pkg.AllIncludePaths = append(pkg.AllIncludePaths, incPaths...)
 
 		var subPkgDepMeta versioning.DependencyMeta
 		for _, subPkgDep := range subPkg.Dependencies {
@@ -151,5 +151,43 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 		}
 	}
 
+	fmt.Println("FINAL INCLUDE PATHS", pkg.AllIncludePaths, "\n-")
+
+	return
+}
+
+func resolveResourcePaths(pkg types.Package) (paths []string, err error) {
+	for _, res := range pkg.Resources {
+		resPath := filepath.Join(pkg.Vendor, res.Path(pkg))
+		for _, resInc := range res.Includes {
+			targetPath := ""
+			var re *regexp.Regexp
+			re, err = regexp.Compile(resInc)
+			if err != nil {
+				resIncPath := filepath.Join(resPath, resInc)
+				if util.Exists(resIncPath) {
+					print.Verb("adding resource include path", resIncPath)
+					targetPath = resIncPath
+				}
+			} else {
+				filepath.Walk(resPath, func(path string, info os.FileInfo, err error) error {
+					if re.MatchString(path) {
+						print.Verb("adding resource incude path", path)
+						targetPath = path
+					}
+					return nil
+				})
+			}
+			var info os.FileInfo
+			info, err = os.Stat(targetPath)
+			if err != nil {
+				return
+			}
+			if info.IsDir() {
+				paths = append(paths, targetPath)
+			}
+		}
+	}
+	fmt.Println("\ninside paths", paths, "\n\n-")
 	return
 }
