@@ -1,7 +1,6 @@
 package rook
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -151,8 +150,6 @@ func ResolveDependencies(pkg *types.Package) (err error) {
 		}
 	}
 
-	fmt.Println("FINAL INCLUDE PATHS", pkg.AllIncludePaths, "\n-")
-
 	return
 }
 
@@ -188,6 +185,5 @@ func resolveResourcePaths(pkg types.Package) (paths []string, err error) {
 			}
 		}
 	}
-	fmt.Println("\ninside paths", paths, "\n\n-")
 	return
 }
