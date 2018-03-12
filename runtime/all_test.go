@@ -25,6 +25,11 @@ func TestMain(m *testing.M) {
 	}
 	Version = string(v)
 
+	err = os.MkdirAll("./tests/cache", 0700)
+	if err != nil {
+		panic(err)
+	}
+
 	fakeServerDir("./tests/from-env")
 	fakeServerDir("./tests/validate")
 	fakeServerDir("./tests/generate")

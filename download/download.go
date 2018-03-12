@@ -83,7 +83,7 @@ func FromCache(cacheDir, filename, dir string, method ExtractFunc, paths map[str
 func FromNet(location, cacheDir, filename string) (result string, err error) {
 	resp, err := http.Get(location)
 	if err != nil {
-		err = errors.Wrap(err, "failed to download package")
+		err = errors.Wrapf(err, "failed to download package from %s", location)
 		return
 	}
 	defer func() {
