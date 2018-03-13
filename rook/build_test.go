@@ -131,7 +131,7 @@ func TestPackage_Build(t *testing.T) {
 				Output:         "gamemodes/test.amx",
 				Dependencies: []versioning.DependencyString{
 					"sampctl/samp-stdlib",
-					"Southclaws/SA-MP-MySQL",
+					"pBlueG/SA-MP-MySQL",
 				},
 			}, "build", true}, nil, false,
 		},
