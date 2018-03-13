@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"path/filepath"
 
 	"github.com/Southclaws/sampctl/download"
@@ -51,13 +50,4 @@ func autoComplete(c *cli.Context) (err error) {
 	print.Info("PROG=sampctl source", completionFile)
 
 	return
-}
-
-func lastFlagIs(name string) (is bool) {
-	numFlags := len(os.Args)
-	if numFlags < 2 {
-		return false
-	}
-
-	return "--"+name == os.Args[numFlags-2]
 }

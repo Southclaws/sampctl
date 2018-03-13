@@ -31,7 +31,7 @@ func GetPackageList(cacheDir string) (packages []types.Package, err error) {
 
 	if update {
 		// print to stderr so bash doesn't pick it up as an auto-complete result
-		fmt.Fprintln(os.Stderr, "updating package list...")
+		fmt.Fprintln(os.Stderr, "updating package list...") //nolint
 		err = UpdatePackageList(cacheDir)
 		if err != nil {
 			return
