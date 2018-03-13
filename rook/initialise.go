@@ -120,6 +120,10 @@ func Init(ctx context.Context, gh *github.Client, dir string, config *types.Conf
 			Name:   "Scan",
 			Prompt: &survey.Confirm{Message: "Scan for dependencies?", Default: true},
 		},
+		{
+			Name:   "Travis",
+			Prompt: &survey.Confirm{Message: "Add a .travis.yml for unit testing?", Default: false},
+		},
 	}
 
 	if len(pwnFiles) > 0 {
@@ -160,6 +164,7 @@ func Init(ctx context.Context, gh *github.Client, dir string, config *types.Conf
 		Editor        string
 		StdLib        bool
 		Scan          bool
+		Travis        bool
 		EntryGenerate bool
 		Entry         string
 	}{}
@@ -218,7 +223,7 @@ func Init(ctx context.Context, gh *github.Client, dir string, config *types.Conf
 	wg := sync.WaitGroup{}
 
 	if answers.GitIgnore {
-		wg.Add(2)
+		wg.Add(1)
 		go func() {
 			errInner := getTemplateFile(dir, ".gitignore")
 			if errInner != nil {
@@ -226,6 +231,7 @@ func Init(ctx context.Context, gh *github.Client, dir string, config *types.Conf
 			}
 			wg.Done()
 		}()
+		wg.Add(1)
 		go func() {
 			errInner := getTemplateFile(dir, ".gitattributes")
 			if errInner != nil {
@@ -300,6 +306,18 @@ func Init(ctx context.Context, gh *github.Client, dir string, config *types.Conf
 
 	if answers.Scan {
 		pkg.Dependencies = append(pkg.Dependencies, FindIncludes(incFiles)...)
+	}
+
+	if answers.Travis {
+		pkg.Runtime = &types.Runtime{Mode: "y_testing"}
+		wg.Add(1)
+		go func() {
+			errInner := getTemplateFile(dir, ".travis.yml")
+			if errInner != nil {
+				print.Erro("Failed to get .travis.yml template:", errInner)
+			}
+			wg.Done()
+		}()
 	}
 
 	err = pkg.WriteDefinition()
