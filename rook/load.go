@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -173,7 +174,9 @@ func resolveResourcePaths(pkg types.Package, platform string) (paths []string, e
 			} else {
 				err = filepath.Walk(resPath, func(path string, info os.FileInfo, errInner error) error {
 					if errInner != nil {
-						print.Erro(errInner)
+						if !strings.Contains(errInner.Error(), "GetFileAttributesEx") {
+							print.Erro(errInner)
+						}
 						return nil
 					}
 
