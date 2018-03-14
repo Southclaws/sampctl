@@ -164,7 +164,7 @@ func resolveResourcePaths(pkg types.Package, platform string) (paths []string, e
 			targetPath := ""
 			var re *regexp.Regexp
 			re, err = regexp.Compile(resInc)
-			if err != nil {
+			if err != nil || re == nil {
 				resIncPath := filepath.Join(resPath, resInc)
 				if util.Exists(resIncPath) {
 					print.Verb("adding resource include path", resIncPath)
