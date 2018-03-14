@@ -172,6 +172,11 @@ func resolveResourcePaths(pkg types.Package, platform string) (paths []string, e
 				}
 			} else {
 				err = filepath.Walk(resPath, func(path string, info os.FileInfo, err error) error {
+					if err != nil {
+						print.Erro(err)
+						return nil
+					}
+
 					if re.MatchString(path) && info.IsDir() {
 						print.Verb("adding resource incude path", path)
 						targetPath = path
