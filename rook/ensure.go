@@ -55,9 +55,9 @@ func EnsureDependencies(ctx context.Context, gh *github.Client, pkg *types.Packa
 	recurse = func(meta versioning.DependencyMeta) {
 		pkgPath := filepath.Join(pkg.Vendor, meta.Repo)
 
-		err = EnsurePackage(pkgPath, meta, auth)
-		if err != nil {
-			print.Warn(errors.Wrapf(err, "failed to ensure package %s", meta))
+		errInner := EnsurePackage(pkgPath, meta, auth)
+		if errInner != nil {
+			print.Warn(errors.Wrapf(errInner, "failed to ensure package %s", meta))
 			return
 		}
 
@@ -67,17 +67,17 @@ func EnsureDependencies(ctx context.Context, gh *github.Client, pkg *types.Packa
 		visited[meta.Repo] = true
 
 		var subPkg types.Package
-		subPkg, err = PackageFromDir(false, pkgPath, platform, pkg.Vendor)
-		if err != nil {
-			print.Warn(pkg, meta, err)
+		subPkg, errInner = PackageFromDir(false, pkgPath, platform, pkg.Vendor)
+		if errInner != nil {
+			print.Warn(pkg, meta, errInner)
 			return
 		}
 
 		var resIncs []string
 		for _, res := range subPkg.Resources {
 			if res.Archive {
-				resIncs, err = extractResourceDependencies(ctx, gh, subPkg, res, pkg.Vendor, platform, cacheDir)
-				if err != nil {
+				resIncs, errInner = extractResourceDependencies(ctx, gh, subPkg, res, pkg.Vendor, platform, cacheDir)
+				if errInner != nil {
 					return
 				}
 			}
@@ -86,8 +86,8 @@ func EnsureDependencies(ctx context.Context, gh *github.Client, pkg *types.Packa
 
 		var subPkgDepMeta versioning.DependencyMeta
 		for _, subPkgDep := range subPkg.Dependencies {
-			subPkgDepMeta, err = subPkgDep.Explode()
-			if err != nil {
+			subPkgDepMeta, errInner = subPkgDep.Explode()
+			if errInner != nil {
 				continue
 			}
 			if _, ok := visited[subPkgDepMeta.Repo]; !ok {
@@ -105,7 +105,7 @@ func EnsureDependencies(ctx context.Context, gh *github.Client, pkg *types.Packa
 		recurse(meta)
 	}
 
-	return
+	return nil
 }
 
 // func checkConflicts(dependencies []versioning.DependencyMeta) (result []versioning.DependencyMeta) {
