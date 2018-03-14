@@ -171,9 +171,9 @@ func resolveResourcePaths(pkg types.Package, platform string) (paths []string, e
 					targetPath = resIncPath
 				}
 			} else {
-				err = filepath.Walk(resPath, func(path string, info os.FileInfo, err error) error {
-					if err != nil {
-						print.Erro(err)
+				err = filepath.Walk(resPath, func(path string, info os.FileInfo, errInner error) error {
+					if errInner != nil {
+						print.Erro(errInner)
 						return nil
 					}
 
