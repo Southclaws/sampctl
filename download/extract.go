@@ -158,7 +158,7 @@ func Unzip(src, dst string, paths map[string]string) (err error) {
 		}
 
 		if header.FileInfo().IsDir() {
-			err = os.MkdirAll(header.Name, 0700)
+			err = os.MkdirAll(target, 0700)
 			if err != nil {
 				return errors.Wrap(err, "failed to create dir for target")
 			}

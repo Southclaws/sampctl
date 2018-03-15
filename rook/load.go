@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -86,15 +87,27 @@ func ResolveDependencies(pkg *types.Package, platform string) (err error) {
 			return
 		}
 
-		pkg.AllDependencies = append(pkg.AllDependencies, meta)
-		visited[meta.Repo] = true
-
 		var subPkg types.Package
 		subPkg, err = PackageFromDir(false, dependencyDir, platform, pkg.Vendor)
 		if err != nil {
 			print.Verb(pkg, "not a package:", meta, err)
+			pkg.AllDependencies = append(pkg.AllDependencies, meta)
 			return
 		}
+
+		var incPaths []string
+		incPaths, err = resolveResourcePaths(subPkg, platform)
+		if err != nil {
+			print.Warn(pkg, "Failed to resolve package resource paths:", err)
+		}
+		pkg.AllIncludePaths = append(pkg.AllIncludePaths, incPaths...)
+
+		// only add the package directory if there are no includes in the resources
+		if len(incPaths) == 0 {
+			pkg.AllDependencies = append(pkg.AllDependencies, meta)
+		}
+
+		visited[meta.Repo] = true
 
 		if subPkg.Runtime != nil {
 			for _, pluginDepStr := range subPkg.Runtime.Plugins {
@@ -106,13 +119,6 @@ func ResolveDependencies(pkg *types.Package, platform string) (err error) {
 				pkg.AllPlugins = append(pkg.AllPlugins, pluginMeta)
 			}
 		}
-
-		var incPaths []string
-		incPaths, err = resolveResourcePaths(subPkg, platform)
-		if err != nil {
-			print.Warn(pkg, "Failed to resolve package resource paths:", err)
-		}
-		pkg.AllIncludePaths = append(pkg.AllIncludePaths, incPaths...)
 
 		var subPkgDepMeta versioning.DependencyMeta
 		for _, subPkgDep := range subPkg.Dependencies {
@@ -171,9 +177,11 @@ func resolveResourcePaths(pkg types.Package, platform string) (paths []string, e
 					targetPath = resIncPath
 				}
 			} else {
-				err = filepath.Walk(resPath, func(path string, info os.FileInfo, err error) error {
-					if err != nil {
-						print.Erro(err)
+				err = filepath.Walk(resPath, func(path string, info os.FileInfo, errInner error) error {
+					if errInner != nil {
+						if !strings.Contains(errInner.Error(), "GetFileAttributesEx") {
+							print.Erro(errInner)
+						}
 						return nil
 					}
 
