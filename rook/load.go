@@ -87,15 +87,27 @@ func ResolveDependencies(pkg *types.Package, platform string) (err error) {
 			return
 		}
 
-		pkg.AllDependencies = append(pkg.AllDependencies, meta)
-		visited[meta.Repo] = true
-
 		var subPkg types.Package
 		subPkg, err = PackageFromDir(false, dependencyDir, platform, pkg.Vendor)
 		if err != nil {
 			print.Verb(pkg, "not a package:", meta, err)
+			pkg.AllDependencies = append(pkg.AllDependencies, meta)
 			return
 		}
+
+		var incPaths []string
+		incPaths, err = resolveResourcePaths(subPkg, platform)
+		if err != nil {
+			print.Warn(pkg, "Failed to resolve package resource paths:", err)
+		}
+		pkg.AllIncludePaths = append(pkg.AllIncludePaths, incPaths...)
+
+		// only add the package directory if there are no includes in the resources
+		if len(incPaths) == 0 {
+			pkg.AllDependencies = append(pkg.AllDependencies, meta)
+		}
+
+		visited[meta.Repo] = true
 
 		if subPkg.Runtime != nil {
 			for _, pluginDepStr := range subPkg.Runtime.Plugins {
@@ -107,13 +119,6 @@ func ResolveDependencies(pkg *types.Package, platform string) (err error) {
 				pkg.AllPlugins = append(pkg.AllPlugins, pluginMeta)
 			}
 		}
-
-		var incPaths []string
-		incPaths, err = resolveResourcePaths(subPkg, platform)
-		if err != nil {
-			print.Warn(pkg, "Failed to resolve package resource paths:", err)
-		}
-		pkg.AllIncludePaths = append(pkg.AllIncludePaths, incPaths...)
 
 		var subPkgDepMeta versioning.DependencyMeta
 		for _, subPkgDep := range subPkg.Dependencies {
