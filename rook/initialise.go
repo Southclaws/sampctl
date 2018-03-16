@@ -350,7 +350,7 @@ func getTemplateFile(dir, filename string) (err error) {
 		outputFile = outputFile + "-duplicate"
 	}
 
-	err = os.MkdirAll(filepath.Dir(outputFile), 0600)
+	err = os.MkdirAll(filepath.Dir(outputFile), 0700)
 	if err != nil {
 		return
 	}
