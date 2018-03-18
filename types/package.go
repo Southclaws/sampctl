@@ -51,7 +51,7 @@ type Package struct {
 	// this field is only used if `parent` is true.
 	AllPlugins []versioning.DependencyMeta `json:"-" yaml:"-"`
 	// AllIncludePaths stores a list of all additional include paths to pass to the compiler.
-	AllIncludePaths []string `json:"include_paths"`
+	AllIncludePaths []string `json:"-" yaml:"-"`
 
 	// Inferred metadata, not always explicitly set via JSON/YAML but inferred from the dependency path
 	versioning.DependencyMeta
@@ -187,12 +187,13 @@ func (pkg Package) WriteDefinition() (err error) {
 }
 
 // GetRemotePackage attempts to get a package definition for the given dependency meta.
-// It first checks the repository itself, if that fails it falls back to using the sampctl central
-// plugin metadata repository
+// It first checks the the sampctl central repository, if that fails it falls back to using the
+// repository for the package itself. This means upstream changes to plugins can be first staged in
+// the official central repository before being pulled to the package specific repository.
 func GetRemotePackage(ctx context.Context, client *github.Client, meta versioning.DependencyMeta) (pkg Package, err error) {
-	pkg, err = PackageFromRepo(ctx, client, meta)
+	pkg, err = PackageFromOfficialRepo(ctx, client, meta)
 	if err != nil {
-		return PackageFromOfficialRepo(ctx, client, meta)
+		return PackageFromRepo(ctx, client, meta)
 	}
 	return
 }
