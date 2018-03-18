@@ -35,6 +35,8 @@ explanations of what the terms in bold above mean.
   sampctl can generate this file automatically from a much cleaner looking JSON
   or YAML equivalent.
 
+[For a **quick-start** guide, click this link!](https://github.com/Southclaws/sampctl/wiki/Quick-Overview)
+
 ## Features
 
 ### Package Manager
@@ -90,10 +92,9 @@ Installation is simple and fast on all platforms so why not give sampctl a try?
 
 ## Usage
 
-Scroll to the end of this document for an overview of the commands.
+[For a list of commands, click here.](https://github.com/Southclaws/sampctl#sampctl-1)
 
-Or visit the [wiki](https://github.com/Southclaws/sampctl/wiki) for all the
-information you need.
+[Or visit the Wiki site for documentation on each feature.](https://github.com/Southclaws/sampctl/wiki).
 
 ---
 
