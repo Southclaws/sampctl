@@ -39,6 +39,12 @@ explanations of what the terms in bold above mean.
 
 ## Features
 
+As mentioned above, sampctl is a **command-line development tool** so it has no
+graphical user interface. The videos below show sampctl being used with
+[Visual Studio Code](https://code.visualstudio.com) which is a light-weight text
+editor that works very well with sampctl to provide the perfect SA:MP/Pawn
+development environment.
+
 ### Package Manager
 
 Always have the libraries you need. Inspired by npm.
