@@ -237,7 +237,7 @@ func GetResourceForPlatform(resources []types.Resource, platform string) (resour
 		}
 	}
 	if tmp == nil {
-		err = errors.New("plugin does not provide binaries for target platform")
+		err = errors.Errorf("plugin does not provide binaries for target platform %s", platform)
 		return
 	}
 

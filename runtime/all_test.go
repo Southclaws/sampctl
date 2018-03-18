@@ -10,6 +10,8 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/joho/godotenv"
 	"golang.org/x/oauth2"
+
+	"github.com/Southclaws/sampctl/print"
 )
 
 var gh *github.Client
@@ -38,6 +40,8 @@ func TestMain(m *testing.M) {
 	fakeServerDir("./tests/load-json")
 	fakeServerDir("./tests/load-yaml")
 	fakeServerDir("./tests/load-both")
+
+	print.SetVerbose()
 
 	os.Exit(m.Run())
 }

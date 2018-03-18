@@ -249,12 +249,20 @@ func PackageFromOfficialRepo(ctx context.Context, client *github.Client, meta ve
 	}
 
 	if resp.StatusCode != 200 {
-		err = errors.Wrapf(err, "plugin '%s' does not exist in official repo", meta)
+		err = errors.Errorf("plugin '%s' does not exist in official repo", meta)
 		return
 	}
 
-	dec := json.NewDecoder(resp.Body)
-	err = dec.Decode(&pkg)
+	payload, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		err = errors.Wrapf(err, "failed to read response for plugin package '%s'", meta)
+		return
+	}
+	json.Unmarshal(payload, &pkg)
+	if err != nil {
+		err = errors.Wrapf(err, "failed to decode plugin package '%s'", meta)
+		return
+	}
 
 	return
 }
