@@ -162,22 +162,35 @@ func ResolveDependencies(pkg *types.Package, platform string) (err error) {
 func resolveResourcePaths(pkg types.Package, platform string) (paths []string, err error) {
 	for _, res := range pkg.Resources {
 		if res.Platform != platform {
+			print.Verb(pkg, "ignoring platform mismatch", res.Platform)
 			continue
 		}
 
 		resPath := filepath.Join(pkg.Vendor, res.Path(pkg))
 		for _, resInc := range res.Includes {
+			print.Verb(pkg, "checking resource includes path:", resInc)
 			targetPath := ""
 			var re *regexp.Regexp
 			re, err = regexp.Compile(resInc)
 			if err != nil || re == nil {
+				print.Verb(pkg, "resource includes path is an exact path")
 				resIncPath := filepath.Join(resPath, resInc)
 				if util.Exists(resIncPath) {
-					print.Verb("adding resource include path", resIncPath)
+					print.Verb(pkg, "adding resource include path", resIncPath)
 					targetPath = resIncPath
+				} else {
+					print.Erro(pkg, "resource includes exact path does not exist")
 				}
 			} else {
+				print.Verb(pkg, "resource includes path is a regular expression")
 				err = filepath.Walk(resPath, func(path string, info os.FileInfo, errInner error) error {
+					relPath, errInner := filepath.Rel(resPath, path)
+					if errInner != nil {
+						print.Erro(errInner)
+					}
+					relPath = filepath.ToSlash(relPath)
+
+					print.Verb(pkg, "checking path", relPath, "against regex", resInc)
 					if errInner != nil {
 						if !strings.Contains(errInner.Error(), "GetFileAttributesEx") {
 							print.Erro(errInner)
@@ -185,7 +198,7 @@ func resolveResourcePaths(pkg types.Package, platform string) (paths []string, e
 						return nil
 					}
 
-					if re.MatchString(path) && info.IsDir() {
+					if re.MatchString(relPath) && info.IsDir() {
 						print.Verb("adding resource incude path", path)
 						targetPath = path
 					}
