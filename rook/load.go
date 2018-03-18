@@ -184,19 +184,19 @@ func resolveResourcePaths(pkg types.Package, platform string) (paths []string, e
 			} else {
 				print.Verb(pkg, "resource includes path is a regular expression")
 				err = filepath.Walk(resPath, func(path string, info os.FileInfo, errInner error) error {
-					relPath, errInner := filepath.Rel(resPath, path)
-					if errInner != nil {
-						print.Erro(errInner)
-					}
-					relPath = filepath.ToSlash(relPath)
-
-					print.Verb(pkg, "checking path", relPath, "against regex", resInc)
 					if errInner != nil {
 						if !strings.Contains(errInner.Error(), "GetFileAttributesEx") {
 							print.Erro(errInner)
 						}
 						return nil
 					}
+
+					relPath, errInner := filepath.Rel(resPath, path)
+					if errInner != nil {
+						print.Erro(errInner)
+					}
+					relPath = filepath.ToSlash(relPath)
+					print.Verb(pkg, "checking path", relPath, "against regex", resInc)
 
 					if re.MatchString(relPath) && info.IsDir() {
 						print.Verb("adding resource incude path", path)
