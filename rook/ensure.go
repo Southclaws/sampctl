@@ -78,6 +78,7 @@ func EnsureDependencies(ctx context.Context, gh *github.Client, pkg *types.Packa
 			if res.Archive {
 				resIncs, errInner = extractResourceDependencies(ctx, gh, subPkg, res, pkg.Vendor, platform, cacheDir)
 				if errInner != nil {
+					print.Warn(errors.Wrapf(errInner, "failed to ensure resource %s", res.Name))
 					return
 				}
 			}
