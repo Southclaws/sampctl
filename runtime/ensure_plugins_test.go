@@ -24,65 +24,30 @@ func TestEnsurePlugins(t *testing.T) {
 		wantPlugins []types.Plugin
 		wantErr     bool
 	}{
-		{"linux", args{
+		{"streamer-linux", args{
 			types.Runtime{
-				WorkingDir: "./tests/ensure/linux",
 				Platform:   "linux",
-				PluginDeps: []versioning.DependencyMeta{
-					{User: "samp-incognito", Repo: "samp-streamer-plugin"},
-					{User: "Zeex", Repo: "samp-plugin-crashdetect"},
-					{User: "pBlueG", Repo: "SA-MP-MySQL"},
-					{User: "ziggi", Repo: "FCNPC"},
-					{User: "BigETI", Repo: "pawn-memory"},
-					{User: "Southclaws", Repo: "samp-nolog"},
-				},
-			},
-		}, []string{
-			"plugins/streamer.so",
-			"plugins/crashdetect.so",
-			"plugins/mysql.so",
-			"plugins/FCNPC.so",
-			"plugins/memory.so",
-			"plugins/nolog.so",
-		}, []types.Plugin{
-			"streamer",
-			"crashdetect",
-			"mysql",
-			"FCNPC",
-			"memory",
-			"nolog",
-		}, false},
-		{"windows", args{
+				PluginDeps: []versioning.DependencyMeta{{User: "samp-incognito", Repo: "samp-streamer-plugin"}},
+			}}, []string{"plugins/streamer.so"}, []types.Plugin{"streamer"}, false},
+		{"streamer-windows", args{
 			types.Runtime{
-				WorkingDir: "./tests/ensure/windows",
 				Platform:   "windows",
-				PluginDeps: []versioning.DependencyMeta{
-					{User: "samp-incognito", Repo: "samp-streamer-plugin"},
-					{User: "Zeex", Repo: "samp-plugin-crashdetect"},
-					{User: "pBlueG", Repo: "SA-MP-MySQL"},
-					{User: "ziggi", Repo: "FCNPC"},
-					{User: "BigETI", Repo: "pawn-memory"},
-					{User: "urShadow", Repo: "Pawn.RakNet"},
-				},
-			},
-		}, []string{
-			"plugins/streamer.dll",
-			"plugins/crashdetect.dll",
-			"plugins/mysql.dll",
-			"plugins/FCNPC.dll",
-			"plugins/pawn-memory.dll",
-			"plugins/pawnraknet.dll",
-		}, []types.Plugin{
-			"streamer",
-			"crashdetect",
-			"mysql",
-			"FCNPC",
-			"pawn-memory",
-			"pawnraknet",
-		}, false},
+				PluginDeps: []versioning.DependencyMeta{{User: "samp-incognito", Repo: "samp-streamer-plugin"}},
+			}}, []string{"plugins/streamer.dll"}, []types.Plugin{"streamer"}, false},
+		{"mysql-linux", args{
+			types.Runtime{
+				Platform:   "linux",
+				PluginDeps: []versioning.DependencyMeta{{User: "pBlueG", Repo: "SA-MP-MySQL"}},
+			}}, []string{"plugins/mysql.so"}, []types.Plugin{"mysql"}, false},
+		{"mysql-windows", args{
+			types.Runtime{
+				Platform:   "windows",
+				PluginDeps: []versioning.DependencyMeta{{User: "pBlueG", Repo: "SA-MP-MySQL"}},
+			}}, []string{"plugins/mysql.dll"}, []types.Plugin{"mysql"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			tt.args.cfg.WorkingDir = filepath.Join("./tests/ensure", tt.name)
 			os.MkdirAll(tt.args.cfg.WorkingDir, 0755)
 
 			t.Log("First call to Ensure - from internet")
