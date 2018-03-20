@@ -44,6 +44,16 @@ func TestEnsurePlugins(t *testing.T) {
 				Platform:   "windows",
 				PluginDeps: []versioning.DependencyMeta{{User: "pBlueG", Repo: "SA-MP-MySQL"}},
 			}}, []string{"plugins/mysql.dll"}, []types.Plugin{"mysql"}, false},
+		{"bitmapper-linux", args{
+			types.Runtime{
+				Platform:   "linux",
+				PluginDeps: []versioning.DependencyMeta{{User: "Southclaws", Repo: "samp-bitmapper"}},
+			}}, []string{"plugins/bitmapper.so"}, []types.Plugin{"bitmapper"}, false},
+		{"bitmapper-windows", args{
+			types.Runtime{
+				Platform:   "windows",
+				PluginDeps: []versioning.DependencyMeta{{User: "Southclaws", Repo: "samp-bitmapper"}},
+			}}, []string{"plugins/bitmapper.dll"}, []types.Plugin{"bitmapper"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

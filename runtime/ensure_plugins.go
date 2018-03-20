@@ -87,42 +87,48 @@ func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioni
 
 	print.Verb("retrieved package", meta, "resource file:", filename)
 
-	var (
-		ext    = filepath.Ext(filename)
-		method download.ExtractFunc
-	)
-	if ext == ".zip" {
-		method = download.Unzip
-	} else if ext == ".gz" {
-		method = download.Untar
+	if resource.Archive {
+		var (
+			ext    = filepath.Ext(filename)
+			method download.ExtractFunc
+		)
+		if ext == ".zip" {
+			method = download.Unzip
+		} else if ext == ".gz" {
+			method = download.Untar
+		} else {
+			err = errors.Errorf("unsupported archive format: %s", filename)
+			return
+		}
+
+		paths := make(map[string]string)
+
+		// get plugins
+		for _, plugin := range resource.Plugins {
+			pluginFileName := filepath.Base(plugin)
+			paths[plugin] = filepath.Join("plugins", pluginFileName)
+			files = append(files, types.Plugin(pluginFileName))
+		}
+
+		// get include directories
+		for _, include := range resource.Includes {
+			paths[include] = ""
+		}
+
+		// get additional files
+		for src, dest := range resource.Files {
+			paths[src] = dest
+		}
+
+		err = method(filename, dir, paths)
+		if err != nil {
+			err = errors.Wrapf(err, "failed to extract plugin %s to %s", meta, dir)
+			return
+		}
 	} else {
-		err = errors.Errorf("unsupported archive format: %s", filename)
-		return
-	}
-
-	paths := make(map[string]string)
-
-	// get plugins
-	for _, plugin := range resource.Plugins {
-		pluginFileName := filepath.Base(plugin)
-		paths[plugin] = filepath.Join("plugins", pluginFileName)
-		files = append(files, types.Plugin(pluginFileName))
-	}
-
-	// get include directories
-	for _, include := range resource.Includes {
-		paths[include] = ""
-	}
-
-	// get additional files
-	for src, dest := range resource.Files {
-		paths[src] = dest
-	}
-
-	err = method(filename, dir, paths)
-	if err != nil {
-		err = errors.Wrapf(err, "failed to extract plugin %s to %s", meta, dir)
-		return
+		base := filepath.Base(filename)
+		util.CopyFile(filename, filepath.Join(dir, "plugins", base))
+		files = []types.Plugin{types.Plugin(base)}
 	}
 
 	return
