@@ -54,6 +54,16 @@ func TestEnsurePlugins(t *testing.T) {
 				Platform:   "windows",
 				PluginDeps: []versioning.DependencyMeta{{User: "Southclaws", Repo: "samp-bitmapper"}},
 			}}, []string{"plugins/bitmapper.dll"}, []types.Plugin{"bitmapper"}, false},
+		{"PawnPlus-linux", args{
+			types.Runtime{
+				Platform:   "linux",
+				PluginDeps: []versioning.DependencyMeta{{User: "IllidanS4", Repo: "PawnPlus"}},
+			}}, []string{"plugins/PawnPlus.so"}, []types.Plugin{"PawnPlus"}, false},
+		{"PawnPlus-windows", args{
+			types.Runtime{
+				Platform:   "windows",
+				PluginDeps: []versioning.DependencyMeta{{User: "IllidanS4", Repo: "PawnPlus"}},
+			}}, []string{"plugins/PawnPlus.dll"}, []types.Plugin{"PawnPlus"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
