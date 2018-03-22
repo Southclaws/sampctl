@@ -118,7 +118,7 @@ func ReleaseAssetByPattern(ctx context.Context, gh *github.Client, meta versioni
 
 	var release *github.RepositoryRelease
 	if meta.Tag == "" {
-		release, _, err = gh.Repositories.GetLatestRelease(ctx, meta.User, meta.Repo)
+		release, err = getLatestReleaseOrPreRelease(ctx, gh, meta.User, meta.Repo)
 	} else {
 		release, _, err = gh.Repositories.GetReleaseByTag(ctx, meta.User, meta.Repo, meta.Tag)
 	}
@@ -151,5 +151,22 @@ func ReleaseAssetByPattern(ctx context.Context, gh *github.Client, meta versioni
 	}
 
 	filename, err = FromNet(*asset.BrowserDownloadURL, cacheDir, outputFile)
+	return
+}
+
+func getLatestReleaseOrPreRelease(ctx context.Context, gh *github.Client, owner, repo string) (release *github.RepositoryRelease, err error) {
+	releases, _, err := gh.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{})
+	if err != nil {
+		err = errors.Wrap(err, "failed to list releases")
+		return
+	}
+
+	if len(releases) == 0 {
+		err = errors.New("no releases available")
+		return
+	}
+
+	release = releases[0]
+
 	return
 }
