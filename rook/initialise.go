@@ -3,9 +3,7 @@ package rook
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -16,6 +14,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/google/go-github/github"
+	"github.com/pkg/errors"
 	"gopkg.in/AlecAivazis/survey.v1"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
@@ -24,6 +23,22 @@ import (
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
+
+// Answers represents wizard question results
+type Answers struct {
+	Format        string
+	User          string
+	Repo          string
+	RepoEscaped   string
+	GitIgnore     bool
+	Readme        bool
+	Editor        string
+	StdLib        bool
+	Scan          bool
+	Travis        bool
+	EntryGenerate bool
+	Entry         string
+}
 
 // Init prompts the user to initialise a package
 func Init(ctx context.Context, gh *github.Client, dir string, config *types.Config, auth transport.AuthMethod, platform, cacheDir string) (err error) {
@@ -86,7 +101,7 @@ func Init(ctx context.Context, gh *github.Client, dir string, config *types.Conf
 				Message: "Your Name - If you plan to release, must be your GitHub username.",
 				Default: config.DefaultUser,
 			},
-			Validate: survey.Required,
+			Validate: validateUser,
 		},
 		{
 			Name: "Repo",
@@ -94,7 +109,7 @@ func Init(ctx context.Context, gh *github.Client, dir string, config *types.Conf
 				Message: "Package Name - If you plan to release, must be the GitHub project name.",
 				Default: dirName,
 			},
-			Validate: survey.Required,
+			Validate: validateRepo,
 		},
 		{
 			Name:   "GitIgnore",
@@ -108,7 +123,7 @@ func Init(ctx context.Context, gh *github.Client, dir string, config *types.Conf
 			Name: "Editor",
 			Prompt: &survey.Select{
 				Message: "Select your text editor",
-				Options: []string{"none", "vscode"},
+				Options: []string{"none", "vscode", "sublime"},
 			},
 			Validate: survey.Required,
 		},
@@ -155,20 +170,7 @@ func Init(ctx context.Context, gh *github.Client, dir string, config *types.Conf
 		}
 	}
 
-	answers := struct {
-		Format        string
-		User          string
-		Repo          string
-		GitIgnore     bool
-		Readme        bool
-		Editor        string
-		StdLib        bool
-		Scan          bool
-		Travis        bool
-		EntryGenerate bool
-		Entry         string
-	}{}
-
+	answers := Answers{}
 	err = survey.Ask(questions, &answers)
 	if err != nil {
 		return
@@ -225,7 +227,7 @@ func Init(ctx context.Context, gh *github.Client, dir string, config *types.Conf
 	if answers.GitIgnore {
 		wg.Add(1)
 		go func() {
-			errInner := getTemplateFile(dir, ".gitignore")
+			errInner := getTemplateFile(dir, ".gitignore", answers)
 			if errInner != nil {
 				print.Erro("Failed to get .gitignore template:", errInner)
 			}
@@ -233,7 +235,7 @@ func Init(ctx context.Context, gh *github.Client, dir string, config *types.Conf
 		}()
 		wg.Add(1)
 		go func() {
-			errInner := getTemplateFile(dir, ".gitattributes")
+			errInner := getTemplateFile(dir, ".gitattributes", answers)
 			if errInner != nil {
 				print.Erro("Failed to get .gitattributes template:", errInner)
 			}
@@ -244,47 +246,12 @@ func Init(ctx context.Context, gh *github.Client, dir string, config *types.Conf
 	if answers.Readme {
 		wg.Add(1)
 		go func() {
-			path := filepath.Join(dir, "README.md")
-			errInner := getTemplateFile(dir, "README.md")
+			errInner := getTemplateFile(dir, "README.md", answers)
 			if err != nil {
 				print.Erro("Failed to get readme template:", errInner)
 				return
 			}
 			defer wg.Done()
-			contents, errInner := ioutil.ReadFile(path)
-			if errInner != nil {
-				print.Erro("Failed to open readme template:", errInner)
-				return
-			}
-			tmpl, errInner := template.New("readme").Parse(string(contents))
-			if errInner != nil {
-				print.Erro("Failed to parse readme template:", errInner)
-				return
-			}
-			out, errInner := os.OpenFile(path, os.O_WRONLY, 0600)
-			if errInner != nil {
-				print.Erro("Failed to open readme file for writing:", errInner)
-				return
-			}
-			defer func() {
-				errDefer := out.Close()
-				if errDefer != nil {
-					panic(errDefer)
-				}
-			}()
-			errInner = tmpl.Execute(out, struct {
-				User        string
-				Repo        string
-				RepoEscaped string
-			}{
-				User:        answers.User,
-				Repo:        answers.Repo,
-				RepoEscaped: strings.Replace(answers.Repo, "-", "--", -1),
-			})
-			if errInner != nil {
-				print.Erro("Failed to execute template:", errInner)
-				return
-			}
 		}()
 	}
 
@@ -292,7 +259,16 @@ func Init(ctx context.Context, gh *github.Client, dir string, config *types.Conf
 	case "vscode":
 		wg.Add(1)
 		go func() {
-			errInner := getTemplateFile(dir, ".vscode/tasks.json")
+			errInner := getTemplateFile(dir, ".vscode/tasks.json", answers)
+			if errInner != nil {
+				print.Erro("Failed to get tasks.json template:", errInner)
+			}
+			wg.Done()
+		}()
+	case "sublime":
+		wg.Add(1)
+		go func() {
+			errInner := getTemplateFile(dir, "{{.Repo}}.sublime-project", answers)
 			if errInner != nil {
 				print.Erro("Failed to get tasks.json template:", errInner)
 			}
@@ -312,7 +288,7 @@ func Init(ctx context.Context, gh *github.Client, dir string, config *types.Conf
 		pkg.Runtime = &types.Runtime{Mode: "y_testing"}
 		wg.Add(1)
 		go func() {
-			errInner := getTemplateFile(dir, ".travis.yml")
+			errInner := getTemplateFile(dir, ".travis.yml", answers)
 			if errInner != nil {
 				print.Erro("Failed to get .travis.yml template:", errInner)
 			}
@@ -332,7 +308,7 @@ func Init(ctx context.Context, gh *github.Client, dir string, config *types.Conf
 	return
 }
 
-func getTemplateFile(dir, filename string) (err error) {
+func getTemplateFile(dir, filename string, answers Answers) (err error) {
 	resp, err := http.Get("https://raw.githubusercontent.com/Southclaws/pawn-package-template/master/" + filename)
 	if err != nil {
 		return
@@ -344,7 +320,20 @@ func getTemplateFile(dir, filename string) (err error) {
 		}
 	}()
 
-	outputFile := filepath.Join(dir, filename)
+	contents, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+
+	outputContents, errInner := doTemplate(string(contents), answers)
+	if errInner != nil {
+		return
+	}
+
+	outputFile, err := doTemplate(filepath.Join(dir, filename), answers)
+	if err != nil {
+		return
+	}
 
 	if util.Exists(outputFile) {
 		outputFile = outputFile + "-duplicate"
@@ -366,10 +355,42 @@ func getTemplateFile(dir, filename string) (err error) {
 		}
 	}()
 
-	_, err = io.Copy(file, resp.Body)
+	_, err = file.WriteString(outputContents)
+
+	return
+}
+
+func validateUser(ans interface{}) (err error) {
+	if strings.ContainsAny(ans.(string), ` :;/\\~`) {
+		return errors.New("Contains invalid characters")
+	}
+	return
+}
+
+func validateRepo(ans interface{}) (err error) {
+	if strings.ContainsAny(ans.(string), ` :;/\\~`) {
+		return errors.New("Contains invalid characters")
+	}
+	return
+}
+
+func doTemplate(input string, answers Answers) (output string, err error) {
+	output = input // for error returns
+	out := &bytes.Buffer{}
+
+	tmpl, err := template.New("tmp").Parse(input)
 	if err != nil {
+		err = errors.Wrap(err, "failed to parse input as template")
 		return
 	}
 
+	answers.RepoEscaped = strings.Replace(answers.Repo, "-", "--", -1)
+	err = tmpl.Execute(out, answers)
+	if err != nil {
+		err = errors.Wrap(err, "failed to execute template")
+		return
+	}
+
+	output = out.String()
 	return
 }
