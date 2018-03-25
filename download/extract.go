@@ -5,7 +5,6 @@ import (
 	"archive/zip"
 	"compress/gzip"
 	"compress/zlib"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -229,6 +228,5 @@ func nameInPaths(name string, paths map[string]string) (found bool, source, targ
 	} else if strings.HasSuffix(target, "/") {
 		target = filepath.Join(target, filepath.Base(name))
 	}
-	fmt.Printf("NAME: '%s' FOUND %v AS \n\t'%s' > \n\t'%s'\n\n", name, found, source, target)
 	return
 }

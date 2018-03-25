@@ -1,10 +1,9 @@
 package rook
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strings"
 
 	"github.com/pkg/errors"
 
@@ -100,6 +99,7 @@ func ResolveDependencies(pkg *types.Package, platform string) (err error) {
 		if err != nil {
 			print.Warn(pkg, "Failed to resolve package resource paths:", err)
 		}
+		fmt.Println("GOT RESOURCES FOR", subPkg, ":", incPaths)
 		pkg.AllIncludePaths = append(pkg.AllIncludePaths, incPaths...)
 
 		// only add the package directory if there are no includes in the resources
@@ -166,61 +166,17 @@ func resolveResourcePaths(pkg types.Package, platform string) (paths []string, e
 			continue
 		}
 
-		resPath := filepath.Join(pkg.Vendor, res.Path(pkg))
-		for _, resInc := range res.Includes {
-			print.Verb(pkg, "checking resource includes path:", resInc)
-			targetPath := ""
-			var re *regexp.Regexp
-			re, err = regexp.Compile(resInc)
-			if err != nil || re == nil {
-				print.Verb(pkg, "resource includes path is an exact path")
-				resIncPath := filepath.Join(resPath, resInc)
-				if util.Exists(resIncPath) {
-					print.Verb(pkg, "adding resource include path", resIncPath)
-					targetPath = resIncPath
-				} else {
-					print.Erro(pkg, "resource includes exact path does not exist")
-				}
-			} else {
-				print.Verb(pkg, "resource includes path is a regular expression")
-				err = filepath.Walk(resPath, func(path string, info os.FileInfo, errInner error) error {
-					if errInner != nil {
-						if !strings.Contains(errInner.Error(), "GetFileAttributesEx") {
-							print.Erro(errInner)
-						}
-						return nil
-					}
+		targetPath := filepath.Join(pkg.Vendor, res.Path(pkg))
 
-					relPath, errInner := filepath.Rel(resPath, path)
-					if errInner != nil {
-						print.Erro(errInner)
-					}
-					relPath = filepath.ToSlash(relPath)
-					print.Verb(pkg, "checking path", relPath, "against regex", resInc)
-
-					if re.MatchString(relPath) && info.IsDir() {
-						print.Verb("adding resource incude path", path)
-						targetPath = path
-					}
-					return nil
-				})
-				if err != nil {
-					return
-				}
-			}
-			if targetPath == "" {
-				continue
-			}
-
-			var info os.FileInfo
-			info, err = os.Stat(targetPath)
-			if err != nil {
-				err = errors.Wrapf(err, "failed to stat target path %s", targetPath)
-				return
-			}
-			if info.IsDir() {
-				paths = append(paths, targetPath)
-			}
+		var info os.FileInfo
+		info, err = os.Stat(targetPath)
+		if err != nil {
+			err = errors.Wrapf(err, "failed to stat target path %s", targetPath)
+			return
+		}
+		if info.IsDir() {
+			print.Verb(pkg, "adding resource include path", targetPath)
+			paths = append(paths, targetPath)
 		}
 	}
 	return
