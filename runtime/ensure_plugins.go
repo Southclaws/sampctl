@@ -38,7 +38,7 @@ func EnsurePlugins(ctx context.Context, gh *github.Client, cfg *types.Runtime, c
 
 	for _, plugin := range cfg.PluginDeps {
 		print.Verb("plugin", plugin, "is a package dependency")
-		files, err = EnsureVersionedPlugin(ctx, gh, plugin, cfg.WorkingDir, cfg.Platform, cacheDir, noCache)
+		files, err = EnsureVersionedPlugin(ctx, gh, plugin, cfg.WorkingDir, cfg.Platform, cacheDir, true, false, noCache)
 		if err != nil {
 			print.Warn("failed to ensure plugin", plugin, err)
 			err = nil
@@ -65,7 +65,7 @@ func EnsurePlugins(ctx context.Context, gh *github.Client, cfg *types.Runtime, c
 }
 
 // EnsureVersionedPlugin automatically downloads a plugin binary from its github releases page
-func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, dir, platform, cacheDir string, noCache bool) (files []types.Plugin, err error) {
+func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, dir, platform, cacheDir string, plugins, includes, noCache bool) (files []types.Plugin, err error) {
 	var (
 		hit      bool
 		filename string
@@ -105,13 +105,17 @@ func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioni
 		paths := make(map[string]string)
 
 		// get plugins
-		for _, plugin := range resource.Plugins {
-			paths[plugin] = "plugins/"
+		if plugins {
+			for _, plugin := range resource.Plugins {
+				paths[plugin] = "plugins/"
+			}
 		}
 
 		// get include directories
-		for _, include := range resource.Includes {
-			paths[include] = ""
+		if includes {
+			for _, include := range resource.Includes {
+				paths[include] = ""
+			}
 		}
 
 		// get additional files
