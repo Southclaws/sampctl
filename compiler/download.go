@@ -70,7 +70,7 @@ func FromNet(ctx context.Context, gh *github.Client, meta versioning.DependencyM
 		return
 	}
 
-	err = method(path, dir, compiler.Paths)
+	_, err = method(path, dir, compiler.Paths)
 	if err != nil {
 		err = errors.Wrapf(err, "failed to unzip package %s", path)
 		return

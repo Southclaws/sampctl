@@ -90,7 +90,7 @@ func FromNet(cacheDir, version, dir, platform string) (err error) {
 		return errors.Wrap(err, "failed to download package")
 	}
 
-	err = method(fullPath, dir, paths)
+	_, err = method(fullPath, dir, paths)
 	if err != nil {
 		return errors.Wrapf(err, "failed to unzip package %s", filename)
 	}

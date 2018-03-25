@@ -24,46 +24,52 @@ func TestEnsurePlugins(t *testing.T) {
 		wantPlugins []types.Plugin
 		wantErr     bool
 	}{
-		{"streamer-linux", args{
+		// {"streamer-linux", args{
+		// 	types.Runtime{
+		// 		Platform:   "linux",
+		// 		PluginDeps: []versioning.DependencyMeta{{User: "samp-incognito", Repo: "samp-streamer-plugin"}},
+		// 	}}, []string{"plugins/streamer.so"}, []types.Plugin{"streamer"}, false},
+		// {"streamer-windows", args{
+		// 	types.Runtime{
+		// 		Platform:   "windows",
+		// 		PluginDeps: []versioning.DependencyMeta{{User: "samp-incognito", Repo: "samp-streamer-plugin"}},
+		// 	}}, []string{"plugins/streamer.dll"}, []types.Plugin{"streamer"}, false},
+		// {"mysql-linux", args{
+		// 	types.Runtime{
+		// 		Platform:   "linux",
+		// 		PluginDeps: []versioning.DependencyMeta{{User: "pBlueG", Repo: "SA-MP-MySQL"}},
+		// 	}}, []string{"plugins/mysql.so"}, []types.Plugin{"mysql"}, false},
+		// {"mysql-windows", args{
+		// 	types.Runtime{
+		// 		Platform:   "windows",
+		// 		PluginDeps: []versioning.DependencyMeta{{User: "pBlueG", Repo: "SA-MP-MySQL"}},
+		// 	}}, []string{"plugins/mysql.dll"}, []types.Plugin{"mysql"}, false},
+		// {"bitmapper-linux", args{
+		// 	types.Runtime{
+		// 		Platform:   "linux",
+		// 		PluginDeps: []versioning.DependencyMeta{{User: "Southclaws", Repo: "samp-bitmapper"}},
+		// 	}}, []string{"plugins/bitmapper.so"}, []types.Plugin{"bitmapper"}, false},
+		// {"bitmapper-windows", args{
+		// 	types.Runtime{
+		// 		Platform:   "windows",
+		// 		PluginDeps: []versioning.DependencyMeta{{User: "Southclaws", Repo: "samp-bitmapper"}},
+		// 	}}, []string{"plugins/bitmapper.dll"}, []types.Plugin{"bitmapper"}, false},
+		// {"PawnPlus-linux", args{
+		// 	types.Runtime{
+		// 		Platform:   "linux",
+		// 		PluginDeps: []versioning.DependencyMeta{{User: "IllidanS4", Repo: "PawnPlus"}},
+		// 	}}, []string{"plugins/PawnPlus.so"}, []types.Plugin{"PawnPlus"}, false},
+		// {"PawnPlus-windows", args{
+		// 	types.Runtime{
+		// 		Platform:   "windows",
+		// 		PluginDeps: []versioning.DependencyMeta{{User: "IllidanS4", Repo: "PawnPlus"}},
+		// 	}}, []string{"plugins/PawnPlus.dll"}, []types.Plugin{"PawnPlus"}, false},
+
+		{"discord-connector-linux", args{
 			types.Runtime{
 				Platform:   "linux",
-				PluginDeps: []versioning.DependencyMeta{{User: "samp-incognito", Repo: "samp-streamer-plugin"}},
-			}}, []string{"plugins/streamer.so"}, []types.Plugin{"streamer"}, false},
-		{"streamer-windows", args{
-			types.Runtime{
-				Platform:   "windows",
-				PluginDeps: []versioning.DependencyMeta{{User: "samp-incognito", Repo: "samp-streamer-plugin"}},
-			}}, []string{"plugins/streamer.dll"}, []types.Plugin{"streamer"}, false},
-		{"mysql-linux", args{
-			types.Runtime{
-				Platform:   "linux",
-				PluginDeps: []versioning.DependencyMeta{{User: "pBlueG", Repo: "SA-MP-MySQL"}},
-			}}, []string{"plugins/mysql.so"}, []types.Plugin{"mysql"}, false},
-		{"mysql-windows", args{
-			types.Runtime{
-				Platform:   "windows",
-				PluginDeps: []versioning.DependencyMeta{{User: "pBlueG", Repo: "SA-MP-MySQL"}},
-			}}, []string{"plugins/mysql.dll"}, []types.Plugin{"mysql"}, false},
-		{"bitmapper-linux", args{
-			types.Runtime{
-				Platform:   "linux",
-				PluginDeps: []versioning.DependencyMeta{{User: "Southclaws", Repo: "samp-bitmapper"}},
-			}}, []string{"plugins/bitmapper.so"}, []types.Plugin{"bitmapper"}, false},
-		{"bitmapper-windows", args{
-			types.Runtime{
-				Platform:   "windows",
-				PluginDeps: []versioning.DependencyMeta{{User: "Southclaws", Repo: "samp-bitmapper"}},
-			}}, []string{"plugins/bitmapper.dll"}, []types.Plugin{"bitmapper"}, false},
-		{"PawnPlus-linux", args{
-			types.Runtime{
-				Platform:   "linux",
-				PluginDeps: []versioning.DependencyMeta{{User: "IllidanS4", Repo: "PawnPlus"}},
-			}}, []string{"plugins/PawnPlus.so"}, []types.Plugin{"PawnPlus"}, false},
-		{"PawnPlus-windows", args{
-			types.Runtime{
-				Platform:   "windows",
-				PluginDeps: []versioning.DependencyMeta{{User: "IllidanS4", Repo: "PawnPlus"}},
-			}}, []string{"plugins/PawnPlus.dll"}, []types.Plugin{"PawnPlus"}, false},
+				PluginDeps: []versioning.DependencyMeta{{User: "maddinat0r", Repo: "samp-discord-connector"}},
+			}}, []string{"plugins/discord-connector.so"}, []types.Plugin{"discord-connector"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -78,7 +84,7 @@ func TestEnsurePlugins(t *testing.T) {
 			}
 			assert.NoError(t, err)
 
-			// the first clal to EnsurePlugins modifies this list, we don't want duplicates in the next test, so clear it
+			// the first call to EnsurePlugins modifies this list, we don't want duplicates in the next test, so clear it
 			tt.args.cfg.Plugins = []types.Plugin{}
 
 			t.Log("Second call to Ensure - from cache")
