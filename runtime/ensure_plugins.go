@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -37,7 +38,7 @@ func EnsurePlugins(ctx context.Context, gh *github.Client, cfg *types.Runtime, c
 
 	for _, plugin := range cfg.PluginDeps {
 		print.Verb("plugin", plugin, "is a package dependency")
-		files, err = EnsureVersionedPlugin(ctx, gh, plugin, cfg.WorkingDir, cfg.Platform, cacheDir, noCache)
+		files, err = EnsureVersionedPlugin(ctx, gh, plugin, cfg.WorkingDir, cfg.Platform, cacheDir, true, false, noCache)
 		if err != nil {
 			print.Warn("failed to ensure plugin", plugin, err)
 			err = nil
@@ -64,7 +65,7 @@ func EnsurePlugins(ctx context.Context, gh *github.Client, cfg *types.Runtime, c
 }
 
 // EnsureVersionedPlugin automatically downloads a plugin binary from its github releases page
-func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, dir, platform, cacheDir string, noCache bool) (files []types.Plugin, err error) {
+func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, dir, platform, cacheDir string, plugins, includes, noCache bool) (files []types.Plugin, err error) {
 	var (
 		hit      bool
 		filename string
@@ -104,15 +105,17 @@ func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioni
 		paths := make(map[string]string)
 
 		// get plugins
-		for _, plugin := range resource.Plugins {
-			pluginFileName := filepath.Base(plugin)
-			paths[plugin] = filepath.Join("plugins", pluginFileName)
-			files = append(files, types.Plugin(pluginFileName))
+		if plugins {
+			for _, plugin := range resource.Plugins {
+				paths[plugin] = "plugins/"
+			}
 		}
 
 		// get include directories
-		for _, include := range resource.Includes {
-			paths[include] = ""
+		if includes {
+			for _, include := range resource.Includes {
+				paths[include] = ""
+			}
 		}
 
 		// get additional files
@@ -120,10 +123,20 @@ func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioni
 			paths[src] = dest
 		}
 
-		err = method(filename, dir, paths)
+		var extractedFiles map[string]string
+		extractedFiles, err = method(filename, dir, paths)
 		if err != nil {
 			err = errors.Wrapf(err, "failed to extract plugin %s to %s", meta, dir)
 			return
+		}
+
+		fmt.Printf("Extracted:\n%#v\n", extractedFiles)
+		for source, target := range extractedFiles {
+			for _, plugin := range resource.Plugins {
+				if source == plugin {
+					files = append(files, types.Plugin(filepath.Base(target)))
+				}
+			}
 		}
 	} else {
 		base := filepath.Base(filename)

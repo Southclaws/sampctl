@@ -21,7 +21,7 @@ import (
 // ExtractFunc represents a function responsible for extracting a set of files from an archive to
 // a directory. The map argument contains a map of source files in the archive to target file
 // locations on the host filesystem (absolute paths).
-type ExtractFunc func(string, string, map[string]string) error
+type ExtractFunc func(string, string, map[string]string) (map[string]string, error)
 
 const (
 	// ExtractZip is an extract function for .zip packages
@@ -69,7 +69,7 @@ func FromCache(cacheDir, filename, dir string, method ExtractFunc, paths map[str
 		return
 	}
 
-	err = method(path, dir, paths)
+	_, err = method(path, dir, paths)
 	if err != nil {
 		hit = false
 		err = errors.Wrapf(err, "failed to unzip package %s", path)

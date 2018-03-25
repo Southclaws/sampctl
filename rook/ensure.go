@@ -465,7 +465,7 @@ func extractResourceDependencies(ctx context.Context, gh *github.Client, pkg typ
 		return
 	}
 
-	_, err = runtime.EnsureVersionedPlugin(ctx, gh, pkg.DependencyMeta, dir, platform, cacheDir, false)
+	_, err = runtime.EnsureVersionedPlugin(ctx, gh, pkg.DependencyMeta, dir, platform, cacheDir, false, true, false)
 	if err != nil {
 		err = errors.Wrap(err, "failed to ensure asset")
 		return
