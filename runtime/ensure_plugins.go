@@ -3,7 +3,6 @@ package runtime
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -130,7 +129,6 @@ func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioni
 			return
 		}
 
-		fmt.Printf("Extracted:\n%#v\n", extractedFiles)
 		for source, target := range extractedFiles {
 			for _, plugin := range resource.Plugins {
 				if source == plugin {
