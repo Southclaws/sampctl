@@ -32,13 +32,13 @@ type Runtime struct {
 	Echo *string `default:"-" required:"0" json:"echo,omitempty" yaml:"echo,omitempty"`
 
 	// Core properties
-	Gamemodes     []string `cfg:"gamemode" numbered:"1"          json:"gamemodes"               yaml:"gamemodes"`               //
+	Gamemodes     []string `cfg:"gamemode" numbered:"1"          json:"gamemodes,omitempty"     yaml:"gamemodes,omitempty"`     //
 	Filterscripts []string `                        required:"0" json:"filterscripts,omitempty" yaml:"filterscripts,omitempty"` //
 	Plugins       []Plugin `                        required:"0" json:"plugins,omitempty"       yaml:"plugins,omitempty"`       //
 	RCONPassword  *string  `                        required:"1" json:"rcon_password,omitempty" yaml:"rcon_password,omitempty"` // changeme
-	Port          *int     `default:"8192"          required:"0" json:"port"                    yaml:"port"`                    // 8192
+	Port          *int     `default:"8192"          required:"0" json:"port,omitempty"          yaml:"port,omitempty"`          // 8192
 	Hostname      *string  `default:"SA-MP Server"  required:"0" json:"hostname,omitempty"      yaml:"hostname,omitempty"`      // SA-MP Server
-	MaxPlayers    *int     `default:"50"            required:"0" json:"maxplayers"              yaml:"maxplayers"`              // 50
+	MaxPlayers    *int     `default:"50"            required:"0" json:"maxplayers,omitempty"    yaml:"maxplayers,omitempty"`    // 50
 	Language      *string  `default:"-"             required:"0" json:"language,omitempty"      yaml:"language,omitempty"`      //
 	Mapname       *string  `default:"San Andreas"   required:"0" json:"mapname,omitempty"       yaml:"mapname,omitempty"`       // San Andreas
 	Weburl        *string  `default:"www.sa-mp.com" required:"0" json:"weburl,omitempty"        yaml:"weburl,omitempty"`        // www.sa-mp.com
@@ -79,7 +79,7 @@ type Runtime struct {
 	Output            *bool    `default:"1"             required:"0" json:"output,omitempty"            yaml:"output,omitempty"`            // 1
 
 	// Extra properties for plugins etc
-	Extra map[string]string `required:"0" json:"extra" yaml:"extra"`
+	Extra map[string]string `required:"0" json:"extra,omitempty" yaml:"extra,omitempty"`
 }
 
 // ContainerConfig is used if the runtime is specified to run inside a container
