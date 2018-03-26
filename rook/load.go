@@ -85,18 +85,17 @@ func ResolveDependencies(pkg *types.Package, platform string) (err error) {
 			return
 		}
 
-		var subPkg types.Package
-		subPkg, err = PackageFromDir(false, dependencyDir, platform, pkg.Vendor)
-		if err != nil {
-			print.Verb(pkg, "not a package:", meta, err)
+		subPkg, errInner := PackageFromDir(false, dependencyDir, platform, pkg.Vendor)
+		if errInner != nil {
+			print.Verb(pkg, "not a package:", meta, errInner)
 			pkg.AllDependencies = append(pkg.AllDependencies, meta)
 			return
 		}
 
 		var incPaths []string
-		incPaths, err = resolveResourcePaths(subPkg, platform)
-		if err != nil {
-			print.Warn(pkg, "Failed to resolve package resource paths:", err)
+		incPaths, errInner = resolveResourcePaths(subPkg, platform)
+		if errInner != nil {
+			print.Warn(pkg, "Failed to resolve package resource paths:", errInner)
 		}
 		pkg.AllIncludePaths = append(pkg.AllIncludePaths, incPaths...)
 
@@ -109,9 +108,9 @@ func ResolveDependencies(pkg *types.Package, platform string) (err error) {
 
 		if subPkg.Runtime != nil {
 			for _, pluginDepStr := range subPkg.Runtime.Plugins {
-				pluginMeta, err = pluginDepStr.AsDep()
-				if err != nil {
-					print.Warn(pkg, "invalid plugin dependency string:", pluginDepStr, "in", subPkg, err)
+				pluginMeta, errInner = pluginDepStr.AsDep()
+				if errInner != nil {
+					print.Warn(pkg, "invalid plugin dependency string:", pluginDepStr, "in", subPkg, errInner)
 					return
 				}
 				pkg.AllPlugins = append(pkg.AllPlugins, pluginMeta)
@@ -120,9 +119,9 @@ func ResolveDependencies(pkg *types.Package, platform string) (err error) {
 
 		var subPkgDepMeta versioning.DependencyMeta
 		for _, subPkgDep := range subPkg.Dependencies {
-			subPkgDepMeta, err = subPkgDep.Explode()
-			if err != nil {
-				print.Verb(pkg, "invalid dependency string:", subPkgDepMeta, "in", subPkg, err)
+			subPkgDepMeta, errInner = subPkgDep.Explode()
+			if errInner != nil {
+				print.Verb(pkg, "invalid dependency string:", subPkgDepMeta, "in", subPkg, errInner)
 				continue
 			}
 			if _, ok := visited[subPkgDepMeta.Repo]; !ok {
