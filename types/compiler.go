@@ -88,6 +88,16 @@ func (bps BuildProblems) Errors() (warnings []BuildProblem) {
 	return
 }
 
+// Errors returns a slice of only errors from a BuildProblems object
+func (bps BuildProblems) Fatal() (fatal bool) {
+	for _, b := range bps {
+		if b.Severity == ProblemFatal {
+			return true
+		}
+	}
+	return false
+}
+
 // IsValid returns true if the BuildProblems only contains warnings, if there are errors it's false
 func (bps BuildProblems) IsValid() bool {
 	return len(bps.Errors()) == 0

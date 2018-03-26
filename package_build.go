@@ -83,8 +83,10 @@ func packageBuild(c *cli.Context) error {
 			return cli.NewExitError(err.Error(), 1)
 		}
 
-		if len(problems.Errors()) > 0 {
-			print.Erro("Build failed with", len(problems), "problems")
+		if problems.Fatal() {
+			return cli.NewExitError(errors.New("Build encountered fatal error"), 1)
+		} else if len(problems.Errors()) > 0 {
+			return cli.NewExitError(errors.Errorf("Build failed with %d problems", len(problems)), 1)
 		} else if len(problems.Warnings()) > 0 {
 			print.Warn("Build complete with", len(problems), "problems")
 		} else {
