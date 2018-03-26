@@ -26,98 +26,98 @@ func TestPackage_Build(t *testing.T) {
 		wantProblems types.BuildProblems
 		wantErr      bool
 	}{
-		// {
-		// 	"bare", []byte(`main(){}`), args{&types.Package{
-		// 		Parent:         true,
-		// 		Local:          util.FullPath("./tests/build-auto-bare"),
-		// 		DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "bare"},
-		// 		Entry:          "gamemodes/test.pwn",
-		// 		Output:         "gamemodes/test.amx",
-		// 		Dependencies:   []versioning.DependencyString{},
-		// 		Builds: []types.BuildConfig{
-		// 			{Name: "build", Version: "3.10.4"},
-		// 		},
-		// 	}, "build", true}, nil, false,
-		// },
-		// {
-		// 	"stdlib", []byte(`#include <a_samp>
-		// 	main() {print("hi");}`,
-		// 	), args{&types.Package{
-		// 		Parent:         true,
-		// 		Local:          util.FullPath("./tests/build-auto-stdlib"),
-		// 		DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "stdlib"},
-		// 		Entry:          "gamemodes/test.pwn",
-		// 		Output:         "gamemodes/test.amx",
-		// 		Dependencies: []versioning.DependencyString{
-		// 			"sampctl/samp-stdlib",
-		// 		},
-		// 		Builds: []types.BuildConfig{
-		// 			{Name: "build", Version: "3.10.4"},
-		// 		},
-		// 	}, "build", true}, nil, false,
-		// },
-		// {
-		// 	"deep", []byte(`#include <a_samp>
-		// 	#include <actions>
-		// 	main() { print("actions"); }`,
-		// 	), args{&types.Package{
-		// 		Parent:         true,
-		// 		Local:          util.FullPath("./tests/build-auto-deep"),
-		// 		DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "deep"},
-		// 		Entry:          "gamemodes/test.pwn",
-		// 		Output:         "gamemodes/test.amx",
-		// 		Dependencies: []versioning.DependencyString{
-		// 			"sampctl/samp-stdlib",
-		// 			"ScavengeSurvive/actions",
-		// 		},
-		// 	}, "build", true}, nil, false,
-		// },
-		// {
-		// 	"dev", []byte(`#include <a_samp>
-		// 		#include <actions>
-		// 		#include <test-boilerplate>
-		// 		main() { print("actions"); }`,
-		// 	), args{&types.Package{
-		// 		Parent:         true,
-		// 		Local:          util.FullPath("./tests/build-auto-deep"),
-		// 		DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "deep"},
-		// 		Entry:          "gamemodes/test.pwn",
-		// 		Output:         "gamemodes/test.amx",
-		// 		Dependencies: []versioning.DependencyString{
-		// 			"sampctl/samp-stdlib",
-		// 			"ScavengeSurvive/actions",
-		// 		},
-		// 		Development: []versioning.DependencyString{
-		// 			"ScavengeSurvive/test-boilerplate",
-		// 		},
-		// 	}, "build", true}, nil, false,
-		// },
-		// {
-		// 	"custominc", []byte(`#include <a_samp>
-		// 	#include <YSI\y_utils>
-		// 	main() {}`,
-		// 	), args{&types.Package{
-		// 		Parent:         true,
-		// 		Local:          util.FullPath("./tests/build-auto-custominc"),
-		// 		DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "custominc"},
-		// 		Entry:          "gamemodes/test.pwn",
-		// 		Output:         "gamemodes/test.amx",
-		// 		Dependencies: []versioning.DependencyString{
-		// 			"sampctl/samp-stdlib",
-		// 		},
-		// 		Builds: []types.BuildConfig{
-		// 			{
-		// 				Name:    "build",
-		// 				Version: "3.10.4",
-		// 				Includes: []string{
-		// 					"../build-auto-deep/dependencies/amx_assembly",
-		// 					"../build-auto-deep/dependencies/YSI-Includes",
-		// 				},
-		// 				Args: []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
-		// 			},
-		// 		},
-		// 	}, "build", true}, nil, false,
-		// },
+		{
+			"bare", []byte(`main(){}`), args{&types.Package{
+				Parent:         true,
+				Local:          util.FullPath("./tests/build-auto-bare"),
+				DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "bare"},
+				Entry:          "gamemodes/test.pwn",
+				Output:         "gamemodes/test.amx",
+				Dependencies:   []versioning.DependencyString{},
+				Builds: []types.BuildConfig{
+					{Name: "build", Version: "3.10.4"},
+				},
+			}, "build", true}, nil, false,
+		},
+		{
+			"stdlib", []byte(`#include <a_samp>
+			main() {print("hi");}`,
+			), args{&types.Package{
+				Parent:         true,
+				Local:          util.FullPath("./tests/build-auto-stdlib"),
+				DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "stdlib"},
+				Entry:          "gamemodes/test.pwn",
+				Output:         "gamemodes/test.amx",
+				Dependencies: []versioning.DependencyString{
+					"sampctl/samp-stdlib",
+				},
+				Builds: []types.BuildConfig{
+					{Name: "build", Version: "3.10.4"},
+				},
+			}, "build", true}, nil, false,
+		},
+		{
+			"deep", []byte(`#include <a_samp>
+			#include <actions>
+			main() { print("actions"); }`,
+			), args{&types.Package{
+				Parent:         true,
+				Local:          util.FullPath("./tests/build-auto-deep"),
+				DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "deep"},
+				Entry:          "gamemodes/test.pwn",
+				Output:         "gamemodes/test.amx",
+				Dependencies: []versioning.DependencyString{
+					"sampctl/samp-stdlib",
+					"ScavengeSurvive/actions",
+				},
+			}, "build", true}, nil, false,
+		},
+		{
+			"dev", []byte(`#include <a_samp>
+				#include <actions>
+				#include <test-boilerplate>
+				main() { print("actions"); }`,
+			), args{&types.Package{
+				Parent:         true,
+				Local:          util.FullPath("./tests/build-auto-deep"),
+				DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "deep"},
+				Entry:          "gamemodes/test.pwn",
+				Output:         "gamemodes/test.amx",
+				Dependencies: []versioning.DependencyString{
+					"sampctl/samp-stdlib",
+					"ScavengeSurvive/actions",
+				},
+				Development: []versioning.DependencyString{
+					"ScavengeSurvive/test-boilerplate",
+				},
+			}, "build", true}, nil, false,
+		},
+		{
+			"custominc", []byte(`#include <a_samp>
+			#include <YSI\y_utils>
+			main() {}`,
+			), args{&types.Package{
+				Parent:         true,
+				Local:          util.FullPath("./tests/build-auto-custominc"),
+				DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "custominc"},
+				Entry:          "gamemodes/test.pwn",
+				Output:         "gamemodes/test.amx",
+				Dependencies: []versioning.DependencyString{
+					"sampctl/samp-stdlib",
+				},
+				Builds: []types.BuildConfig{
+					{
+						Name:    "build",
+						Version: "3.10.4",
+						Includes: []string{
+							"../build-auto-deep/dependencies/amx_assembly",
+							"../build-auto-deep/dependencies/YSI-Includes",
+						},
+						Args: []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
+					},
+				},
+			}, "build", true}, nil, false,
+		},
 		{
 			"resourceinc", []byte(`#include <a_samp>
 			#include <a_mysql>
@@ -131,6 +131,22 @@ func TestPackage_Build(t *testing.T) {
 				Dependencies: []versioning.DependencyString{
 					"sampctl/samp-stdlib",
 					"pBlueG/SA-MP-MySQL",
+				},
+			}, "build", true}, nil, false,
+		},
+		{
+			"colandreasinc", []byte(`#include <a_samp>
+			#include <colandreas>
+			main() {}`,
+			), args{&types.Package{
+				Parent:         true,
+				Local:          util.FullPath("./tests/build-auto-colandreasinc"),
+				DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "colandreasinc"},
+				Entry:          "gamemodes/test.pwn",
+				Output:         "gamemodes/test.amx",
+				Dependencies: []versioning.DependencyString{
+					"sampctl/samp-stdlib",
+					"Pottus/ColAndreas",
 				},
 			}, "build", true}, nil, false,
 		},

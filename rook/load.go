@@ -1,7 +1,6 @@
 package rook
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -99,7 +98,6 @@ func ResolveDependencies(pkg *types.Package, platform string) (err error) {
 		if err != nil {
 			print.Warn(pkg, "Failed to resolve package resource paths:", err)
 		}
-		fmt.Println("GOT RESOURCES FOR", subPkg, ":", incPaths)
 		pkg.AllIncludePaths = append(pkg.AllIncludePaths, incPaths...)
 
 		// only add the package directory if there are no includes in the resources
