@@ -171,7 +171,7 @@ func resolveResourcePaths(pkg types.Package, platform string) (paths []string, e
 			err = errors.Wrapf(err, "failed to stat target path %s", targetPath)
 			return
 		}
-		if info.IsDir() {
+		if info.IsDir() && len(res.Includes) > 0 {
 			print.Verb(pkg, "adding resource include path", targetPath)
 			paths = append(paths, targetPath)
 		}
