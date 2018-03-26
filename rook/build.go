@@ -162,9 +162,26 @@ func BuildWatch(ctx context.Context, gh *github.Client, auth transport.AuthMetho
 	if err != nil {
 		return errors.Wrap(err, "failed to create new filesystem watcher")
 	}
-	err = watcher.Add(pkg.Local)
+	err = filepath.Walk(pkg.Local, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			print.Warn(err)
+			return nil
+		}
+
+		if !info.IsDir() {
+			return nil
+		}
+
+		err = watcher.Add(path)
+		if err != nil {
+			print.Warn(err)
+			return nil
+		}
+
+		return nil
+	})
 	if err != nil {
-		return errors.Wrap(err, "failed to add package directory to filesystem watcher")
+		return errors.Wrap(err, "failed to add paths to filesystem watcher")
 	}
 
 	print.Verb("watching directory for changes", pkg.Local)
