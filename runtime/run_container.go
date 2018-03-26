@@ -88,7 +88,7 @@ func RunContainer(ctx context.Context, cfg sampctltypes.Runtime, cacheDir string
 
 	containerName := fmt.Sprintf("sampctl-%d", time.Now().Unix())
 
-	ctxPrepare, cancel := context.WithTimeout(ctx, time.Second*30)
+	ctxPrepare, cancel := context.WithTimeout(ctx, time.Minute*10)
 	defer cancel()
 
 	var cnt container.ContainerCreateCreatedBody
