@@ -173,24 +173,20 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 		print.Info("Released at:", fmt.Sprintf("https://github.com/%s/%s/releases", pkg.User, pkg.Repo))
 	}
 
-	if answers.Distribution {
-		// todo: zip the package in a `pawno/include` style
-		// possibly include dependencies too
-	}
+	// todo: zip the package in a `pawno/include` style
+	// possibly include dependencies too
+	// if answers.Distribution {
+	// }
 
 	return
 }
 
 func generateVersionInc(pkg types.Package, version *semver.Version) (err error) {
-	return ioutil.WriteFile(filepath.Join(pkg.Local, "version.inc"), []byte(generateVersionIncString(pkg.Repo, version)), 0600)
+	return ioutil.WriteFile(filepath.Join(pkg.Local, packageSlug(pkg.Repo)+"_version.inc"), []byte(generateVersionIncString(pkg.Repo, version)), 0600)
 }
 
-func generateVersionIncString(repo string, version *semver.Version) (result string) {
-	replacer := strings.NewReplacer(
-		"-", "_",
-		".", "_",
-	)
-	packageName := strings.ToUpper(replacer.Replace(repo))
+func generateVersionIncString(name string, version *semver.Version) (result string) {
+	packageName := strings.ToUpper(packageSlug(name))
 	result = fmt.Sprintf(versionIncTemplate,
 		packageName,
 		version.Major(),
@@ -200,4 +196,12 @@ func generateVersionIncString(repo string, version *semver.Version) (result stri
 		version.Patch(),
 	)
 	return
+}
+
+func packageSlug(name string) (slug string) {
+	replacer := strings.NewReplacer(
+		"-", "_",
+		".", "_",
+	)
+	return replacer.Replace(name)
 }
