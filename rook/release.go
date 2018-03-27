@@ -130,7 +130,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 		// todo: generate changelog
 
 		print.Info("Creating release for", newVersion)
-		release, _, err := gh.Repositories.CreateRelease(ctx, pkg.User, pkg.Repo, &github.RepositoryRelease{
+		_, _, err := gh.Repositories.CreateRelease(ctx, pkg.User, pkg.Repo, &github.RepositoryRelease{
 			TagName: &newVersion,
 			Name:    &newVersion,
 			Draft:   &[]bool{true}[0],
