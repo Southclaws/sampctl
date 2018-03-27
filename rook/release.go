@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/AlecAivazis/survey.v1"
 	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/config"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
@@ -83,18 +84,18 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 		}
 	}
 
-	questions = append(questions, &survey.Question{
-		Name: "Distribution",
-		Prompt: &survey.Confirm{
-			Message: "Create Distribution Release?",
-			Default: false,
-		},
-	})
+	// questions = append(questions, &survey.Question{
+	// 	Name: "Distribution",
+	// 	Prompt: &survey.Confirm{
+	// 		Message: "Create Distribution Release?",
+	// 		Default: false,
+	// 	},
+	// })
 
 	questions = append(questions, &survey.Question{
 		Name: "GitHub",
 		Prompt: &survey.Confirm{
-			Message: "Create GitHub Release? (Requires GitHub API token to be set)",
+			Message: "Create GitHub Release? (requires `github_token` token to be set in `~/.samp/config.json`)",
 			Default: false,
 		},
 	})
@@ -111,28 +112,40 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 	hash := plumbing.NewHashReference(ref, head.Hash())
 	err = repo.Storer.SetReference(hash)
 
-	print.Info("Pushing", newVersion, "to remote")
-	err = repo.Push(&git.PushOptions{
-		Auth: auth,
-	})
-	if err != nil {
-		if err.Error() == "authentication required" {
-			print.Erro("Please set `github_token` to a GitHub API token in `~/.samp/config.json`")
+	if answers.GitHub {
+		print.Info("Pushing", newVersion, "to remote")
+		err = repo.Push(&git.PushOptions{
+			RefSpecs: []config.RefSpec{config.RefSpec("refs/tags/*:refs/tags/*")},
+			Auth:     auth,
+		})
+		if err != nil {
+			if err.Error() == "authentication required" {
+				print.Erro("Please set `github_token` to a GitHub API token in `~/.samp/config.json`")
+			} else if err.Error() == "already up-to-date" {
+				err = nil
+			}
+			return errors.Wrap(err, "failed to push")
 		}
-		return errors.Wrap(err, "failed to push")
+
+		// todo: generate changelog
+
+		print.Info("Creating release for", newVersion)
+		release, _, err := gh.Repositories.CreateRelease(ctx, pkg.User, pkg.Repo, &github.RepositoryRelease{
+			TagName: &newVersion,
+			Name:    &newVersion,
+			Draft:   &[]bool{true}[0],
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to create release")
+		}
+
+		print.Info("Released at:", fmt.Sprintf("https://github.com/%s/%s/releases", pkg.User, pkg.Repo))
 	}
 
-	print.Info("Creating release for", newVersion)
-	release, _, err := gh.Repositories.CreateRelease(ctx, pkg.User, pkg.Repo, &github.RepositoryRelease{
-		TagName: &newVersion,
-		Name:    &newVersion,
-		Draft:   &[]bool{true}[0],
-	})
-	if err != nil {
-		return errors.Wrap(err, "failed to create release")
+	if answers.Distribution {
+		// todo: zip the package in a `pawno/include` style
+		// possibly include dependencies too
 	}
-
-	print.Info("Released at:", release.GetURL())
 
 	return
 }
