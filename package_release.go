@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"runtime"
 
 	"github.com/pkg/errors"
@@ -31,7 +32,7 @@ func packageRelease(c *cli.Context) error {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	err = rook.Release(pkg)
+	err = rook.Release(context.Background(), gh, gitAuth, pkg)
 	if err != nil {
 		return errors.Wrap(err, "failed to release")
 	}

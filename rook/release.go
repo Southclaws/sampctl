@@ -1,14 +1,17 @@
 package rook
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
 
+	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 	"gopkg.in/AlecAivazis/survey.v1"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/types"
@@ -16,7 +19,7 @@ import (
 )
 
 // Release is an interactive release tool for package versioning
-func Release(pkg types.Package) (err error) {
+func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pkg types.Package) (err error) {
 	repo, err := git.PlainOpen(pkg.Local)
 	if err != nil {
 		return errors.Wrap(err, "failed to read package as git repository")
@@ -34,7 +37,11 @@ func Release(pkg types.Package) (err error) {
 	sort.Sort(sort.Reverse(tags))
 
 	var questions []*survey.Question
-	var answers struct{ Version string, Distribution bool, GitHub bool }
+	var answers struct {
+		Version      string
+		Distribution bool
+		GitHub       bool
+	}
 
 	if len(tags) == 0 {
 		questions = []*survey.Question{
@@ -76,18 +83,56 @@ func Release(pkg types.Package) (err error) {
 		}
 	}
 
+	questions = append(questions, &survey.Question{
+		Name: "Distribution",
+		Prompt: &survey.Confirm{
+			Message: "Create Distribution Release?",
+			Default: false,
+		},
+	})
+
+	questions = append(questions, &survey.Question{
+		Name: "GitHub",
+		Prompt: &survey.Confirm{
+			Message: "Create GitHub Release? (Requires GitHub API token to be set)",
+			Default: false,
+		},
+	})
+
 	err = survey.Ask(questions, &answers)
 	if err != nil {
 		return errors.Wrap(err, "failed to open wizard")
 	}
-
-	print.Info("New version:", answers.Version)
-
 	newVersion := strings.Split(answers.Version, ":")[0]
+
+	print.Info("New version:", newVersion)
 
 	ref := plumbing.ReferenceName("refs/tags/" + newVersion)
 	hash := plumbing.NewHashReference(ref, head.Hash())
 	err = repo.Storer.SetReference(hash)
+
+	print.Info("Pushing", newVersion, "to remote")
+	err = repo.Push(&git.PushOptions{
+		Auth: auth,
+	})
+	if err != nil {
+		if err.Error() == "authentication required" {
+			print.Erro("Please set `github_token` to a GitHub API token in `~/.samp/config.json`")
+		}
+		return errors.Wrap(err, "failed to push")
+	}
+
+	print.Info("Creating release for", newVersion)
+	release, _, err := gh.Repositories.CreateRelease(ctx, pkg.User, pkg.Repo, &github.RepositoryRelease{
+		TagName: &newVersion,
+		Name:    &newVersion,
+		Draft:   &[]bool{true}[0],
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to create release")
+	}
+
+	print.Info("Released at:", release.GetURL())
 
 	return
 }
