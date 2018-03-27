@@ -22,19 +22,8 @@ import (
 	"github.com/Southclaws/sampctl/versioning"
 )
 
-// ensure.go contains functions to install, update and validate dependencies of a project.
-
 // ErrNotRemotePackage describes a repository that does not contain a package definition file
 var ErrNotRemotePackage = errors.New("remote repository does not declare a package")
-
-// VersionedTag represents a git tag ref with a valid semantic version number as a tag
-type VersionedTag struct {
-	Ref *plumbing.Reference
-	Tag *semver.Version
-}
-
-// VersionedTags is just for implementing the Sort interface
-type VersionedTags []VersionedTag
 
 // EnsureDependencies traverses package dependencies and ensures they are up to date
 func EnsureDependencies(ctx context.Context, gh *github.Client, pkg *types.Package, auth transport.AuthMethod, platform, cacheDir string) (err error) {
@@ -316,8 +305,8 @@ func RefFromTag(repo *git.Repository, meta versioning.DependencyMeta) (ref *plum
 			err = errors.Errorf("failed to satisfy constraint, '%s' not in %v", meta.Tag, tagList)
 		}
 	} else {
-		var versionedTags VersionedTags
-		versionedTags, err = GetRepoSemverTags(repo)
+		var versionedTags versioning.VersionedTags
+		versionedTags, err = versioning.GetRepoSemverTags(repo)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get repo tags")
 		}
@@ -400,58 +389,6 @@ func RefFromCommit(repo *git.Repository, meta versioning.DependencyMeta) (result
 	if result.IsZero() {
 		err = errors.Errorf("no commit named '%s' found", meta.Commit)
 	}
-	return
-}
-
-// Implements the sort interface on collections of VersionedTags - code copied from semver because
-// VersionedTags is just a copy of semver.Collection with the added git ref field
-
-// Len returns the length of a collection. The number of Version instances
-// on the slice.
-func (c VersionedTags) Len() int {
-	return len(c)
-}
-
-// Less is needed for the sort interface to compare two Version objects on the
-// slice. If checks if one is less than the other.
-func (c VersionedTags) Less(i, j int) bool {
-	return c[i].Tag.LessThan(c[j].Tag)
-}
-
-// Swap is needed for the sort interface to replace the Version objects
-// at two different positions in the slice.
-func (c VersionedTags) Swap(i, j int) {
-	c[i], c[j] = c[j], c[i]
-}
-
-// GetRepoSemverTags returns a list of tags that are valid semantic versions
-func GetRepoSemverTags(repo *git.Repository) (versionedTags VersionedTags, err error) {
-	tags, err := repo.Tags()
-	if err != nil {
-		err = errors.Wrap(err, "failed to get repo tags")
-		return
-	}
-	defer tags.Close()
-
-	err = tags.ForEach(func(pr *plumbing.Reference) error {
-		tag := pr.Name().Short()
-
-		tagVersion, errInner := semver.NewVersion(tag)
-		if errInner != nil {
-			return nil
-		}
-
-		versionedTags = append(versionedTags, VersionedTag{
-			Ref: pr,
-			Tag: tagVersion,
-		})
-
-		return nil
-	})
-	if err != nil {
-		err = errors.Wrap(err, "failed to iterate commits")
-	}
-
 	return
 }
 

@@ -140,6 +140,13 @@ func main() {
 					BashComplete: packageInstallBash,
 				},
 				{
+					Name:         "release",
+					Usage:        "sampctl package release",
+					Description:  "Creates a release version and tags the repository with the next version number, creates a GitHub release with archived package files.",
+					Action:       packageRelease,
+					Flags:        append(globalFlags, packageReleaseFlags...),
+				},
+				{
 					Name:         "get",
 					Usage:        "sampctl package get [package definition] (target path)",
 					Description:  "Clones a GitHub package to either a directory named after the repo or, if the cwd is empty, the cwd and then ensures the package.",
