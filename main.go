@@ -11,6 +11,7 @@ import (
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 	"gopkg.in/urfave/cli.v1"
 
@@ -59,13 +60,13 @@ func main() {
 		gh = github.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(&oauth2.Token{AccessToken: config.GitHubToken})))
 	}
 
-	// if config.GitUsername != "" && config.GitPassword != "" {
-	// 	gitAuth = http.NewBasicAuth(config.GitUsername, config.GitPassword)
-	// }
-
-	gitAuth, err = ssh.DefaultAuthBuilder("git")
-	if err != nil {
-		print.Verb("Failed to set up SSH:", err)
+	if config.GitUsername != "" && config.GitPassword != "" {
+		gitAuth = http.NewBasicAuth(config.GitUsername, config.GitPassword)
+	} else {
+		gitAuth, err = ssh.DefaultAuthBuilder("git")
+		if err != nil {
+			print.Verb("Failed to set up SSH:", err)
+		}
 	}
 
 	globalFlags := []cli.Flag{
@@ -138,6 +139,13 @@ func main() {
 					Action:       packageInstall,
 					Flags:        append(globalFlags, packageInstallFlags...),
 					BashComplete: packageInstallBash,
+				},
+				{
+					Name:        "release",
+					Usage:       "sampctl package release",
+					Description: "Creates a release version and tags the repository with the next version number, creates a GitHub release with archived package files.",
+					Action:      packageRelease,
+					Flags:       append(globalFlags, packageReleaseFlags...),
 				},
 				{
 					Name:         "get",
