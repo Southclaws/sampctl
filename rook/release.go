@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver"
-
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 	"gopkg.in/AlecAivazis/survey.v1"
@@ -68,6 +67,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 						"0.0.1: Unstable prototype",
 						"0.1.0: Stable prototype but subject to change",
 						"1.0.0: Stable release, API won't change",
+						"x.y.z: Enter a custom initial version",
 					},
 				},
 				Validate: survey.Required,
@@ -126,7 +126,30 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 	if err != nil {
 		return errors.Wrap(err, "failed to open wizard")
 	}
-	newVersion, err := semver.NewVersion(strings.Split(answers.Version, ":")[0])
+	versionText := strings.Split(answers.Version, ":")[0]
+
+	if versionText == "x.y.z" {
+		var custom struct{ Custom string }
+		err = survey.Ask([]*survey.Question{{
+			Name: "Custom",
+			Prompt: &survey.Input{
+				Message: "Enter custom semantic version number",
+				Default: "0.1.0",
+			},
+			Validate: func(ans interface{}) (err error) {
+				if _, err = semver.NewVersion(ans.(string)); err != nil {
+					return err
+				}
+				return
+			},
+		}}, &custom)
+		if err != nil {
+			return errors.Wrap(err, "failed to open wizard")
+		}
+		versionText = custom.Custom
+	}
+
+	newVersion, err := semver.NewVersion(versionText)
 	if err != nil {
 		return errors.Wrap(err, "failed to create version from result")
 	}

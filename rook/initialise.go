@@ -16,6 +16,7 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 	"gopkg.in/AlecAivazis/survey.v1"
+	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
 	"github.com/Southclaws/sampctl/print"
@@ -35,6 +36,7 @@ type Answers struct {
 	Editor        string
 	StdLib        bool
 	Scan          bool
+	Git           bool
 	Travis        bool
 	EntryGenerate bool
 	Entry         string
@@ -134,6 +136,10 @@ func Init(ctx context.Context, gh *github.Client, dir string, config *types.Conf
 		{
 			Name:   "Scan",
 			Prompt: &survey.Confirm{Message: "Scan for dependencies?", Default: true},
+		},
+		{
+			Name:   "Git",
+			Prompt: &survey.Confirm{Message: "Initialise a git repository?", Default: true},
 		},
 		{
 			Name:   "Travis",
@@ -282,6 +288,14 @@ func Init(ctx context.Context, gh *github.Client, dir string, config *types.Conf
 
 	if answers.Scan {
 		pkg.Dependencies = append(pkg.Dependencies, FindIncludes(incFiles)...)
+	}
+
+	if answers.Git {
+		_, err = git.PlainInit(dir, false)
+		if err != nil {
+			print.Erro("Failed to initialise git repo:", err)
+		}
+		print.Info("You can use `sampctl package release` to apply a version number and release your first version!")
 	}
 
 	if answers.Travis {
