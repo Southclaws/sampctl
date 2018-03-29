@@ -214,7 +214,7 @@ directory.
 ---
 # `sampctl`
 
-1.7.14 - Southclaws <hello@southcla.ws>
+1.7.15 - Southclaws <hello@southcla.ws>
 
 The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
 
@@ -287,7 +287,7 @@ Usage: `sampctl package <subcommand>`
 
 For managing Pawn packages such as gamemodes and libraries.
 
-#### Subcommands (7)
+#### Subcommands (8)
 
 ### `sampctl package init`
 
@@ -322,6 +322,17 @@ Installs a new package by adding it to the `dependencies` field in `pawn.json`/`
 - `--verbose`: output all detailed information - useful for debugging
 - `--dir value`: working directory for the project - by default, uses the current directory (default: ".")
 - `--dev`: for specifying dependencies only necessary for development or testing of the package
+
+### `sampctl package release`
+
+Usage: `sampctl package release`
+
+Creates a release version and tags the repository with the next version number, creates a GitHub release with archived package files.
+
+#### Flags
+
+- `--verbose`: output all detailed information - useful for debugging
+- `--dir value`: working directory for the project - by default, uses the current directory (default: ".")
 
 ### `sampctl package get`
 
