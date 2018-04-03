@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # a simple install script for sampctl
 
-ARCH=$(uname -p)
+ARCH=$(uname -m)
 PATTERN="browser_download_url.*386\.deb"
 
 if [ $ARCH = "x86_64" ]; then
