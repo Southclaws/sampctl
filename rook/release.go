@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/Masterminds/semver"
 	"github.com/google/go-github/github"
@@ -15,6 +16,7 @@ import (
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/config"
 	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
 	"github.com/Southclaws/sampctl/print"
@@ -38,9 +40,10 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 		return errors.Wrap(err, "failed to read package as git repository")
 	}
 
-	head, err := repo.Head()
+	_, err = repo.Head()
 	if err != nil {
-		return errors.Wrap(err, "failed to get repo HEAD reference")
+		print.Erro("failed to get repo HEAD reference, if this is a new repo, you need to make at least one commit")
+		return
 	}
 
 	tags, err := versioning.GetRepoSemverTags(repo)
@@ -154,32 +157,51 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 		return errors.Wrap(err, "failed to create version from result")
 	}
 
-	err = generateVersionInc(pkg, newVersion)
+	versionFile, err := generateVersionInc(pkg, newVersion)
 	if err != nil {
-		print.Erro("Failed to generate version.inc:", err)
+		return errors.Wrap(err, "failed to generate version.inc")
 	}
 
 	print.Info("New version:", newVersion)
 
-	ref := plumbing.ReferenceName("refs/tags/" + newVersion.String())
-	hash := plumbing.NewHashReference(ref, head.Hash())
-	err = repo.Storer.SetReference(hash)
+	// commit the new version file and tag the commit with the version number
+	wt, err := repo.Worktree()
+	if err != nil {
+		return errors.Wrap(err, "failed to get worktree")
+	}
+	_, err = wt.Add(versionFile)
+	if err != nil {
+		return errors.Wrap(err, "failed to add versionfile to worktree")
+	}
+	hash, err := wt.Commit("sampctl package release: "+newVersion.String(), &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "sampctl",
+			Email: "null",
+			When:  time.Now(),
+		},
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to create new commit for release")
+	}
+	refName := plumbing.ReferenceName("refs/tags/" + newVersion.String())
+	ref := plumbing.NewHashReference(refName, hash)
+	err = repo.Storer.SetReference(ref)
+
+	print.Info("Pushing", newVersion, "to remote")
+	err = repo.Push(&git.PushOptions{
+		RefSpecs: []config.RefSpec{config.RefSpec("refs/tags/*:refs/tags/*")},
+		Auth:     auth,
+	})
+	if err != nil {
+		if err.Error() == "authentication required" {
+			print.Erro("Please set up either Git SSH or enter your username/password into ~/.samp/config.json")
+		} else if err.Error() == "already up-to-date" {
+			err = nil
+		}
+		return errors.Wrap(err, "failed to push")
+	}
 
 	if answers.GitHub {
-		print.Info("Pushing", newVersion, "to remote")
-		err = repo.Push(&git.PushOptions{
-			RefSpecs: []config.RefSpec{config.RefSpec("refs/tags/*:refs/tags/*")},
-			Auth:     auth,
-		})
-		if err != nil {
-			if err.Error() == "authentication required" {
-				print.Erro("Please set `github_token` to a GitHub API token in `~/.samp/config.json`")
-			} else if err.Error() == "already up-to-date" {
-				err = nil
-			}
-			return errors.Wrap(err, "failed to push")
-		}
-
 		// todo: generate changelog
 
 		print.Info("Creating release for", newVersion)
@@ -190,6 +212,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 			Draft:   &[]bool{true}[0],
 		})
 		if err != nil {
+			print.Erro("Please set `github_token` to a GitHub API token in `~/.samp/config.json`")
 			return errors.Wrap(err, "failed to create release")
 		}
 
@@ -204,8 +227,10 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 	return
 }
 
-func generateVersionInc(pkg types.Package, version *semver.Version) (err error) {
-	return ioutil.WriteFile(filepath.Join(pkg.Local, packageSlug(pkg.Repo)+"_version.inc"), []byte(generateVersionIncString(pkg.Repo, version)), 0600)
+func generateVersionInc(pkg types.Package, version *semver.Version) (filename string, err error) {
+	filename = packageSlug(pkg.Repo) + "_version.inc"
+	err = ioutil.WriteFile(filepath.Join(pkg.Local, filename), []byte(generateVersionIncString(pkg.Repo, version)), 0600)
+	return
 }
 
 func generateVersionIncString(name string, version *semver.Version) (result string) {
