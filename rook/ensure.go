@@ -279,6 +279,8 @@ func updateRepoState(repo *git.Repository, meta versioning.DependencyMeta, auth 
 func RefFromTag(repo *git.Repository, meta versioning.DependencyMeta) (ref *plumbing.Reference, err error) {
 	constraint, constraintErr := semver.NewConstraint(meta.Tag)
 	if constraintErr != nil {
+		print.Verb(meta, "specified version is not a valid semantic version constraint")
+
 		var tags storer.ReferenceIter
 		tags, err = repo.Tags()
 		if err != nil {
@@ -305,6 +307,8 @@ func RefFromTag(repo *git.Repository, meta versioning.DependencyMeta) (ref *plum
 			err = errors.Errorf("failed to satisfy constraint, '%s' not in %v", meta.Tag, tagList)
 		}
 	} else {
+		print.Verb(meta, "specified tag is a semantic version constraint")
+
 		var versionedTags versioning.VersionedTags
 		versionedTags, err = versioning.GetRepoSemverTags(repo)
 		if err != nil {
@@ -314,12 +318,12 @@ func RefFromTag(repo *git.Repository, meta versioning.DependencyMeta) (ref *plum
 		sort.Sort(sort.Reverse(versionedTags))
 
 		for _, version := range versionedTags {
-			if !constraint.Check(version.Tag) {
-				print.Verb(meta, "incompatible tag", version.Tag, "does not satisfy constraint", meta.Tag)
+			if !constraint.Check(version.Version) {
+				print.Verb(meta, "incompatible tag", version.Name, "does not satisfy constraint", meta.Tag)
 				continue
 			}
 
-			print.Verb(meta, "discovered tag", version.Tag, "that matches constraint", meta.Tag)
+			print.Verb(meta, "discovered tag", version.Version, "that matches constraint", meta.Tag)
 			ref = version.Ref
 			break
 		}

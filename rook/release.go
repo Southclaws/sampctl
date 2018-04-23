@@ -79,11 +79,11 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 	} else {
 		var latest versioning.VersionedTag = tags[0]
 
-		print.Info("Latest version:", latest.Tag)
+		print.Info("Latest version:", latest.Version)
 
-		bumpPatch := latest.Tag.IncPatch()
-		bumpMinor := latest.Tag.IncMinor()
-		bumpMajor := latest.Tag.IncMajor()
+		bumpPatch := latest.Version.IncPatch()
+		bumpMinor := latest.Version.IncMinor()
+		bumpMajor := latest.Version.IncMajor()
 
 		questions = []*survey.Question{
 			{

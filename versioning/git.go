@@ -12,8 +12,9 @@ import (
 
 // VersionedTag represents a git tag ref with a valid semantic version number as a tag
 type VersionedTag struct {
-	Ref *plumbing.Reference
-	Tag *semver.Version
+	Ref     *plumbing.Reference
+	Name    string
+	Version *semver.Version
 }
 
 // VersionedTags is just for implementing the Sort interface
@@ -28,7 +29,7 @@ func (c VersionedTags) Len() int {
 // Less is needed for the sort interface to compare two Version objects on the
 // slice. If checks if one is less than the other.
 func (c VersionedTags) Less(i, j int) bool {
-	return c[i].Tag.LessThan(c[j].Tag)
+	return c[i].Version.LessThan(c[j].Version)
 }
 
 // Swap is needed for the sort interface to replace the Version objects
@@ -47,16 +48,17 @@ func GetRepoSemverTags(repo *git.Repository) (versionedTags VersionedTags, err e
 	defer tags.Close()
 
 	err = tags.ForEach(func(pr *plumbing.Reference) error {
-		tag := pr.Name().Short()
+		tagName := pr.Name().Short()
 
-		tagVersion, errInner := semver.NewVersion(tag)
+		versionNumber, errInner := semver.NewVersion(tagName)
 		if errInner != nil {
 			return nil
 		}
 
 		versionedTags = append(versionedTags, VersionedTag{
-			Ref: pr,
-			Tag: tagVersion,
+			Ref:     pr,
+			Name:    tagName,
+			Version: versionNumber,
 		})
 
 		return nil
