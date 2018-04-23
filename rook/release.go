@@ -104,7 +104,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 	questions = append(questions, &survey.Question{
 		Name: "Generate",
 		Prompt: &survey.Confirm{
-			Message: "Generate/update `version.inc`?",
+			Message: fmt.Sprintf("Generate/update `%s`?", packageSlug(pkg.Repo)+"_version.inc"),
 			Default: true,
 		},
 	})
@@ -186,6 +186,9 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 	refName := plumbing.ReferenceName("refs/tags/" + newVersion.String())
 	ref := plumbing.NewHashReference(refName, hash)
 	err = repo.Storer.SetReference(ref)
+	if err != nil {
+		return
+	}
 
 	print.Info("Pushing", newVersion, "to remote")
 	err = repo.Push(&git.PushOptions{
