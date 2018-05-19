@@ -20,11 +20,6 @@ var packageBuildFlags = []cli.Flag{
 		Value: ".",
 		Usage: "working directory for the project - by default, uses the current directory",
 	},
-	cli.StringFlag{
-		Name:  "build",
-		Value: "",
-		Usage: "build configuration to use",
-	},
 	cli.BoolFlag{
 		Name:  "forceEnsure",
 		Usage: "forces dependency ensure before build",
@@ -60,7 +55,10 @@ func packageBuild(c *cli.Context) error {
 	buildFile := c.String("buildFile")
 	relativePaths := c.Bool("relativePaths")
 
-	build := c.Args().Get(1)
+	build := c.Args().Get(0)
+	if build == "" {
+		build = "default"
+	}
 
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
@@ -88,9 +86,9 @@ func packageBuild(c *cli.Context) error {
 		} else if len(problems.Errors()) > 0 {
 			return cli.NewExitError(errors.Errorf("Build failed with %d problems", len(problems)), 1)
 		} else if len(problems.Warnings()) > 0 {
-			print.Warn("Build complete with", len(problems), "problems")
+			print.Warn("Build", build, "complete with", len(problems), "problems")
 		} else {
-			print.Info("Build successful with", len(problems), "problems")
+			print.Info("Build", build, "successful with", len(problems), "problems")
 		}
 
 		print.Verb(fmt.Sprintf("Results, in bytes: Header: %d, Code: %d, Data: %d, Stack/Heap: %d, Estimated usage: %d, Total: %d\n",

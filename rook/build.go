@@ -290,7 +290,7 @@ func GetBuildConfig(pkg types.Package, name string) (config *types.BuildConfig) 
 	if len(pkg.Builds) == 0 {
 		config = def
 	} else {
-		if name == "" {
+		if name == "default" {
 			config = &pkg.Builds[0]
 		} else {
 			for _, cfg := range pkg.Builds {
