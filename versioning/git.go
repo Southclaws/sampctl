@@ -58,15 +58,20 @@ func GetRepoSemverTags(repo *git.Repository) (versionedTags VersionedTags, err e
 		ref := pr
 
 		if pr.Name().IsTag() {
-			refTagObject, errInner := repo.TagObject(pr.Hash())
+			ref, errInner = func() (ref *plumbing.Reference, errInnerInner error) {
+				refTagObject, errInnerInner := repo.TagObject(pr.Hash())
+				if errInnerInner != nil {
+					return pr, nil
+				}
+				refCommit, errInnerInner := refTagObject.Commit()
+				if errInnerInner != nil {
+					return nil, errInnerInner
+				}
+				return plumbing.NewHashReference(pr.Name(), refCommit.Hash), nil
+			}()
 			if errInner != nil {
-				return err
+				return errInner
 			}
-			refCommit, errInner := refTagObject.Commit()
-			if errInner != nil {
-				return err
-			}
-			ref = plumbing.NewHashReference(pr.Name(), refCommit.Hash)
 		}
 
 		versionedTags = append(versionedTags, VersionedTag{

@@ -278,8 +278,13 @@ func updateRepoState(repo *git.Repository, meta versioning.DependencyMeta, auth 
 // RefFromTag returns a ref from a given tag
 func RefFromTag(repo *git.Repository, meta versioning.DependencyMeta) (ref *plumbing.Reference, err error) {
 	constraint, constraintErr := semver.NewConstraint(meta.Tag)
-	if constraintErr != nil {
-		print.Verb(meta, "specified version is not a valid semantic version constraint")
+	versionedTags, err := versioning.GetRepoSemverTags(repo)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get repo tags")
+	}
+
+	if constraintErr != nil || len(versionedTags) == 0 {
+		print.Verb(meta, "specified version or repo tags not semantic versions", constraintErr)
 
 		var tags storer.ReferenceIter
 		tags, err = repo.Tags()
@@ -307,13 +312,7 @@ func RefFromTag(repo *git.Repository, meta versioning.DependencyMeta) (ref *plum
 			err = errors.Errorf("failed to satisfy constraint, '%s' not in %v", meta.Tag, tagList)
 		}
 	} else {
-		print.Verb(meta, "specified tag is a semantic version constraint")
-
-		var versionedTags versioning.VersionedTags
-		versionedTags, err = versioning.GetRepoSemverTags(repo)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to get repo tags")
-		}
+		print.Verb(meta, "specified version and repo tags are semantic versions")
 
 		sort.Sort(sort.Reverse(versionedTags))
 
