@@ -214,7 +214,7 @@ directory.
 ---
 # `sampctl`
 
-1.7.18 - Southclaws <hello@southcla.ws>
+1.7.19 - Southclaws <hello@southcla.ws>
 
 The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
 
@@ -354,7 +354,6 @@ Builds a package defined by a `pawn.json`/`pawn.yaml` file.
 
 - `--verbose`: output all detailed information - useful for debugging
 - `--dir value`: working directory for the project - by default, uses the current directory (default: ".")
-- `--build value`: build configuration to use
 - `--forceEnsure`: forces dependency ensure before build
 - `--dryRun`: does not run the build but outputs the command necessary to do so
 - `--watch`: keeps sampctl running and triggers builds whenever source files change
@@ -370,7 +369,6 @@ Compiles and runs a package defined by a `pawn.json`/`pawn.yaml` file.
 #### Flags
 
 - `--verbose`: output all detailed information - useful for debugging
-- `--version value`: the SA:MP server version to use (default: "0.3.7")
 - `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
 - `--container`: starts the server as a Linux container instead of running it in the current directory
 - `--mountCache --container`: if --container is set, mounts the local cache directory inside the container
