@@ -17,11 +17,6 @@ import (
 
 var packageRunFlags = []cli.Flag{
 	cli.StringFlag{
-		Name:  "version",
-		Value: "0.3.7",
-		Usage: "the SA:MP server version to use",
-	},
-	cli.StringFlag{
 		Name:  "dir",
 		Value: ".",
 		Usage: "working directory for the server - by default, uses the current directory",
@@ -71,7 +66,6 @@ func packageRun(c *cli.Context) error {
 		print.SetVerbose()
 	}
 
-	version := c.String("version")
 	dir := util.FullPath(c.String("dir"))
 	container := c.Bool("container")
 	mountCache := c.Bool("mountCache")
@@ -98,7 +92,7 @@ func packageRun(c *cli.Context) error {
 		Pkg: pkg,
 		Config: types.Runtime{
 			AppVersion: c.App.Version,
-			Version:    version,
+			Version:    pkg.Runtime.Version,
 		},
 		GitHub:      gh,
 		Auth:        gitAuth,

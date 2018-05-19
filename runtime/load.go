@@ -28,11 +28,24 @@ func NewConfigFromEnvironment(dir string) (cfg types.Runtime, err error) {
 
 	cfg.Platform = runtime.GOOS
 
-	if cfg.Version == "" {
-		cfg.Version = "0.3.7"
-	}
+	cfg = Defaults(&cfg)
 
 	cfg.ResolveRemotePlugins()
+
+	return
+}
+
+// Defaults modifies the input runtime config to apply defaults to empty fields
+func Defaults(in *types.Runtime) (out types.Runtime) {
+	if in == nil {
+		out = types.Runtime{}
+	} else {
+		out = *in
+	}
+
+	if out.Version == "" {
+		out.Version = "0.3.7"
+	}
 
 	return
 }
