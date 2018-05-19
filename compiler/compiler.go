@@ -152,7 +152,11 @@ func PrepareCommand(ctx context.Context, gh *github.Client, execDir, cacheDir, p
 
 	for name, value := range config.Constants {
 		if strings.HasPrefix(value, "$") {
-			args = append(args, fmt.Sprintf("%s=%s", name, os.Getenv(value[1:])))
+			variable := os.Getenv(value[1:])
+			if variable == "" {
+				print.Warn("Build constant", value, "refers to an unset environment variable")
+			}
+			args = append(args, fmt.Sprintf("%s=%s", name, variable))
 		} else {
 			args = append(args, fmt.Sprintf("%s=%s", name, value))
 		}
