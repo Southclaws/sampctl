@@ -36,7 +36,8 @@ func TestPackageFromDir(t *testing.T) {
 				"samp-incognito/samp-streamer-plugin:2.9.1",
 				"Zeex/amx_assembly",
 				"Zeex/samp-plugin-crashdetect/include",
-			}},
+			},
+			Runtime: &types.Runtime{Version: "0.3.7"}},
 			false},
 		{"load-yaml", args{"tests/load-yaml"}, types.Package{
 			Parent:         true,
@@ -52,7 +53,8 @@ func TestPackageFromDir(t *testing.T) {
 				"Misiur/YSI-Includes",
 				"samp-incognito/samp-streamer-plugin:2.9.1",
 				"Zeex/amx_assembly",
-			}},
+			},
+			Runtime: &types.Runtime{Version: "0.3.7"}},
 			false},
 	}
 	for _, tt := range tests {
