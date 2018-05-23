@@ -184,35 +184,36 @@ func (runner Runner) prepare(ctx context.Context) (config *types.Runtime, err er
 		return
 	}
 
-	scriptfiles := filepath.Join(runner.Pkg.LocalPath, "scriptfiles")
-	if !util.Exists(scriptfiles) {
-		scriptfiles = ""
-	}
-	err = runtime.PrepareRuntimeDirectory(
-		runner.CacheDir,
-		runner.Config.Version,
-		runner.Config.Platform,
-		scriptfiles)
-	if err != nil {
-		err = errors.Wrap(err, "failed to prepare temporary runtime area")
-		return
-	}
-
-	err = runtime.CopyFileToRuntime(runner.CacheDir, runner.Config.Version, filename)
-	if err != nil {
-		err = errors.Wrap(err, "failed to copy amx file to temporary runtime directory")
-		return
-	}
-
 	config = types.MergeRuntimeDefault(runner.Pkg.Runtime)
-
 	config.Platform = runner.Config.Platform
 	config.AppVersion = runner.Config.AppVersion
 	config.Version = runner.Config.Version
 	config.Container = runner.Config.Container
-
 	config.Gamemodes = []string{strings.TrimSuffix(filepath.Base(runner.Pkg.Output), ".amx")}
-	config.WorkingDir = runtime.GetRuntimePath(runner.CacheDir, runner.Config.Version)
+
+	if !runner.Pkg.Local {
+		scriptfiles := filepath.Join(runner.Pkg.LocalPath, "scriptfiles")
+		if !util.Exists(scriptfiles) {
+			scriptfiles = ""
+		}
+		err = runtime.PrepareRuntimeDirectory(
+			runner.CacheDir,
+			runner.Config.Version,
+			runner.Config.Platform,
+			scriptfiles)
+		if err != nil {
+			err = errors.Wrap(err, "failed to prepare temporary runtime area")
+			return
+		}
+
+		err = runtime.CopyFileToRuntime(runner.CacheDir, runner.Config.Version, filename)
+		if err != nil {
+			err = errors.Wrap(err, "failed to copy amx file to temporary runtime directory")
+			return
+		}
+
+		config.WorkingDir = runtime.GetRuntimePath(runner.CacheDir, runner.Config.Version)
+	}
 
 	config.PluginDeps = []versioning.DependencyMeta{}
 	for _, pluginMeta := range runner.Pkg.AllPlugins {
@@ -220,12 +221,6 @@ func (runner Runner) prepare(ctx context.Context) (config *types.Runtime, err er
 		config.PluginDeps = append(config.PluginDeps, pluginMeta)
 	}
 	print.Verb(config.PluginDeps)
-
-	err = config.ToJSON()
-	if err != nil {
-		err = errors.Wrap(err, "failed to generate temporary samp.json")
-		return
-	}
 
 	err = runtime.Ensure(ctx, runner.GitHub, config, runner.NoCache)
 	if err != nil {
