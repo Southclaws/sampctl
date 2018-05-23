@@ -29,12 +29,12 @@ func TestPackage_Build(t *testing.T) {
 		{
 			"bare", []byte(`main(){}`), args{&types.Package{
 				Parent:         true,
-				Local:          util.FullPath("./tests/build-auto-bare"),
+				LocalPath:      util.FullPath("./tests/build-auto-bare"),
 				DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "bare"},
 				Entry:          "gamemodes/test.pwn",
 				Output:         "gamemodes/test.amx",
 				Dependencies:   []versioning.DependencyString{},
-				Builds: []types.BuildConfig{
+				Builds: []*types.BuildConfig{
 					{Name: "build", Version: "3.10.4"},
 				},
 			}, "build", true}, nil, false,
@@ -44,14 +44,14 @@ func TestPackage_Build(t *testing.T) {
 			main() {print("hi");}`,
 			), args{&types.Package{
 				Parent:         true,
-				Local:          util.FullPath("./tests/build-auto-stdlib"),
+				LocalPath:      util.FullPath("./tests/build-auto-stdlib"),
 				DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "stdlib"},
 				Entry:          "gamemodes/test.pwn",
 				Output:         "gamemodes/test.amx",
 				Dependencies: []versioning.DependencyString{
 					"sampctl/samp-stdlib",
 				},
-				Builds: []types.BuildConfig{
+				Builds: []*types.BuildConfig{
 					{Name: "build", Version: "3.10.4"},
 				},
 			}, "build", true}, nil, false,
@@ -62,7 +62,7 @@ func TestPackage_Build(t *testing.T) {
 			main() { print("actions"); }`,
 			), args{&types.Package{
 				Parent:         true,
-				Local:          util.FullPath("./tests/build-auto-deep"),
+				LocalPath:      util.FullPath("./tests/build-auto-deep"),
 				DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "deep"},
 				Entry:          "gamemodes/test.pwn",
 				Output:         "gamemodes/test.amx",
@@ -79,7 +79,7 @@ func TestPackage_Build(t *testing.T) {
 				main() { print("actions"); }`,
 			), args{&types.Package{
 				Parent:         true,
-				Local:          util.FullPath("./tests/build-auto-deep"),
+				LocalPath:      util.FullPath("./tests/build-auto-deep"),
 				DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "deep"},
 				Entry:          "gamemodes/test.pwn",
 				Output:         "gamemodes/test.amx",
@@ -98,14 +98,14 @@ func TestPackage_Build(t *testing.T) {
 			main() {}`,
 			), args{&types.Package{
 				Parent:         true,
-				Local:          util.FullPath("./tests/build-auto-custominc"),
+				LocalPath:      util.FullPath("./tests/build-auto-custominc"),
 				DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "custominc"},
 				Entry:          "gamemodes/test.pwn",
 				Output:         "gamemodes/test.amx",
 				Dependencies: []versioning.DependencyString{
 					"sampctl/samp-stdlib",
 				},
-				Builds: []types.BuildConfig{
+				Builds: []*types.BuildConfig{
 					{
 						Name:    "build",
 						Version: "3.10.4",
@@ -124,7 +124,7 @@ func TestPackage_Build(t *testing.T) {
 			main() {}`,
 			), args{&types.Package{
 				Parent:         true,
-				Local:          util.FullPath("./tests/build-auto-resourceinc"),
+				LocalPath:      util.FullPath("./tests/build-auto-resourceinc"),
 				DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "resourceinc"},
 				Entry:          "gamemodes/test.pwn",
 				Output:         "gamemodes/test.amx",
@@ -140,7 +140,7 @@ func TestPackage_Build(t *testing.T) {
 			main() {}`,
 			), args{&types.Package{
 				Parent:         true,
-				Local:          util.FullPath("./tests/build-auto-colandreasinc"),
+				LocalPath:      util.FullPath("./tests/build-auto-colandreasinc"),
 				DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "colandreasinc"},
 				Entry:          "gamemodes/test.pwn",
 				Output:         "gamemodes/test.amx",
@@ -152,12 +152,12 @@ func TestPackage_Build(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		err := os.MkdirAll(filepath.Join(tt.args.pkg.Local, "gamemodes"), 0755)
+		err := os.MkdirAll(filepath.Join(tt.args.pkg.LocalPath, "gamemodes"), 0755)
 		if err != nil {
 			panic(err)
 		}
 
-		err = ioutil.WriteFile(filepath.Join(tt.args.pkg.Local, tt.args.pkg.Entry), tt.sourceCode, 0755)
+		err = ioutil.WriteFile(filepath.Join(tt.args.pkg.LocalPath, tt.args.pkg.Entry), tt.sourceCode, 0755)
 		if err != nil {
 			panic(err)
 		}

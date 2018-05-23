@@ -24,7 +24,7 @@ func PackageFromDir(parent bool, dir, platform, vendor string) (pkg types.Packag
 	}
 
 	pkg.Parent = parent
-	pkg.Local = dir
+	pkg.LocalPath = dir
 
 	if vendor == "" {
 		pkg.Vendor = filepath.Join(dir, "dependencies")
@@ -66,7 +66,7 @@ func ResolveDependencies(pkg *types.Package, platform string) (err error) {
 		return errors.New("package is not a parent package")
 	}
 
-	if pkg.Local == "" {
+	if pkg.LocalPath == "" {
 		return errors.New("package has no known local path")
 	}
 

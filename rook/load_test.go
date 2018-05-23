@@ -23,7 +23,7 @@ func TestPackageFromDir(t *testing.T) {
 	}{
 		{"load-json", args{"tests/load-json"}, types.Package{
 			Parent:         true,
-			Local:          "tests/load-json",
+			LocalPath:      "tests/load-json",
 			Vendor:         "tests/load-json/dependencies",
 			Format:         "json",
 			DependencyMeta: versioning.DependencyMeta{User: "<none>", Repo: "<local>"},
@@ -41,7 +41,7 @@ func TestPackageFromDir(t *testing.T) {
 			false},
 		{"load-yaml", args{"tests/load-yaml"}, types.Package{
 			Parent:         true,
-			Local:          "tests/load-yaml",
+			LocalPath:      "tests/load-yaml",
 			Vendor:         "tests/load-yaml/dependencies",
 			Format:         "yaml",
 			DependencyMeta: versioning.DependencyMeta{User: "<none>", Repo: "<local>"},

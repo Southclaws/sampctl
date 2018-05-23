@@ -35,10 +35,10 @@ type Package struct {
 	// created and is developing. The opposite of this would be packages that exist in the
 	// `dependencies` directory that have been downloaded as a result of an Ensure.
 	Parent bool `json:"-" yaml:"-"`
-	// Local path, this indicates the Package object represents a local copy which is a directory
+	// LocalPath indicates the Package object represents a local copy which is a directory
 	// containing a `samp.json`/`samp.yaml` file and a set of Pawn source code files.
 	// If this field is not set, then the Package is just an in-memory pointer to a remote package.
-	Local string `json:"-" yaml:"-"`
+	LocalPath string `json:"-" yaml:"-"`
 	// The vendor directory - for simple packages with no sub-dependencies, this is simply
 	// `<local>/dependencies` but for nested dependencies, this needs to be set.
 	Vendor string `json:"-" yaml:"-"`
@@ -65,8 +65,11 @@ type Package struct {
 	Output       string                        `json:"output,omitempty"`                                             // output amx file
 	Dependencies []versioning.DependencyString `json:"dependencies,omitempty" yaml:"dependencies,omitempty"`         // list of packages that the package depends on
 	Development  []versioning.DependencyString `json:"dev_dependencies,omitempty" yaml:"dev_dependencies,omitempty"` // list of packages that only the package builds depend on
-	Builds       []BuildConfig                 `json:"builds,omitempty" yaml:"builds,omitempty"`                     // list of build configurations
-	Runtime      *Runtime                      `json:"runtime,omitempty" yaml:"runtime,omitempty"`                   // runtime configuration for executing the package code
+	Local        bool                          `json:"local,omitempty" yaml:"local,omitempty"`                       // run package in local dir instead of in a temporary runtime
+	Build        *BuildConfig                  `json:"build,omitempty" yaml:"build,omitempty"`                       // build configuration
+	Builds       []*BuildConfig                `json:"builds,omitempty" yaml:"builds,omitempty"`                     // multiple build configurations
+	Runtime      *Runtime                      `json:"runtime,omitempty" yaml:"runtime,omitempty"`                   // runtime configuration
+	Runtimes     []*Runtime                    `json:"runtimes,omitempty" yaml:"runtimes,omitempty"`                 // multiple runtime configurations
 	IncludePath  string                        `json:"include_path,omitempty" yaml:"include_path,omitempty"`         // include path within the repository, so users don't need to specify the path explicitly
 	Resources    []Resource                    `json:"resources,omitempty" yaml:"resources,omitempty"`               // list of additional resources associated with the package
 }
@@ -165,7 +168,7 @@ func (pkg Package) WriteDefinition() (err error) {
 		if err != nil {
 			return errors.Wrap(err, "failed to encode package metadata")
 		}
-		err = ioutil.WriteFile(filepath.Join(pkg.Local, "pawn.json"), contents, 0755)
+		err = ioutil.WriteFile(filepath.Join(pkg.LocalPath, "pawn.json"), contents, 0755)
 		if err != nil {
 			return errors.Wrap(err, "failed to write pawn.json")
 		}
@@ -175,7 +178,7 @@ func (pkg Package) WriteDefinition() (err error) {
 		if err != nil {
 			return errors.Wrap(err, "failed to encode package metadata")
 		}
-		err = ioutil.WriteFile(filepath.Join(pkg.Local, "pawn.yaml"), contents, 0755)
+		err = ioutil.WriteFile(filepath.Join(pkg.LocalPath, "pawn.yaml"), contents, 0755)
 		if err != nil {
 			return errors.Wrap(err, "failed to write pawn.yaml")
 		}

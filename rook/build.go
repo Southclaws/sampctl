@@ -33,8 +33,8 @@ func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pk
 	}
 
 	config.WorkingDir = filepath.Dir(util.FullPath(pkg.Entry))
-	config.Input = filepath.Join(pkg.Local, pkg.Entry)
-	config.Output = filepath.Join(pkg.Local, pkg.Output)
+	config.Input = filepath.Join(pkg.LocalPath, pkg.Entry)
+	config.Output = filepath.Join(pkg.LocalPath, pkg.Output)
 
 	if ensure {
 		err = EnsureDependencies(ctx, gh, pkg, auth, platform, cacheDir)
@@ -61,7 +61,7 @@ func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pk
 
 	var pkgInner types.Package
 	for _, depMeta := range pkg.AllDependencies {
-		depDir := filepath.Join(pkg.Local, "dependencies", depMeta.Repo)
+		depDir := filepath.Join(pkg.LocalPath, "dependencies", depMeta.Repo)
 		incPath := depMeta.Path
 
 		// check if local package has a definition, if so, check if it has an IncludePath field
@@ -77,7 +77,7 @@ func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pk
 
 	config.Includes = append(config.Includes, pkg.AllIncludePaths...)
 
-	cmd, err := compiler.PrepareCommand(ctx, gh, pkg.Local, cacheDir, platform, *config)
+	cmd, err := compiler.PrepareCommand(ctx, gh, pkg.LocalPath, cacheDir, platform, *config)
 	if err != nil {
 		return
 	}
@@ -87,7 +87,7 @@ func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pk
 	} else {
 		print.Verb("building", pkg, "with", config.Version)
 
-		problems, result, err = compiler.CompileWithCommand(cmd, config.WorkingDir, pkg.Local, relative)
+		problems, result, err = compiler.CompileWithCommand(cmd, config.WorkingDir, pkg.LocalPath, relative)
 		if err != nil {
 			err = errors.Wrap(err, "failed to compile package entry")
 		}
@@ -114,8 +114,8 @@ func BuildWatch(ctx context.Context, gh *github.Client, auth transport.AuthMetho
 	}
 
 	config.WorkingDir = filepath.Dir(util.FullPath(pkg.Entry))
-	config.Input = filepath.Join(pkg.Local, pkg.Entry)
-	config.Output = filepath.Join(pkg.Local, pkg.Output)
+	config.Input = filepath.Join(pkg.LocalPath, pkg.Entry)
+	config.Output = filepath.Join(pkg.LocalPath, pkg.Output)
 
 	if ensure {
 		err = EnsureDependencies(ctx, gh, pkg, auth, platform, cacheDir)
@@ -142,7 +142,7 @@ func BuildWatch(ctx context.Context, gh *github.Client, auth transport.AuthMetho
 
 	var pkgInner types.Package
 	for _, depMeta := range pkg.AllDependencies {
-		depDir := filepath.Join(pkg.Local, "dependencies", depMeta.Repo)
+		depDir := filepath.Join(pkg.LocalPath, "dependencies", depMeta.Repo)
 		incPath := depMeta.Path
 
 		// check if local package has a definition, if so, check if it has an IncludePath field
@@ -162,7 +162,7 @@ func BuildWatch(ctx context.Context, gh *github.Client, auth transport.AuthMetho
 	if err != nil {
 		return errors.Wrap(err, "failed to create new filesystem watcher")
 	}
-	err = filepath.Walk(pkg.Local, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(pkg.LocalPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			print.Warn(err)
 			return nil
@@ -184,7 +184,7 @@ func BuildWatch(ctx context.Context, gh *github.Client, auth transport.AuthMetho
 		return errors.Wrap(err, "failed to add paths to filesystem watcher")
 	}
 
-	print.Verb("watching directory for changes", pkg.Local)
+	print.Verb("watching directory for changes", pkg.LocalPath)
 
 	signals := make(chan os.Signal, 1)
 	errorCh := make(chan error)
@@ -249,7 +249,7 @@ loop:
 				fmt.Println("watch-build: starting compilation", buildNumber)
 
 				running.Store(true)
-				problems, _, err = compiler.CompileSource(ctxInner, gh, pkg.Local, pkg.Local, cacheDir, platform, *config, relative)
+				problems, _, err = compiler.CompileSource(ctxInner, gh, pkg.LocalPath, pkg.LocalPath, cacheDir, platform, *config, relative)
 				running.Store(false)
 
 				if err != nil {
@@ -287,25 +287,38 @@ loop:
 func GetBuildConfig(pkg types.Package, name string) (config *types.BuildConfig) {
 	def := types.GetBuildConfigDefault()
 
-	if len(pkg.Builds) == 0 {
-		config = def
-	} else {
-		if name == "default" {
-			config = &pkg.Builds[0]
+	// if there are no builds at all, use default
+	if len(pkg.Builds) == 0 && pkg.Build == nil {
+		return def
+	}
+
+	// if the user did not specify a specific build config, use the first
+	// otherwise, search for a matching config by name
+	if name == "default" {
+		if pkg.Build != nil {
+			config = pkg.Build
 		} else {
-			for _, cfg := range pkg.Builds {
-				if cfg.Name == name {
-					config = &cfg
-					break
-				}
+			config = pkg.Builds[0]
+		}
+	} else {
+		for _, cfg := range pkg.Builds {
+			if cfg.Name == name {
+				config = cfg
+				break
 			}
 		}
-		if config.Version == "" {
-			config.Version = def.Version
-		}
-		if len(config.Args) == 0 {
-			config.Args = def.Args
-		}
+	}
+
+	if config == nil {
+		print.Warn("No build config called:", name, "using default")
+		return def
+	}
+
+	if config.Version == "" {
+		config.Version = def.Version
+	}
+	if len(config.Args) == 0 {
+		config.Args = def.Args
 	}
 
 	return

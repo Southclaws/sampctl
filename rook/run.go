@@ -151,7 +151,7 @@ loop:
 
 func (runner Runner) prepare(ctx context.Context) (config *types.Runtime, err error) {
 	var (
-		filename = filepath.Join(runner.Pkg.Local, runner.Pkg.Output)
+		filename = filepath.Join(runner.Pkg.LocalPath, runner.Pkg.Output)
 		problems types.BuildProblems
 		canRun   = true
 	)
@@ -184,7 +184,7 @@ func (runner Runner) prepare(ctx context.Context) (config *types.Runtime, err er
 		return
 	}
 
-	scriptfiles := filepath.Join(runner.Pkg.Local, "scriptfiles")
+	scriptfiles := filepath.Join(runner.Pkg.LocalPath, "scriptfiles")
 	if !util.Exists(scriptfiles) {
 		scriptfiles = ""
 	}

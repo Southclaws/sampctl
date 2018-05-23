@@ -187,9 +187,9 @@ func Init(ctx context.Context, gh *github.Client, dir string, config *types.Conf
 	}
 
 	pkg := types.Package{
-		Parent: true,
-		Local:  dir,
-		Format: answers.Format,
+		Parent:    true,
+		LocalPath: dir,
+		Format:    answers.Format,
 		DependencyMeta: versioning.DependencyMeta{
 			User: answers.User,
 			Repo: answers.Repo,

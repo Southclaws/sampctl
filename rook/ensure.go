@@ -27,15 +27,15 @@ var ErrNotRemotePackage = errors.New("remote repository does not declare a packa
 
 // EnsureDependencies traverses package dependencies and ensures they are up to date
 func EnsureDependencies(ctx context.Context, gh *github.Client, pkg *types.Package, auth transport.AuthMethod, platform, cacheDir string) (err error) {
-	if pkg.Local == "" {
+	if pkg.LocalPath == "" {
 		return errors.New("package does not represent a locally stored package")
 	}
 
-	if !util.Exists(pkg.Local) {
+	if !util.Exists(pkg.LocalPath) {
 		return errors.New("package local path does not exist")
 	}
 
-	pkg.Vendor = filepath.Join(pkg.Local, "dependencies")
+	pkg.Vendor = filepath.Join(pkg.LocalPath, "dependencies")
 
 	visited := make(map[string]bool)
 	visited[pkg.DependencyMeta.Repo] = true

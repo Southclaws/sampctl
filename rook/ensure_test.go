@@ -21,7 +21,7 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 		wantErr  bool
 	}{
 		{"basic", &types.Package{
-			Local: util.FullPath("./tests/deps-basic"),
+			LocalPath: util.FullPath("./tests/deps-basic"),
 			Dependencies: []versioning.DependencyString{
 				"sampctl/samp-stdlib",
 			}},
@@ -30,7 +30,7 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
 			}, false},
 		{"circular", &types.Package{
-			Local: util.FullPath("./tests/deps-cirular"),
+			LocalPath: util.FullPath("./tests/deps-cirular"),
 			Dependencies: []versioning.DependencyString{
 				"sampctl/AAA",
 			}},
@@ -39,7 +39,7 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "BBB"},
 			}, false},
 		{"tag", &types.Package{
-			Local: util.FullPath("./tests/deps-tag"),
+			LocalPath: util.FullPath("./tests/deps-tag"),
 			Dependencies: []versioning.DependencyString{
 				"sampctl/samp-stdlib:0.3z-R4",
 			}},
@@ -48,7 +48,7 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
 			}, false},
 		{"branch", &types.Package{
-			Local: util.FullPath("./tests/deps-branch"),
+			LocalPath: util.FullPath("./tests/deps-branch"),
 			Dependencies: []versioning.DependencyString{
 				"pawn-lang/YSI-Includes@5.x",
 			}},
@@ -62,7 +62,7 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 				versioning.DependencyMeta{Site: "github.com", User: "Zeex", Repo: "amx_assembly"},
 			}, false},
 		{"commit", &types.Package{
-			Local: util.FullPath("./tests/deps-commit"),
+			LocalPath: util.FullPath("./tests/deps-commit"),
 			Dependencies: []versioning.DependencyString{
 				"sampctl/pawn-stdlib#7a13c662e619a478b0e8d1d6d113e3aa41cb6d37",
 			}},
@@ -71,8 +71,8 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 			}, false},
 	}
 	for _, tt := range tests {
-		os.RemoveAll(tt.pkg.Local)
-		os.MkdirAll(tt.pkg.Local, 0755) //nolint
+		os.RemoveAll(tt.pkg.LocalPath)
+		os.MkdirAll(tt.pkg.LocalPath, 0755) //nolint
 
 		t.Run(tt.name, func(t *testing.T) {
 			err := EnsureDependencies(context.Background(), gh, tt.pkg, nil, runtime.GOOS, "./tests/cache")

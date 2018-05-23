@@ -58,7 +58,7 @@ func packageTemplateMake(c *cli.Context) (err error) {
 		return errors.Wrapf(err, "failed to create template directory at '%s'", templatePath)
 	}
 
-	pkg.Local = templatePath
+	pkg.LocalPath = templatePath
 	pkg.Vendor = filepath.Join(templatePath, "dependencies")
 	pkg.Repo = name
 	pkg.Entry = "tmpl.pwn"
