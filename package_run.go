@@ -11,7 +11,6 @@ import (
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/rook"
-	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -24,10 +23,6 @@ var packageRunFlags = []cli.Flag{
 	cli.BoolFlag{
 		Name:  "container",
 		Usage: "starts the server as a Linux container instead of running it in the current directory",
-	},
-	cli.BoolFlag{
-		Name:  "mountCache",
-		Usage: "if `--container` is set, mounts the local cache directory inside the container",
 	},
 	cli.StringFlag{
 		Name:  "build",
@@ -68,7 +63,6 @@ func packageRun(c *cli.Context) error {
 
 	dir := util.FullPath(c.String("dir"))
 	container := c.Bool("container")
-	mountCache := c.Bool("mountCache")
 	build := c.String("build")
 	forceBuild := c.Bool("forceBuild")
 	forceEnsure := c.Bool("forceEnsure")
@@ -76,6 +70,11 @@ func packageRun(c *cli.Context) error {
 	watch := c.Bool("watch")
 	buildFile := c.String("buildFile")
 	relativePaths := c.Bool("relativePaths")
+
+	runtimeName := c.Args().Get(0)
+	if runtimeName == "" {
+		runtimeName = "default"
+	}
 
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
@@ -89,11 +88,10 @@ func packageRun(c *cli.Context) error {
 	}
 
 	runner := rook.Runner{
-		Pkg: pkg,
-		Config: types.Runtime{
-			AppVersion: c.App.Version,
-			Version:    pkg.Runtime.Version,
-		},
+		Pkg:         pkg,
+		Runtime:     runtimeName,
+		Container:   container,
+		AppVersion:  c.App.Version,
 		GitHub:      gh,
 		Auth:        gitAuth,
 		CacheDir:    cacheDir,
@@ -103,13 +101,6 @@ func packageRun(c *cli.Context) error {
 		NoCache:     noCache,
 		BuildFile:   buildFile,
 		Relative:    relativePaths,
-	}
-
-	if container {
-		runner.Config.Container = &types.ContainerConfig{MountCache: mountCache}
-		runner.Config.Platform = "linux"
-	} else {
-		runner.Config.Platform = runtime.GOOS
 	}
 
 	if watch {

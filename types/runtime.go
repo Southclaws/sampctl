@@ -25,6 +25,7 @@ type Runtime struct {
 	Format     string                      `ignore:"1" json:"-" yaml:"-"` // format stores the original format of the package definition file, either `json` or `yaml`
 
 	// Only used to configure sampctl, not used in server.cfg generation
+	Name    string  `ignore:"1" json:"name,omitempty"     yaml:"name,omitempty"`    // configuration name
 	Version string  `ignore:"1" json:"version,omitempty"  yaml:"version,omitempty"` // runtime version
 	Mode    RunMode `ignore:"1" json:"mode,omitempty"     yaml:"mode,omitempty"`    // the runtime mode
 
@@ -193,26 +194,9 @@ func (cfg *Runtime) ResolveRemotePlugins() {
 // GetRuntimeDefault returns a default config for temporary runtimes
 func GetRuntimeDefault() (config *Runtime) {
 	return &Runtime{
-		RCONPassword: &[]string{"temp"}[0],
+		RCONPassword: &[]string{"password"}[0],
 		Port:         &[]int{7777}[0],
 	}
-}
-
-// MergeRuntimeDefault returns a default config with the specified config merged on top
-func MergeRuntimeDefault(config *Runtime) (result *Runtime) {
-	def := GetRuntimeDefault()
-	if config == nil {
-		result = def
-	} else {
-		result = config
-		if config.RCONPassword == nil {
-			result.RCONPassword = def.RCONPassword
-		}
-		if config.Port == nil {
-			result.Port = def.Port
-		}
-	}
-	return
 }
 
 // AsDep attempts to interpret the plugin string as a dependency string

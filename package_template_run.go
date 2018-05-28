@@ -83,16 +83,17 @@ func packageTemplateRun(c *cli.Context) (err error) {
 		result.Estimate,
 		result.Total))
 
+	// override the version with the one passed by --version
+	pkg.Runtime.Version = version
+
 	if !problems.IsValid() {
 		return errors.New("cannot run with build errors")
 	}
 	runner := rook.Runner{
-		Pkg: pkg,
-		Config: types.Runtime{
-			Platform:   runtime.GOOS,
-			AppVersion: c.App.Version,
-			Version:    version,
-		},
+		Pkg:         pkg,
+		Runtime:     "default",
+		Container:   false,
+		AppVersion:  c.App.Version,
 		GitHub:      gh,
 		Auth:        gitAuth,
 		CacheDir:    cacheDir,

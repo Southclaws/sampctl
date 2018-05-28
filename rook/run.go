@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	rt "runtime"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -25,7 +26,9 @@ import (
 // Runner stores state and configuration for running a server instance
 type Runner struct {
 	Pkg         types.Package        // Package that this runner targets
-	Config      types.Runtime        // Runtime configuration
+	Runtime     string               // the runtime config to use, defaults to `default`
+	Container   bool                 // whether or not to run the package in a container
+	AppVersion  string               // the version of sampctl
 	GitHub      *github.Client       // GitHub client for downloading plugins
 	Auth        transport.AuthMethod // Authentication method for git
 	CacheDir    string               // Cache directory
@@ -39,28 +42,29 @@ type Runner struct {
 
 // Run will create a temporary server runtime and run the package output AMX as a gamemode using the
 // runtime configuration in the package info.
-func (runner Runner) Run(ctx context.Context, output io.Writer, input io.Reader) (err error) {
-	config, err := runner.prepare(ctx)
+func (runner *Runner) Run(ctx context.Context, output io.Writer, input io.Reader) (err error) {
+	err = runner.prepare(ctx)
 	if err != nil {
-		return
+		return errors.Wrap(err, "failed to prepare package for running")
 	}
-	runner.Config = *config
 
-	err = runtime.Run(ctx, runner.Config, runner.CacheDir, true, false, output, input)
+	err = runtime.Run(ctx, *runner.Pkg.Runtime, runner.CacheDir, true, false, output, input)
+	if err != nil {
+		return errors.Wrap(err, "failed to run package")
+	}
 
 	return
 }
 
 // RunWatch runs the Run code on file changes
-func (runner Runner) RunWatch(ctx context.Context) (err error) {
-	config, err := runner.prepare(ctx)
+func (runner *Runner) RunWatch(ctx context.Context) (err error) {
+	err = runner.prepare(ctx)
 	if err != nil {
 		err = errors.Wrap(err, "failed to prepare")
 		return
 	}
-	runner.Config = *config //nolint - staticcheck thinks this is ineffective for some reason...
 
-	if config.Mode == types.Server {
+	if runner.Pkg.Runtime.Mode == types.Server {
 		err = errors.New("cannot use --watch with runtime mode 'server'")
 		return
 	}
@@ -84,7 +88,7 @@ func (runner Runner) RunWatch(ctx context.Context) (err error) {
 			&runner.Pkg,
 			runner.Build,
 			runner.CacheDir,
-			runner.Config.Platform,
+			runner.Pkg.Runtime.Platform,
 			runner.ForceEnsure,
 			runner.BuildFile,
 			runner.Relative,
@@ -123,7 +127,7 @@ loop:
 				defer cancel()
 			}
 
-			err = runtime.CopyFileToRuntime(runner.CacheDir, runner.Config.Version, util.FullPath(runner.Pkg.Output))
+			err = runtime.CopyFileToRuntime(runner.CacheDir, runner.Pkg.Runtime.Version, util.FullPath(runner.Pkg.Output))
 			if err != nil {
 				err = errors.Wrap(err, "failed to copy amx file to temporary runtime directory")
 				print.Erro(err)
@@ -132,7 +136,7 @@ loop:
 			fmt.Println("watch-run: executing package code")
 			go func() {
 				running.Store(true)
-				err = runtime.Run(ctxInner, runner.Config, runner.CacheDir, true, false, os.Stdout, os.Stdin)
+				err = runtime.Run(ctxInner, *runner.Pkg.Runtime, runner.CacheDir, true, false, os.Stdout, os.Stdin)
 				running.Store(false)
 
 				if err != nil {
@@ -149,7 +153,7 @@ loop:
 	return
 }
 
-func (runner Runner) prepare(ctx context.Context) (config *types.Runtime, err error) {
+func (runner *Runner) prepare(ctx context.Context) (err error) {
 	var (
 		filename = filepath.Join(runner.Pkg.LocalPath, runner.Pkg.Output)
 		problems types.BuildProblems
@@ -163,7 +167,7 @@ func (runner Runner) prepare(ctx context.Context) (config *types.Runtime, err er
 			&runner.Pkg,
 			runner.Build,
 			runner.CacheDir,
-			runner.Config.Platform,
+			runner.Pkg.Runtime.Platform,
 			runner.ForceEnsure,
 			false,
 			runner.Relative,
@@ -184,12 +188,16 @@ func (runner Runner) prepare(ctx context.Context) (config *types.Runtime, err er
 		return
 	}
 
-	config = types.MergeRuntimeDefault(runner.Pkg.Runtime)
-	config.Platform = runner.Config.Platform
-	config.AppVersion = runner.Config.AppVersion
-	config.Version = runner.Config.Version
-	config.Container = runner.Config.Container
-	config.Gamemodes = []string{strings.TrimSuffix(filepath.Base(runner.Pkg.Output), ".amx")}
+	runner.Pkg.Runtime = GetRuntimeConfig(runner.Pkg, runner.Runtime)
+	runner.Pkg.Runtime.Gamemodes = []string{strings.TrimSuffix(filepath.Base(runner.Pkg.Output), ".amx")}
+
+	if runner.Container {
+		runner.Pkg.Runtime.AppVersion = runner.AppVersion
+		runner.Pkg.Runtime.Container = &types.ContainerConfig{MountCache: true}
+		runner.Pkg.Runtime.Platform = "linux"
+	} else {
+		runner.Pkg.Runtime.Platform = rt.GOOS
+	}
 
 	if !runner.Pkg.Local {
 		scriptfiles := filepath.Join(runner.Pkg.LocalPath, "scriptfiles")
@@ -198,34 +206,77 @@ func (runner Runner) prepare(ctx context.Context) (config *types.Runtime, err er
 		}
 		err = runtime.PrepareRuntimeDirectory(
 			runner.CacheDir,
-			runner.Config.Version,
-			runner.Config.Platform,
+			runner.Pkg.Runtime.Version,
+			runner.Pkg.Runtime.Platform,
 			scriptfiles)
 		if err != nil {
 			err = errors.Wrap(err, "failed to prepare temporary runtime area")
 			return
 		}
 
-		err = runtime.CopyFileToRuntime(runner.CacheDir, runner.Config.Version, filename)
+		err = runtime.CopyFileToRuntime(runner.CacheDir, runner.Pkg.Runtime.Version, filename)
 		if err != nil {
 			err = errors.Wrap(err, "failed to copy amx file to temporary runtime directory")
 			return
 		}
 
-		config.WorkingDir = runtime.GetRuntimePath(runner.CacheDir, runner.Config.Version)
+		runner.Pkg.Runtime.WorkingDir = runtime.GetRuntimePath(runner.CacheDir, runner.Pkg.Runtime.Version)
 	}
 
-	config.PluginDeps = []versioning.DependencyMeta{}
+	runner.Pkg.Runtime.PluginDeps = []versioning.DependencyMeta{}
 	for _, pluginMeta := range runner.Pkg.AllPlugins {
 		print.Verb("read plugin from dependency:", pluginMeta)
-		config.PluginDeps = append(config.PluginDeps, pluginMeta)
+		runner.Pkg.Runtime.PluginDeps = append(runner.Pkg.Runtime.PluginDeps, pluginMeta)
 	}
-	print.Verb(config.PluginDeps)
+	print.Verb(runner.Pkg.Runtime.PluginDeps)
 
-	err = runtime.Ensure(ctx, runner.GitHub, config, runner.NoCache)
+	err = runtime.Ensure(ctx, runner.GitHub, runner.Pkg.Runtime, runner.NoCache)
 	if err != nil {
 		err = errors.Wrap(err, "failed to ensure temporary runtime")
 		return
+	}
+
+	return
+}
+
+// GetRuntimeConfig returns a matching runtime config by name from the package
+// runtime list. If no name is specified, the first config is returned. If the
+// package has no configurations, a default configuration is returned.
+func GetRuntimeConfig(pkg types.Package, name string) (config *types.Runtime) {
+	def := types.GetRuntimeDefault()
+
+	// if there are no runtimes at all, use default
+	if len(pkg.Runtimes) == 0 && pkg.Runtime == nil {
+		return def
+	}
+
+	// if the user did not specify a specific runtime config, use the first
+	// otherwise, search for a matching config by name
+	if name == "default" {
+		if pkg.Runtime != nil {
+			config = pkg.Runtime
+		} else {
+			config = pkg.Runtimes[0]
+		}
+	} else {
+		for _, cfg := range pkg.Runtimes {
+			if cfg.Name == name {
+				config = cfg
+				break
+			}
+		}
+	}
+
+	if config == nil {
+		print.Warn("No runtime config called:", name, "using default")
+		return def
+	}
+
+	if config.RCONPassword == nil {
+		config.RCONPassword = def.RCONPassword
+	}
+	if config.Port == nil {
+		config.Port = def.Port
 	}
 
 	return
