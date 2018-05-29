@@ -103,31 +103,67 @@ const (
 // Plugin represents either a plugin name or a dependency-string description of where to get it
 type Plugin string
 
+// Validate checks a Runtime for missing fields
+func (runtime Runtime) Validate() (err error) {
+	if runtime.WorkingDir == "" {
+		return errors.New("WorkingDir empty")
+	}
+
+	if runtime.Platform == "" {
+		return errors.New("Platform empty")
+	}
+
+	if runtime.AppVersion == "" {
+		return errors.New("AppVersion empty")
+	}
+
+	if runtime.Format == "" {
+		return errors.New("Format empty")
+	}
+
+	if runtime.Version == "" {
+		return errors.New("Version empty")
+	}
+
+	if runtime.Mode == "" {
+		return errors.New("Mode empty")
+	}
+
+	return
+}
+
 // RuntimeFromDir creates a config from a directory by searching for a JSON or YAML file to
 // read settings from. If both exist, the JSON file takes precedence.
 func RuntimeFromDir(dir string) (cfg Runtime, err error) {
-	jsonFile := filepath.Join(dir, "samp.json")
-	if util.Exists(jsonFile) {
-		cfg, err = RuntimeFromJSON(jsonFile)
-		if err != nil {
+	cfg, err = func() (cfg Runtime, err error) {
+		jsonFile := filepath.Join(dir, "samp.json")
+		if util.Exists(jsonFile) {
+			cfg, err = RuntimeFromJSON(jsonFile)
+			if err != nil {
+				return
+			}
+			cfg.WorkingDir = dir
 			return
 		}
-		cfg.WorkingDir = dir
+
+		yamlFile := filepath.Join(dir, "samp.yaml")
+		if util.Exists(yamlFile) {
+			cfg, err = RuntimeFromYAML(yamlFile)
+			if err != nil {
+				return
+			}
+			cfg.WorkingDir = dir
+			return
+		}
+
+		err = errors.New("directory does not contain a samp.json or samp.yaml file")
+		return
+	}()
+	if err != nil {
 		return
 	}
 
-	yamlFile := filepath.Join(dir, "samp.yaml")
-	if util.Exists(yamlFile) {
-		cfg, err = RuntimeFromYAML(yamlFile)
-		if err != nil {
-			return
-		}
-		cfg.WorkingDir = dir
-		return
-	}
-
-	err = errors.New("directory does not contain a samp.json or samp.yaml file")
-
+	err = errors.Wrap(cfg.Validate(), "runtime configuration validation failed")
 	return
 }
 
@@ -196,6 +232,7 @@ func GetRuntimeDefault() (config *Runtime) {
 	return &Runtime{
 		RCONPassword: &[]string{"password"}[0],
 		Port:         &[]int{7777}[0],
+		Mode:         Server,
 	}
 }
 

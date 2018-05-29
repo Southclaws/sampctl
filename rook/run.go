@@ -191,8 +191,9 @@ func (runner *Runner) prepare(ctx context.Context) (err error) {
 	runner.Pkg.Runtime = GetRuntimeConfig(runner.Pkg, runner.Runtime)
 	runner.Pkg.Runtime.Gamemodes = []string{strings.TrimSuffix(filepath.Base(runner.Pkg.Output), ".amx")}
 
+	runner.Pkg.Runtime.AppVersion = runner.AppVersion
+	runner.Pkg.Runtime.Format = runner.Pkg.Format
 	if runner.Container {
-		runner.Pkg.Runtime.AppVersion = runner.AppVersion
 		runner.Pkg.Runtime.Container = &types.ContainerConfig{MountCache: true}
 		runner.Pkg.Runtime.Platform = "linux"
 	} else {
@@ -221,6 +222,13 @@ func (runner *Runner) prepare(ctx context.Context) (err error) {
 		}
 
 		runner.Pkg.Runtime.WorkingDir = runtime.GetRuntimePath(runner.CacheDir, runner.Pkg.Runtime.Version)
+	} else {
+		runner.Pkg.Runtime.WorkingDir = runner.Pkg.LocalPath
+
+		err = runner.Pkg.Runtime.Validate()
+		if err != nil {
+			return
+		}
 	}
 
 	runner.Pkg.Runtime.PluginDeps = []versioning.DependencyMeta{}
@@ -277,6 +285,9 @@ func GetRuntimeConfig(pkg types.Package, name string) (config *types.Runtime) {
 	}
 	if config.Port == nil {
 		config.Port = def.Port
+	}
+	if config.Mode == "" {
+		config.Mode = def.Mode
 	}
 
 	return
