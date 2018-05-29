@@ -110,7 +110,7 @@ func FromNet(location, cacheDir, filename string) (result string, err error) {
 }
 
 // ReleaseAssetByPattern downloads a resource file, which is a GitHub release asset
-func ReleaseAssetByPattern(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, matcher *regexp.Regexp, dir, outputFile, cacheDir string) (filename string, err error) {
+func ReleaseAssetByPattern(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, matcher *regexp.Regexp, dir, outputFile, cacheDir string) (filename, tag string, err error) {
 	var (
 		asset  *github.ReleaseAsset
 		assets []string
@@ -135,6 +135,16 @@ func ReleaseAssetByPattern(ctx context.Context, gh *github.Client, meta versioni
 	}
 	if asset == nil {
 		err = errors.Errorf("resource matcher '%s' does not match any release assets from '%v'", matcher, assets)
+		return
+	}
+	tag = release.GetTagName()
+
+	if meta.Tag == "" {
+		dir = filepath.Join(dir, tag)
+	}
+	err = os.MkdirAll(dir, 0666)
+	if err != nil {
+		err = errors.Wrap(err, "failed to create directory for release asset")
 		return
 	}
 

@@ -59,7 +59,7 @@ func FromNet(ctx context.Context, gh *github.Client, meta versioning.DependencyM
 		}
 	}
 
-	path, err := download.ReleaseAssetByPattern(ctx, gh, meta, regexp.MustCompile(compiler.Match), "", fmt.Sprintf("pawn-%s-%s", meta.Tag, platform), cacheDir)
+	path, _, err := download.ReleaseAssetByPattern(ctx, gh, meta, regexp.MustCompile(compiler.Match), "", fmt.Sprintf("pawn-%s", platform), cacheDir)
 	if err != nil {
 		return
 	}

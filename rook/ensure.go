@@ -95,6 +95,11 @@ func EnsureDependencies(ctx context.Context, gh *github.Client, pkg *types.Packa
 		recurse(meta)
 	}
 
+	if pkg.Local && pkg.Runtime != nil {
+		print.Verb(pkg, "ensuring local runtime dependencies")
+		err = runtime.Ensure(ctx, gh, pkg.Runtime, false)
+	}
+
 	return nil
 }
 

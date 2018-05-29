@@ -27,6 +27,11 @@ func packageEnsure(c *cli.Context) error {
 		print.SetVerbose()
 	}
 
+	runtimeName := c.Args().Get(0)
+	if runtimeName == "" {
+		runtimeName = "default"
+	}
+
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
 		print.Erro("Failed to retrieve cache directory path (attempted <user folder>/.samp) ")
@@ -39,6 +44,8 @@ func packageEnsure(c *cli.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
+
+	pkg.Runtime = rook.GetRuntimeConfig(pkg, runtimeName)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
 	defer cancel()

@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -65,6 +66,12 @@ func EnsurePlugins(ctx context.Context, gh *github.Client, cfg *types.Runtime, c
 
 // EnsureVersionedPlugin automatically downloads a plugin binary from its github releases page
 func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, dir, platform, cacheDir string, plugins, includes, noCache bool) (files []types.Plugin, err error) {
+	if meta.Tag == "" {
+		print.Erro("Plugin dependencies must have a version constraint. Add one to the dependency string, for example:", fmt.Sprintf(`"%s/%s:1.2.3"`, meta.User, meta.Repo))
+		err = errors.New("plugin has no dependency string")
+		return
+	}
+
 	var (
 		hit      bool
 		filename string
@@ -195,15 +202,7 @@ func PluginFromCache(meta versioning.DependencyMeta, platform, cacheDir string) 
 
 // PluginFromNet downloads a plugin from the given metadata to the cache directory
 func PluginFromNet(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, platform, cacheDir string) (filename string, resource types.Resource, err error) {
-	resourcePath := filepath.Join(cacheDir, GetResourcePath(meta))
-
 	print.Info("downloading plugin resource", meta)
-
-	err = os.MkdirAll(resourcePath, 0700)
-	if err != nil {
-		err = errors.Wrap(err, "failed to create cache directory for package resources")
-		return
-	}
 
 	pkg, err := types.GetRemotePackage(ctx, gh, meta)
 	if err != nil {
@@ -217,14 +216,6 @@ func PluginFromNet(ctx context.Context, gh *github.Client, meta versioning.Depen
 		return
 	}
 
-	err = ioutil.WriteFile(filepath.Join(resourcePath, "pawn.json"), pkgJSON, 0700)
-	if err != nil {
-		err = errors.Wrap(err, "failed to write package file to cache")
-		if err != nil {
-			return
-		}
-	}
-
 	resource, err = GetResourceForPlatform(pkg.Resources, platform)
 	if err != nil {
 		return
@@ -236,9 +227,26 @@ func PluginFromNet(ctx context.Context, gh *github.Client, meta versioning.Depen
 		return
 	}
 
-	filename, err = download.ReleaseAssetByPattern(ctx, gh, meta, matcher, GetResourcePath(meta), "", cacheDir)
+	filename, tag, err := download.ReleaseAssetByPattern(ctx, gh, meta, matcher, GetResourcePath(meta), "", cacheDir)
 	if err != nil {
 		return
+	}
+
+	meta.Tag = tag
+
+	resourcePath := filepath.Join(cacheDir, GetResourcePath(meta))
+	err = os.MkdirAll(resourcePath, 0700)
+	if err != nil {
+		err = errors.Wrap(err, "failed to create cache directory for package resources")
+		return
+	}
+
+	err = ioutil.WriteFile(filepath.Join(resourcePath, "pawn.json"), pkgJSON, 0700)
+	if err != nil {
+		err = errors.Wrap(err, "failed to write package file to cache")
+		if err != nil {
+			return
+		}
 	}
 
 	return
@@ -269,9 +277,5 @@ func GetResourceForPlatform(resources []types.Resource, platform string) (resour
 
 // GetResourcePath returns a path where a resource should be stored given the metadata
 func GetResourcePath(meta versioning.DependencyMeta) (path string) {
-	version := meta.Tag
-	if version == "" {
-		version = "latest"
-	}
-	return filepath.Join("plugins", meta.Repo, version)
+	return filepath.Join("plugins", meta.Repo, meta.Tag)
 }
