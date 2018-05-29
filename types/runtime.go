@@ -104,28 +104,28 @@ const (
 type Plugin string
 
 // Validate checks a Runtime for missing fields
-func (runtime Runtime) Validate() (err error) {
-	if runtime.WorkingDir == "" {
+func (cfg Runtime) Validate() (err error) {
+	if cfg.WorkingDir == "" {
 		return errors.New("WorkingDir empty")
 	}
 
-	if runtime.Platform == "" {
+	if cfg.Platform == "" {
 		return errors.New("Platform empty")
 	}
 
-	if runtime.AppVersion == "" {
+	if cfg.AppVersion == "" {
 		return errors.New("AppVersion empty")
 	}
 
-	if runtime.Format == "" {
+	if cfg.Format == "" {
 		return errors.New("Format empty")
 	}
 
-	if runtime.Version == "" {
+	if cfg.Version == "" {
 		return errors.New("Version empty")
 	}
 
-	if runtime.Mode == "" {
+	if cfg.Mode == "" {
 		return errors.New("Mode empty")
 	}
 

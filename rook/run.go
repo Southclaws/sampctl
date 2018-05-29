@@ -251,47 +251,30 @@ func (runner *Runner) prepare(ctx context.Context) (err error) {
 // runtime list. If no name is specified, the first config is returned. If the
 // package has no configurations, a default configuration is returned.
 func GetRuntimeConfig(pkg types.Package, name string) (config *types.Runtime) {
-	def := types.GetRuntimeDefault()
-
-	// if there are no runtimes at all, use default
-	if len(pkg.Runtimes) == 0 && pkg.Runtime == nil {
-		return def
-	}
-
-	// if the user did not specify a specific runtime config, use the first
-	// otherwise, search for a matching config by name
-	if name == "default" {
-		if pkg.Runtime != nil {
-			config = pkg.Runtime
+	if len(pkg.Runtimes) > 0 || pkg.Runtime != nil {
+		// if the user did not specify a specific runtime config, use the first
+		// otherwise, search for a matching config by name
+		if name == "default" {
+			if pkg.Runtime != nil {
+				config = pkg.Runtime
+			} else {
+				config = pkg.Runtimes[0]
+			}
 		} else {
-			config = pkg.Runtimes[0]
-		}
-	} else {
-		for _, cfg := range pkg.Runtimes {
-			if cfg.Name == name {
-				config = cfg
-				break
+			for _, cfg := range pkg.Runtimes {
+				if cfg.Name == name {
+					config = cfg
+					break
+				}
 			}
 		}
 	}
 
 	if config == nil {
 		print.Warn("No runtime config called:", name, "using default")
-		return def
 	}
 
-	if config.Version == "" {
-		config.Version = def.Version
-	}
-	if config.RCONPassword == nil {
-		config.RCONPassword = def.RCONPassword
-	}
-	if config.Port == nil {
-		config.Port = def.Port
-	}
-	if config.Mode == "" {
-		config.Mode = def.Mode
-	}
+	types.ApplyRuntimeDefaults(config)
 
 	return
 }
