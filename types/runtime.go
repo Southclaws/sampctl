@@ -237,6 +237,29 @@ func GetRuntimeDefault() (config *Runtime) {
 	}
 }
 
+// ApplyRuntimeDefaults modifies the input runtime config to apply defaults to
+// empty fields
+func ApplyRuntimeDefaults(rt *Runtime) {
+	if rt == nil {
+		rt = &Runtime{}
+	}
+
+	def := GetRuntimeDefault()
+
+	if rt.Version == "" {
+		rt.Version = def.Version
+	}
+	if rt.RCONPassword == nil {
+		rt.RCONPassword = def.RCONPassword
+	}
+	if rt.Port == nil {
+		rt.Port = def.Port
+	}
+	if rt.Mode == "" {
+		rt.Mode = def.Mode
+	}
+}
+
 // AsDep attempts to interpret the plugin string as a dependency string
 func (plugin Plugin) AsDep() (dep versioning.DependencyMeta, err error) {
 	depStr := versioning.DependencyString(plugin)

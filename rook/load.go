@@ -7,7 +7,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/print"
-	"github.com/Southclaws/sampctl/runtime"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
@@ -43,8 +42,7 @@ func PackageFromDir(parent bool, dir, platform, vendor string) (pkg types.Packag
 		pkg.Repo = "<local>"
 	}
 
-	newRuntime := runtime.Defaults(pkg.Runtime)
-	pkg.Runtime = &newRuntime
+	types.ApplyRuntimeDefaults(pkg.Runtime)
 
 	if parent && len(pkg.Dependencies) > 0 && len(pkg.AllDependencies) == 0 {
 		print.Verb(pkg, "resolving dependencies during package load")
