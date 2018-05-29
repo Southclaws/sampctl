@@ -230,6 +230,7 @@ func (cfg *Runtime) ResolveRemotePlugins() {
 // GetRuntimeDefault returns a default config for temporary runtimes
 func GetRuntimeDefault() (config *Runtime) {
 	return &Runtime{
+		Version:      "0.3.7",
 		RCONPassword: &[]string{"password"}[0],
 		Port:         &[]int{7777}[0],
 		Mode:         Server,

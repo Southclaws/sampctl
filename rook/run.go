@@ -280,6 +280,9 @@ func GetRuntimeConfig(pkg types.Package, name string) (config *types.Runtime) {
 		return def
 	}
 
+	if config.Version == "" {
+		config.Version = def.Version
+	}
 	if config.RCONPassword == nil {
 		config.RCONPassword = def.RCONPassword
 	}
