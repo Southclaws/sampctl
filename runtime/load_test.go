@@ -28,8 +28,8 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 			map[string]string{"SAMP_RCON_PASSWORD": "changed"},
 			args{"./tests/from-env"},
 			types.Runtime{
-				Version:    "0.3.7",
 				WorkingDir: "./tests/from-env",
+				Version:    "0.3.7",
 				Gamemodes: []string{
 					"rivershell",
 					"baserace",
@@ -46,12 +46,14 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 				RCON:       &[]bool{true}[0],
 			},
 			types.Runtime{
+				WorkingDir: "./tests/from-env",
+				Platform:   runtime.GOOS,
 				PluginDeps: []versioning.DependencyMeta{
 					{Site: "github.com", User: "zeex", Repo: "samp-plugin-crashdetect"},
 				},
-				Format:     "json",
-				Version:    "0.3.7",
-				WorkingDir: "./tests/from-env",
+				Format:  "json",
+				Version: "0.3.7",
+				Mode:    types.Server,
 				Gamemodes: []string{
 					"rivershell",
 					"baserace",

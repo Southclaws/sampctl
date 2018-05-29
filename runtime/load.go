@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/types"
 )
@@ -26,12 +28,12 @@ func NewConfigFromEnvironment(dir string) (cfg types.Runtime, err error) {
 	// Environment variables override samp.json
 	LoadEnvironmentVariables(&cfg)
 
-	cfg.Platform = runtime.GOOS
-
 	types.ApplyRuntimeDefaults(&cfg)
-
 	cfg.ResolveRemotePlugins()
 
+	cfg.Platform = runtime.GOOS
+
+	err = errors.Wrap(cfg.Validate(), "runtime configuration validation failed")
 	return
 }
 

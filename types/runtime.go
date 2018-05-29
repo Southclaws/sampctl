@@ -113,10 +113,6 @@ func (cfg Runtime) Validate() (err error) {
 		return errors.New("Platform empty")
 	}
 
-	if cfg.AppVersion == "" {
-		return errors.New("AppVersion empty")
-	}
-
 	if cfg.Format == "" {
 		return errors.New("Format empty")
 	}
@@ -135,35 +131,27 @@ func (cfg Runtime) Validate() (err error) {
 // RuntimeFromDir creates a config from a directory by searching for a JSON or YAML file to
 // read settings from. If both exist, the JSON file takes precedence.
 func RuntimeFromDir(dir string) (cfg Runtime, err error) {
-	cfg, err = func() (cfg Runtime, err error) {
-		jsonFile := filepath.Join(dir, "samp.json")
-		if util.Exists(jsonFile) {
-			cfg, err = RuntimeFromJSON(jsonFile)
-			if err != nil {
-				return
-			}
-			cfg.WorkingDir = dir
+	jsonFile := filepath.Join(dir, "samp.json")
+	if util.Exists(jsonFile) {
+		cfg, err = RuntimeFromJSON(jsonFile)
+		if err != nil {
 			return
 		}
-
-		yamlFile := filepath.Join(dir, "samp.yaml")
-		if util.Exists(yamlFile) {
-			cfg, err = RuntimeFromYAML(yamlFile)
-			if err != nil {
-				return
-			}
-			cfg.WorkingDir = dir
-			return
-		}
-
-		err = errors.New("directory does not contain a samp.json or samp.yaml file")
-		return
-	}()
-	if err != nil {
+		cfg.WorkingDir = dir
 		return
 	}
 
-	err = errors.Wrap(cfg.Validate(), "runtime configuration validation failed")
+	yamlFile := filepath.Join(dir, "samp.yaml")
+	if util.Exists(yamlFile) {
+		cfg, err = RuntimeFromYAML(yamlFile)
+		if err != nil {
+			return
+		}
+		cfg.WorkingDir = dir
+		return
+	}
+
+	err = errors.New("directory does not contain a samp.json or samp.yaml file")
 	return
 }
 
