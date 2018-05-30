@@ -61,6 +61,7 @@ func EnsureDependencies(ctx context.Context, gh *github.Client, pkg *types.Packa
 			print.Warn(pkg, meta, errInner)
 			return
 		}
+		subPkg.DependencyMeta = meta
 
 		var resIncs []string
 		for _, res := range subPkg.Resources {
