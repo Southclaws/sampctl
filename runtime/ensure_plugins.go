@@ -70,7 +70,7 @@ func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioni
 		filename string
 		resource types.Resource
 	)
-	if !noCache && meta.Tag != "" {
+	if !noCache {
 		hit, filename, resource, err = PluginFromCache(meta, platform, cacheDir)
 		if err != nil {
 			err = errors.Wrapf(err, "failed to get plugin %s from cache", meta)

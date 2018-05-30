@@ -5,6 +5,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/storer"
 )
 
 // Implements the sort interface on collections of VersionedTags - code copied from semver because
@@ -85,6 +86,63 @@ func GetRepoSemverTags(repo *git.Repository) (versionedTags VersionedTags, err e
 	if err != nil {
 		err = errors.Wrap(err, "failed to iterate commits")
 	}
+
+	return
+}
+
+// GetRepoCurrentVersionedTag returns the current versioned tag of a repo if
+// there is one. Otherwise it returns nil.
+func GetRepoCurrentVersionedTag(repo *git.Repository) (tag *VersionedTag, err error) {
+	head, err := repo.Head()
+	if err != nil {
+		return
+	}
+
+	tags, err := repo.Tags()
+	if err != nil {
+		err = errors.Wrap(err, "failed to get repo tags")
+		return
+	}
+	defer tags.Close()
+
+	err = tags.ForEach(func(pr *plumbing.Reference) (errInner error) {
+		tagName := pr.Name().Short()
+
+		ref := pr
+
+		if pr.Name().IsTag() {
+			ref, errInner = func() (ref *plumbing.Reference, errInnerInner error) {
+				refTagObject, errInnerInner := repo.TagObject(pr.Hash())
+				if errInnerInner != nil {
+					return pr, nil
+				}
+				refCommit, errInnerInner := refTagObject.Commit()
+				if errInnerInner != nil {
+					return nil, errInnerInner
+				}
+				return plumbing.NewHashReference(pr.Name(), refCommit.Hash), nil
+			}()
+			if errInner != nil {
+				return errInner
+			}
+		}
+
+		if ref.Hash() != head.Hash() {
+			return
+		}
+
+		tag = &VersionedTag{
+			Ref:  ref,
+			Name: tagName,
+		}
+
+		versionNumber, errInner := semver.NewVersion(tagName)
+		if errInner == nil {
+			tag.Version = versionNumber
+		}
+
+		return storer.ErrStop
+	})
 
 	return
 }

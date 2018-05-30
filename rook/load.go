@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
+	"gopkg.in/src-d/go-git.v4"
 
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/types"
@@ -24,6 +25,18 @@ func PackageFromDir(parent bool, dir, platform, vendor string) (pkg types.Packag
 
 	pkg.Parent = parent
 	pkg.LocalPath = dir
+
+	repo, err := git.PlainOpen(dir)
+	if err == nil {
+		vtag, errInner := versioning.GetRepoCurrentVersionedTag(repo)
+		if errInner != nil {
+			print.Warn("failed to get version information:", errInner)
+		} else if vtag != nil {
+			pkg.Tag = vtag.Name
+		}
+	}
+
+	print.Verb(pkg, "read package from directory", dir)
 
 	if vendor == "" {
 		pkg.Vendor = filepath.Join(dir, "dependencies")
@@ -114,6 +127,8 @@ func ResolveDependencies(pkg *types.Package, platform string) (err error) {
 		if subPkg.Runtime != nil {
 			for _, pluginDepStr := range subPkg.Runtime.Plugins {
 				pluginMeta, errInner = pluginDepStr.AsDep()
+				pluginMeta.Tag = subPkg.Tag
+				print.Verb(pkg, "adding plugin from package runtime", pluginDepStr, "as", pluginMeta)
 				if errInner != nil {
 					print.Warn(pkg, "invalid plugin dependency string:", pluginDepStr, "in", subPkg, errInner)
 					return
