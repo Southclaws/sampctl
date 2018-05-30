@@ -27,42 +27,42 @@ func TestEnsurePlugins(t *testing.T) {
 		{"streamer-linux", args{
 			types.Runtime{
 				Platform:   "linux",
-				PluginDeps: []versioning.DependencyMeta{{User: "samp-incognito", Repo: "samp-streamer-plugin"}},
+				PluginDeps: []versioning.DependencyMeta{{User: "samp-incognito", Repo: "samp-streamer-plugin", Tag: "v2.9.2"}},
 			}}, []string{"plugins/streamer.so"}, []types.Plugin{"streamer"}, false},
 		{"streamer-windows", args{
 			types.Runtime{
 				Platform:   "windows",
-				PluginDeps: []versioning.DependencyMeta{{User: "samp-incognito", Repo: "samp-streamer-plugin"}},
+				PluginDeps: []versioning.DependencyMeta{{User: "samp-incognito", Repo: "samp-streamer-plugin", Tag: "v2.9.2"}},
 			}}, []string{"plugins/streamer.dll"}, []types.Plugin{"streamer"}, false},
 		{"mysql-linux", args{
 			types.Runtime{
 				Platform:   "linux",
-				PluginDeps: []versioning.DependencyMeta{{User: "pBlueG", Repo: "SA-MP-MySQL"}},
+				PluginDeps: []versioning.DependencyMeta{{User: "pBlueG", Repo: "SA-MP-MySQL", Tag: "R41-4"}},
 			}}, []string{"plugins/mysql.so"}, []types.Plugin{"mysql"}, false},
 		{"mysql-windows", args{
 			types.Runtime{
 				Platform:   "windows",
-				PluginDeps: []versioning.DependencyMeta{{User: "pBlueG", Repo: "SA-MP-MySQL"}},
+				PluginDeps: []versioning.DependencyMeta{{User: "pBlueG", Repo: "SA-MP-MySQL", Tag: "R41-4"}},
 			}}, []string{"plugins/mysql.dll"}, []types.Plugin{"mysql"}, false},
 		{"bitmapper-linux", args{
 			types.Runtime{
 				Platform:   "linux",
-				PluginDeps: []versioning.DependencyMeta{{User: "Southclaws", Repo: "samp-bitmapper"}},
+				PluginDeps: []versioning.DependencyMeta{{User: "Southclaws", Repo: "samp-bitmapper", Tag: "0.2.1"}},
 			}}, []string{"plugins/bitmapper.so"}, []types.Plugin{"bitmapper"}, false},
 		{"bitmapper-windows", args{
 			types.Runtime{
 				Platform:   "windows",
-				PluginDeps: []versioning.DependencyMeta{{User: "Southclaws", Repo: "samp-bitmapper"}},
+				PluginDeps: []versioning.DependencyMeta{{User: "Southclaws", Repo: "samp-bitmapper", Tag: "0.2.1"}},
 			}}, []string{"plugins/bitmapper.dll"}, []types.Plugin{"bitmapper"}, false},
 		{"PawnPlus-linux", args{
 			types.Runtime{
 				Platform:   "linux",
-				PluginDeps: []versioning.DependencyMeta{{User: "IllidanS4", Repo: "PawnPlus"}},
+				PluginDeps: []versioning.DependencyMeta{{User: "IllidanS4", Repo: "PawnPlus", Tag: "v0.5"}},
 			}}, []string{"plugins/PawnPlus.so"}, []types.Plugin{"PawnPlus"}, false},
 		{"PawnPlus-windows", args{
 			types.Runtime{
 				Platform:   "windows",
-				PluginDeps: []versioning.DependencyMeta{{User: "IllidanS4", Repo: "PawnPlus"}},
+				PluginDeps: []versioning.DependencyMeta{{User: "IllidanS4", Repo: "PawnPlus", Tag: "v0.5"}},
 			}}, []string{"plugins/PawnPlus.dll"}, []types.Plugin{"PawnPlus"}, false},
 	}
 	for _, tt := range tests {

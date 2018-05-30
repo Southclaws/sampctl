@@ -204,7 +204,8 @@ func PluginFromCache(meta versioning.DependencyMeta, platform, cacheDir string) 
 func PluginFromNet(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, platform, cacheDir string) (filename string, resource types.Resource, err error) {
 	print.Info("downloading plugin resource", meta)
 
-	resourcePath := filepath.Join(cacheDir, GetResourcePath(meta))
+	resourcePathOnly := GetResourcePath(meta)
+	resourcePath := filepath.Join(cacheDir, resourcePathOnly)
 
 	err = os.MkdirAll(resourcePath, 0700)
 	if err != nil {
@@ -243,7 +244,7 @@ func PluginFromNet(ctx context.Context, gh *github.Client, meta versioning.Depen
 		return
 	}
 
-	filename, _, err = download.ReleaseAssetByPattern(ctx, gh, meta, matcher, resourcePath, "", cacheDir)
+	filename, _, err = download.ReleaseAssetByPattern(ctx, gh, meta, matcher, resourcePathOnly, "", cacheDir)
 	if err != nil {
 		return
 	}
