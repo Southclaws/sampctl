@@ -3,7 +3,6 @@ package runtime
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -66,18 +65,12 @@ func EnsurePlugins(ctx context.Context, gh *github.Client, cfg *types.Runtime, c
 
 // EnsureVersionedPlugin automatically downloads a plugin binary from its github releases page
 func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, dir, platform, cacheDir string, plugins, includes, noCache bool) (files []types.Plugin, err error) {
-	if meta.Tag == "" {
-		print.Erro(meta, "must have a version constraint because this is a plugin. Add one to the dependency string, for example:", fmt.Sprintf(`"%s/%s:1.2.3"`, meta.User, meta.Repo))
-		err = errors.New("plugin has no dependency string")
-		return
-	}
-
 	var (
 		hit      bool
 		filename string
 		resource types.Resource
 	)
-	if !noCache {
+	if !noCache && meta.Tag != "" {
 		hit, filename, resource, err = PluginFromCache(meta, platform, cacheDir)
 		if err != nil {
 			err = errors.Wrapf(err, "failed to get plugin %s from cache", meta)
@@ -277,5 +270,9 @@ func GetResourceForPlatform(resources []types.Resource, platform string) (resour
 
 // GetResourcePath returns a path where a resource should be stored given the metadata
 func GetResourcePath(meta versioning.DependencyMeta) (path string) {
-	return filepath.Join("plugins", meta.Repo, meta.Tag)
+	tag := meta.Tag
+	if tag == "" {
+		tag = "latest"
+	}
+	return filepath.Join("plugins", meta.Repo, tag)
 }
