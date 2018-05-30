@@ -36,6 +36,13 @@ func TestPackageFromDir(t *testing.T) {
 				"samp-incognito/samp-streamer-plugin:2.9.1",
 				"Zeex/amx_assembly",
 				"Zeex/samp-plugin-crashdetect/include",
+			},
+			Runtime: &types.Runtime{
+				Version:      "0.3.7",
+				Platform:     runtime.GOOS,
+				RCONPassword: &[]string{"password"}[0],
+				Port:         &[]int{7777}[0],
+				Mode:         types.Server,
 			}},
 			false},
 		{"load-yaml", args{"tests/load-yaml"}, types.Package{
@@ -52,6 +59,13 @@ func TestPackageFromDir(t *testing.T) {
 				"Misiur/YSI-Includes",
 				"samp-incognito/samp-streamer-plugin:2.9.1",
 				"Zeex/amx_assembly",
+			},
+			Runtime: &types.Runtime{
+				Version:      "0.3.7",
+				Platform:     runtime.GOOS,
+				RCONPassword: &[]string{"password"}[0],
+				Port:         &[]int{7777}[0],
+				Mode:         types.Server,
 			}},
 			false},
 	}
