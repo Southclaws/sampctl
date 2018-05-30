@@ -139,9 +139,6 @@ func ReleaseAssetByPattern(ctx context.Context, gh *github.Client, meta versioni
 	}
 	tag = release.GetTagName()
 
-	if meta.Tag == "" {
-		dir = filepath.Join(dir, tag)
-	}
 	err = os.MkdirAll(dir, 0666)
 	if err != nil {
 		err = errors.Wrap(err, "failed to create directory for release asset")

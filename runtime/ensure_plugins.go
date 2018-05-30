@@ -204,6 +204,14 @@ func PluginFromCache(meta versioning.DependencyMeta, platform, cacheDir string) 
 func PluginFromNet(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, platform, cacheDir string) (filename string, resource types.Resource, err error) {
 	print.Info("downloading plugin resource", meta)
 
+	resourcePath := filepath.Join(cacheDir, GetResourcePath(meta))
+
+	err = os.MkdirAll(resourcePath, 0700)
+	if err != nil {
+		err = errors.Wrap(err, "failed to create cache directory for package resources")
+		return
+	}
+
 	pkg, err := types.GetRemotePackage(ctx, gh, meta)
 	if err != nil {
 		err = errors.Wrap(err, "failed to get remote package definition file")
@@ -214,6 +222,14 @@ func PluginFromNet(ctx context.Context, gh *github.Client, meta versioning.Depen
 	if err != nil {
 		err = errors.Wrap(err, "failed to encode package to json")
 		return
+	}
+
+	err = ioutil.WriteFile(filepath.Join(resourcePath, "pawn.json"), pkgJSON, 0700)
+	if err != nil {
+		err = errors.Wrap(err, "failed to write package file to cache")
+		if err != nil {
+			return
+		}
 	}
 
 	resource, err = GetResourceForPlatform(pkg.Resources, platform)
@@ -227,26 +243,9 @@ func PluginFromNet(ctx context.Context, gh *github.Client, meta versioning.Depen
 		return
 	}
 
-	filename, tag, err := download.ReleaseAssetByPattern(ctx, gh, meta, matcher, GetResourcePath(meta), "", cacheDir)
+	filename, _, err = download.ReleaseAssetByPattern(ctx, gh, meta, matcher, resourcePath, "", cacheDir)
 	if err != nil {
 		return
-	}
-
-	meta.Tag = tag
-
-	resourcePath := filepath.Join(cacheDir, GetResourcePath(meta))
-	err = os.MkdirAll(resourcePath, 0700)
-	if err != nil {
-		err = errors.Wrap(err, "failed to create cache directory for package resources")
-		return
-	}
-
-	err = ioutil.WriteFile(filepath.Join(resourcePath, "pawn.json"), pkgJSON, 0700)
-	if err != nil {
-		err = errors.Wrap(err, "failed to write package file to cache")
-		if err != nil {
-			return
-		}
 	}
 
 	return
