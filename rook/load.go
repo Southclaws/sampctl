@@ -42,6 +42,9 @@ func PackageFromDir(parent bool, dir, platform, vendor string) (pkg types.Packag
 		pkg.Repo = "<local>"
 	}
 
+	if pkg.Runtime == nil {
+		pkg.Runtime = new(types.Runtime)
+	}
 	types.ApplyRuntimeDefaults(pkg.Runtime)
 
 	if parent && len(pkg.Dependencies) > 0 && len(pkg.AllDependencies) == 0 {

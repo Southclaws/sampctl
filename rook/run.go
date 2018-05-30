@@ -268,10 +268,13 @@ func GetRuntimeConfig(pkg types.Package, name string) (config *types.Runtime) {
 				}
 			}
 		}
-	}
 
-	if config == nil {
-		print.Warn("No runtime config called:", name, "using default")
+		if config == nil {
+			print.Warn("No runtime config called:", name, "using default")
+		}
+	} else {
+		print.Warn("No runtime config for package, using default")
+		config = &types.Runtime{}
 	}
 
 	types.ApplyRuntimeDefaults(config)

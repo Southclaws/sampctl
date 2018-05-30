@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
@@ -229,13 +230,16 @@ func GetRuntimeDefault() (config *Runtime) {
 // empty fields
 func ApplyRuntimeDefaults(rt *Runtime) {
 	if rt == nil {
-		rt = &Runtime{}
+		panic("cannot apply runtime defaults to nil pointer")
 	}
 
 	def := GetRuntimeDefault()
 
 	if rt.Version == "" {
 		rt.Version = def.Version
+	}
+	if rt.Platform == "" {
+		rt.Platform = runtime.GOOS
 	}
 	if rt.RCONPassword == nil {
 		rt.RCONPassword = def.RCONPassword
