@@ -67,7 +67,7 @@ func EnsurePlugins(ctx context.Context, gh *github.Client, cfg *types.Runtime, c
 // EnsureVersionedPlugin automatically downloads a plugin binary from its github releases page
 func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, dir, platform, cacheDir string, plugins, includes, noCache bool) (files []types.Plugin, err error) {
 	if meta.Tag == "" {
-		print.Erro("Plugin dependencies must have a version constraint. Add one to the dependency string, for example:", fmt.Sprintf(`"%s/%s:1.2.3"`, meta.User, meta.Repo))
+		print.Erro(meta, "must have a version constraint because this is a plugin. Add one to the dependency string, for example:", fmt.Sprintf(`"%s/%s:1.2.3"`, meta.User, meta.Repo))
 		err = errors.New("plugin has no dependency string")
 		return
 	}
