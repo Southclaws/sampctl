@@ -44,7 +44,7 @@ func EnsureDependencies(ctx context.Context, gh *github.Client, pkg *types.Packa
 	recurse = func(meta versioning.DependencyMeta) {
 		pkgPath := filepath.Join(pkg.Vendor, meta.Repo)
 
-		errInner := EnsurePackage(pkgPath, meta, auth)
+		errInner := EnsurePackage(pkgPath, meta, auth, false)
 		if errInner != nil {
 			print.Warn(errors.Wrapf(errInner, "failed to ensure package %s", meta))
 			return
@@ -118,7 +118,7 @@ func EnsureDependencies(ctx context.Context, gh *github.Client, pkg *types.Packa
 // EnsurePackage will make sure a vendor directory contains the specified package.
 // If the package is not present, it will clone it at the correct version tag, sha1 or HEAD
 // If the package is present, it will ensure the directory contains the correct version
-func EnsurePackage(pkgPath string, meta versioning.DependencyMeta, auth transport.AuthMethod) (err error) {
+func EnsurePackage(pkgPath string, meta versioning.DependencyMeta, auth transport.AuthMethod, forceUpdate bool) (err error) {
 	var (
 		needToClone  = false // do we need to clone a new repo?
 		needToUpdate = true  // do we need to do anything after once the repo is on-disk?
@@ -168,11 +168,16 @@ func EnsurePackage(pkgPath string, meta versioning.DependencyMeta, auth transpor
 		}
 	}
 
-	if needToUpdate {
+	if needToUpdate || forceUpdate {
 		print.Verb(meta, "updating dependency package")
-		err = updateRepoState(repo, meta, auth)
+		err = updateRepoState(repo, meta, auth, false)
 		if err != nil {
-			return errors.Wrap(err, "failed to update repo state")
+			// try once more, but force a pull
+			print.Verb(meta, "unable to update repo in given state, force-pulling latest from repo tip")
+			err = updateRepoState(repo, meta, auth, true)
+			if err != nil {
+				return errors.Wrap(err, "failed to update repo state")
+			}
 		}
 	}
 
@@ -186,7 +191,7 @@ func EnsurePackage(pkgPath string, meta versioning.DependencyMeta, auth transpor
 }
 
 // updateRepoState takes a repo that exists on disk and ensures it matches tag, branch or commit constraints
-func updateRepoState(repo *git.Repository, meta versioning.DependencyMeta, auth transport.AuthMethod) (err error) {
+func updateRepoState(repo *git.Repository, meta versioning.DependencyMeta, auth transport.AuthMethod, forcePull bool) (err error) {
 	var wt *git.Worktree
 	wt, err = repo.Worktree()
 	if err != nil {
@@ -194,6 +199,15 @@ func updateRepoState(repo *git.Repository, meta versioning.DependencyMeta, auth 
 	}
 
 	print.Verb(meta, "updating repository state with", auth, "authentication method")
+
+	if forcePull {
+		err = wt.Pull(&git.PullOptions{
+			Depth: 1000, // get full history
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to force pull for full update")
+		}
+	}
 
 	var (
 		ref  *plumbing.Reference
