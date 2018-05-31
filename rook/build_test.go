@@ -94,32 +94,6 @@ func TestPackage_Build(t *testing.T) {
 		// 	}, "build", true}, nil, false,
 		// },
 		{
-			"custominc", []byte(`#include <a_samp>
-			#include <YSI\y_utils>
-			main() {}`,
-			), args{&types.Package{
-				Parent:         true,
-				LocalPath:      util.FullPath("./tests/build-auto-custominc"),
-				DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "custominc"},
-				Entry:          "gamemodes/test.pwn",
-				Output:         "gamemodes/test.amx",
-				Dependencies: []versioning.DependencyString{
-					"sampctl/samp-stdlib",
-				},
-				Builds: []*types.BuildConfig{
-					{
-						Name:    "build",
-						Version: "3.10.4",
-						Includes: []string{
-							"../build-auto-deep/dependencies/amx_assembly",
-							"../build-auto-deep/dependencies/YSI-Includes",
-						},
-						Args: []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
-					},
-				},
-			}, "build", true}, nil, false,
-		},
-		{
 			"resourceinc", []byte(`#include <a_samp>
 			#include <a_mysql>
 			main() {}`,
