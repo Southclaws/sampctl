@@ -135,10 +135,18 @@ func main() {
 				{
 					Name:         "install",
 					Usage:        "sampctl package install [package definition]",
-					Description:  "Installs a new package by adding it to the `dependencies` field in `pawn.json`/`pawn.yaml` downloads the contents.",
+					Description:  "Installs a new package by adding it to the `dependencies` field in `pawn.json`/`pawn.yaml` and downloads the contents.",
 					Action:       packageInstall,
 					Flags:        append(globalFlags, packageInstallFlags...),
 					BashComplete: packageInstallBash,
+				},
+				{
+					Name:         "uninstall",
+					Usage:        "sampctl package uninstall [package definition]",
+					Description:  "Uninstalls package by removing it from the `dependencies` field in `pawn.json`/`pawn.yaml` and deletes the contents.",
+					Action:       packageUninstall,
+					Flags:        append(globalFlags, packageUninstallFlags...),
+					BashComplete: packageUninstallBash,
 				},
 				{
 					Name:        "release",
