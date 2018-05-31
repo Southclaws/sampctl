@@ -78,6 +78,7 @@ func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioni
 		}
 	}
 	if !hit {
+		print.Verb(meta, "no cached copy found")
 		filename, resource, err = PluginFromNet(ctx, gh, meta, platform, cacheDir)
 		if err != nil {
 			err = errors.Wrapf(err, "failed to get plugin %s from net", meta)
@@ -85,7 +86,7 @@ func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioni
 		}
 	}
 
-	print.Verb("retrieved package", meta, "resource file:", filename)
+	print.Verb(meta, "retrieved package to file:", filename)
 
 	if resource.Archive {
 		var (
@@ -153,6 +154,7 @@ func PluginFromCache(meta versioning.DependencyMeta, platform, cacheDir string) 
 
 	pkg, err := types.PackageFromDir(resourcePath)
 	if err != nil {
+		print.Verb("cache hit failed:", err)
 		err = nil
 		hit = false
 		return
