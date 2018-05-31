@@ -23,7 +23,7 @@ func FromCache(meta versioning.DependencyMeta, dir, platform, cacheDir string) (
 		return
 	}
 
-	filename := fmt.Sprintf("pawn-%s-%s", meta.Tag, platform)
+	filename := GetCompilerFilename(platform, compiler.Method)
 
 	print.Verb("Checking for cached package", filename, "in", cacheDir)
 
@@ -59,7 +59,7 @@ func FromNet(ctx context.Context, gh *github.Client, meta versioning.DependencyM
 		}
 	}
 
-	path, _, err := download.ReleaseAssetByPattern(ctx, gh, meta, regexp.MustCompile(compiler.Match), "", fmt.Sprintf("pawn-%s", platform), cacheDir)
+	path, _, err := download.ReleaseAssetByPattern(ctx, gh, meta, regexp.MustCompile(compiler.Match), "", GetCompilerFilename(platform, compiler.Method), cacheDir)
 	if err != nil {
 		return
 	}
@@ -125,4 +125,10 @@ func GetCompilerPackageInfo(cacheDir, platform string) (compiler types.Compiler,
 		err = errors.Errorf("no compiler for platform '%s'", platform)
 	}
 	return
+}
+
+// GetCompilerFilename returns the path to a compiler given its platform and
+// version number.
+func GetCompilerFilename(platform, method string) string {
+	return fmt.Sprintf("pawn-%s.%s", platform, method)
 }
