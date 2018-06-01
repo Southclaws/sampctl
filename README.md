@@ -214,7 +214,7 @@ directory.
 ---
 # `sampctl`
 
-1.7.19 - Southclaws <hello@southcla.ws>
+1.8.0 - Southclaws <hello@southcla.ws>
 
 The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
 
@@ -287,7 +287,7 @@ Usage: `sampctl package <subcommand>`
 
 For managing Pawn packages such as gamemodes and libraries.
 
-#### Subcommands (8)
+#### Subcommands (9)
 
 ### `sampctl package init`
 
@@ -315,7 +315,19 @@ Ensures dependencies are up to date based on the `dependencies` field in `pawn.j
 
 Usage: `sampctl package install [package definition]`
 
-Installs a new package by adding it to the `dependencies` field in `pawn.json`/`pawn.yaml` downloads the contents.
+Installs a new package by adding it to the `dependencies` field in `pawn.json`/`pawn.yaml` and downloads the contents.
+
+#### Flags
+
+- `--verbose`: output all detailed information - useful for debugging
+- `--dir value`: working directory for the project - by default, uses the current directory (default: ".")
+- `--dev`: for specifying dependencies only necessary for development or testing of the package
+
+### `sampctl package uninstall`
+
+Usage: `sampctl package uninstall [package definition]`
+
+Uninstalls package by removing it from the `dependencies` field in `pawn.json`/`pawn.yaml` and deletes the contents.
 
 #### Flags
 
@@ -371,7 +383,6 @@ Compiles and runs a package defined by a `pawn.json`/`pawn.yaml` file.
 - `--verbose`: output all detailed information - useful for debugging
 - `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
 - `--container`: starts the server as a Linux container instead of running it in the current directory
-- `--mountCache --container`: if --container is set, mounts the local cache directory inside the container
 - `--build --forceBuild`: build configuration to use if --forceBuild is set
 - `--forceBuild`: forces a build to run before executing the server
 - `--forceEnsure --forceBuild`: forces dependency ensure before build if --forceBuild is set
