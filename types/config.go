@@ -45,7 +45,7 @@ func LoadOrCreateConfig(cacheDir string) (cfg *Config, err error) {
 			username = u.Username
 		}
 		cfg.DefaultUser = username
-		contents, err = json.Marshal(cfg)
+		contents, err = json.MarshalIndent(cfg, "", "    ")
 		if err != nil {
 			return
 		}
@@ -61,7 +61,7 @@ func LoadOrCreateConfig(cacheDir string) (cfg *Config, err error) {
 // WriteConfig writes a configuration file to the given cache directory
 func WriteConfig(cacheDir string, cfg Config) (err error) {
 	configFile := filepath.Join(cacheDir, "config.json")
-	contents, err := json.Marshal(cfg)
+	contents, err := json.MarshalIndent(cfg, "", "    ")
 	if err != nil {
 		return
 	}
