@@ -3,14 +3,10 @@ LDFLAGS := -ldflags "-X main.version=$(VERSION)"
 
 .PHONY: version
 
-test:
-	go test -race -v ./versioning
-	go test -race -v ./util
-	go test -race -v ./download
-	go test -race -v ./compiler
-	go test -race -v ./runtime
-	go test -race -v ./rook
-	echo SUCCESS!
+
+# -
+# Builds
+# -
 
 fast:
 	go build $(LDFLAGS) -o sampctl
@@ -21,13 +17,73 @@ static:
 install:
 	go install $(LDFLAGS)
 
+clean:
+	-rm sampctl
+
+
+# -
+# Linting
+# -
+
+lint-all:
+	gometalinter \
+		--deadline=10m \
+		--vendor \
+		--aggregate \
+		--disable-all \
+		--enable=interfacer \
+		--enable=misspell \
+		--enable=gas \
+		--enable=gotype \
+		--enable=megacheck \
+		--enable=errcheck \
+		--enable=safesql \
+		--enable=vet \
+		--enable=golint \
+		--enable=structcheck \
+		--enable=deadcode \
+		--enable=vetshadow \
+		--enable=unconvert \
+		--enable=varcheck \
+		./...
+
+lint-fast:
+	gometalinter \
+		--vendor \
+		--disable-all \
+		--enable=gotype \
+		--enable=vet \
+		--enable=megacheck \
+		./...
+
+lint-revive:
+	revive \
+		--exclude vendor/... \
+		--config=revive.toml
+
+
+# -
+# Unit Tests
+# -
+
+test:
+	go test -race -v ./versioning
+	go test -race -v ./util
+	go test -race -v ./download
+	go test -race -v ./compiler
+	go test -race -v ./runtime
+	go test -race -v ./rook
+	echo SUCCESS!
+
+
+# -
+# Release
+# -
+
 version:
 	git tag $(VERSION)
 	git push
 	git push origin $(VERSION)
-
-clean:
-	-rm sampctl
 
 docs: fast
 	./docgen.sh
@@ -41,7 +97,10 @@ dist:
 		--skip-validate \
 		--rm-dist
 
+
+# -
 # Docker
+# -
 
 build:
 	docker build -t southclaws/sampctl:$(VERSION) .
@@ -70,7 +129,10 @@ enter-mount:
 		--security-opt='seccomp=unconfined' \
 		southclaws/sampctl:$(VERSION)
 
+
+# -
 # Test environments
+# -
 
 ubuntu-build:
 	docker run \
