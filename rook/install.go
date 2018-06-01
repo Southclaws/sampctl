@@ -23,6 +23,11 @@ func Install(ctx context.Context, gh *github.Client, pkg types.Package, targets 
 	exists := false
 
 	for _, target := range targets {
+		_, err = versioning.DependencyString(target).Explode()
+		if err != nil {
+			return errors.Wrapf(err, "failed to parse %s as a dependency string", target)
+		}
+
 		for _, dep := range pkg.GetAllDependencies() {
 			if dep == target {
 				exists = true

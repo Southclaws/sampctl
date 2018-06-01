@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/google/go-github/github"
+	"github.com/pkg/errors"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
 	"github.com/Southclaws/sampctl/print"
@@ -17,6 +18,11 @@ func Uninstall(ctx context.Context, gh *github.Client, pkg types.Package, target
 	exists := false
 
 	for _, target := range targets {
+		_, err = versioning.DependencyString(target).Explode()
+		if err != nil {
+			return errors.Wrapf(err, "failed to parse %s as a dependency string", target)
+		}
+
 		if development {
 			var (
 				i   = 0
