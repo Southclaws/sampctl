@@ -261,7 +261,7 @@ func PackageFromOfficialRepo(ctx context.Context, client *github.Client, meta ve
 		err = errors.Wrapf(err, "failed to read response for plugin package '%s'", meta)
 		return
 	}
-	json.Unmarshal(payload, &pkg)
+	err = json.Unmarshal(payload, &pkg)
 	if err != nil {
 		err = errors.Wrapf(err, "failed to decode plugin package '%s'", meta)
 		return

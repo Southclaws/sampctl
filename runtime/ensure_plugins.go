@@ -139,7 +139,12 @@ func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioni
 		}
 	} else {
 		base := filepath.Base(filename)
-		util.CopyFile(filename, filepath.Join(dir, "plugins", base))
+		destination := filepath.Join(dir, "plugins", base)
+		err = util.CopyFile(filename, destination)
+		if err != nil {
+			err = errors.Wrapf(err, "failed to copy non-archive file %s to %s", filename, destination)
+			return
+		}
 		files = []types.Plugin{types.Plugin(base)}
 	}
 

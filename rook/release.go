@@ -77,7 +77,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 			},
 		}
 	} else {
-		var latest versioning.VersionedTag = tags[0]
+		var latest = tags[0]
 
 		print.Info("Latest version:", latest.Version)
 

@@ -30,7 +30,7 @@ func GetRuntimeList(cacheDir string) (runtimes types.Runtimes, err error) {
 
 	if update {
 		// print to stderr so bash doesn't pick it up as an auto-complete result
-		fmt.Fprintln(os.Stderr, "updating runtimes list...")
+		fmt.Fprintln(os.Stderr, "updating runtimes list...") // nolint:gas
 		err = UpdateRuntimeList(cacheDir)
 		if err != nil {
 			return
