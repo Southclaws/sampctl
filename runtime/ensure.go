@@ -22,6 +22,10 @@ import (
 // - Scripts: gamemodes and filterscripts
 // and a `server.cfg` is generated based on the contents of the Config fields.
 func Ensure(ctx context.Context, gh *github.Client, cfg *types.Runtime, noCache bool) (err error) {
+	if err = cfg.Validate(); err != nil {
+		return
+	}
+
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
 		return
