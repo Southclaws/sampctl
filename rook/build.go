@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strconv"
@@ -77,17 +78,28 @@ func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pk
 
 	config.Includes = append(config.Includes, pkg.AllIncludePaths...)
 
-	cmd, err := compiler.PrepareCommand(ctx, gh, pkg.LocalPath, cacheDir, platform, *config)
+	command, err := compiler.PrepareCommand(ctx, gh, pkg.LocalPath, cacheDir, platform, *config)
 	if err != nil {
 		return
 	}
 
 	if dry {
-		fmt.Println(strings.Join(cmd.Env, " "), strings.Join(cmd.Args, " "))
+		fmt.Println(strings.Join(command.Env, " "), strings.Join(command.Args, " "))
 	} else {
+		for _, plugin := range config.Plugins {
+			print.Verb("running pre-build plugin", plugin)
+			pluginCmd := exec.Command(plugin[0], plugin[1:]...)
+			pluginCmd.Stdout = os.Stdout
+			pluginCmd.Stderr = os.Stdout
+			err = pluginCmd.Run()
+			if err != nil {
+				print.Erro("Failed to execute pre-build plugin:", plugin[0], err)
+				return
+			}
+		}
 		print.Verb("building", pkg, "with", config.Version)
 
-		problems, result, err = compiler.CompileWithCommand(cmd, config.WorkingDir, pkg.LocalPath, relative)
+		problems, result, err = compiler.CompileWithCommand(command, config.WorkingDir, pkg.LocalPath, relative)
 		if err != nil {
 			err = errors.Wrap(err, "failed to compile package entry")
 		}

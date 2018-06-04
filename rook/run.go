@@ -64,11 +64,6 @@ func (runner *Runner) RunWatch(ctx context.Context) (err error) {
 		return
 	}
 
-	if runner.Pkg.Runtime.Mode == types.Server {
-		err = errors.New("cannot use --watch with runtime mode 'server'")
-		return
-	}
-
 	var (
 		errorCh          = make(chan error)
 		signals          = make(chan os.Signal, 1)
