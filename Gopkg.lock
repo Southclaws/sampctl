@@ -98,6 +98,12 @@
   revision = "53e6ce116135b80d037921a7fdd5138cf32d7a8a"
 
 [[projects]]
+  name = "github.com/google/uuid"
+  packages = ["."]
+  revision = "064e2069ce9c359c118179501254f67d7d37ba24"
+  version = "0.2"
+
+[[projects]]
   branch = "master"
   name = "github.com/jbenet/go-context"
   packages = ["io"]
@@ -384,6 +390,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "fb7b83a471f0ba6c7ef4e1d153512e12d84dcab62a485cab2c0c0472e5c5fd54"
+  inputs-digest = "da4945676700997c50a70092201c6bed5c3ca5eaa3b25b385ebd92c8567f9e60"
   solver-name = "gps-cdcl"
   solver-version = 1
