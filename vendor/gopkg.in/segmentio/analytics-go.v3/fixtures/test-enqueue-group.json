@@ -1,0 +1,19 @@
+{
+  "batch": [
+    {
+      "groupId": "A",
+      "messageId": "I'm unique",
+      "timestamp": "2009-11-10T23:00:00Z",
+      "type": "group",
+      "userId": "B"
+    }
+  ],
+  "context": {
+    "library": {
+      "name": "analytics-go",
+      "version": "3.0.0"
+    }
+  },
+  "messageId": "I'm unique",
+  "sentAt": "2009-11-10T23:00:00Z"
+}

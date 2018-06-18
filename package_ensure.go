@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"gopkg.in/segmentio/analytics-go.v3"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
@@ -30,6 +31,15 @@ func packageEnsure(c *cli.Context) error {
 	runtimeName := c.Args().Get(0)
 	if runtimeName == "" {
 		runtimeName = "default"
+	}
+
+	if config.Metrics {
+		segment.Enqueue(analytics.Track{
+			Event:  "package run",
+			UserId: config.UserID,
+			Properties: analytics.NewProperties().
+				Set("runtime", runtimeName != "default"),
+		})
 	}
 
 	cacheDir, err := download.GetCacheDir()

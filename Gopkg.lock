@@ -181,6 +181,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/segmentio/backo-go"
+  packages = ["."]
+  revision = "204274ad699c0983a70203a566887f17a717fef4"
+
+[[projects]]
+  branch = "master"
   name = "github.com/sergi/go-diff"
   packages = ["diffmatchpatch"]
   revision = "1744e2970ca51c86172c8190fadad617561ed6e7"
@@ -207,6 +213,12 @@
   name = "github.com/xanzy/ssh-agent"
   packages = ["."]
   revision = "ba9c9e33906f58169366275e3450db66139a31a9"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/xtgo/uuid"
+  packages = ["."]
+  revision = "a0b114877d4caeffbd7f87e3757c17fce570fea7"
 
 [[projects]]
   branch = "master"
@@ -285,6 +297,12 @@
   ]
   revision = "0aa8b6a162b391fe2d95648b7677d1d6ac2090a6"
   version = "v1.4.1"
+
+[[projects]]
+  name = "gopkg.in/segmentio/analytics-go.v3"
+  packages = ["."]
+  revision = "1178b964a36694a8f9c161b19e6fe28cb37e8482"
+  version = "3.0.0"
 
 [[projects]]
   name = "gopkg.in/src-d/go-billy.v3"
@@ -366,6 +384,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "4b73805b9b8a86e30676e440359707848442a5a7b66836389cbb725ec54fba0d"
+  inputs-digest = "fb7b83a471f0ba6c7ef4e1d153512e12d84dcab62a485cab2c0c0472e5c5fd54"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -1,5 +1,6 @@
+include .env
 VERSION := $(shell cat VERSION)
-LDFLAGS := -ldflags "-X main.version=$(VERSION)"
+LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.segmentKey=$(SEGMENT_KEY)"
 
 .PHONY: version
 

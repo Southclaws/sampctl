@@ -7,6 +7,7 @@ import (
 	"runtime"
 
 	"github.com/pkg/errors"
+	"gopkg.in/segmentio/analytics-go.v3"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
@@ -27,6 +28,13 @@ func packageTemplateBuild(c *cli.Context) (err error) {
 	if len(c.Args()) != 2 {
 		cli.ShowCommandHelpAndExit(c, "build", 0)
 		return nil
+	}
+
+	if config.Metrics {
+		segment.Enqueue(analytics.Track{
+			Event:  "package template build",
+			UserId: config.UserID,
+		})
 	}
 
 	cacheDir, err := download.GetCacheDir()

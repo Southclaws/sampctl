@@ -6,6 +6,7 @@ import (
 	"runtime"
 
 	"github.com/pkg/errors"
+	"gopkg.in/segmentio/analytics-go.v3"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
@@ -58,6 +59,19 @@ func packageBuild(c *cli.Context) error {
 	build := c.Args().Get(0)
 	if build == "" {
 		build = "default"
+	}
+
+	if config.Metrics {
+		segment.Enqueue(analytics.Track{
+			Event:  "package build",
+			UserId: config.UserID,
+			Properties: analytics.NewProperties().
+				Set("forceEnsure", forceEnsure).
+				Set("watch", watch).
+				Set("watch", watch).
+				Set("buildFile", buildFile != "").
+				Set("build", build != "default"),
+		})
 	}
 
 	cacheDir, err := download.GetCacheDir()

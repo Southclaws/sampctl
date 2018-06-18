@@ -4,6 +4,7 @@ import (
 	appRuntime "runtime"
 
 	"github.com/pkg/errors"
+	"gopkg.in/segmentio/analytics-go.v3"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/print"
@@ -31,6 +32,15 @@ func serverInit(c *cli.Context) error {
 
 	version := c.String("version")
 	dir := util.FullPath(c.String("dir"))
+
+	if config.Metrics {
+		segment.Enqueue(analytics.Track{
+			Event:  "server init",
+			UserId: config.UserID,
+			Properties: analytics.NewProperties().
+				Set("version", version),
+		})
+	}
 
 	err := runtime.InitialiseServer(version, dir, appRuntime.GOOS)
 	if err != nil {

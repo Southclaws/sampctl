@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strings"
 
+	"gopkg.in/segmentio/analytics-go.v3"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
@@ -21,6 +22,13 @@ var packageGetFlags = []cli.Flag{}
 func packageGet(c *cli.Context) error {
 	if c.Bool("verbose") {
 		print.SetVerbose()
+	}
+
+	if config.Metrics {
+		segment.Enqueue(analytics.Track{
+			Event:  "package get",
+			UserId: config.UserID,
+		})
 	}
 
 	if len(c.Args()) == 0 {

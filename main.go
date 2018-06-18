@@ -10,6 +10,7 @@ import (
 	"github.com/Masterminds/semver"
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
+	"gopkg.in/segmentio/analytics-go.v3"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
@@ -21,10 +22,12 @@ import (
 )
 
 var (
-	version = "master"
-	config  *types.Config        // global config
-	gh      *github.Client       // a github client to use for API requests
-	gitAuth transport.AuthMethod // for private dependencies
+	version    = "master"
+	segmentKey = ""
+	config     *types.Config        // global config
+	gh         *github.Client       // a github client to use for API requests
+	gitAuth    transport.AuthMethod // for private dependencies
+	segment    analytics.Client     // segment.io client
 )
 
 func main() {
@@ -66,6 +69,20 @@ func main() {
 		gitAuth, err = ssh.DefaultAuthBuilder("git")
 		if err != nil {
 			print.Verb("Failed to set up SSH:", err)
+		}
+	}
+
+	if config.Metrics {
+		if segmentKey == "" {
+			print.Warn("Segment.io key is unset!")
+		} else {
+			segment = analytics.New(segmentKey)
+			if config.NewUser {
+				print.Info("Usage metrics are active. See https://github.com/Southclaws/sampctl/wiki/Usage-Metrics for more information.")
+				segment.Enqueue(analytics.Identify{
+					UserId: config.UserID,
+				})
+			}
 		}
 	}
 
@@ -234,6 +251,7 @@ func main() {
 	app.Before = func(c *cli.Context) error {
 		if c.GlobalBool("verbose") {
 			print.SetVerbose()
+			print.Verb("Verbose logging active")
 		}
 		if runtime.GOOS != "windows" {
 			print.SetColoured()
@@ -266,6 +284,7 @@ func main() {
 		print.Erro("Failed to write updated configuration file to", cacheDir, "-", err)
 		return
 	}
+	segment.Close()
 }
 
 // CheckForUpdates uses the GitHub API to check if a new release is available.

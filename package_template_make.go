@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"gopkg.in/segmentio/analytics-go.v3"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
@@ -28,6 +29,13 @@ var packageTemplateMakeFlags = []cli.Flag{
 func packageTemplateMake(c *cli.Context) (err error) {
 	if c.Bool("verbose") {
 		print.SetVerbose()
+	}
+
+	if config.Metrics {
+		segment.Enqueue(analytics.Track{
+			Event:  "package template make",
+			UserId: config.UserID,
+		})
 	}
 
 	dir := util.FullPath(c.String("dir"))

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"gopkg.in/segmentio/analytics-go.v3"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
@@ -36,6 +37,15 @@ func packageInstall(c *cli.Context) error {
 
 	dir := util.FullPath(c.String("dir"))
 	development := c.Bool("dev")
+
+	if config.Metrics {
+		segment.Enqueue(analytics.Track{
+			Event:  "package install",
+			UserId: config.UserID,
+			Properties: analytics.NewProperties().
+				Set("development", development),
+		})
+	}
 
 	if len(c.Args()) == 0 {
 		cli.ShowCommandHelpAndExit(c, "install", 0)

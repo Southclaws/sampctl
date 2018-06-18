@@ -5,6 +5,7 @@ import (
 	"runtime"
 
 	"github.com/pkg/errors"
+	"gopkg.in/segmentio/analytics-go.v3"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/print"
@@ -23,6 +24,13 @@ var packageReleaseFlags = []cli.Flag{
 func packageRelease(c *cli.Context) error {
 	if c.Bool("verbose") {
 		print.SetVerbose()
+	}
+
+	if config.Metrics {
+		segment.Enqueue(analytics.Track{
+			Event:  "package release",
+			UserId: config.UserID,
+		})
 	}
 
 	dir := util.FullPath(c.String("dir"))
