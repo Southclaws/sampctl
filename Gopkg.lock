@@ -152,6 +152,7 @@
   revision = "b8bc1bf767474819792c23f32d8286a45736f1c6"
 
 [[projects]]
+  branch = "master"
   name = "github.com/nbutton23/zxcvbn-go"
   packages = [
     ".",
@@ -164,8 +165,7 @@
     "scoring",
     "utils/math"
   ]
-  revision = "eafdab6b0663b4b528c35975c8b0e78be6e25261"
-  version = "v0.1"
+  revision = "780cc39d5c78bcc7a47926818c450bb6749b89af"
 
 [[projects]]
   name = "github.com/pkg/errors"
@@ -366,6 +366,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "fed7dbef6da4dc5b4cb08b7297c8d3e7c645c7da3be09e660289a17d66a51563"
+  inputs-digest = "4b73805b9b8a86e30676e440359707848442a5a7b66836389cbb725ec54fba0d"
   solver-name = "gps-cdcl"
   solver-version = 1
