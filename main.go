@@ -284,7 +284,9 @@ func main() {
 		print.Erro("Failed to write updated configuration file to", cacheDir, "-", err)
 		return
 	}
-	segment.Close()
+	if segment != nil {
+		segment.Close()
+	}
 }
 
 // CheckForUpdates uses the GitHub API to check if a new release is available.
