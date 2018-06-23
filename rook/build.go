@@ -37,13 +37,14 @@ func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pk
 	config.Input = filepath.Join(pkg.LocalPath, pkg.Entry)
 	config.Output = filepath.Join(pkg.LocalPath, pkg.Output)
 
-	if ensure {
-		err = EnsureDependencies(ctx, gh, pkg, auth, platform, cacheDir)
-		if err != nil {
-			err = errors.Wrap(err, "failed to ensure dependencies before build")
-			return
-		}
-	}
+	// TODO: update this to pcx
+	// if ensure {
+	// 	err = EnsureDependencies(ctx, gh, pkg, auth, platform, cacheDir)
+	// 	if err != nil {
+	// 		err = errors.Wrap(err, "failed to ensure dependencies before build")
+	// 		return
+	// 	}
+	// }
 
 	var buildNumber = uint32(0)
 	if buildFile != "" {
@@ -131,13 +132,14 @@ func BuildWatch(ctx context.Context, gh *github.Client, auth transport.AuthMetho
 	config.Input = filepath.Join(pkg.LocalPath, pkg.Entry)
 	config.Output = filepath.Join(pkg.LocalPath, pkg.Output)
 
-	if ensure {
-		err = EnsureDependencies(ctx, gh, pkg, auth, platform, cacheDir)
-		if err != nil {
-			err = errors.Wrap(err, "failed to ensure dependencies before build")
-			return
-		}
-	}
+	// TODO: update this to pcx
+	// if ensure {
+	// 	err = EnsureDependencies(ctx, gh, pkg, auth, platform, cacheDir)
+	// 	if err != nil {
+	// 		err = errors.Wrap(err, "failed to ensure dependencies before build")
+	// 		return
+	// 	}
+	// }
 
 	var buildNumber = uint32(0)
 	if buildFile != "" {

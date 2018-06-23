@@ -65,25 +65,9 @@ func EnsurePlugins(ctx context.Context, gh *github.Client, cfg *types.Runtime, c
 
 // EnsureVersionedPlugin automatically downloads a plugin binary from its github releases page
 func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, dir, platform, cacheDir string, plugins, includes, noCache bool) (files []types.Plugin, err error) {
-	var (
-		hit      bool
-		filename string
-		resource types.Resource
-	)
-	if !noCache {
-		hit, filename, resource, err = PluginFromCache(meta, platform, cacheDir)
-		if err != nil {
-			err = errors.Wrapf(err, "failed to get plugin %s from cache", meta)
-			return
-		}
-	}
-	if !hit {
-		print.Verb(meta, "no cached copy found")
-		filename, resource, err = PluginFromNet(ctx, gh, meta, platform, cacheDir)
-		if err != nil {
-			err = errors.Wrapf(err, "failed to get plugin %s from net", meta)
-			return
-		}
+	filename, resource, err := EnsureVersionedPluginCached(ctx, meta, platform, cacheDir, noCache, gh)
+	if err != nil {
+		return
 	}
 
 	print.Verb(meta, "retrieved package to file:", filename)
@@ -146,6 +130,29 @@ func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioni
 			return
 		}
 		files = []types.Plugin{types.Plugin(base)}
+	}
+
+	return
+}
+
+// EnsureVersionedPluginCached ensures that a plugin exists in the cache
+func EnsureVersionedPluginCached(ctx context.Context, meta versioning.DependencyMeta, platform, cacheDir string, noCache bool, gh *github.Client) (filename string, resource types.Resource, err error) {
+	hit := false
+	// only pull from cache if there is a version tag specified
+	if !noCache && meta.Tag != "" {
+		hit, filename, resource, err = PluginFromCache(meta, platform, cacheDir)
+		if err != nil {
+			err = errors.Wrapf(err, "failed to get plugin %s from cache", meta)
+			return
+		}
+	}
+	if !hit {
+		print.Verb(meta, "no cached copy found")
+		filename, resource, err = PluginFromNet(ctx, gh, meta, platform, cacheDir)
+		if err != nil {
+			err = errors.Wrapf(err, "failed to get plugin %s from net", meta)
+			return
+		}
 	}
 
 	return

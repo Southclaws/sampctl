@@ -7,7 +7,6 @@ import (
 	"sort"
 
 	"github.com/Masterminds/semver"
-	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -17,7 +16,6 @@ import (
 
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/runtime"
-	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -26,7 +24,9 @@ import (
 var ErrNotRemotePackage = errors.New("remote repository does not declare a package")
 
 // EnsureDependencies traverses package dependencies and ensures they are up to date
-func EnsureDependencies(ctx context.Context, gh *github.Client, pkg *types.Package, auth transport.AuthMethod, platform, cacheDir string) (err error) {
+func (pcx *PackageContext) EnsureDependencies(ctx context.Context) (err error) {
+	pkg := pcx.Package
+
 	if pkg.LocalPath == "" {
 		return errors.New("package does not represent a locally stored package")
 	}
@@ -37,21 +37,26 @@ func EnsureDependencies(ctx context.Context, gh *github.Client, pkg *types.Packa
 
 	pkg.Vendor = filepath.Join(pkg.LocalPath, "dependencies")
 
-	visited := make(map[string]bool)
-	visited[pkg.DependencyMeta.Repo] = true
+	var (
+	// globalVendor = filepath.Join(pcx.CacheDir, "packages")
+	)
+
+	for _, dependency := range pcx.AllDependencies {
+		dependencyPath := filepath.Join(pkg.Vendor, dependency.Repo)
+		// dependencyCachedPath := filepath.Join(globalVendor, meta.Repo)
+
+		errInner := EnsurePackage(dependencyPath, dependency, pcx.GitAuth, false)
+		if errInner != nil {
+			print.Warn(errors.Wrapf(errInner, "failed to ensure package %s", dependency))
+			return
+		}
+		print.Info(pkg, "successfully ensured dependency files for", dependency)
+
+	}
 
 	// TODO: remove this recursion, EnsureDependenciesCached does this job already
 	var recurse func(meta versioning.DependencyMeta)
 	recurse = func(meta versioning.DependencyMeta) {
-		// 	pkgPath := filepath.Join(pkg.Vendor, meta.Repo)
-
-		// 	errInner := EnsurePackage(pkgPath, meta, auth, false)
-		// 	if errInner != nil {
-		// 		print.Warn(errors.Wrapf(errInner, "failed to ensure package %s", meta))
-		// 		return
-		// 	}
-
-		// 	print.Info(pkg, "successfully ensured dependency files for", meta)
 
 		// 	pkg.AllDependencies = append(pkg.AllDependencies, meta)
 		// 	visited[meta.Repo] = true
@@ -111,7 +116,7 @@ func EnsureDependencies(ctx context.Context, gh *github.Client, pkg *types.Packa
 		print.Verb(pkg, "ensuring local runtime dependencies to", pkg.LocalPath)
 		pkg.Runtime.WorkingDir = pkg.LocalPath
 		pkg.Runtime.Format = pkg.Format
-		err = runtime.Ensure(ctx, gh, pkg.Runtime, false)
+		err = runtime.Ensure(ctx, pcx.GitHub, pkg.Runtime, false)
 		if err != nil {
 			return
 		}

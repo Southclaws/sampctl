@@ -1,6 +1,7 @@
 package rook
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 
@@ -9,6 +10,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
 	"github.com/Southclaws/sampctl/print"
+	"github.com/Southclaws/sampctl/runtime"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
@@ -96,9 +98,16 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 				pluginMeta.Tag = currentPackage.Tag
 				print.Verb(pkg, "adding plugin from package runtime", pluginDepStr, "as", pluginMeta)
 				if errInner != nil {
-					print.Warn(pkg, "invalid plugin dependency string:", pluginDepStr, "in", currentPackage, errInner)
+					print.Warn(pkg, "Invalid plugin dependency string:", pluginDepStr, "in", currentPackage, errInner)
 					return
 				}
+
+				_, resource, err := runtime.EnsureVersionedPluginCached(context.Background(), pluginMeta, pcx.Platform, pcx.CacheDir, false, pcx.GitHub)
+				if err != nil {
+					print.Warn(pkg, "Failed to download dependency plugin", pluginMeta, "to cache")
+					return
+				}
+				pcx.AllResources = append(pcx.AllResources, resource)
 				pcx.AllPlugins = append(pcx.AllPlugins, pluginMeta)
 			}
 		}

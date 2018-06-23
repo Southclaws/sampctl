@@ -46,10 +46,11 @@ func Install(ctx context.Context, gh *github.Client, pkg types.Package, targets 
 		}
 	}
 
-	err = EnsureDependencies(ctx, gh, &pkg, auth, platform, cacheDir)
-	if err != nil {
-		return
-	}
+	// TODO: update this to pcx
+	// err = EnsureDependencies(ctx, gh, &pkg, auth, platform, cacheDir)
+	// if err != nil {
+	// 	return
+	// }
 
 	err = pkg.WriteDefinition()
 
@@ -82,7 +83,7 @@ func Get(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta,
 		return errors.Wrap(err, "failed to read cloned repository as Pawn package")
 	}
 
-	err = EnsureDependencies(ctx, gh, &pcx.Package, auth, platform, cacheDir)
+	err = pcx.EnsureDependencies(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure dependencies for cloned package")
 	}

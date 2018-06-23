@@ -80,7 +80,7 @@ func packageTemplateMake(c *cli.Context) (err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
 	defer cancel()
 
-	err = rook.EnsureDependencies(ctx, gh, &pcx.Package, gitAuth, runtime.GOOS, cacheDir)
+	err = pcx.EnsureDependencies(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure dependencies of template package")
 	}
