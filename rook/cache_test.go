@@ -2,13 +2,14 @@ package rook
 
 import (
 	"os"
-	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 )
 
 func TestEnsureDependenciesCached(t *testing.T) {
@@ -28,8 +29,9 @@ func TestEnsureDependenciesCached(t *testing.T) {
 	}{
 		{"basic", args{
 			types.Package{
-				Parent:    true,
-				LocalPath: util.FullPath("./tests/deps-basic"),
+				Parent:         true,
+				LocalPath:      util.FullPath("./tests/deps-basic"),
+				DependencyMeta: versioning.DependencyMeta{User: "local", Repo: "local"},
 				Dependencies: []versioning.DependencyString{
 					"sampctl/samp-stdlib",
 				},
@@ -42,9 +44,10 @@ func TestEnsureDependenciesCached(t *testing.T) {
 				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "samp-stdlib"},
 				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
 			},
-			[]string{},
-			[]versioning.DependencyMeta{},
-			false},
+			nil,
+			nil,
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -52,19 +55,15 @@ func TestEnsureDependenciesCached(t *testing.T) {
 			os.MkdirAll(tt.args.pkg.LocalPath, 0755) //nolint
 
 			gotAllDependencies, gotAllIncludePaths, gotAllPlugins, err := EnsureDependenciesCached(tt.args.pkg, tt.args.platform, tt.args.cacheDir, tt.args.auth)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("EnsureDependenciesCached() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			if tt.wantErr {
+				assert.Equal(t, tt.wantErr, err)
+			} else {
+				assert.NoError(t, err)
 			}
-			if !reflect.DeepEqual(gotAllDependencies, tt.wantAllDependencies) {
-				t.Errorf("EnsureDependenciesCached() gotAllDependencies = %v, want %v", gotAllDependencies, tt.wantAllDependencies)
-			}
-			if !reflect.DeepEqual(gotAllIncludePaths, tt.wantAllIncludePaths) {
-				t.Errorf("EnsureDependenciesCached() gotAllIncludePaths = %v, want %v", gotAllIncludePaths, tt.wantAllIncludePaths)
-			}
-			if !reflect.DeepEqual(gotAllPlugins, tt.wantAllPlugins) {
-				t.Errorf("EnsureDependenciesCached() gotAllPlugins = %v, want %v", gotAllPlugins, tt.wantAllPlugins)
-			}
+
+			assert.Equal(t, tt.wantAllDependencies, gotAllDependencies)
+			assert.Equal(t, tt.wantAllIncludePaths, gotAllIncludePaths)
+			assert.Equal(t, tt.wantAllPlugins, gotAllPlugins)
 		})
 	}
 }
