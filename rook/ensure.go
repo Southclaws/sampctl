@@ -43,59 +43,59 @@ func EnsureDependencies(ctx context.Context, gh *github.Client, pkg *types.Packa
 	// TODO: remove this recursion, EnsureDependenciesCached does this job already
 	var recurse func(meta versioning.DependencyMeta)
 	recurse = func(meta versioning.DependencyMeta) {
-		pkgPath := filepath.Join(pkg.Vendor, meta.Repo)
+		// 	pkgPath := filepath.Join(pkg.Vendor, meta.Repo)
 
-		errInner := EnsurePackage(pkgPath, meta, auth, false)
-		if errInner != nil {
-			print.Warn(errors.Wrapf(errInner, "failed to ensure package %s", meta))
-			return
-		}
+		// 	errInner := EnsurePackage(pkgPath, meta, auth, false)
+		// 	if errInner != nil {
+		// 		print.Warn(errors.Wrapf(errInner, "failed to ensure package %s", meta))
+		// 		return
+		// 	}
 
-		print.Info(pkg, "successfully ensured dependency files for", meta)
+		// 	print.Info(pkg, "successfully ensured dependency files for", meta)
 
-		pkg.AllDependencies = append(pkg.AllDependencies, meta)
-		visited[meta.Repo] = true
+		// 	pkg.AllDependencies = append(pkg.AllDependencies, meta)
+		// 	visited[meta.Repo] = true
 
-		var subPkg types.Package
-		subPkg, errInner = types.PackageFromDir(pkgPath)
-		if errInner != nil {
-			print.Warn(pkg, meta, errInner)
-			return
-		}
-		subPkg.DependencyMeta = meta
+		// 	var subPkg types.Package
+		// 	subPkg, errInner = types.PackageFromDir(pkgPath)
+		// 	if errInner != nil {
+		// 		print.Warn(pkg, meta, errInner)
+		// 		return
+		// 	}
+		// 	subPkg.DependencyMeta = meta
 
-		var resIncs []string
-		for _, res := range subPkg.Resources {
-			if res.Archive && res.Platform == platform {
-				dir := filepath.Join(pkg.Vendor, res.Path(subPkg))
+		// 	var resIncs []string
+		// 	for _, res := range subPkg.Resources {
+		// 		if res.Archive && res.Platform == platform {
+		// 			dir := filepath.Join(pkg.Vendor, res.Path(subPkg))
 
-				print.Verb(subPkg, "installing resource-based dependency", res.Name, "to", dir)
+		// 			print.Verb(subPkg, "installing resource-based dependency", res.Name, "to", dir)
 
-				errInner = os.MkdirAll(dir, 0700)
-				if errInner != nil {
-					print.Warn(subPkg, "failed to create asset directory:", errInner)
-					continue
-				}
+		// 			errInner = os.MkdirAll(dir, 0700)
+		// 			if errInner != nil {
+		// 				print.Warn(subPkg, "failed to create asset directory:", errInner)
+		// 				continue
+		// 			}
 
-				_, errInner = runtime.EnsureVersionedPlugin(ctx, gh, subPkg.DependencyMeta, dir, platform, cacheDir, false, true, false)
-				if errInner != nil {
-					print.Warn(subPkg, "failed to ensure asset:", errInner)
-					continue
-				}
-			}
-		}
-		pkg.AllIncludePaths = append(pkg.AllIncludePaths, resIncs...)
+		// 			_, errInner = runtime.EnsureVersionedPlugin(ctx, gh, subPkg.DependencyMeta, dir, platform, cacheDir, false, true, false)
+		// 			if errInner != nil {
+		// 				print.Warn(subPkg, "failed to ensure asset:", errInner)
+		// 				continue
+		// 			}
+		// 		}
+		// 	}
+		// 	pkg.AllIncludePaths = append(pkg.AllIncludePaths, resIncs...)
 
-		var subPkgDepMeta versioning.DependencyMeta
-		for _, subPkgDep := range subPkg.Dependencies {
-			subPkgDepMeta, errInner = subPkgDep.Explode()
-			if errInner != nil {
-				continue
-			}
-			if _, ok := visited[subPkgDepMeta.Repo]; !ok {
-				recurse(subPkgDepMeta)
-			}
-		}
+		// 	var subPkgDepMeta versioning.DependencyMeta
+		// 	for _, subPkgDep := range subPkg.Dependencies {
+		// 		subPkgDepMeta, errInner = subPkgDep.Explode()
+		// 		if errInner != nil {
+		// 			continue
+		// 		}
+		// 		if _, ok := visited[subPkgDepMeta.Repo]; !ok {
+		// 			recurse(subPkgDepMeta)
+		// 		}
+		// 	}
 	}
 
 	var meta versioning.DependencyMeta

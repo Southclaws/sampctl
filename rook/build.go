@@ -62,23 +62,23 @@ func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pk
 	// 	return
 	// }
 
-	var pkgInner types.Package
-	for _, depMeta := range pkg.AllDependencies {
-		depDir := filepath.Join(pkg.LocalPath, "dependencies", depMeta.Repo)
-		incPath := depMeta.Path
+	// var pkgInner types.Package
+	// for _, depMeta := range pkg.AllDependencies {
+	// 	depDir := filepath.Join(pkg.LocalPath, "dependencies", depMeta.Repo)
+	// 	incPath := depMeta.Path
 
-		// check if local package has a definition, if so, check if it has an IncludePath field
-		pkgInner, err = types.PackageFromDir(depDir)
-		if err == nil {
-			if pkgInner.IncludePath != "" {
-				incPath = pkgInner.IncludePath
-			}
-		}
+	// 	// check if local package has a definition, if so, check if it has an IncludePath field
+	// 	pkgInner, err = types.PackageFromDir(depDir)
+	// 	if err == nil {
+	// 		if pkgInner.IncludePath != "" {
+	// 			incPath = pkgInner.IncludePath
+	// 		}
+	// 	}
 
-		config.Includes = append(config.Includes, filepath.Join(depDir, incPath))
-	}
+	// 	config.Includes = append(config.Includes, filepath.Join(depDir, incPath))
+	// }
 
-	config.Includes = append(config.Includes, pkg.AllIncludePaths...)
+	// config.Includes = append(config.Includes, pkg.AllIncludePaths...)
 
 	command, err := compiler.PrepareCommand(ctx, gh, pkg.LocalPath, cacheDir, platform, *config)
 	if err != nil {
@@ -155,23 +155,23 @@ func BuildWatch(ctx context.Context, gh *github.Client, auth transport.AuthMetho
 	// 	return
 	// }
 
-	var pkgInner types.Package
-	for _, depMeta := range pkg.AllDependencies {
-		depDir := filepath.Join(pkg.LocalPath, "dependencies", depMeta.Repo)
-		incPath := depMeta.Path
+	// var pkgInner types.Package
+	// for _, depMeta := range pkg.AllDependencies {
+	// 	depDir := filepath.Join(pkg.LocalPath, "dependencies", depMeta.Repo)
+	// 	incPath := depMeta.Path
 
-		// check if local package has a definition, if so, check if it has an IncludePath field
-		pkgInner, err = types.PackageFromDir(depDir)
-		if err == nil {
-			if pkgInner.IncludePath != "" {
-				incPath = pkgInner.IncludePath
-			}
-		}
+	// 	// check if local package has a definition, if so, check if it has an IncludePath field
+	// 	pkgInner, err = types.PackageFromDir(depDir)
+	// 	if err == nil {
+	// 		if pkgInner.IncludePath != "" {
+	// 			incPath = pkgInner.IncludePath
+	// 		}
+	// 	}
 
-		config.Includes = append(config.Includes, filepath.Join(depDir, incPath))
-	}
+	// 	config.Includes = append(config.Includes, filepath.Join(depDir, incPath))
+	// }
 
-	config.Includes = append(config.Includes, pkg.AllIncludePaths...)
+	// config.Includes = append(config.Includes, pkg.AllIncludePaths...)
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {

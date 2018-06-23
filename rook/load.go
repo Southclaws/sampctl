@@ -15,11 +15,14 @@ import (
 
 // PackageContext stores state for a package during its lifecycle.
 type PackageContext struct {
-	Package  types.Package        // the package this context wraps
-	GitHub   *github.Client       // GitHub client for downloading plugins
-	GitAuth  transport.AuthMethod // Authentication method for git
-	Platform string               // the platform this package targets
-	CacheDir string               // the cache directory
+	Package         types.Package               // the package this context wraps
+	GitHub          *github.Client              // GitHub client for downloading plugins
+	GitAuth         transport.AuthMethod        // Authentication method for git
+	Platform        string                      // the platform this package targets
+	CacheDir        string                      // the cache directory
+	AllDependencies []versioning.DependencyMeta // flattened list of dependencies
+	AllPlugins      []versioning.DependencyMeta // flattened list of plugin dependencies
+	AllIncludePaths []string                    // any additional include paths specified by resources
 }
 
 // NewPackageContext attempts to parse a directory as a Package by looking for a
@@ -85,20 +88,7 @@ func NewPackageContext(
 	}
 	types.ApplyRuntimeDefaults(pcx.Package.Runtime)
 
-	return
-}
-
-// EnsurePackageCached ensures package dependencies are cached and ready
-func (pcx *PackageContext) EnsurePackageCached() (err error) {
-	print.Verb(pcx.Package, "resolving dependencies during package load")
-	allDeps, allPlugins, err := EnsureDependenciesCached(pcx.Package, pcx.Platform, pcx.CacheDir, pcx.GitAuth)
-	if err != nil {
-		return
-	}
-
-	pcx.Package.AllDependencies = allDeps
-	pcx.Package.AllPlugins = allPlugins
-
+	err = pcx.EnsureDependenciesCached()
 	return
 }
 

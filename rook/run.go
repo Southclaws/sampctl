@@ -20,7 +20,6 @@ import (
 	"github.com/Southclaws/sampctl/runtime"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
-	"github.com/Southclaws/sampctl/versioning"
 )
 
 // Runner stores state and configuration for running a server instance
@@ -226,11 +225,12 @@ func (runner *Runner) prepare(ctx context.Context) (err error) {
 		}
 	}
 
-	runner.Pkg.Runtime.PluginDeps = []versioning.DependencyMeta{}
-	for _, pluginMeta := range runner.Pkg.AllPlugins {
-		print.Verb("read plugin from dependency:", pluginMeta)
-		runner.Pkg.Runtime.PluginDeps = append(runner.Pkg.Runtime.PluginDeps, pluginMeta)
-	}
+	// TODO: merge runner with PackageContext so data can be shared
+	// runner.Pkg.Runtime.PluginDeps = []versioning.DependencyMeta{}
+	// for _, pluginMeta := range runner.Pkg.AllPlugins {
+	// 	print.Verb("read plugin from dependency:", pluginMeta)
+	// 	runner.Pkg.Runtime.PluginDeps = append(runner.Pkg.Runtime.PluginDeps, pluginMeta)
+	// }
 	print.Verb(runner.Pkg.Runtime.PluginDeps)
 
 	err = runtime.Ensure(ctx, runner.GitHub, runner.Pkg.Runtime, runner.NoCache)
