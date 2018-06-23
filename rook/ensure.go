@@ -40,6 +40,7 @@ func EnsureDependencies(ctx context.Context, gh *github.Client, pkg *types.Packa
 	visited := make(map[string]bool)
 	visited[pkg.DependencyMeta.Repo] = true
 
+	// TODO: remove this recursion, EnsureDependenciesCached does this job already
 	var recurse func(meta versioning.DependencyMeta)
 	recurse = func(meta versioning.DependencyMeta) {
 		pkgPath := filepath.Join(pkg.Vendor, meta.Repo)
@@ -56,7 +57,7 @@ func EnsureDependencies(ctx context.Context, gh *github.Client, pkg *types.Packa
 		visited[meta.Repo] = true
 
 		var subPkg types.Package
-		subPkg, errInner = PackageFromDir(false, pkgPath, platform, pkg.Vendor)
+		subPkg, errInner = PackageFromDir(false, pkgPath, platform, cacheDir, pkg.Vendor, auth)
 		if errInner != nil {
 			print.Warn(pkg, meta, errInner)
 			return
@@ -125,9 +126,8 @@ func EnsureDependencies(ctx context.Context, gh *github.Client, pkg *types.Packa
 // If the package is present, it will ensure the directory contains the correct version
 func EnsurePackage(pkgPath string, meta versioning.DependencyMeta, auth transport.AuthMethod, forceUpdate bool) (err error) {
 	var (
-		needToClone  = false // do we need to clone a new repo?
-		needToUpdate = true  // do we need to do anything after once the repo is on-disk?
-		head         *plumbing.Reference
+		needToClone = false // do we need to clone a new repo?
+		head        *plumbing.Reference
 	)
 
 	repo, err := git.PlainOpen(pkgPath)
@@ -151,29 +151,13 @@ func EnsurePackage(pkgPath string, meta versioning.DependencyMeta, auth transpor
 	}
 
 	if needToClone {
-		print.Verb(meta, "cloning dependency package")
-
-		cloneOpts := &git.CloneOptions{
-			URL: meta.URL(),
-		}
-
-		if meta.SSH != "" {
-			cloneOpts.Auth = auth
-		}
-
-		if meta.Branch != "" {
-			cloneOpts.ReferenceName = plumbing.ReferenceName("refs/heads/" + meta.Branch)
-			cloneOpts.Depth = 1
-			needToUpdate = false
-		}
-
-		repo, err = git.PlainClone(pkgPath, false, cloneOpts)
+		repo, err = CloneDependency(meta, pkgPath, auth)
 		if err != nil {
-			return errors.Wrap(err, "failed to clone dependency repository")
+			return errors.Wrap(err, "failed to clone dependency")
 		}
 	}
 
-	if needToUpdate || forceUpdate {
+	if forceUpdate {
 		print.Verb(meta, "updating dependency package")
 		err = updateRepoState(repo, meta, auth, false)
 		if err != nil {

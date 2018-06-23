@@ -5,6 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/types"
@@ -15,7 +16,7 @@ import (
 // `pawn.json` or `pawn.yaml` file and unmarshalling it - additional parameters
 // are required to specify whether or not the package is a "parent package" and
 // where the vendor directory is.
-func PackageFromDir(parent bool, dir, platform, vendor string) (pkg types.Package, err error) {
+func PackageFromDir(parent bool, dir, platform, cacheDir, vendor string, auth transport.AuthMethod) (pkg types.Package, err error) {
 	pkg, err = types.PackageFromDir(dir)
 	if err != nil {
 		err = errors.Wrap(err, "failed to read package definition")
@@ -65,7 +66,7 @@ func PackageFromDir(parent bool, dir, platform, vendor string) (pkg types.Packag
 	// run pre-flight cache update for all dependencies.
 	if parent && len(pkg.Dependencies) > 0 && len(pkg.AllDependencies) == 0 {
 		print.Verb(pkg, "resolving dependencies during package load")
-		err = EnsureDependenciesCached(&pkg, platform)
+		pkg.AllDependencies, pkg.AllIncludePaths, pkg.AllPlugins, err = EnsureDependenciesCached(pkg, platform, cacheDir, auth)
 		if err != nil {
 			print.Verb("failed to resolve dependency tree:", err)
 			err = nil // not a breaking error for PackageFromDir

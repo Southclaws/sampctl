@@ -51,7 +51,7 @@ func packageTemplateMake(c *cli.Context) (err error) {
 	}
 	name := c.Args().First()
 
-	pkg, err := rook.PackageFromDir(true, dir, runtime.GOOS, "")
+	pkg, err := rook.PackageFromDir(true, dir, runtime.GOOS, cacheDir, "", gitAuth)
 	if err != nil {
 		return
 	}

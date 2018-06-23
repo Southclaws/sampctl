@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
+	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/types"
@@ -14,103 +16,145 @@ import (
 
 // EnsureDependenciesCached will recursively visit a parent package dependencies
 // in the cache, pulling them if they do not exist yet.
-func EnsureDependenciesCached(pkg *types.Package, platform string) (err error) {
+func EnsureDependenciesCached(
+	pkg types.Package,
+	platform,
+	cacheDir string,
+	auth transport.AuthMethod,
+) (
+	allDependencies []versioning.DependencyMeta,
+	allIncludePaths []string,
+	allPlugins []versioning.DependencyMeta,
+	errOuter error,
+) {
 	print.Verb(pkg, "building dependency tree and ensuring cached copies")
 
 	if !pkg.Parent {
-		return errors.New("package is not a parent package")
+		errOuter = errors.New("package is not a parent package")
+		return
 	}
 	if pkg.LocalPath == "" {
-		return errors.New("package has no known local path")
-	}
-	if !util.Exists(pkg.Vendor) {
-		return errors.New("package has no vendor directory")
+		errOuter = errors.New("package has no known local path")
+		return
 	}
 
+	// This recursive operation requires quite a lot of state! There is probably
+	// a better method to break this up but so far, this has worked fine.
 	var (
-		recurse    func(meta versioning.DependencyMeta)
-		visited    = make(map[string]bool)
-		pluginMeta versioning.DependencyMeta
+		recurse        func(meta versioning.DependencyMeta)
+		globalVendor   = filepath.Join(cacheDir, "packages")
+		visited        = make(map[string]bool)
+		pluginMeta     versioning.DependencyMeta
+		dependencyPath = pkg.LocalPath
+		firstIter      = true
+		currentPackage types.Package
+		errInner       error
 	)
 
+	// set the parent package visited state to true, just in case it depends on
+	// itself or a dependency depends on it. This should never happen but if it
+	// does, this prevents an infinite recursion.
 	visited[pkg.DependencyMeta.Repo] = true
 
-	recurse = func(meta versioning.DependencyMeta) {
-		dependencyDir := filepath.Join(pkg.Vendor, meta.Repo)
-		if !util.Exists(dependencyDir) {
-			print.Verb(pkg, "dependency", meta, "does not exist locally in", pkg.Vendor, "run sampctl package ensure to update dependencies.")
-			return
+	recurse = func(currentMeta versioning.DependencyMeta) {
+		// the first iteration of this recursive function is called on the
+		// parent package. This means it does not need to be cloned to the cache
+		// and the path will be it's true, user-defined location.
+		if firstIter {
+			print.Verb(pkg, "processing parent package in recursive function")
+			currentPackage = pkg // set the current package to the parent
+		} else {
+			dependencyPath = filepath.Join(globalVendor, currentMeta.Repo)
+
+			if !util.Exists(dependencyPath) {
+				print.Verb(pkg, "cloning fresh copy of", currentMeta, "to package", dependencyPath)
+
+				errInner = os.MkdirAll(dependencyPath, 0700)
+				if errInner != nil {
+					print.Erro(errInner)
+					return
+				}
+
+				_, errInner = CloneDependency(currentMeta, dependencyPath, auth)
+				if errInner != nil {
+					print.Erro(errInner)
+					return
+				}
+			}
+
+			currentPackage, errInner = PackageFromDir(false, dependencyPath, platform, cacheDir, globalVendor, auth)
+			if errInner != nil {
+				print.Verb(pkg, "dependency", currentMeta, "is not a package:", errInner)
+				return
+			}
 		}
 
-		subPkg, errInner := PackageFromDir(false, dependencyDir, platform, pkg.Vendor)
-		if errInner != nil {
-			print.Verb(pkg, "not a package:", meta, errInner)
-			pkg.AllDependencies = append(pkg.AllDependencies, meta)
-			return
-		}
-
+		print.Verb(pkg, "Resolving resource paths")
 		var incPaths []string
-		incPaths, errInner = resolveResourcePaths(subPkg, platform)
+		incPaths, errInner = resolveResourcePaths(currentPackage, platform)
 		if errInner != nil {
 			print.Warn(pkg, "Failed to resolve package resource paths:", errInner)
 		}
-		pkg.AllIncludePaths = append(pkg.AllIncludePaths, incPaths...)
+		allIncludePaths = append(allIncludePaths, incPaths...)
+		if len(incPaths) == 0 && !firstIter {
+			// only add the package as a full dependency if there are no
+			// includes in the resources and this isn't the first iteration
 
-		// only add the package directory if there are no includes in the resources
-		if len(incPaths) == 0 {
-			pkg.AllDependencies = append(pkg.AllDependencies, meta)
+			// TODO: this should be handled later on down the line, this is
+			// semantically incorrect because the currentMeta IS still a "dependency"
+			// it just doesn't want its path to be in the includes path that is
+			// passed to the compiler. There needs to be some way to store that
+			// information at this point and then use it at a later time to omit
+			// the package from the compiler paths list.
+			print.Verb(pkg, "adding", currentMeta, "to resultant dependencies list")
+			allDependencies = append(allDependencies, currentMeta)
+		} else {
+			print.Verb(pkg, "not adding", currentMeta, "because it has includes within resources:", incPaths)
 		}
 
-		visited[meta.Repo] = true
+		// mark the repo as visited so we don't hit it again in case it appears
+		// multiple times within the dependency tree.
+		visited[currentMeta.Repo] = true
 
-		if subPkg.Runtime != nil {
-			for _, pluginDepStr := range subPkg.Runtime.Plugins {
+		// now iterate the subpackage
+		if currentPackage.Runtime != nil {
+			for _, pluginDepStr := range currentPackage.Runtime.Plugins {
 				pluginMeta, errInner = pluginDepStr.AsDep()
-				pluginMeta.Tag = subPkg.Tag
+				pluginMeta.Tag = currentPackage.Tag
 				print.Verb(pkg, "adding plugin from package runtime", pluginDepStr, "as", pluginMeta)
 				if errInner != nil {
-					print.Warn(pkg, "invalid plugin dependency string:", pluginDepStr, "in", subPkg, errInner)
+					print.Warn(pkg, "invalid plugin dependency string:", pluginDepStr, "in", currentPackage, errInner)
 					return
 				}
-				pkg.AllPlugins = append(pkg.AllPlugins, pluginMeta)
+				allPlugins = append(allPlugins, pluginMeta)
 			}
 		}
 
-		var subPkgDepMeta versioning.DependencyMeta
-		for _, subPkgDep := range subPkg.Dependencies {
-			subPkgDepMeta, errInner = subPkgDep.Explode()
+		var subPackageDepStrings []versioning.DependencyString
+
+		if currentPackage.Parent {
+			subPackageDepStrings = currentPackage.GetAllDependencies()
+		} else {
+			subPackageDepStrings = currentPackage.Dependencies
+		}
+
+		// first iteration has finished, mark it false and next iterations will
+		// operate on dependencies
+		firstIter = false
+
+		var subPackageDepMeta versioning.DependencyMeta
+		for _, subPackageDepString := range subPackageDepStrings {
+			subPackageDepMeta, errInner = subPackageDepString.Explode()
 			if errInner != nil {
-				print.Verb(pkg, "invalid dependency string:", subPkgDepMeta, "in", subPkg, errInner)
+				print.Verb(pkg, "invalid dependency string:", subPackageDepMeta, "in", currentPackage, errInner)
 				continue
 			}
-			if _, ok := visited[subPkgDepMeta.Repo]; !ok {
-				recurse(subPkgDepMeta)
+			if _, ok := visited[subPackageDepMeta.Repo]; !ok {
+				recurse(subPackageDepMeta)
 			}
 		}
 	}
-
-	var meta versioning.DependencyMeta
-	for _, dep := range pkg.GetAllDependencies() {
-		meta, err = dep.Explode()
-		if err != nil {
-			print.Verb(pkg, "invalid dependency string:", dep, "in parent package:", err)
-			err = nil
-			continue
-		}
-		recurse(meta)
-	}
-
-	if pkg.Runtime != nil {
-		for _, pluginDepStr := range pkg.Runtime.Plugins {
-			pluginMeta, err = pluginDepStr.AsDep()
-			if err != nil {
-				print.Verb(pkg, "invalid plugin dependency string:", pluginDepStr, "in parent package:", err)
-				err = nil
-				continue
-			}
-			pkg.AllPlugins = append(pkg.AllPlugins, pluginMeta)
-		}
-	}
+	recurse(pkg.DependencyMeta)
 
 	return
 }
@@ -137,5 +181,22 @@ func resolveResourcePaths(pkg types.Package, platform string) (paths []string, e
 			}
 		}
 	}
+	return
+}
+
+// CloneDependency clones a package to path using the default branch
+func CloneDependency(meta versioning.DependencyMeta, path string, auth transport.AuthMethod) (repo *git.Repository, err error) {
+	print.Verb(meta, "cloning dependency package")
+
+	cloneOpts := &git.CloneOptions{
+		URL:   meta.URL(),
+		Depth: 1000,
+	}
+
+	if meta.SSH != "" {
+		cloneOpts.Auth = auth
+	}
+
+	repo, err = git.PlainClone(path, false, cloneOpts)
 	return
 }

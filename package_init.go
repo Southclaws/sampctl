@@ -42,7 +42,7 @@ func packageInit(c *cli.Context) error {
 		return err
 	}
 
-	_, err = rook.PackageFromDir(true, dir, runtime.GOOS, "")
+	_, err = rook.PackageFromDir(true, dir, runtime.GOOS, cacheDir, "", gitAuth)
 	if err == nil {
 		return errors.New("Directory already appears to be a package")
 	}

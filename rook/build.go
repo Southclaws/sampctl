@@ -53,12 +53,14 @@ func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pk
 		}
 	}
 
-	print.Verb(pkg, "resolving dependencies before build")
-	err = ResolveDependencies(pkg, platform)
-	if err != nil {
-		err = errors.Wrap(err, "failed to resolve dependencies before build")
-		return
-	}
+	// TODO: figure out why this was here in the first place
+	// then figure out a better solution...
+	// print.Verb(pkg, "resolving dependencies before build")
+	// err = ResolveDependencies(pkg, platform)
+	// if err != nil {
+	// 	err = errors.Wrap(err, "failed to resolve dependencies before build")
+	// 	return
+	// }
 
 	var pkgInner types.Package
 	for _, depMeta := range pkg.AllDependencies {
@@ -145,12 +147,13 @@ func BuildWatch(ctx context.Context, gh *github.Client, auth transport.AuthMetho
 		}
 	}
 
-	print.Verb(pkg, "resolving dependencies before build watcher")
-	err = ResolveDependencies(pkg, platform)
-	if err != nil {
-		err = errors.Wrap(err, "failed to resolve dependencies before build watcher")
-		return
-	}
+	// TODO: move these things out of the builders and into a prep func for DRY
+	// print.Verb(pkg, "resolving dependencies before build watcher")
+	// err = ResolveDependencies(pkg, platform)
+	// if err != nil {
+	// 	err = errors.Wrap(err, "failed to resolve dependencies before build watcher")
+	// 	return
+	// }
 
 	var pkgInner types.Package
 	for _, depMeta := range pkg.AllDependencies {

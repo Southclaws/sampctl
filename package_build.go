@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"runtime"
 
 	"github.com/pkg/errors"
@@ -79,7 +80,7 @@ func packageBuild(c *cli.Context) error {
 		return errors.Wrap(err, "failed to get or create cache directory")
 	}
 
-	pkg, err := rook.PackageFromDir(true, dir, runtime.GOOS, "")
+	pkg, err := rook.PackageFromDir(true, dir, runtime.GOOS, cacheDir, "", gitAuth)
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
@@ -120,7 +121,12 @@ func packageBuild(c *cli.Context) error {
 func packageBuildBash(c *cli.Context) {
 	dir := util.FullPath(c.String("dir"))
 
-	pkg, err := rook.PackageFromDir(true, dir, runtime.GOOS, "")
+	cacheDir, err := download.GetCacheDir()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
+
+	pkg, err := rook.PackageFromDir(true, dir, runtime.GOOS, cacheDir, "", gitAuth)
 	if err != nil {
 		return
 	}

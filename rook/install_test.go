@@ -47,7 +47,7 @@ func TestPackage_Install(t *testing.T) {
 
 			ioutil.WriteFile(filepath.Join(dir, "pawn.json"), tt.pkg, 0755) // nolint
 
-			pkg, err := PackageFromDir(true, dir, runtime.GOOS, "")
+			pkg, err := PackageFromDir(true, dir, runtime.GOOS, "./tests/cache", "", gitAuth)
 			if err != nil {
 				t.Error(err)
 			}
@@ -59,7 +59,7 @@ func TestPackage_Install(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			pkg, err = PackageFromDir(true, dir, runtime.GOOS, "")
+			pkg, err = PackageFromDir(true, dir, runtime.GOOS, "./tests/cacheDir", "", gitAuth)
 			if err != nil {
 				t.Error(err)
 			}

@@ -8,11 +8,13 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/joho/godotenv"
 	"golang.org/x/oauth2"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
 	"github.com/Southclaws/sampctl/print"
 )
 
 var gh *github.Client
+var gitAuth transport.AuthMethod
 
 func TestMain(m *testing.M) {
 	godotenv.Load("../.env", "../../.env")
