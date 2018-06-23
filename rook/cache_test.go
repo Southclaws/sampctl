@@ -39,28 +39,30 @@ func TestEnsureDependenciesCached(t *testing.T) {
 			nil,
 			false,
 		},
-		// {"plugin", PackageContext{
-		// 	Package: types.Package{
-		// 		Parent:         true,
-		// 		LocalPath:      util.FullPath("./tests/deps-plugin"),
-		// 		DependencyMeta: versioning.DependencyMeta{User: "local", Repo: "local"},
-		// 		Dependencies: []versioning.DependencyString{
-		// 			"sampctl/samp-stdlib",
-		// 			"Southclaws/pawn-requests",
-		// 		},
-		// 	},
-		// 	Platform: "linux",
-		// 	CacheDir: "./tests/cache",
-		// 	GitAuth: gitAuth,
-		// },
-		// 	[]versioning.DependencyMeta{
-		// 		versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "samp-stdlib"},
-		// 		versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
-		// 		versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-requests"},
-		// 	},
-		// 	nil,
-		// 	false,
-		// },
+		{"plugin", PackageContext{
+			Package: types.Package{
+				Parent:         true,
+				LocalPath:      util.FullPath("./tests/deps-plugin"),
+				DependencyMeta: versioning.DependencyMeta{User: "local", Repo: "local"},
+				Dependencies: []versioning.DependencyString{
+					"sampctl/samp-stdlib",
+					"Southclaws/pawn-requests",
+				},
+			},
+			Platform: "linux",
+			CacheDir: "./tests/cache",
+			GitAuth:  gitAuth,
+		},
+			[]versioning.DependencyMeta{
+				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "samp-stdlib"},
+				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
+				versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-requests"},
+			},
+			[]versioning.DependencyMeta{
+				versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-requests"},
+			},
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
