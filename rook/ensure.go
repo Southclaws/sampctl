@@ -37,15 +37,10 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context) (err error) {
 
 	pkg.Vendor = filepath.Join(pkg.LocalPath, "dependencies")
 
-	var (
-	// globalVendor = filepath.Join(pcx.CacheDir, "packages")
-	)
-
 	for _, dependency := range pcx.AllDependencies {
 		dependencyPath := filepath.Join(pkg.Vendor, dependency.Repo)
-		// dependencyCachedPath := filepath.Join(globalVendor, meta.Repo)
 
-		errInner := EnsurePackage(dependencyPath, dependency, pcx.GitAuth, false)
+		errInner := pcx.EnsurePackage(dependencyPath, dependency, false)
 		if errInner != nil {
 			print.Warn(errors.Wrapf(errInner, "failed to ensure package %s", dependency))
 			return
@@ -139,11 +134,13 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context) (err error) {
 // EnsurePackage will make sure a vendor directory contains the specified package.
 // If the package is not present, it will clone it at the correct version tag, sha1 or HEAD
 // If the package is present, it will ensure the directory contains the correct version
-func EnsurePackage(pkgPath string, meta versioning.DependencyMeta, auth transport.AuthMethod, forceUpdate bool) (err error) {
+func (pcx *PackageContext) EnsurePackage(pkgPath string, meta versioning.DependencyMeta, forceUpdate bool) (err error) {
 	var (
 		needToClone = false // do we need to clone a new repo?
 		head        *plumbing.Reference
 	)
+	// globalVendor = filepath.Join(pcx.CacheDir, "packages")
+	// dependencyCachedPath := filepath.Join(globalVendor, meta.Repo)
 
 	repo, err := git.PlainOpen(pkgPath)
 	if err != nil && err != git.ErrRepositoryNotExists {
@@ -166,7 +163,7 @@ func EnsurePackage(pkgPath string, meta versioning.DependencyMeta, auth transpor
 	}
 
 	if needToClone {
-		repo, err = CloneDependency(meta, pkgPath, auth)
+		repo, err = pcx.EnsureDependencyCached(meta)
 		if err != nil {
 			return errors.Wrap(err, "failed to clone dependency")
 		}
@@ -174,11 +171,11 @@ func EnsurePackage(pkgPath string, meta versioning.DependencyMeta, auth transpor
 
 	if forceUpdate {
 		print.Verb(meta, "updating dependency package")
-		err = updateRepoState(repo, meta, auth, false)
+		err = updateRepoState(repo, meta, pcx.GitAuth, false)
 		if err != nil {
 			// try once more, but force a pull
 			print.Verb(meta, "unable to update repo in given state, force-pulling latest from repo tip")
-			err = updateRepoState(repo, meta, auth, true)
+			err = updateRepoState(repo, meta, pcx.GitAuth, true)
 			if err != nil {
 				return errors.Wrap(err, "failed to update repo state")
 			}

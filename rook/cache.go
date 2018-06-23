@@ -7,7 +7,6 @@ import (
 
 	"github.com/pkg/errors"
 	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/runtime"
@@ -60,20 +59,12 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 		} else {
 			dependencyPath = filepath.Join(globalVendor, currentMeta.Repo)
 
-			if !util.Exists(dependencyPath) {
-				print.Verb(pkg, "cloning fresh copy of", currentMeta, "to package", dependencyPath)
+			print.Verb(pkg, "ensuring cached copy of", currentMeta)
 
-				errInner = os.MkdirAll(dependencyPath, 0700)
-				if errInner != nil {
-					print.Erro(errInner)
-					return
-				}
-
-				_, errInner = CloneDependency(currentMeta, dependencyPath, pcx.GitAuth)
-				if errInner != nil {
-					print.Erro(errInner)
-					return
-				}
+			_, errInner = pcx.EnsureDependencyCached(currentMeta)
+			if errInner != nil {
+				print.Erro(errInner)
+				return
 			}
 
 			currentPackage, errInner = types.PackageFromDir(dependencyPath)
@@ -145,19 +136,67 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 	return
 }
 
-// CloneDependency clones a package to path using the default branch
-func CloneDependency(meta versioning.DependencyMeta, path string, auth transport.AuthMethod) (repo *git.Repository, err error) {
+// EnsureDependencyCached clones a package to path using the default branch
+func (pcx PackageContext) EnsureDependencyCached(meta versioning.DependencyMeta) (repo *git.Repository, err error) {
 	print.Verb(meta, "cloning dependency package")
+	return pcx.cloneDependency(meta.URL(), filepath.Join(pcx.CacheDir, "packages", meta.Repo), meta.SSH != "")
+}
 
-	cloneOpts := &git.CloneOptions{
-		URL:   meta.URL(),
+// EnsureDependencyFromCache ensures the repository at `path` is up to date
+func (pcx PackageContext) EnsureDependencyFromCache(meta versioning.DependencyMeta, path string) (repo *git.Repository, err error) {
+	print.Verb(meta, "ensuring dependency package")
+
+	from := filepath.Join(pcx.CacheDir, "packages", meta.Repo)
+	if !util.Exists(from) {
+		_, err = pcx.EnsureDependencyCached(meta)
+		if err != nil {
+			return
+		}
+	}
+
+	repo, err = pcx.cloneDependency(from, path, meta.SSH != "")
+	return
+}
+
+func (pcx PackageContext) cloneDependency(from, to string, ssh bool) (repo *git.Repository, err error) {
+	repo, err = git.PlainOpen(to)
+	if err != nil {
+		if util.Exists(to) {
+			err = os.RemoveAll(to)
+			if err != nil {
+				return
+			}
+		}
+
+		err = os.MkdirAll(to, 0700)
+		if err != nil {
+			print.Erro(err)
+			return
+		}
+
+		cloneOpts := &git.CloneOptions{
+			URL:   from,
+			Depth: 1000,
+		}
+
+		if ssh {
+			cloneOpts.Auth = pcx.GitAuth
+		}
+
+		return git.PlainClone(to, false, cloneOpts)
+	}
+
+	wt, err := repo.Worktree()
+	if err != nil {
+		return
+	}
+
+	err = wt.Pull(&git.PullOptions{
 		Depth: 1000,
+	})
+	if err != nil {
+		return
 	}
 
-	if meta.SSH != "" {
-		cloneOpts.Auth = auth
-	}
-
-	repo, err = git.PlainClone(path, false, cloneOpts)
 	return
 }
