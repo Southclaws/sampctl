@@ -50,17 +50,17 @@ func packageEnsure(c *cli.Context) error {
 
 	dir := util.FullPath(c.String("dir"))
 
-	pkg, err := rook.PackageFromDir(true, dir, runtime.GOOS, cacheDir, "", gitAuth)
+	pcx, err := rook.NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, cacheDir, "")
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	pkg.Runtime = rook.GetRuntimeConfig(pkg, runtimeName)
+	pcx.Package.Runtime = rook.GetRuntimeConfig(pcx.Package, runtimeName)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
 	defer cancel()
 
-	err = rook.EnsureDependencies(ctx, gh, &pkg, gitAuth, runtime.GOOS, cacheDir)
+	err = rook.EnsureDependencies(ctx, gh, &pcx.Package, gitAuth, runtime.GOOS, cacheDir)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure")
 	}

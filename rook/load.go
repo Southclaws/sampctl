@@ -3,6 +3,7 @@ package rook
 import (
 	"path/filepath"
 
+	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
@@ -12,66 +13,91 @@ import (
 	"github.com/Southclaws/sampctl/versioning"
 )
 
-// PackageFromDir attempts to parse a directory as a Package by looking for a
+// PackageContext stores state for a package during its lifecycle.
+type PackageContext struct {
+	Package  types.Package        // the package this context wraps
+	GitHub   *github.Client       // GitHub client for downloading plugins
+	GitAuth  transport.AuthMethod // Authentication method for git
+	Platform string               // the platform this package targets
+	CacheDir string               // the cache directory
+}
+
+// NewPackageContext attempts to parse a directory as a Package by looking for a
 // `pawn.json` or `pawn.yaml` file and unmarshalling it - additional parameters
 // are required to specify whether or not the package is a "parent package" and
 // where the vendor directory is.
-func PackageFromDir(parent bool, dir, platform, cacheDir, vendor string, auth transport.AuthMethod) (pkg types.Package, err error) {
-	pkg, err = types.PackageFromDir(dir)
+func NewPackageContext(
+	gh *github.Client,
+	auth transport.AuthMethod,
+	parent bool,
+	dir string,
+	platform string,
+	cacheDir string,
+	vendor string,
+) (pcx *PackageContext, err error) {
+	pcx = &PackageContext{
+		GitHub:   gh,
+		GitAuth:  auth,
+		Platform: platform,
+		CacheDir: cacheDir,
+	}
+	pcx.Package, err = types.PackageFromDir(dir)
 	if err != nil {
 		err = errors.Wrap(err, "failed to read package definition")
 		return
 	}
 
-	pkg.Parent = parent
-	pkg.LocalPath = dir
-	pkg.Tag = getPackageTag(dir)
+	pcx.Package.Parent = parent
+	pcx.Package.LocalPath = dir
+	pcx.Package.Tag = getPackageTag(dir)
 
-	print.Verb(pkg, "read package from directory", dir)
+	print.Verb(pcx.Package, "read package from directory", dir)
 
 	if vendor == "" {
-		pkg.Vendor = filepath.Join(dir, "dependencies")
+		pcx.Package.Vendor = filepath.Join(dir, "dependencies")
 	} else {
-		pkg.Vendor = vendor
+		pcx.Package.Vendor = vendor
 	}
 
-	if err = pkg.Validate(); err != nil {
+	if err = pcx.Package.Validate(); err != nil {
 		err = errors.Wrap(err, "package validation failed during initial read")
 		return
 	}
 
 	// user and repo are not mandatory but are recommended, warn the user if this is their own
 	// package (parent == true) but ignore for dependencies (parent == false)
-	if pkg.User == "" {
+	if pcx.Package.User == "" {
 		if parent {
 			print.Warn("Package Definition File does specify a value for `user`.")
 		}
-		pkg.User = "<none>"
+		pcx.Package.User = "<none>"
 	}
-	if pkg.Repo == "" {
+	if pcx.Package.Repo == "" {
 		if parent {
 			print.Warn("Package Definition File does specify a value for `repo`.")
 		}
-		pkg.Repo = "<local>"
+		pcx.Package.Repo = "<local>"
 	}
 
 	// if there is no runtime configuration, use the defaults
-	if pkg.Runtime == nil {
-		pkg.Runtime = new(types.Runtime)
+	if pcx.Package.Runtime == nil {
+		pcx.Package.Runtime = new(types.Runtime)
 	}
-	types.ApplyRuntimeDefaults(pkg.Runtime)
+	types.ApplyRuntimeDefaults(pcx.Package.Runtime)
 
-	// if this is the user's package (parent == true) and it has dependencies
-	// specified but the all-dependencies list is not populated, perform a first
-	// run pre-flight cache update for all dependencies.
-	if parent && len(pkg.Dependencies) > 0 && len(pkg.AllDependencies) == 0 {
-		print.Verb(pkg, "resolving dependencies during package load")
-		pkg.AllDependencies, pkg.AllIncludePaths, pkg.AllPlugins, err = EnsureDependenciesCached(pkg, platform, cacheDir, auth)
-		if err != nil {
-			print.Verb("failed to resolve dependency tree:", err)
-			err = nil // not a breaking error for PackageFromDir
-		}
+	return
+}
+
+// EnsurePackageCached ensures package dependencies are cached and ready
+func (pcx *PackageContext) EnsurePackageCached() (err error) {
+	print.Verb(pcx.Package, "resolving dependencies during package load")
+	allDeps, allPlugins, err := EnsureDependenciesCached(pcx.Package, pcx.Platform, pcx.CacheDir, pcx.GitAuth)
+	if err != nil {
+		return
 	}
+
+	pcx.Package.AllDependencies = allDeps
+	pcx.Package.AllPlugins = allPlugins
 
 	return
 }

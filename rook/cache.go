@@ -23,7 +23,6 @@ func EnsureDependenciesCached(
 	auth transport.AuthMethod,
 ) (
 	allDependencies []versioning.DependencyMeta,
-	allIncludePaths []string,
 	allPlugins []versioning.DependencyMeta,
 	errOuter error,
 ) {
@@ -82,41 +81,20 @@ func EnsureDependenciesCached(
 				}
 			}
 
-			currentPackage, errInner = PackageFromDir(false, dependencyPath, platform, cacheDir, globalVendor, auth)
+			currentPackage, errInner = types.PackageFromDir(dependencyPath)
 			if errInner != nil {
 				print.Verb(pkg, "dependency", currentMeta, "is not a package:", errInner)
 				return
 			}
 		}
 
-		print.Verb(pkg, "Resolving resource paths")
-		var incPaths []string
-		incPaths, errInner = resolveResourcePaths(currentPackage, platform)
-		if errInner != nil {
-			print.Warn(pkg, "Failed to resolve package resource paths:", errInner)
-		}
-		allIncludePaths = append(allIncludePaths, incPaths...)
-		if len(incPaths) == 0 && !firstIter {
-			// only add the package as a full dependency if there are no
-			// includes in the resources and this isn't the first iteration
-
-			// TODO: this should be handled later on down the line, this is
-			// semantically incorrect because the currentMeta IS still a "dependency"
-			// it just doesn't want its path to be in the includes path that is
-			// passed to the compiler. There needs to be some way to store that
-			// information at this point and then use it at a later time to omit
-			// the package from the compiler paths list.
-			print.Verb(pkg, "adding", currentMeta, "to resultant dependencies list")
-			allDependencies = append(allDependencies, currentMeta)
-		} else {
-			print.Verb(pkg, "not adding", currentMeta, "because it has includes within resources:", incPaths)
-		}
-
 		// mark the repo as visited so we don't hit it again in case it appears
 		// multiple times within the dependency tree.
 		visited[currentMeta.Repo] = true
 
-		// now iterate the subpackage
+		// now iterate the runtime plugins of the package. If there are entries
+		// in here, that means this package is actually a plugin package that
+		// provides binaries that should be downloaded.
 		if currentPackage.Runtime != nil {
 			for _, pluginDepStr := range currentPackage.Runtime.Plugins {
 				pluginMeta, errInner = pluginDepStr.AsDep()
@@ -156,31 +134,6 @@ func EnsureDependenciesCached(
 	}
 	recurse(pkg.DependencyMeta)
 
-	return
-}
-
-func resolveResourcePaths(pkg types.Package, platform string) (paths []string, err error) {
-	for _, res := range pkg.Resources {
-		if res.Platform != platform {
-			print.Verb(pkg, "ignoring platform mismatch", res.Platform)
-			continue
-		}
-
-		targetPath := filepath.Join(pkg.Vendor, res.Path(pkg))
-
-		if len(res.Includes) > 0 {
-			var info os.FileInfo
-			info, err = os.Stat(targetPath)
-			if err != nil {
-				err = errors.Wrapf(err, "failed to stat target path %s", targetPath)
-				return
-			}
-			if info.IsDir() {
-				print.Verb(pkg, "adding resource include path", targetPath)
-				paths = append(paths, targetPath)
-			}
-		}
-	}
 	return
 }
 

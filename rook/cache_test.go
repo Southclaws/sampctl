@@ -23,7 +23,6 @@ func TestEnsureDependenciesCached(t *testing.T) {
 		name                string
 		args                args
 		wantAllDependencies []versioning.DependencyMeta
-		wantAllIncludePaths []string
 		wantAllPlugins      []versioning.DependencyMeta
 		wantErr             bool
 	}{
@@ -45,6 +44,26 @@ func TestEnsureDependenciesCached(t *testing.T) {
 				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
 			},
 			nil,
+			false,
+		},
+		{"plugin", args{
+			types.Package{
+				Parent:         true,
+				LocalPath:      util.FullPath("./tests/deps-plugin"),
+				DependencyMeta: versioning.DependencyMeta{User: "local", Repo: "local"},
+				Dependencies: []versioning.DependencyString{
+					"sampctl/samp-stdlib",
+					"Southclaws/pawn-requests",
+				},
+			},
+			"linux",
+			"./tests/cache",
+			gitAuth,
+		},
+			[]versioning.DependencyMeta{
+				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "samp-stdlib"},
+				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
+			},
 			nil,
 			false,
 		},
@@ -54,7 +73,7 @@ func TestEnsureDependenciesCached(t *testing.T) {
 			os.RemoveAll(tt.args.pkg.LocalPath)
 			os.MkdirAll(tt.args.pkg.LocalPath, 0755) //nolint
 
-			gotAllDependencies, gotAllIncludePaths, gotAllPlugins, err := EnsureDependenciesCached(tt.args.pkg, tt.args.platform, tt.args.cacheDir, tt.args.auth)
+			gotAllDependencies, gotAllPlugins, err := EnsureDependenciesCached(tt.args.pkg, tt.args.platform, tt.args.cacheDir, tt.args.auth)
 			if tt.wantErr {
 				assert.Equal(t, tt.wantErr, err)
 			} else {
@@ -62,7 +81,6 @@ func TestEnsureDependenciesCached(t *testing.T) {
 			}
 
 			assert.Equal(t, tt.wantAllDependencies, gotAllDependencies)
-			assert.Equal(t, tt.wantAllIncludePaths, gotAllIncludePaths)
 			assert.Equal(t, tt.wantAllPlugins, gotAllPlugins)
 		})
 	}

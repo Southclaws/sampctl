@@ -53,7 +53,7 @@ func packageTemplateBuild(c *cli.Context) (err error) {
 		return errors.Errorf("no such file or directory: %s", filename)
 	}
 
-	pkg, err := rook.PackageFromDir(true, templatePath, runtime.GOOS, cacheDir, "", gitAuth)
+	pcx, err := rook.NewPackageContext(gh, gitAuth, true, templatePath, runtime.GOOS, cacheDir, "")
 	if err != nil {
 		return errors.Wrap(err, "template package is invalid")
 	}
@@ -63,7 +63,7 @@ func packageTemplateBuild(c *cli.Context) (err error) {
 		return errors.Wrap(err, "failed to copy target script to template package directory")
 	}
 
-	problems, result, err := rook.Build(context.Background(), gh, gitAuth, &pkg, "", cacheDir, runtime.GOOS, false, false, true, "")
+	problems, result, err := rook.Build(context.Background(), gh, gitAuth, &pcx.Package, "", cacheDir, runtime.GOOS, false, false, true, "")
 	if err != nil {
 		return
 	}

@@ -57,7 +57,7 @@ func EnsureDependencies(ctx context.Context, gh *github.Client, pkg *types.Packa
 		visited[meta.Repo] = true
 
 		var subPkg types.Package
-		subPkg, errInner = PackageFromDir(false, pkgPath, platform, cacheDir, pkg.Vendor, auth)
+		subPkg, errInner = types.PackageFromDir(pkgPath)
 		if errInner != nil {
 			print.Warn(pkg, meta, errInner)
 			return
@@ -67,10 +67,20 @@ func EnsureDependencies(ctx context.Context, gh *github.Client, pkg *types.Packa
 		var resIncs []string
 		for _, res := range subPkg.Resources {
 			if res.Archive && res.Platform == platform {
-				resIncs, errInner = extractResourceDependencies(ctx, gh, subPkg, res, pkg.Vendor, platform, cacheDir)
+				dir := filepath.Join(pkg.Vendor, res.Path(subPkg))
+
+				print.Verb(subPkg, "installing resource-based dependency", res.Name, "to", dir)
+
+				errInner = os.MkdirAll(dir, 0700)
 				if errInner != nil {
-					print.Warn(errors.Wrapf(errInner, "failed to ensure resource %s", res.Name))
-					return
+					print.Warn(subPkg, "failed to create asset directory:", errInner)
+					continue
+				}
+
+				_, errInner = runtime.EnsureVersionedPlugin(ctx, gh, subPkg.DependencyMeta, dir, platform, cacheDir, false, true, false)
+				if errInner != nil {
+					print.Warn(subPkg, "failed to ensure asset:", errInner)
+					continue
 				}
 			}
 		}
@@ -401,30 +411,5 @@ func RefFromCommit(repo *git.Repository, meta versioning.DependencyMeta) (result
 	if result.IsZero() {
 		err = errors.Errorf("no commit named '%s' found", meta.Commit)
 	}
-	return
-}
-
-func extractResourceDependencies(ctx context.Context, gh *github.Client, pkg types.Package, res types.Resource, vendor, platform, cacheDir string) (resIncs []string, err error) {
-	dir := filepath.Join(vendor, res.Path(pkg))
-	print.Verb(pkg, "installing resource-based dependency", res.Name, "to", dir)
-
-	err = os.MkdirAll(dir, 0700)
-	if err != nil {
-		err = errors.Wrap(err, "failed to create target directory")
-		return
-	}
-
-	_, err = runtime.EnsureVersionedPlugin(ctx, gh, pkg.DependencyMeta, dir, platform, cacheDir, false, true, false)
-	if err != nil {
-		err = errors.Wrap(err, "failed to ensure asset")
-		return
-	}
-
-	resIncs, err = resolveResourcePaths(pkg, platform)
-	if err != nil {
-		err = errors.Wrap(err, "failed to resolve resource paths")
-		return
-	}
-
 	return
 }

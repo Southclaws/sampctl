@@ -42,12 +42,12 @@ func packageRelease(c *cli.Context) error {
 		return err
 	}
 
-	pkg, err := rook.PackageFromDir(true, dir, runtime.GOOS, cacheDir, "", gitAuth)
+	pcx, err := rook.NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, cacheDir, "")
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	err = rook.Release(context.Background(), gh, gitAuth, pkg)
+	err = rook.Release(context.Background(), gh, gitAuth, pcx.Package)
 	if err != nil {
 		return errors.Wrap(err, "failed to release")
 	}

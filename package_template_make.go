@@ -51,7 +51,7 @@ func packageTemplateMake(c *cli.Context) (err error) {
 	}
 	name := c.Args().First()
 
-	pkg, err := rook.PackageFromDir(true, dir, runtime.GOOS, cacheDir, "", gitAuth)
+	pcx, err := rook.NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, cacheDir, "")
 	if err != nil {
 		return
 	}
@@ -66,13 +66,13 @@ func packageTemplateMake(c *cli.Context) (err error) {
 		return errors.Wrapf(err, "failed to create template directory at '%s'", templatePath)
 	}
 
-	pkg.LocalPath = templatePath
-	pkg.Vendor = filepath.Join(templatePath, "dependencies")
-	pkg.Repo = name
-	pkg.Entry = "tmpl.pwn"
-	pkg.Output = "tmpl.amx"
+	pcx.Package.LocalPath = templatePath
+	pcx.Package.Vendor = filepath.Join(templatePath, "dependencies")
+	pcx.Package.Repo = name
+	pcx.Package.Entry = "tmpl.pwn"
+	pcx.Package.Output = "tmpl.amx"
 
-	err = pkg.WriteDefinition()
+	err = pcx.Package.WriteDefinition()
 	if err != nil {
 		return errors.Wrap(err, "failed to write package template definition file")
 	}
@@ -80,7 +80,7 @@ func packageTemplateMake(c *cli.Context) (err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
 	defer cancel()
 
-	err = rook.EnsureDependencies(ctx, gh, &pkg, gitAuth, runtime.GOOS, cacheDir)
+	err = rook.EnsureDependencies(ctx, gh, &pcx.Package, gitAuth, runtime.GOOS, cacheDir)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure dependencies of template package")
 	}

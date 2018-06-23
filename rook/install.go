@@ -77,12 +77,12 @@ func Get(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta,
 	}
 
 	print.Verb("ensuring cloned package", meta, "to", dir)
-	pkg, err := PackageFromDir(true, dir, platform, cacheDir, "", auth)
+	pcx, err := NewPackageContext(gh, auth, true, dir, platform, cacheDir, "")
 	if err != nil {
 		return errors.Wrap(err, "failed to read cloned repository as Pawn package")
 	}
 
-	err = EnsureDependencies(ctx, gh, &pkg, auth, platform, cacheDir)
+	err = EnsureDependencies(ctx, gh, &pcx.Package, auth, platform, cacheDir)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure dependencies for cloned package")
 	}
