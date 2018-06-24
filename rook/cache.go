@@ -143,11 +143,15 @@ func (pcx PackageContext) EnsureDependencyCached(meta versioning.DependencyMeta)
 }
 
 // EnsureDependencyFromCache ensures the repository at `path` is up to date
-func (pcx PackageContext) EnsureDependencyFromCache(meta versioning.DependencyMeta, path string) (repo *git.Repository, err error) {
+func (pcx PackageContext) EnsureDependencyFromCache(meta versioning.DependencyMeta, path string, forceUpdate bool) (repo *git.Repository, err error) {
 	print.Verb(meta, "ensuring dependency package")
 
-	from := filepath.Join(pcx.CacheDir, "packages", meta.Repo)
-	if !util.Exists(from) {
+	from, err := filepath.Abs(filepath.Join(pcx.CacheDir, "packages", meta.Repo))
+	if err != nil {
+		err = errors.Wrap(err, "failed to make canonical path to cached copy")
+		return
+	}
+	if !util.Exists(filepath.Join(from, ".git")) || forceUpdate {
 		_, err = pcx.EnsureDependencyCached(meta)
 		if err != nil {
 			return
@@ -161,7 +165,7 @@ func (pcx PackageContext) EnsureDependencyFromCache(meta versioning.DependencyMe
 func (pcx PackageContext) cloneDependency(from, to string, ssh bool) (repo *git.Repository, err error) {
 	repo, err = git.PlainOpen(to)
 	if err != nil {
-		print.Erro("failed to open repo", to)
+		print.Verb("no repo at", to, "-", err, "cloning new copy")
 		if util.Exists(to) {
 			print.Verb("removing existing folder", to)
 			err = os.RemoveAll(to)
