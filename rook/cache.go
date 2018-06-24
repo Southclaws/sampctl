@@ -139,7 +139,7 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 // EnsureDependencyCached clones a package to path using the default branch
 func (pcx PackageContext) EnsureDependencyCached(meta versioning.DependencyMeta) (repo *git.Repository, err error) {
 	print.Verb(meta, "cloning dependency package")
-	return pcx.cloneDependency(meta.URL(), filepath.Join(pcx.CacheDir, "packages", meta.Repo), meta.SSH != "")
+	return pcx.cloneDependency(meta.URL(), types.GetCachedPackagePath(meta, pcx.CacheDir), meta.SSH != "")
 }
 
 // EnsureDependencyFromCache ensures the repository at `path` is up to date
@@ -161,7 +161,9 @@ func (pcx PackageContext) EnsureDependencyFromCache(meta versioning.DependencyMe
 func (pcx PackageContext) cloneDependency(from, to string, ssh bool) (repo *git.Repository, err error) {
 	repo, err = git.PlainOpen(to)
 	if err != nil {
+		print.Erro("failed to open repo", to)
 		if util.Exists(to) {
+			print.Verb("removing existing folder", to)
 			err = os.RemoveAll(to)
 			if err != nil {
 				return
@@ -183,6 +185,7 @@ func (pcx PackageContext) cloneDependency(from, to string, ssh bool) (repo *git.
 			cloneOpts.Auth = pcx.GitAuth
 		}
 
+		print.Verb("cloning repo", to)
 		return git.PlainClone(to, false, cloneOpts)
 	}
 
@@ -191,12 +194,14 @@ func (pcx PackageContext) cloneDependency(from, to string, ssh bool) (repo *git.
 		return
 	}
 
+	print.Verb("pulling latest copy")
 	err = wt.Pull(&git.PullOptions{
 		Depth: 1000,
 	})
-	if err != nil {
+	if err != nil && err != git.NoErrAlreadyUpToDate {
+		err = errors.Wrap(err, "failed to pull repository")
 		return
 	}
 
-	return
+	return repo, nil
 }

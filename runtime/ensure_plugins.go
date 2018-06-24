@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"context"
-	"encoding/json"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -136,7 +135,18 @@ func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioni
 }
 
 // EnsureVersionedPluginCached ensures that a plugin exists in the cache
-func EnsureVersionedPluginCached(ctx context.Context, meta versioning.DependencyMeta, platform, cacheDir string, noCache bool, gh *github.Client) (filename string, resource types.Resource, err error) {
+func EnsureVersionedPluginCached(
+	ctx context.Context,
+	meta versioning.DependencyMeta,
+	platform,
+	cacheDir string,
+	noCache bool,
+	gh *github.Client,
+) (
+	filename string,
+	resource types.Resource,
+	err error,
+) {
 	hit := false
 	// only pull from cache if there is a version tag specified
 	if !noCache && meta.Tag != "" {
@@ -164,7 +174,7 @@ func PluginFromCache(meta versioning.DependencyMeta, platform, cacheDir string) 
 
 	print.Verb("getting plugin resource from cache", meta, resourcePath)
 
-	pkg, err := types.PackageFromDir(resourcePath)
+	pkg, err := types.GetCachedPackage(meta, cacheDir)
 	if err != nil {
 		print.Verb("cache hit failed:", err)
 		err = nil
@@ -220,22 +230,11 @@ func PluginFromNet(ctx context.Context, gh *github.Client, meta versioning.Depen
 		return
 	}
 
-	pkg, err := types.GetRemotePackage(ctx, gh, meta)
+	pkg, err := types.GetCachedPackage(meta, cacheDir)
 	if err != nil {
-		err = errors.Wrap(err, "failed to get remote package definition file")
-		return
-	}
-
-	pkgJSON, err := json.Marshal(pkg)
-	if err != nil {
-		err = errors.Wrap(err, "failed to encode package to json")
-		return
-	}
-
-	err = ioutil.WriteFile(filepath.Join(resourcePath, "pawn.json"), pkgJSON, 0700)
-	if err != nil {
-		err = errors.Wrap(err, "failed to write package file to cache")
+		pkg, err = types.GetRemotePackage(ctx, gh, meta)
 		if err != nil {
+			err = errors.Wrap(err, "failed to get remote package definition file")
 			return
 		}
 	}

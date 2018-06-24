@@ -181,6 +181,17 @@ func (pkg Package) WriteDefinition() (err error) {
 	return
 }
 
+// GetCachedPackagePath returns the path from the cache to a cached package
+func GetCachedPackagePath(meta versioning.DependencyMeta, cacheDir string) (path string) {
+	return filepath.Join(cacheDir, "packages", meta.Repo)
+}
+
+// GetCachedPackage returns a package using the cached copy, if it exists
+func GetCachedPackage(meta versioning.DependencyMeta, cacheDir string) (pkg Package, err error) {
+	path := GetCachedPackagePath(meta, cacheDir)
+	return PackageFromDir(path)
+}
+
 // GetRemotePackage attempts to get a package definition for the given dependency meta.
 // It first checks the the sampctl central repository, if that fails it falls back to using the
 // repository for the package itself. This means upstream changes to plugins can be first staged in
