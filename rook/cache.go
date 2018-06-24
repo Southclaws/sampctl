@@ -91,12 +91,11 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 					return
 				}
 
-				_, resource, err := runtime.EnsureVersionedPluginCached(context.Background(), pluginMeta, pcx.Platform, pcx.CacheDir, false, pcx.GitHub)
+				_, _, err := runtime.EnsureVersionedPluginCached(context.Background(), pluginMeta, pcx.Platform, pcx.CacheDir, false, pcx.GitHub)
 				if err != nil {
 					print.Warn(pcx.Package, "Failed to download dependency plugin", pluginMeta, "to cache")
 					return
 				}
-				pcx.AllResources = append(pcx.AllResources, resource)
 				pcx.AllPlugins = append(pcx.AllPlugins, pluginMeta)
 			}
 		}

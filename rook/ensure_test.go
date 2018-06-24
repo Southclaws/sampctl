@@ -7,11 +7,12 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	git "gopkg.in/src-d/go-git.v4"
+
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
-	"github.com/stretchr/testify/assert"
-	git "gopkg.in/src-d/go-git.v4"
 )
 
 func TestPackage_EnsureDependencies(t *testing.T) {
@@ -19,7 +20,6 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 		name     string
 		pcx      PackageContext
 		wantDeps []versioning.DependencyMeta
-		wantSha  string
 		wantErr  bool
 	}{
 		{"basic", PackageContext{
@@ -36,7 +36,6 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 				{Site: "github.com", User: "sampctl", Repo: "samp-stdlib"},
 				{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
 			},
-			"",
 			false},
 	}
 	for _, tt := range tests {
@@ -71,11 +70,13 @@ func TestPackageContext_EnsurePackage(t *testing.T) {
 		wantSha string
 		wantErr bool
 	}{
-		{"commit", args{versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib", Commit: "7a13c662e619a478b0e8d1d6d113e3aa41cb6d37"}, false},
-			"7a13c662e619a478b0e8d1d6d113e3aa41cb6d37", false},
-		{"tag", args{versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "samp-stdlib", Tag: "0.3z-R4"}, false},
-			"de2ed6d59f0304dab726588afd3b6f6df77ca87d", false},
-		{"branch", args{versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "YSI-Includes", Branch: "5.x"}, false},
+		// {"commit", args{versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib", Commit: "7a13c662e619a478b0e8d1d6d113e3aa41cb6d37"}, false},
+		// 	"7a13c662e619a478b0e8d1d6d113e3aa41cb6d37", false},
+		// {"tag", args{versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "samp-stdlib", Tag: "0.3z-R4"}, false},
+		// 	"de2ed6d59f0304dab726588afd3b6f6df77ca87d", false},
+		// {"branch", args{versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "YSI-Includes", Branch: "5.x"}, false},
+		// 	"", false},
+		{"resource", args{versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "package-resource-test"}, false},
 			"", false},
 	}
 	for _, tt := range tests {

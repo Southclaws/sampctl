@@ -22,7 +22,6 @@ type PackageContext struct {
 	CacheDir        string                      // the cache directory
 	AllDependencies []versioning.DependencyMeta // flattened list of dependencies
 	AllPlugins      []versioning.DependencyMeta // flattened list of plugin dependencies
-	AllResources    []types.Resource            // flattened list of resources
 	AllIncludePaths []string                    // any additional include paths specified by resources
 }
 

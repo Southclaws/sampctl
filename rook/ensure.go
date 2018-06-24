@@ -15,6 +15,7 @@ import (
 
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/runtime"
+	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -103,6 +104,21 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 		if err != nil {
 			return errors.Wrap(err, "failed to update repo state")
 		}
+	}
+
+	pkg, err := types.GetCachedPackage(meta, pcx.CacheDir)
+	if err != nil {
+		return
+	}
+
+	for _, resource := range pkg.Resources {
+		if resource.Platform != pcx.Platform || len(resource.Includes) == 0 {
+			continue
+		}
+
+		// for _, includePath := range resource.Includes {
+		//
+		// }
 	}
 
 	return
