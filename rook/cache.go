@@ -19,15 +19,13 @@ import (
 // EnsureDependenciesCached will recursively visit a parent package dependencies
 // in the cache, pulling them if they do not exist yet.
 func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
-	pkg := pcx.Package
+	print.Verb(pcx.Package, "building dependency tree and ensuring cached copies")
 
-	print.Verb(pkg, "building dependency tree and ensuring cached copies")
-
-	if !pkg.Parent {
+	if !pcx.Package.Parent {
 		errOuter = errors.New("package is not a parent package")
 		return
 	}
-	if pkg.LocalPath == "" {
+	if pcx.Package.LocalPath == "" {
 		errOuter = errors.New("package has no known local path")
 		return
 	}
@@ -39,7 +37,7 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 		globalVendor   = filepath.Join(pcx.CacheDir, "packages")
 		visited        = make(map[string]bool)
 		pluginMeta     versioning.DependencyMeta
-		dependencyPath = pkg.LocalPath
+		dependencyPath = pcx.Package.LocalPath
 		firstIter      = true
 		currentPackage types.Package
 		errInner       error
@@ -48,19 +46,19 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 	// set the parent package visited state to true, just in case it depends on
 	// itself or a dependency depends on it. This should never happen but if it
 	// does, this prevents an infinite recursion.
-	visited[pkg.DependencyMeta.Repo] = true
+	visited[pcx.Package.DependencyMeta.Repo] = true
 
 	recurse = func(currentMeta versioning.DependencyMeta) {
 		// the first iteration of this recursive function is called on the
 		// parent package. This means it does not need to be cloned to the cache
 		// and the path will be it's true, user-defined location.
 		if firstIter {
-			print.Verb(pkg, "processing parent package in recursive function")
-			currentPackage = pkg // set the current package to the parent
+			print.Verb(pcx.Package, "processing parent package in recursive function")
+			currentPackage = pcx.Package // set the current package to the parent
 		} else {
 			dependencyPath = filepath.Join(globalVendor, currentMeta.Repo)
 
-			print.Verb(pkg, "ensuring cached copy of", currentMeta)
+			print.Verb(pcx.Package, "ensuring cached copy of", currentMeta)
 
 			_, errInner = pcx.EnsureDependencyCached(currentMeta, false)
 			if errInner != nil {
@@ -70,10 +68,9 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 
 			currentPackage, errInner = types.PackageFromDir(dependencyPath)
 			if errInner != nil {
-				print.Verb(pkg, "dependency", currentMeta, "is not a package:", errInner)
+				print.Verb(pcx.Package, "dependency", currentMeta, "is not a package:", errInner)
 				return
 			}
-			pcx.AllDependencies = append(pcx.AllDependencies, currentMeta)
 		}
 
 		// mark the repo as visited so we don't hit it again in case it appears
@@ -84,19 +81,19 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 		// in here, that means this package is actually a plugin package that
 		// provides binaries that should be downloaded.
 		if currentPackage.Runtime != nil {
-			print.Verb(pkg, "gathering plugins from", currentPackage)
+			print.Verb(pcx.Package, "gathering plugins from", currentPackage)
 			for _, pluginDepStr := range currentPackage.Runtime.Plugins {
 				pluginMeta, errInner = pluginDepStr.AsDep()
 				pluginMeta.Tag = currentPackage.Tag
-				print.Verb(pkg, "adding plugin from package runtime", pluginDepStr, "as", pluginMeta)
+				print.Verb(pcx.Package, "adding plugin from package runtime", pluginDepStr, "as", pluginMeta)
 				if errInner != nil {
-					print.Warn(pkg, "Invalid plugin dependency string:", pluginDepStr, "in", currentPackage, errInner)
+					print.Warn(pcx.Package, "Invalid plugin dependency string:", pluginDepStr, "in", currentPackage, errInner)
 					return
 				}
 
 				_, resource, err := runtime.EnsureVersionedPluginCached(context.Background(), pluginMeta, pcx.Platform, pcx.CacheDir, false, pcx.GitHub)
 				if err != nil {
-					print.Warn(pkg, "Failed to download dependency plugin", pluginMeta, "to cache")
+					print.Warn(pcx.Package, "Failed to download dependency plugin", pluginMeta, "to cache")
 					return
 				}
 				pcx.AllResources = append(pcx.AllResources, resource)
@@ -116,23 +113,23 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 		// operate on dependencies
 		firstIter = false
 
-		print.Verb(pkg, "recursively iterating", len(subPackageDepStrings), "dependencies of", currentPackage)
+		print.Verb(pcx.Package, "recursively iterating", len(subPackageDepStrings), "dependencies of", currentPackage)
 		var subPackageDepMeta versioning.DependencyMeta
 		for _, subPackageDepString := range subPackageDepStrings {
 			subPackageDepMeta, errInner = subPackageDepString.Explode()
 			if errInner != nil {
-				print.Verb(pkg, "invalid dependency string:", subPackageDepMeta, "in", currentPackage, errInner)
+				print.Verb(pcx.Package, "invalid dependency string:", subPackageDepMeta, "in", currentPackage, errInner)
 				continue
 			}
 			if _, ok := visited[subPackageDepMeta.Repo]; !ok {
-				print.Verb(pkg, "recursing over", subPackageDepMeta)
+				pcx.AllDependencies = append(pcx.AllDependencies, subPackageDepMeta)
 				recurse(subPackageDepMeta)
 			} else {
-				print.Verb(pkg, "already visited", subPackageDepMeta)
+				print.Verb(pcx.Package, "already visited", subPackageDepMeta)
 			}
 		}
 	}
-	recurse(pkg.DependencyMeta)
+	recurse(pcx.Package.DependencyMeta)
 
 	return
 }

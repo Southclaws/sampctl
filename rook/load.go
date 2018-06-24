@@ -72,13 +72,13 @@ func NewPackageContext(
 	// package (parent == true) but ignore for dependencies (parent == false)
 	if pcx.Package.User == "" {
 		if parent {
-			print.Warn("Package Definition File does specify a value for `user`.")
+			print.Warn(pcx.Package, "Package Definition File does specify a value for `user`.")
 		}
 		pcx.Package.User = "<none>"
 	}
 	if pcx.Package.Repo == "" {
 		if parent {
-			print.Warn("Package Definition File does specify a value for `repo`.")
+			print.Warn(pcx.Package, "Package Definition File does specify a value for `repo`.")
 		}
 		pcx.Package.Repo = "<local>"
 	}
@@ -89,7 +89,14 @@ func NewPackageContext(
 	}
 	types.ApplyRuntimeDefaults(pcx.Package.Runtime)
 
+	print.Verb(pcx.Package, "ensuring dependencies are cached and flattening dependency tree")
 	err = pcx.EnsureDependenciesCached()
+	if err != nil {
+		err = errors.Wrap(err, "failed to ensure dependencies are cached")
+		return
+	}
+
+	print.Verb(pcx.Package, "flattened dependencies to", len(pcx.AllDependencies), "leaves")
 	return
 }
 
