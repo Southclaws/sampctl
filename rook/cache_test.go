@@ -19,26 +19,26 @@ func TestEnsureDependenciesCached(t *testing.T) {
 		wantAllPlugins      []versioning.DependencyMeta
 		wantErr             bool
 	}{
-		// {"basic", PackageContext{
-		// 	Package: types.Package{
-		// 		Parent:         true,
-		// 		LocalPath:      util.FullPath("./tests/deps-basic"),
-		// 		DependencyMeta: versioning.DependencyMeta{User: "local", Repo: "local"},
-		// 		Dependencies: []versioning.DependencyString{
-		// 			"sampctl/samp-stdlib",
-		// 		},
-		// 	},
-		// 	Platform: "linux",
-		// 	CacheDir: "./tests/cache",
-		// 	GitAuth:  gitAuth,
-		// },
-		// 	[]versioning.DependencyMeta{
-		// 		versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "samp-stdlib"},
-		// 		versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
-		// 	},
-		// 	nil,
-		// 	false,
-		// },
+		{"basic", PackageContext{
+			Package: types.Package{
+				Parent:         true,
+				LocalPath:      util.FullPath("./tests/deps-basic"),
+				DependencyMeta: versioning.DependencyMeta{User: "local", Repo: "local"},
+				Dependencies: []versioning.DependencyString{
+					"sampctl/samp-stdlib",
+				},
+			},
+			Platform: "linux",
+			CacheDir: "./tests/cache",
+			GitAuth:  gitAuth,
+		},
+			[]versioning.DependencyMeta{
+				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "samp-stdlib"},
+				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
+			},
+			nil,
+			false,
+		},
 		{"plugin", PackageContext{
 			Package: types.Package{
 				Parent:         true,
