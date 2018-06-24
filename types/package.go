@@ -181,14 +181,9 @@ func (pkg Package) WriteDefinition() (err error) {
 	return
 }
 
-// GetCachedPackagePath returns the path from the cache to a cached package
-func GetCachedPackagePath(meta versioning.DependencyMeta, cacheDir string) (path string) {
-	return filepath.Join(cacheDir, "packages", meta.Repo)
-}
-
 // GetCachedPackage returns a package using the cached copy, if it exists
 func GetCachedPackage(meta versioning.DependencyMeta, cacheDir string) (pkg Package, err error) {
-	path := GetCachedPackagePath(meta, cacheDir)
+	path := meta.CachePath(cacheDir)
 	return PackageFromDir(path)
 }
 

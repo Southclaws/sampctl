@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing"
 
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/runtime"
@@ -61,7 +62,7 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 
 			print.Verb(pkg, "ensuring cached copy of", currentMeta)
 
-			_, errInner = pcx.EnsureDependencyCached(currentMeta)
+			_, errInner = pcx.EnsureDependencyCached(currentMeta, false)
 			if errInner != nil {
 				print.Erro(errInner)
 				return
@@ -136,33 +137,33 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 	return
 }
 
-// EnsureDependencyCached clones a package to path using the default branch
-func (pcx PackageContext) EnsureDependencyCached(meta versioning.DependencyMeta) (repo *git.Repository, err error) {
-	print.Verb(meta, "cloning dependency package")
-	return pcx.cloneDependency(meta.URL(), types.GetCachedPackagePath(meta, pcx.CacheDir), meta.SSH != "")
-}
-
 // EnsureDependencyFromCache ensures the repository at `path` is up to date
 func (pcx PackageContext) EnsureDependencyFromCache(meta versioning.DependencyMeta, path string, forceUpdate bool) (repo *git.Repository, err error) {
-	print.Verb(meta, "ensuring dependency package")
+	print.Verb(meta, "ensuring dependency package from cache to", path, "force update:", forceUpdate)
 
-	from, err := filepath.Abs(filepath.Join(pcx.CacheDir, "packages", meta.Repo))
+	from, err := filepath.Abs(meta.CachePath(pcx.CacheDir))
 	if err != nil {
 		err = errors.Wrap(err, "failed to make canonical path to cached copy")
 		return
 	}
 	if !util.Exists(filepath.Join(from, ".git")) || forceUpdate {
-		_, err = pcx.EnsureDependencyCached(meta)
+		_, err = pcx.EnsureDependencyCached(meta, forceUpdate)
 		if err != nil {
 			return
 		}
 	}
 
-	repo, err = pcx.cloneDependency(from, path, meta.SSH != "")
+	repo, err = pcx.ensureRepoExists(from, path, meta.Branch, meta.SSH != "", forceUpdate)
 	return
 }
 
-func (pcx PackageContext) cloneDependency(from, to string, ssh bool) (repo *git.Repository, err error) {
+// EnsureDependencyCached clones a package to path using the default branch
+func (pcx PackageContext) EnsureDependencyCached(meta versioning.DependencyMeta, forceUpdate bool) (repo *git.Repository, err error) {
+	print.Verb(meta, "ensuring dependency package is cached, force update:", forceUpdate)
+	return pcx.ensureRepoExists(meta.URL(), meta.CachePath(pcx.CacheDir), meta.Branch, meta.SSH != "", forceUpdate)
+}
+
+func (pcx PackageContext) ensureRepoExists(from, to, branch string, ssh, forceUpdate bool) (repo *git.Repository, err error) {
 	repo, err = git.PlainOpen(to)
 	if err != nil {
 		print.Verb("no repo at", to, "-", err, "cloning new copy")
@@ -176,7 +177,6 @@ func (pcx PackageContext) cloneDependency(from, to string, ssh bool) (repo *git.
 
 		err = os.MkdirAll(to, 0700)
 		if err != nil {
-			print.Erro(err)
 			return
 		}
 
@@ -184,27 +184,39 @@ func (pcx PackageContext) cloneDependency(from, to string, ssh bool) (repo *git.
 			URL:   from,
 			Depth: 1000,
 		}
+		if branch != "" {
+			cloneOpts.ReferenceName = plumbing.ReferenceName("refs/heads/" + branch)
+		}
 
 		if ssh {
 			cloneOpts.Auth = pcx.GitAuth
 		}
 
-		print.Verb("cloning repo", to)
+		print.Verb("cloning latest copy to", to, "with", cloneOpts)
 		return git.PlainClone(to, false, cloneOpts)
 	}
 
-	wt, err := repo.Worktree()
-	if err != nil {
-		return
-	}
+	if forceUpdate {
+		var wt *git.Worktree
+		wt, err = repo.Worktree()
+		if err != nil {
+			return
+		}
 
-	print.Verb("pulling latest copy")
-	err = wt.Pull(&git.PullOptions{
-		Depth: 1000,
-	})
-	if err != nil && err != git.NoErrAlreadyUpToDate {
-		err = errors.Wrap(err, "failed to pull repository")
-		return
+		pullOpts := &git.PullOptions{
+			ReferenceName: plumbing.ReferenceName("refs/heads/" + branch),
+			Depth:         1000,
+		}
+		if branch != "" {
+			pullOpts.ReferenceName = plumbing.ReferenceName("refs/heads/" + branch)
+		}
+
+		print.Verb("pulling latest copy to", to, "with", pullOpts)
+		err = wt.Pull(pullOpts)
+		if err != nil && err != git.NoErrAlreadyUpToDate {
+			err = errors.Wrap(err, "failed to pull repository")
+			return
+		}
 	}
 
 	return repo, nil

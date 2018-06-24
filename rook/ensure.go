@@ -61,8 +61,6 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context) (err error) {
 // If the package is present, it will ensure the directory contains the correct version
 func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUpdate bool) (err error) {
 	var (
-		// globalVendor         = filepath.Join(pcx.CacheDir, "packages")
-		// dependencyCachedPath = filepath.Join(globalVendor, meta.Repo)
 		dependencyPath = filepath.Join(pcx.Package.Vendor, meta.Repo)
 		needToClone    = false // do we need to clone a new repo?
 		head           *plumbing.Reference
@@ -92,54 +90,55 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 		print.Verb(meta, "need to clone new copy from cache")
 		repo, err = pcx.EnsureDependencyFromCache(meta, dependencyPath, false)
 		if err != nil {
-			return errors.Wrap(err, "failed to clone dependency")
+			return errors.Wrap(err, "failed to ensure dependency in cache")
 		}
 	}
 
-	if forceUpdate {
-		print.Verb(meta, "updating dependency package")
-		err = pcx.updateRepoState(repo, meta, false)
-		if err != nil {
-			// try once more, but force a pull
-			print.Verb(meta, "unable to update repo in given state, force-pulling latest from repo tip")
-			err = pcx.updateRepoState(repo, meta, true)
-			if err != nil {
-				return errors.Wrap(err, "failed to update repo state")
-			}
-		}
-	}
-
-	head, err = repo.Head()
+	print.Verb(meta, "updating dependency package")
+	err = pcx.updateRepoState(repo, meta, forceUpdate)
 	if err != nil {
-		return errors.Wrap(err, "failed to check repo HEAD after update")
+		// try once more, but force a pull
+		print.Verb(meta, "unable to update repo in given state, force-pulling latest from repo tip")
+		err = pcx.updateRepoState(repo, meta, true)
+		if err != nil {
+			return errors.Wrap(err, "failed to update repo state")
+		}
 	}
-	print.Verb(meta, "successfully checked out to", head.Hash().String())
 
 	return
 }
 
 // updateRepoState takes a repo that exists on disk and ensures it matches tag, branch or commit constraints
 func (pcx *PackageContext) updateRepoState(repo *git.Repository, meta versioning.DependencyMeta, forcePull bool) (err error) {
-	var wt *git.Worktree
-	wt, err = repo.Worktree()
-	if err != nil {
-		return errors.Wrap(err, "failed to get repo worktree")
-	}
-
 	print.Verb(meta, "updating repository state with", pcx.GitAuth, "authentication method")
 
+	var wt *git.Worktree
 	if forcePull {
+		print.Verb(meta, "performing forced pull to latest tip")
+		repo, err = pcx.EnsureDependencyFromCache(meta, filepath.Join(pcx.Package.Vendor, meta.Repo), true)
+		if err != nil {
+			return errors.Wrap(err, "failed to ensure dependency in cache")
+		}
+		wt, err = repo.Worktree()
+		if err != nil {
+			return errors.Wrap(err, "failed to get repo worktree")
+		}
+
 		err = wt.Pull(&git.PullOptions{
 			Depth: 1000, // get full history
 		})
-		if err != nil {
+		if err != nil && err != git.NoErrAlreadyUpToDate {
 			return errors.Wrap(err, "failed to force pull for full update")
+		}
+	} else {
+		wt, err = repo.Worktree()
+		if err != nil {
+			return errors.Wrap(err, "failed to get repo worktree")
 		}
 	}
 
 	var (
 		ref      *plumbing.Reference
-		hash     plumbing.Hash
 		pullOpts = &git.PullOptions{}
 	)
 
@@ -154,7 +153,6 @@ func (pcx *PackageContext) updateRepoState(repo *git.Repository, meta versioning
 		if err != nil {
 			return errors.Wrap(err, "failed to get ref from tag")
 		}
-		hash = ref.Hash()
 	} else if meta.Branch != "" {
 		print.Verb(meta, "package has branch constraint:", meta.Branch)
 
@@ -170,7 +168,6 @@ func (pcx *PackageContext) updateRepoState(repo *git.Repository, meta versioning
 		if err != nil {
 			return errors.Wrap(err, "failed to get ref from branch")
 		}
-		hash = ref.Hash()
 	} else if meta.Commit != "" {
 		pullOpts.Depth = 1000 // get full history
 
@@ -179,7 +176,7 @@ func (pcx *PackageContext) updateRepoState(repo *git.Repository, meta versioning
 			return errors.Wrap(err, "failed to pull repo")
 		}
 
-		hash, err = RefFromCommit(repo, meta)
+		ref, err = RefFromCommit(repo, meta)
 		if err != nil {
 			return errors.Wrap(err, "failed to get ref from commit")
 		}
@@ -189,12 +186,13 @@ func (pcx *PackageContext) updateRepoState(repo *git.Repository, meta versioning
 		print.Verb(meta, "checking out ref determined from constraint:", ref)
 
 		err = wt.Checkout(&git.CheckoutOptions{
-			Hash:  hash,
+			Hash:  ref.Hash(),
 			Force: true,
 		})
 		if err != nil {
 			return errors.Wrapf(err, "failed to checkout necessary commit %s", ref.Hash())
 		}
+		print.Verb(meta, "successfully checked out to", ref.Hash())
 	} else {
 		print.Verb(meta, "package does not have version constraint pulling latest")
 
@@ -303,7 +301,7 @@ func RefFromBranch(repo *git.Repository, meta versioning.DependencyMeta) (ref *p
 }
 
 // RefFromCommit returns a ref from a commit hash
-func RefFromCommit(repo *git.Repository, meta versioning.DependencyMeta) (result plumbing.Hash, err error) {
+func RefFromCommit(repo *git.Repository, meta versioning.DependencyMeta) (ref *plumbing.Reference, err error) {
 	commits, err := repo.CommitObjects()
 	if err != nil {
 		err = errors.Wrap(err, "failed to get repo commits")
@@ -314,9 +312,10 @@ func RefFromCommit(repo *git.Repository, meta versioning.DependencyMeta) (result
 	err = commits.ForEach(func(commit *object.Commit) error {
 		hash := commit.Hash.String()
 
-		print.Verb(meta, "checking commit", hash)
+		print.Verb(meta, "checking commit", hash, "<>", meta.Commit)
 		if hash == meta.Commit {
-			result = commit.Hash
+			print.Verb(meta, "match found")
+			ref = plumbing.NewHashReference(plumbing.ReferenceName(hash), commit.Hash)
 			return storer.ErrStop
 		}
 
@@ -325,7 +324,7 @@ func RefFromCommit(repo *git.Repository, meta versioning.DependencyMeta) (result
 	if err != nil {
 		err = errors.Wrap(err, "failed to iterate commits")
 	}
-	if result.IsZero() {
+	if ref == nil {
 		err = errors.Errorf("no commit named '%s' found", meta.Commit)
 	}
 	return

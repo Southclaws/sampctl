@@ -3,6 +3,7 @@ package versioning
 import (
 	"fmt"
 	"net/url"
+	"path/filepath"
 	"regexp"
 
 	"github.com/pkg/errors"
@@ -37,6 +38,17 @@ func (dm DependencyMeta) String() string {
 		return fmt.Sprintf("%s%s/%s#%s", site, dm.User, dm.Repo, dm.Commit)
 	}
 	return fmt.Sprintf("%s%s/%s", site, dm.User, dm.Repo)
+}
+
+// CachePath returns the path from the cache to a cached package
+func (dm DependencyMeta) CachePath(cacheDir string) (path string) {
+	var branch string
+	if dm.Branch == "" {
+		branch = "default"
+	} else {
+		branch = dm.Branch
+	}
+	return filepath.Join(cacheDir, "packages", dm.User, dm.Repo, branch)
 }
 
 // Validate checks for errors in a DependencyMeta object
