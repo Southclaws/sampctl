@@ -116,9 +116,26 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 			continue
 		}
 
-		// for _, includePath := range resource.Includes {
-		//
-		// }
+		pcx.extractResourceDependencies(context.Background(), pkg, resource)
+	}
+
+	return
+}
+
+func (pcx PackageContext) extractResourceDependencies(ctx context.Context, pkg types.Package, res types.Resource) (resIncs []string, err error) {
+	dir := filepath.Join(pcx.Package.Vendor, res.Path(pcx.Package))
+	print.Verb(pkg, "installing resource-based dependency", res.Name, "to", dir)
+
+	err = os.MkdirAll(dir, 0700)
+	if err != nil {
+		err = errors.Wrap(err, "failed to create target directory")
+		return
+	}
+
+	_, err = runtime.EnsureVersionedPlugin(ctx, pcx.GitHub, pkg.DependencyMeta, dir, pcx.Platform, pcx.CacheDir, false, true, false)
+	if err != nil {
+		err = errors.Wrap(err, "failed to ensure asset")
+		return
 	}
 
 	return

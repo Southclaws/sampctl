@@ -70,12 +70,12 @@ func TestPackageContext_EnsurePackage(t *testing.T) {
 		wantSha string
 		wantErr bool
 	}{
-		// {"commit", args{versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib", Commit: "7a13c662e619a478b0e8d1d6d113e3aa41cb6d37"}, false},
-		// 	"7a13c662e619a478b0e8d1d6d113e3aa41cb6d37", false},
-		// {"tag", args{versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "samp-stdlib", Tag: "0.3z-R4"}, false},
-		// 	"de2ed6d59f0304dab726588afd3b6f6df77ca87d", false},
-		// {"branch", args{versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "YSI-Includes", Branch: "5.x"}, false},
-		// 	"", false},
+		{"commit", args{versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib", Commit: "7a13c662e619a478b0e8d1d6d113e3aa41cb6d37"}, false},
+			"7a13c662e619a478b0e8d1d6d113e3aa41cb6d37", false},
+		{"tag", args{versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "samp-stdlib", Tag: "0.3z-R4"}, false},
+			"de2ed6d59f0304dab726588afd3b6f6df77ca87d", false},
+		{"branch", args{versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "YSI-Includes", Branch: "5.x"}, false},
+			"", false},
 		{"resource", args{versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "package-resource-test"}, false},
 			"", false},
 	}
@@ -86,6 +86,7 @@ func TestPackageContext_EnsurePackage(t *testing.T) {
 				CacheDir: "./tests/cache",
 				GitHub:   gh,
 				GitAuth:  gitAuth,
+				Platform: "linux",
 				Package: types.Package{
 					LocalPath:      pcxWorkspace,
 					Vendor:         filepath.Join(pcxWorkspace, "dependencies"),
