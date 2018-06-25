@@ -16,7 +16,6 @@ func TestEnsureDependenciesCached(t *testing.T) {
 		name                string
 		pcx                 PackageContext
 		wantAllDependencies []versioning.DependencyMeta
-		wantAllPlugins      []versioning.DependencyMeta
 		wantErr             bool
 	}{
 		{"basic", PackageContext{
@@ -36,7 +35,6 @@ func TestEnsureDependenciesCached(t *testing.T) {
 				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "samp-stdlib"},
 				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
 			},
-			nil,
 			false,
 		},
 		{"plugin", PackageContext{
@@ -58,9 +56,6 @@ func TestEnsureDependenciesCached(t *testing.T) {
 				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
 				versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-requests"},
 			},
-			[]versioning.DependencyMeta{
-				versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-requests"},
-			},
 			false,
 		},
 	}
@@ -80,10 +75,8 @@ func TestEnsureDependenciesCached(t *testing.T) {
 			}
 
 			gotAllDependencies := tt.pcx.AllDependencies
-			gotAllPlugins := tt.pcx.AllPlugins
 
 			assert.Equal(t, tt.wantAllDependencies, gotAllDependencies)
-			assert.Equal(t, tt.wantAllPlugins, gotAllPlugins)
 		})
 	}
 }
