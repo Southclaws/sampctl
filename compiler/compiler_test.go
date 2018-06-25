@@ -28,7 +28,7 @@ func TestCompileSource(t *testing.T) {
 		wantOutput   bool
 	}{
 		{"simple-pass", args{
-			util.FullPath("./tests/cache-compile"),
+			util.FullPath("./tests/cache"),
 			types.BuildConfig{
 				WorkingDir: "./tests/build-simple-pass",
 				Input:      "./tests/build-simple-pass/script.pwn",
@@ -40,7 +40,7 @@ func TestCompileSource(t *testing.T) {
 			types.BuildResult{},
 			false, true},
 		{"simple-pass-d3", args{
-			util.FullPath("./tests/cache-compile"),
+			util.FullPath("./tests/cache"),
 			types.BuildConfig{
 				WorkingDir: "./tests/build-simple-pass",
 				Input:      "./tests/build-simple-pass/script.pwn",
@@ -60,7 +60,7 @@ func TestCompileSource(t *testing.T) {
 			},
 			false, true},
 		{"simple-fail", args{
-			util.FullPath("./tests/cache-compile"),
+			util.FullPath("./tests/cache"),
 			types.BuildConfig{
 				WorkingDir: "./tests/build-simple-fail",
 				Input:      "./tests/build-simple-fail/script.pwn",
@@ -77,7 +77,7 @@ func TestCompileSource(t *testing.T) {
 			types.BuildResult{},
 			false, false},
 		{"simple-fail-rel", args{
-			util.FullPath("./tests/cache-compile"),
+			util.FullPath("./tests/cache"),
 			types.BuildConfig{
 				WorkingDir: "./tests/build-simple-fail",
 				Input:      "./tests/build-simple-fail/script.pwn",
@@ -94,7 +94,7 @@ func TestCompileSource(t *testing.T) {
 			types.BuildResult{},
 			false, false},
 		{"local-include-pass", args{
-			util.FullPath("./tests/cache-compile"),
+			util.FullPath("./tests/cache"),
 			types.BuildConfig{
 				WorkingDir: "./tests/build-local-include-pass",
 				Input:      "./tests/build-local-include-pass/script.pwn",
@@ -114,7 +114,7 @@ func TestCompileSource(t *testing.T) {
 			},
 			false, true},
 		{"local-include-warn", args{
-			util.FullPath("./tests/cache-compile"),
+			util.FullPath("./tests/cache"),
 			types.BuildConfig{
 				WorkingDir: "./tests/build-local-include-warn",
 				Input:      "./tests/build-local-include-warn/script.pwn",
@@ -137,7 +137,7 @@ func TestCompileSource(t *testing.T) {
 			},
 			false, true},
 		{"fatal", args{
-			util.FullPath("./tests/cache-compile"),
+			util.FullPath("./tests/cache"),
 			types.BuildConfig{
 				WorkingDir: "./tests/build-fatal",
 				Input:      "./tests/build-fatal/script.pwn",
