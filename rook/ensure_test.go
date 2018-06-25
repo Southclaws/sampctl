@@ -2,6 +2,7 @@ package rook
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -78,7 +79,7 @@ func TestPackageContext_EnsurePackage(t *testing.T) {
 		{"branch", args{versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "YSI-Includes", Branch: "5.x"}, false},
 			"", nil, false},
 		{"resource", args{versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "package-resource-test"}, false},
-			"", []string{"package-resource-test-07ad0b03fd56/include.inc"}, false},
+			"", []string{"package-resource-test-07ad0b/include.inc"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -123,6 +124,7 @@ func TestPackageContext_EnsurePackage(t *testing.T) {
 
 			if len(tt.wantResources) > 0 {
 				for _, resPath := range tt.wantResources {
+					fmt.Println("checking:", filepath.Join(pcxVendor, ".resources", resPath))
 					assert.True(t, util.Exists(filepath.Join(pcxVendor, ".resources", resPath)))
 				}
 			}

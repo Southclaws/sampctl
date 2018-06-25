@@ -59,7 +59,7 @@ func TestPackage_Install(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			pcx2, err := NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, "./tests/cacheDir", "")
+			pcx2, err := NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, "./tests/cache", "")
 			if err != nil {
 				t.Error(err)
 			}
