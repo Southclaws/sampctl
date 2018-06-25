@@ -24,6 +24,10 @@ var packageTemplateMakeFlags = []cli.Flag{
 		Value: ".",
 		Usage: "working directory for the package - by default, uses the current directory",
 	},
+	cli.BoolFlag{
+		Name:  "update",
+		Usage: "update cached dependencies to latest version",
+	},
 }
 
 func packageTemplateMake(c *cli.Context) (err error) {
@@ -39,6 +43,7 @@ func packageTemplateMake(c *cli.Context) (err error) {
 	}
 
 	dir := util.FullPath(c.String("dir"))
+	forceUpdate := c.Bool("update")
 
 	if len(c.Args()) != 1 {
 		cli.ShowCommandHelpAndExit(c, "make", 0)
@@ -80,7 +85,7 @@ func packageTemplateMake(c *cli.Context) (err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
 	defer cancel()
 
-	err = pcx.EnsureDependencies(ctx)
+	err = pcx.EnsureDependencies(ctx, forceUpdate)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure dependencies of template package")
 	}

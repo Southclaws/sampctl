@@ -47,7 +47,7 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 		tt.pcx.CacheDir = "./tests/cache"
 
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.pcx.EnsureDependencies(context.Background())
+			err := tt.pcx.EnsureDependencies(context.Background(), true)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -65,23 +65,25 @@ func TestPackageContext_EnsurePackage(t *testing.T) {
 		forceUpdate bool
 	}
 	tests := []struct {
-		name    string
-		args    args
-		wantSha string
-		wantErr bool
+		name          string
+		args          args
+		wantSha       string
+		wantResources []string
+		wantErr       bool
 	}{
 		{"commit", args{versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib", Commit: "7a13c662e619a478b0e8d1d6d113e3aa41cb6d37"}, false},
-			"7a13c662e619a478b0e8d1d6d113e3aa41cb6d37", false},
+			"7a13c662e619a478b0e8d1d6d113e3aa41cb6d37", nil, false},
 		{"tag", args{versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "samp-stdlib", Tag: "0.3z-R4"}, false},
-			"de2ed6d59f0304dab726588afd3b6f6df77ca87d", false},
+			"de2ed6d59f0304dab726588afd3b6f6df77ca87d", nil, false},
 		{"branch", args{versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "YSI-Includes", Branch: "5.x"}, false},
-			"", false},
+			"", nil, false},
 		{"resource", args{versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "package-resource-test"}, false},
-			"", false},
+			"", []string{"package-resource-test-07ad0b03fd56/include.inc"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			pcxWorkspace := util.FullPath("./tests/deps-" + tt.name)
+			pcxVendor := filepath.Join(pcxWorkspace, "dependencies")
 			pcx := PackageContext{
 				CacheDir: "./tests/cache",
 				GitHub:   gh,
@@ -89,7 +91,7 @@ func TestPackageContext_EnsurePackage(t *testing.T) {
 				Platform: "linux",
 				Package: types.Package{
 					LocalPath:      pcxWorkspace,
-					Vendor:         filepath.Join(pcxWorkspace, "dependencies"),
+					Vendor:         pcxVendor,
 					DependencyMeta: versioning.DependencyMeta{User: "local", Repo: "local"},
 				},
 			}
@@ -103,23 +105,27 @@ func TestPackageContext_EnsurePackage(t *testing.T) {
 
 			// don't check empty shas
 			// some dependency modes aren't static (such as branches)
-			if tt.wantSha == "" {
-				return
+			if tt.wantSha != "" {
+				path := filepath.Join(pcxWorkspace, "dependencies", tt.args.meta.Repo)
+				assert.True(t, util.Exists(path))
+				repo, err := git.PlainOpen(path)
+				if err != nil {
+					t.Error(err)
+					t.FailNow()
+				}
+				ref, err := repo.Head()
+				if err != nil {
+					t.Error(err)
+					t.FailNow()
+				}
+				assert.Equal(t, tt.wantSha, ref.Hash().String())
 			}
 
-			path := filepath.Join(pcxWorkspace, "dependencies", tt.args.meta.Repo)
-			assert.True(t, util.Exists(path))
-			repo, err := git.PlainOpen(path)
-			if err != nil {
-				t.Error(err)
-				t.FailNow()
+			if len(tt.wantResources) > 0 {
+				for _, resPath := range tt.wantResources {
+					assert.True(t, util.Exists(filepath.Join(pcxVendor, ".resources", resPath)))
+				}
 			}
-			ref, err := repo.Head()
-			if err != nil {
-				t.Error(err)
-				t.FailNow()
-			}
-			assert.Equal(t, tt.wantSha, ref.Hash().String())
 		})
 	}
 }

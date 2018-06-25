@@ -21,6 +21,10 @@ var packageEnsureFlags = []cli.Flag{
 		Value: ".",
 		Usage: "working directory for the project - by default, uses the current directory",
 	},
+	cli.BoolFlag{
+		Name:  "update",
+		Usage: "update cached dependencies to latest version",
+	},
 }
 
 func packageEnsure(c *cli.Context) error {
@@ -49,6 +53,7 @@ func packageEnsure(c *cli.Context) error {
 	}
 
 	dir := util.FullPath(c.String("dir"))
+	forceUpdate := c.Bool("update")
 
 	pcx, err := rook.NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, cacheDir, "")
 	if err != nil {
@@ -60,7 +65,7 @@ func packageEnsure(c *cli.Context) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
 	defer cancel()
 
-	err = pcx.EnsureDependencies(ctx)
+	err = pcx.EnsureDependencies(ctx, forceUpdate)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure")
 	}

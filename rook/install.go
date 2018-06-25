@@ -83,7 +83,7 @@ func Get(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta,
 		return errors.Wrap(err, "failed to read cloned repository as Pawn package")
 	}
 
-	err = pcx.EnsureDependencies(ctx)
+	err = pcx.EnsureDependencies(ctx, true)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure dependencies for cloned package")
 	}

@@ -24,7 +24,7 @@ import (
 var ErrNotRemotePackage = errors.New("remote repository does not declare a package")
 
 // EnsureDependencies traverses package dependencies and ensures they are up to date
-func (pcx *PackageContext) EnsureDependencies(ctx context.Context) (err error) {
+func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate bool) (err error) {
 	if pcx.Package.LocalPath == "" {
 		return errors.New("package does not represent a locally stored package")
 	}
@@ -36,7 +36,7 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context) (err error) {
 	pcx.Package.Vendor = filepath.Join(pcx.Package.LocalPath, "dependencies")
 
 	for _, dependency := range pcx.AllDependencies {
-		errInner := pcx.EnsurePackage(dependency, false)
+		errInner := pcx.EnsurePackage(dependency, forceUpdate)
 		if errInner != nil {
 			print.Warn(errors.Wrapf(errInner, "failed to ensure package %s", dependency))
 			return
@@ -111,19 +111,25 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 		return
 	}
 
+	var includePath string
 	for _, resource := range pkg.Resources {
 		if resource.Platform != pcx.Platform || len(resource.Includes) == 0 {
 			continue
 		}
 
-		pcx.extractResourceDependencies(context.Background(), pkg, resource)
+		includePath, err = pcx.extractResourceDependencies(context.Background(), pkg, resource)
+		if err != nil {
+			return
+		}
+		pcx.AllIncludePaths = append(pcx.AllIncludePaths, includePath)
+		print.Verb(includePath)
 	}
 
 	return
 }
 
-func (pcx PackageContext) extractResourceDependencies(ctx context.Context, pkg types.Package, res types.Resource) (resIncs []string, err error) {
-	dir := filepath.Join(pcx.Package.Vendor, res.Path(pcx.Package))
+func (pcx PackageContext) extractResourceDependencies(ctx context.Context, pkg types.Package, res types.Resource) (dir string, err error) {
+	dir = filepath.Join(pcx.Package.Vendor, res.Path(pkg))
 	print.Verb(pkg, "installing resource-based dependency", res.Name, "to", dir)
 
 	err = os.MkdirAll(dir, 0700)

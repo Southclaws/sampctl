@@ -157,7 +157,6 @@ func EnsureVersionedPluginCached(
 		}
 	}
 	if !hit {
-		print.Verb(meta, "no cached copy found")
 		filename, resource, err = PluginFromNet(ctx, gh, meta, platform, cacheDir)
 		if err != nil {
 			err = errors.Wrapf(err, "failed to get plugin %s from net", meta)
@@ -219,7 +218,7 @@ func PluginFromCache(meta versioning.DependencyMeta, platform, cacheDir string) 
 
 // PluginFromNet downloads a plugin from the given metadata to the cache directory
 func PluginFromNet(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, platform, cacheDir string) (filename string, resource types.Resource, err error) {
-	print.Info("downloading plugin resource", meta)
+	print.Info(meta, "downloading plugin resource for", platform)
 
 	resourcePathOnly := GetResourcePath(meta)
 	resourcePath := filepath.Join(cacheDir, resourcePathOnly)
@@ -254,6 +253,8 @@ func PluginFromNet(ctx context.Context, gh *github.Client, meta versioning.Depen
 	if err != nil {
 		return
 	}
+
+	print.Verb(meta, "downloaded", filename, "to cache")
 
 	return
 }
