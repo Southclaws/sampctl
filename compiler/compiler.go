@@ -266,11 +266,10 @@ func CompileWithCommand(cmd *exec.Cmd, workingDir, errorDir string, relative boo
 			print.Erro("please enable this by allowing i386 packages and/or installing g++-multilib")
 			err = errors.Wrap(cmdError, "failed to execute compiler")
 			return
-		} else {
-			// if cmdError.Error() == "signal: killed" || cmdError.Error() == "context canceled"
-			err = cmdError
-			return
 		}
+		// if cmdError.Error() == "signal: killed" || cmdError.Error() == "context canceled"
+		err = cmdError
+		return
 	}
 
 	for problem := range problemChan {
