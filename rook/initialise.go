@@ -317,7 +317,11 @@ func Init(ctx context.Context, gh *github.Client, dir string, config *types.Conf
 
 	wg.Wait()
 
-	err = EnsureDependencies(ctx, gh, &pkg, auth, platform, cacheDir)
+	pcx, err := NewPackageContext(gh, auth, true, dir, platform, cacheDir, "")
+	if err != nil {
+		return
+	}
+	err = pcx.EnsureDependencies(ctx, true)
 
 	return
 }

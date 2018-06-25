@@ -47,30 +47,30 @@ func TestPackage_Install(t *testing.T) {
 
 			ioutil.WriteFile(filepath.Join(dir, "pawn.json"), tt.pkg, 0755) // nolint
 
-			pkg, err := PackageFromDir(true, dir, runtime.GOOS, "")
+			pcx1, err := NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, "./tests/cache", "")
 			if err != nil {
 				t.Error(err)
 			}
 
-			err = Install(context.Background(), gh, pkg, tt.args.targets, tt.args.development, nil, runtime.GOOS, "./tests/cache")
+			err = pcx1.Install(context.Background(), tt.args.targets, tt.args.development)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 			}
 
-			pkg, err = PackageFromDir(true, dir, runtime.GOOS, "")
+			pcx2, err := NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, "./tests/cache", "")
 			if err != nil {
 				t.Error(err)
 			}
 
 			if tt.args.development {
 				for _, target := range tt.args.targets {
-					assert.Contains(t, pkg.Development, target)
+					assert.Contains(t, pcx2.Package.Development, target)
 				}
 			} else {
 				for _, target := range tt.args.targets {
-					assert.Contains(t, pkg.Dependencies, target)
+					assert.Contains(t, pcx2.Package.Dependencies, target)
 				}
 			}
 		})

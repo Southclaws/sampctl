@@ -15,9 +15,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
 	"github.com/Southclaws/sampctl/compiler"
 	"github.com/Southclaws/sampctl/print"
@@ -26,23 +24,21 @@ import (
 )
 
 // Build compiles a package, dependencies are ensured and a list of paths are sent to the compiler.
-func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pkg *types.Package, build, cacheDir, platform string, ensure, dry bool, relative bool, buildFile string) (problems types.BuildProblems, result types.BuildResult, err error) {
-	config := GetBuildConfig(*pkg, build)
-	if config == nil {
-		err = errors.Errorf("no build config named '%s'", build)
+func (pcx *PackageContext) Build(
+	ctx context.Context,
+	build string,
+	ensure bool,
+	dry bool,
+	relative bool,
+	buildFile string,
+) (
+	problems types.BuildProblems,
+	result types.BuildResult,
+	err error,
+) {
+	config, err := pcx.buildPrepare(ctx, build, ensure, true)
+	if err != nil {
 		return
-	}
-
-	config.WorkingDir = filepath.Dir(util.FullPath(pkg.Entry))
-	config.Input = filepath.Join(pkg.LocalPath, pkg.Entry)
-	config.Output = filepath.Join(pkg.LocalPath, pkg.Output)
-
-	if ensure {
-		err = EnsureDependencies(ctx, gh, pkg, auth, platform, cacheDir)
-		if err != nil {
-			err = errors.Wrap(err, "failed to ensure dependencies before build")
-			return
-		}
 	}
 
 	var buildNumber = uint32(0)
@@ -53,32 +49,7 @@ func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pk
 		}
 	}
 
-	print.Verb(pkg, "resolving dependencies before build")
-	err = ResolveDependencies(pkg, platform)
-	if err != nil {
-		err = errors.Wrap(err, "failed to resolve dependencies before build")
-		return
-	}
-
-	var pkgInner types.Package
-	for _, depMeta := range pkg.AllDependencies {
-		depDir := filepath.Join(pkg.LocalPath, "dependencies", depMeta.Repo)
-		incPath := depMeta.Path
-
-		// check if local package has a definition, if so, check if it has an IncludePath field
-		pkgInner, err = types.PackageFromDir(depDir)
-		if err == nil {
-			if pkgInner.IncludePath != "" {
-				incPath = pkgInner.IncludePath
-			}
-		}
-
-		config.Includes = append(config.Includes, filepath.Join(depDir, incPath))
-	}
-
-	config.Includes = append(config.Includes, pkg.AllIncludePaths...)
-
-	command, err := compiler.PrepareCommand(ctx, gh, pkg.LocalPath, cacheDir, platform, *config)
+	command, err := compiler.PrepareCommand(ctx, pcx.GitHub, pcx.Package.LocalPath, pcx.CacheDir, pcx.Platform, *config)
 	if err != nil {
 		return
 	}
@@ -97,9 +68,9 @@ func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pk
 				return
 			}
 		}
-		print.Verb("building", pkg, "with", config.Version)
+		print.Verb("building", pcx.Package, "with", config.Version)
 
-		problems, result, err = compiler.CompileWithCommand(command, config.WorkingDir, pkg.LocalPath, relative)
+		problems, result, err = compiler.CompileWithCommand(command, config.WorkingDir, pcx.Package.LocalPath, relative)
 		if err != nil {
 			err = errors.Wrap(err, "failed to compile package entry")
 		}
@@ -118,23 +89,10 @@ func Build(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pk
 }
 
 // BuildWatch runs the Build code on file changes
-func BuildWatch(ctx context.Context, gh *github.Client, auth transport.AuthMethod, pkg *types.Package, build, cacheDir, platform string, ensure bool, buildFile string, relative bool, trigger chan types.BuildProblems) (err error) {
-	config := GetBuildConfig(*pkg, build)
-	if config == nil {
-		err = errors.Errorf("no build config named '%s'", build)
+func (pcx *PackageContext) BuildWatch(ctx context.Context, build string, ensure bool, buildFile string, relative bool, trigger chan types.BuildProblems) (err error) {
+	config, err := pcx.buildPrepare(ctx, build, ensure, true)
+	if err != nil {
 		return
-	}
-
-	config.WorkingDir = filepath.Dir(util.FullPath(pkg.Entry))
-	config.Input = filepath.Join(pkg.LocalPath, pkg.Entry)
-	config.Output = filepath.Join(pkg.LocalPath, pkg.Output)
-
-	if ensure {
-		err = EnsureDependencies(ctx, gh, pkg, auth, platform, cacheDir)
-		if err != nil {
-			err = errors.Wrap(err, "failed to ensure dependencies before build")
-			return
-		}
 	}
 
 	var buildNumber = uint32(0)
@@ -145,36 +103,11 @@ func BuildWatch(ctx context.Context, gh *github.Client, auth transport.AuthMetho
 		}
 	}
 
-	print.Verb(pkg, "resolving dependencies before build watcher")
-	err = ResolveDependencies(pkg, platform)
-	if err != nil {
-		err = errors.Wrap(err, "failed to resolve dependencies before build watcher")
-		return
-	}
-
-	var pkgInner types.Package
-	for _, depMeta := range pkg.AllDependencies {
-		depDir := filepath.Join(pkg.LocalPath, "dependencies", depMeta.Repo)
-		incPath := depMeta.Path
-
-		// check if local package has a definition, if so, check if it has an IncludePath field
-		pkgInner, err = types.PackageFromDir(depDir)
-		if err == nil {
-			if pkgInner.IncludePath != "" {
-				incPath = pkgInner.IncludePath
-			}
-		}
-
-		config.Includes = append(config.Includes, filepath.Join(depDir, incPath))
-	}
-
-	config.Includes = append(config.Includes, pkg.AllIncludePaths...)
-
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return errors.Wrap(err, "failed to create new filesystem watcher")
 	}
-	err = filepath.Walk(pkg.LocalPath, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(pcx.Package.LocalPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			print.Warn(err)
 			return nil
@@ -196,7 +129,7 @@ func BuildWatch(ctx context.Context, gh *github.Client, auth transport.AuthMetho
 		return errors.Wrap(err, "failed to add paths to filesystem watcher")
 	}
 
-	print.Verb("watching directory for changes", pkg.LocalPath)
+	print.Verb("watching directory for changes", pcx.Package.LocalPath)
 
 	signals := make(chan os.Signal, 1)
 	errorCh := make(chan error)
@@ -216,7 +149,7 @@ func BuildWatch(ctx context.Context, gh *github.Client, auth transport.AuthMetho
 	running.Store(false)
 
 	// send a fake first event to trigger an initial build
-	go func() { watcher.Events <- fsnotify.Event{Name: pkg.Entry, Op: fsnotify.Write} }()
+	go func() { watcher.Events <- fsnotify.Event{Name: pcx.Package.Entry, Op: fsnotify.Write} }()
 
 loop:
 	for {
@@ -261,7 +194,16 @@ loop:
 				fmt.Println("watch-build: starting compilation", buildNumber)
 
 				running.Store(true)
-				problems, _, err = compiler.CompileSource(ctxInner, gh, pkg.LocalPath, pkg.LocalPath, cacheDir, platform, *config, relative)
+				problems, _, err = compiler.CompileSource(
+					ctxInner,
+					pcx.GitHub,
+					pcx.Package.LocalPath,
+					pcx.Package.LocalPath,
+					pcx.CacheDir,
+					pcx.Platform,
+					*config,
+					relative,
+				)
 				running.Store(false)
 
 				if err != nil {
@@ -289,6 +231,48 @@ loop:
 	}
 
 	print.Info("finished running build watcher")
+
+	return
+}
+
+func (pcx *PackageContext) buildPrepare(ctx context.Context, build string, ensure, forceUpdate bool) (config *types.BuildConfig, err error) {
+	config = GetBuildConfig(pcx.Package, build)
+	if config == nil {
+		err = errors.Errorf("no build config named '%s'", build)
+		return
+	}
+
+	config.WorkingDir = filepath.Dir(util.FullPath(pcx.Package.Entry))
+	config.Input = filepath.Join(pcx.Package.LocalPath, pcx.Package.Entry)
+	config.Output = filepath.Join(pcx.Package.LocalPath, pcx.Package.Output)
+
+	if ensure {
+		err = pcx.EnsureDependencies(ctx, forceUpdate)
+		if err != nil {
+			err = errors.Wrap(err, "failed to ensure dependencies before build")
+			return
+		}
+	}
+
+	var pkgInner types.Package
+	for _, depMeta := range pcx.AllDependencies {
+		depDir := filepath.Join(pcx.Package.LocalPath, "dependencies", depMeta.Repo)
+		incPath := depMeta.Path
+
+		// check if local package has a definition, if so, check if it has an IncludePath field
+		pkgInner, err = types.PackageFromDir(depDir)
+		if err == nil {
+			if pkgInner.IncludePath != "" {
+				incPath = pkgInner.IncludePath
+			}
+		} else {
+			err = nil
+		}
+
+		config.Includes = append(config.Includes, filepath.Join(depDir, incPath))
+	}
+
+	config.Includes = append(config.Includes, pcx.AllIncludePaths...)
 
 	return
 }

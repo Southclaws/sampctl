@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"runtime"
 	"time"
 
 	"github.com/pkg/errors"
@@ -20,6 +19,10 @@ var packageEnsureFlags = []cli.Flag{
 		Name:  "dir",
 		Value: ".",
 		Usage: "working directory for the project - by default, uses the current directory",
+	},
+	cli.BoolFlag{
+		Name:  "update",
+		Usage: "update cached dependencies to latest version",
 	},
 }
 
@@ -49,18 +52,19 @@ func packageEnsure(c *cli.Context) error {
 	}
 
 	dir := util.FullPath(c.String("dir"))
+	forceUpdate := c.Bool("update")
 
-	pkg, err := rook.PackageFromDir(true, dir, runtime.GOOS, "")
+	pcx, err := rook.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "")
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	pkg.Runtime = rook.GetRuntimeConfig(pkg, runtimeName)
+	pcx.Package.Runtime = rook.GetRuntimeConfig(pcx.Package, runtimeName)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
 	defer cancel()
 
-	err = rook.EnsureDependencies(ctx, gh, &pkg, gitAuth, runtime.GOOS, cacheDir)
+	err = pcx.EnsureDependencies(ctx, forceUpdate)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure")
 	}

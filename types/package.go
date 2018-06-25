@@ -44,14 +44,6 @@ type Package struct {
 	Vendor string `json:"-" yaml:"-"`
 	// format stores the original format of the package definition file, either `json` or `yaml`
 	Format string `json:"-" yaml:"-"`
-	// allDependencies stores a list of all dependency meta from this package and sub packages
-	// this field is only used if `parent` is true.
-	AllDependencies []versioning.DependencyMeta `json:"-" yaml:"-"`
-	// allPlugins stores a list of all plugin dependency meta from this package and sub packages
-	// this field is only used if `parent` is true.
-	AllPlugins []versioning.DependencyMeta `json:"-" yaml:"-"`
-	// AllIncludePaths stores a list of all additional include paths to pass to the compiler.
-	AllIncludePaths []string `json:"-" yaml:"-"`
 
 	// Inferred metadata, not always explicitly set via JSON/YAML but inferred from the dependency path
 	versioning.DependencyMeta
@@ -187,6 +179,12 @@ func (pkg Package) WriteDefinition() (err error) {
 	}
 
 	return
+}
+
+// GetCachedPackage returns a package using the cached copy, if it exists
+func GetCachedPackage(meta versioning.DependencyMeta, cacheDir string) (pkg Package, err error) {
+	path := meta.CachePath(cacheDir)
+	return PackageFromDir(path)
 }
 
 // GetRemotePackage attempts to get a package definition for the given dependency meta.

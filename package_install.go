@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -63,12 +62,12 @@ func packageInstall(c *cli.Context) error {
 		deps = append(deps, versioning.DependencyString(dep))
 	}
 
-	pkg, err := rook.PackageFromDir(true, dir, runtime.GOOS, "")
+	pcx, err := rook.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "")
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	err = rook.Install(context.Background(), gh, pkg, deps, development, gitAuth, runtime.GOOS, cacheDir)
+	err = pcx.Install(context.Background(), deps, development)
 	if err != nil {
 		return err
 	}
