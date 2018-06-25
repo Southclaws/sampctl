@@ -104,26 +104,21 @@ func packageRun(c *cli.Context) error {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	runner := rook.Runner{
-		Pkg:         pcx.Package,
-		Runtime:     runtimeName,
-		Container:   container,
-		AppVersion:  c.App.Version,
-		GitHub:      gh,
-		Auth:        gitAuth,
-		CacheDir:    cacheDir,
-		Build:       build,
-		ForceBuild:  forceBuild,
-		ForceEnsure: forceEnsure,
-		NoCache:     noCache,
-		BuildFile:   buildFile,
-		Relative:    relativePaths,
-	}
+	pcx.Runtime = runtimeName
+	pcx.Container = container
+	pcx.AppVersion = c.App.Version
+	pcx.CacheDir = cacheDir
+	pcx.BuildName = build
+	pcx.ForceBuild = forceBuild
+	pcx.ForceEnsure = forceEnsure
+	pcx.NoCache = noCache
+	pcx.BuildFile = buildFile
+	pcx.Relative = relativePaths
 
 	if watch {
-		err = runner.RunWatch(context.Background())
+		err = pcx.RunWatch(context.Background())
 	} else {
-		err = runner.Run(context.Background(), os.Stdout, os.Stdin)
+		err = pcx.Run(context.Background(), os.Stdout, os.Stdin)
 	}
 	if err != nil {
 		return cli.NewExitError(err.Error(), 1)

@@ -63,7 +63,7 @@ func packageTemplateBuild(c *cli.Context) (err error) {
 		return errors.Wrap(err, "failed to copy target script to template package directory")
 	}
 
-	problems, result, err := rook.Build(context.Background(), gh, gitAuth, &pcx.Package, "", cacheDir, runtime.GOOS, false, false, true, "")
+	problems, result, err := pcx.Build(context.Background(), "", false, false, true, "")
 	if err != nil {
 		return
 	}

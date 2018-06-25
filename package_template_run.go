@@ -77,7 +77,7 @@ func packageTemplateRun(c *cli.Context) (err error) {
 		return errors.Wrap(err, "failed to copy target script to template package directory")
 	}
 
-	problems, result, err := rook.Build(context.Background(), gh, gitAuth, &pcx.Package, "", cacheDir, runtime.GOOS, false, false, true, "")
+	problems, result, err := pcx.Build(context.Background(), "", false, false, true, "")
 	if err != nil {
 		return
 	}
@@ -97,26 +97,21 @@ func packageTemplateRun(c *cli.Context) (err error) {
 	if !problems.IsValid() {
 		return errors.New("cannot run with build errors")
 	}
-	runner := rook.Runner{
-		Pkg:         pcx.Package,
-		Runtime:     "default",
-		Container:   false,
-		AppVersion:  c.App.Version,
-		GitHub:      gh,
-		Auth:        gitAuth,
-		CacheDir:    cacheDir,
-		Build:       "",
-		ForceBuild:  false,
-		ForceEnsure: false,
-		NoCache:     false,
-		BuildFile:   "",
-		Relative:    false,
-	}
+	pcx.Runtime = "default"
+	pcx.Container = false
+	pcx.AppVersion = c.App.Version
+	pcx.CacheDir = cacheDir
+	pcx.BuildName = ""
+	pcx.ForceBuild = false
+	pcx.ForceEnsure = false
+	pcx.NoCache = false
+	pcx.BuildFile = ""
+	pcx.Relative = false
 
 	pcx.Package.Runtime = new(types.Runtime)
 	pcx.Package.Runtime.Mode = types.RunMode(mode)
 
-	err = runner.Run(context.Background(), os.Stdout, os.Stdin)
+	err = pcx.Run(context.Background(), os.Stdout, os.Stdin)
 	if err != nil {
 		return
 	}

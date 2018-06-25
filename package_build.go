@@ -86,12 +86,12 @@ func packageBuild(c *cli.Context) error {
 	}
 
 	if watch {
-		err := rook.BuildWatch(context.Background(), gh, gitAuth, &pcx.Package, build, cacheDir, runtime.GOOS, forceEnsure, buildFile, relativePaths, nil)
+		err := pcx.BuildWatch(context.Background(), build, forceEnsure, buildFile, relativePaths, nil)
 		if err != nil {
 			return cli.NewExitError(err.Error(), 1)
 		}
 	} else {
-		problems, result, err := rook.Build(context.Background(), gh, gitAuth, &pcx.Package, build, cacheDir, runtime.GOOS, forceEnsure, dryRun, relativePaths, buildFile)
+		problems, result, err := pcx.Build(context.Background(), build, forceEnsure, dryRun, relativePaths, buildFile)
 		if err != nil {
 			return cli.NewExitError(err.Error(), 1)
 		}

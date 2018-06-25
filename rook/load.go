@@ -23,6 +23,18 @@ type PackageContext struct {
 	AllDependencies []versioning.DependencyMeta // flattened list of dependencies
 	AllPlugins      []versioning.DependencyMeta // flattened list of plugin dependencies
 	AllIncludePaths []string                    // any additional include paths specified by resources
+
+	// Runtime specific fields
+	Runtime     string // the runtime config to use, defaults to `default`
+	Container   bool   // whether or not to run the package in a container
+	AppVersion  string // the version of sampctl
+	BuildName   string // Build configuration to use
+	ForceBuild  bool   // Force a build before running
+	ForceEnsure bool   // Force an ensure before building before running
+	NoCache     bool   // Don't use a cache, download all plugin dependencies
+	BuildFile   string // File to increment build number
+	Relative    bool   // Show output as relative paths
+
 }
 
 // NewPackageContext attempts to parse a directory as a Package by looking for a

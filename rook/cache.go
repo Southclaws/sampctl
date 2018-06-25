@@ -200,8 +200,7 @@ func (pcx PackageContext) ensureRepoExists(from, to, branch string, ssh, forceUp
 		}
 
 		pullOpts := &git.PullOptions{
-			ReferenceName: plumbing.ReferenceName("refs/heads/" + branch),
-			Depth:         1000,
+			Depth: 1000,
 		}
 		if branch != "" {
 			pullOpts.ReferenceName = plumbing.ReferenceName("refs/heads/" + branch)

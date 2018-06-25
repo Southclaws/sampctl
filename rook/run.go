@@ -12,9 +12,7 @@ import (
 	"sync/atomic"
 	"syscall"
 
-	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/runtime"
@@ -22,32 +20,15 @@ import (
 	"github.com/Southclaws/sampctl/util"
 )
 
-// Runner stores state and configuration for running a server instance
-type Runner struct {
-	Pkg         types.Package        // Package that this runner targets
-	Runtime     string               // the runtime config to use, defaults to `default`
-	Container   bool                 // whether or not to run the package in a container
-	AppVersion  string               // the version of sampctl
-	GitHub      *github.Client       // GitHub client for downloading plugins
-	Auth        transport.AuthMethod // Authentication method for git
-	CacheDir    string               // Cache directory
-	Build       string               // Build configuration to use from pkg.Builds
-	ForceBuild  bool                 // Force a build before running
-	ForceEnsure bool                 // Force an ensure before building before running
-	NoCache     bool                 // Don't use a cache, download all plugin dependencies
-	BuildFile   string               // File to increment build number
-	Relative    bool                 // Show output as relative paths
-}
-
 // Run will create a temporary server runtime and run the package output AMX as a gamemode using the
 // runtime configuration in the package info.
-func (runner *Runner) Run(ctx context.Context, output io.Writer, input io.Reader) (err error) {
-	err = runner.prepare(ctx)
+func (pcx *PackageContext) Run(ctx context.Context, output io.Writer, input io.Reader) (err error) {
+	err = pcx.runPrepare(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to prepare package for running")
 	}
 
-	err = runtime.Run(ctx, *runner.Pkg.Runtime, runner.CacheDir, true, false, output, input)
+	err = runtime.Run(ctx, *pcx.Package.Runtime, pcx.CacheDir, true, false, output, input)
 	if err != nil {
 		return errors.Wrap(err, "failed to run package")
 	}
@@ -56,8 +37,8 @@ func (runner *Runner) Run(ctx context.Context, output io.Writer, input io.Reader
 }
 
 // RunWatch runs the Run code on file changes
-func (runner *Runner) RunWatch(ctx context.Context) (err error) {
-	err = runner.prepare(ctx)
+func (pcx *PackageContext) RunWatch(ctx context.Context) (err error) {
+	err = pcx.runPrepare(ctx)
 	if err != nil {
 		err = errors.Wrap(err, "failed to prepare")
 		return
@@ -75,22 +56,11 @@ func (runner *Runner) RunWatch(ctx context.Context) (err error) {
 	running.Store(false)
 
 	go func() {
-		errorCh <- BuildWatch(
-			ctx,
-			runner.GitHub,
-			runner.Auth,
-			&runner.Pkg,
-			runner.Build,
-			runner.CacheDir,
-			runner.Pkg.Runtime.Platform,
-			runner.ForceEnsure,
-			runner.BuildFile,
-			runner.Relative,
-			trigger)
+		errorCh <- pcx.BuildWatch(ctx, pcx.BuildName, pcx.ForceEnsure, pcx.BuildFile, pcx.Relative, trigger)
 	}()
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
-	print.Verb(runner.Pkg, "starting run watcher")
+	print.Verb(pcx.Package, "starting run watcher")
 
 loop:
 	for {
@@ -121,7 +91,7 @@ loop:
 				defer cancel()
 			}
 
-			err = runtime.CopyFileToRuntime(runner.CacheDir, runner.Pkg.Runtime.Version, util.FullPath(runner.Pkg.Output))
+			err = runtime.CopyFileToRuntime(pcx.CacheDir, pcx.Package.Runtime.Version, util.FullPath(pcx.Package.Output))
 			if err != nil {
 				err = errors.Wrap(err, "failed to copy amx file to temporary runtime directory")
 				print.Erro(err)
@@ -130,7 +100,7 @@ loop:
 			fmt.Println("watch-run: executing package code")
 			go func() {
 				running.Store(true)
-				err = runtime.Run(ctxInner, *runner.Pkg.Runtime, runner.CacheDir, true, false, os.Stdout, os.Stdin)
+				err = runtime.Run(ctxInner, *pcx.Package.Runtime, pcx.CacheDir, true, false, os.Stdout, os.Stdin)
 				running.Store(false)
 
 				if err != nil {
@@ -147,25 +117,14 @@ loop:
 	return
 }
 
-func (runner *Runner) prepare(ctx context.Context) (err error) {
+func (pcx *PackageContext) runPrepare(ctx context.Context) (err error) {
 	var (
-		filename = filepath.Join(runner.Pkg.LocalPath, runner.Pkg.Output)
+		filename = filepath.Join(pcx.Package.LocalPath, pcx.Package.Output)
 		problems types.BuildProblems
 		canRun   = true
 	)
-	if !util.Exists(filename) || runner.ForceBuild {
-		problems, _, err = Build(
-			ctx,
-			runner.GitHub,
-			runner.Auth,
-			&runner.Pkg,
-			runner.Build,
-			runner.CacheDir,
-			runner.Pkg.Runtime.Platform,
-			runner.ForceEnsure,
-			false,
-			runner.Relative,
-			runner.BuildFile)
+	if !util.Exists(filename) || pcx.ForceBuild {
+		problems, _, err = pcx.Build(ctx, pcx.BuildName, pcx.ForceEnsure, false, pcx.Relative, pcx.BuildFile)
 		if err != nil {
 			return
 		}
@@ -182,58 +141,56 @@ func (runner *Runner) prepare(ctx context.Context) (err error) {
 		return
 	}
 
-	runner.Pkg.Runtime = GetRuntimeConfig(runner.Pkg, runner.Runtime)
-	runner.Pkg.Runtime.Gamemodes = []string{strings.TrimSuffix(filepath.Base(runner.Pkg.Output), ".amx")}
+	pcx.Package.Runtime = GetRuntimeConfig(pcx.Package, pcx.Runtime)
+	pcx.Package.Runtime.Gamemodes = []string{strings.TrimSuffix(filepath.Base(pcx.Package.Output), ".amx")}
 
-	runner.Pkg.Runtime.AppVersion = runner.AppVersion
-	runner.Pkg.Runtime.Format = runner.Pkg.Format
-	if runner.Container {
-		runner.Pkg.Runtime.Container = &types.ContainerConfig{MountCache: true}
-		runner.Pkg.Runtime.Platform = "linux"
+	pcx.Package.Runtime.AppVersion = pcx.AppVersion
+	pcx.Package.Runtime.Format = pcx.Package.Format
+	if pcx.Container {
+		pcx.Package.Runtime.Container = &types.ContainerConfig{MountCache: true}
+		pcx.Package.Runtime.Platform = "linux"
 	} else {
-		runner.Pkg.Runtime.Platform = rt.GOOS
+		pcx.Package.Runtime.Platform = rt.GOOS
 	}
 
-	if !runner.Pkg.Local {
-		scriptfiles := filepath.Join(runner.Pkg.LocalPath, "scriptfiles")
+	if !pcx.Package.Local {
+		scriptfiles := filepath.Join(pcx.Package.LocalPath, "scriptfiles")
 		if !util.Exists(scriptfiles) {
 			scriptfiles = ""
 		}
 		err = runtime.PrepareRuntimeDirectory(
-			runner.CacheDir,
-			runner.Pkg.Runtime.Version,
-			runner.Pkg.Runtime.Platform,
+			pcx.CacheDir,
+			pcx.Package.Runtime.Version,
+			pcx.Package.Runtime.Platform,
 			scriptfiles)
 		if err != nil {
 			err = errors.Wrap(err, "failed to prepare temporary runtime area")
 			return
 		}
 
-		err = runtime.CopyFileToRuntime(runner.CacheDir, runner.Pkg.Runtime.Version, filename)
+		err = runtime.CopyFileToRuntime(pcx.CacheDir, pcx.Package.Runtime.Version, filename)
 		if err != nil {
 			err = errors.Wrap(err, "failed to copy amx file to temporary runtime directory")
 			return
 		}
 
-		runner.Pkg.Runtime.WorkingDir = runtime.GetRuntimePath(runner.CacheDir, runner.Pkg.Runtime.Version)
+		pcx.Package.Runtime.WorkingDir = runtime.GetRuntimePath(pcx.CacheDir, pcx.Package.Runtime.Version)
 	} else {
-		runner.Pkg.Runtime.WorkingDir = runner.Pkg.LocalPath
+		pcx.Package.Runtime.WorkingDir = pcx.Package.LocalPath
 
-		err = runner.Pkg.Runtime.Validate()
+		err = pcx.Package.Runtime.Validate()
 		if err != nil {
 			return
 		}
 	}
 
-	// TODO: merge runner with PackageContext so data can be shared
-	// runner.Pkg.Runtime.PluginDeps = []versioning.DependencyMeta{}
-	// for _, pluginMeta := range runner.Pkg.AllPlugins {
-	// 	print.Verb("read plugin from dependency:", pluginMeta)
-	// 	runner.Pkg.Runtime.PluginDeps = append(runner.Pkg.Runtime.PluginDeps, pluginMeta)
-	// }
-	print.Verb(runner.Pkg.Runtime.PluginDeps)
+	for _, pluginMeta := range pcx.AllPlugins {
+		print.Verb("read plugin from dependency:", pluginMeta)
+		pcx.Package.Runtime.PluginDeps = append(pcx.Package.Runtime.PluginDeps, pluginMeta)
+	}
+	print.Verb(pcx.Package.Runtime.PluginDeps)
 
-	err = runtime.Ensure(ctx, runner.GitHub, runner.Pkg.Runtime, runner.NoCache)
+	err = runtime.Ensure(ctx, pcx.GitHub, pcx.Package.Runtime, pcx.NoCache)
 	if err != nil {
 		err = errors.Wrap(err, "failed to ensure temporary runtime")
 		return
