@@ -34,7 +34,6 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 	// a better method to break this up but so far, this has worked fine.
 	var (
 		recurse        func(meta versioning.DependencyMeta)
-		globalVendor   = filepath.Join(pcx.CacheDir, "packages")
 		visited        = make(map[string]bool)
 		pluginMeta     versioning.DependencyMeta
 		dependencyPath = pcx.Package.LocalPath
@@ -42,6 +41,10 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 		currentPackage types.Package
 		errInner       error
 	)
+
+	// clear the dependencies list in case this function is being called on an
+	// already initialised context that already has some dependencies listed.
+	pcx.AllDependencies = nil
 
 	// set the parent package visited state to true, just in case it depends on
 	// itself or a dependency depends on it. This should never happen but if it
@@ -56,9 +59,9 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 			print.Verb(pcx.Package, "processing parent package in recursive function")
 			currentPackage = pcx.Package // set the current package to the parent
 		} else {
-			dependencyPath = filepath.Join(globalVendor, currentMeta.Repo)
+			dependencyPath = currentMeta.CachePath(pcx.CacheDir)
 
-			print.Verb(pcx.Package, "ensuring cached copy of", currentMeta)
+			print.Verb(pcx.Package, "ensuring", currentMeta, "to", dependencyPath)
 
 			_, errInner = pcx.EnsureDependencyCached(currentMeta, false)
 			if errInner != nil {

@@ -11,15 +11,12 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
 	"github.com/Southclaws/sampctl/print"
-	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
 
 // Install adds a new dependency to an existing local parent package
-func Install(ctx context.Context, gh *github.Client, pkg types.Package, targets []versioning.DependencyString, development bool, auth transport.AuthMethod, platform, cacheDir string) (err error) {
-	// todo: version checks
-
+func (pcx *PackageContext) Install(ctx context.Context, targets []versioning.DependencyString, development bool) (err error) {
 	exists := false
 
 	for _, target := range targets {
@@ -28,7 +25,7 @@ func Install(ctx context.Context, gh *github.Client, pkg types.Package, targets 
 			return errors.Wrapf(err, "failed to parse %s as a dependency string", target)
 		}
 
-		for _, dep := range pkg.GetAllDependencies() {
+		for _, dep := range pcx.Package.GetAllDependencies() {
 			if dep == target {
 				exists = true
 			}
@@ -36,9 +33,9 @@ func Install(ctx context.Context, gh *github.Client, pkg types.Package, targets 
 
 		if !exists {
 			if development {
-				pkg.Development = append(pkg.Development, target)
+				pcx.Package.Development = append(pcx.Package.Development, target)
 			} else {
-				pkg.Dependencies = append(pkg.Dependencies, target)
+				pcx.Package.Dependencies = append(pcx.Package.Dependencies, target)
 			}
 		} else {
 			print.Warn("target already exists in dependencies")
@@ -46,13 +43,19 @@ func Install(ctx context.Context, gh *github.Client, pkg types.Package, targets 
 		}
 	}
 
-	// TODO: update this to pcx
-	// err = EnsureDependencies(ctx, gh, &pkg, auth, platform, cacheDir)
-	// if err != nil {
-	// 	return
-	// }
+	print.Verb(pcx.Package, "ensuring dependencies are cached for package context")
+	err = pcx.EnsureDependenciesCached()
+	if err != nil {
+		return
+	}
 
-	err = pkg.WriteDefinition()
+	print.Verb(pcx.Package, "ensuring dependencies are installed for package context")
+	err = pcx.EnsureDependencies(ctx, true)
+	if err != nil {
+		return
+	}
+
+	err = pcx.Package.WriteDefinition()
 
 	return
 }

@@ -68,7 +68,7 @@ func packageInstall(c *cli.Context) error {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	err = rook.Install(context.Background(), gh, pcx.Package, deps, development, gitAuth, runtime.GOOS, cacheDir)
+	err = pcx.Install(context.Background(), deps, development)
 	if err != nil {
 		return err
 	}

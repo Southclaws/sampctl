@@ -52,7 +52,7 @@ func TestPackage_Install(t *testing.T) {
 				t.Error(err)
 			}
 
-			err = Install(context.Background(), gh, pcx1.Package, tt.args.targets, tt.args.development, nil, runtime.GOOS, "./tests/cache")
+			err = pcx1.Install(context.Background(), tt.args.targets, tt.args.development)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
