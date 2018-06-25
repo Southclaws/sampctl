@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
-	"runtime"
 
 	"github.com/pkg/errors"
 	"gopkg.in/segmentio/analytics-go.v3"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/rook"
 	"github.com/Southclaws/sampctl/util"
@@ -35,12 +35,18 @@ func packageRelease(c *cli.Context) error {
 
 	dir := util.FullPath(c.String("dir"))
 
-	pkg, err := rook.PackageFromDir(true, dir, runtime.GOOS, "")
+	cacheDir, err := download.GetCacheDir()
+	if err != nil {
+		print.Erro("Failed to retrieve cache directory path (attempted <user folder>/.samp) ")
+		return err
+	}
+
+	pcx, err := rook.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "")
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	err = rook.Release(context.Background(), gh, gitAuth, pkg)
+	err = rook.Release(context.Background(), gh, gitAuth, pcx.Package)
 	if err != nil {
 		return errors.Wrap(err, "failed to release")
 	}

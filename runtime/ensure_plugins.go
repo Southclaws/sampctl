@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"context"
-	"encoding/json"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -65,25 +64,9 @@ func EnsurePlugins(ctx context.Context, gh *github.Client, cfg *types.Runtime, c
 
 // EnsureVersionedPlugin automatically downloads a plugin binary from its github releases page
 func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, dir, platform, cacheDir string, plugins, includes, noCache bool) (files []types.Plugin, err error) {
-	var (
-		hit      bool
-		filename string
-		resource types.Resource
-	)
-	if !noCache {
-		hit, filename, resource, err = PluginFromCache(meta, platform, cacheDir)
-		if err != nil {
-			err = errors.Wrapf(err, "failed to get plugin %s from cache", meta)
-			return
-		}
-	}
-	if !hit {
-		print.Verb(meta, "no cached copy found")
-		filename, resource, err = PluginFromNet(ctx, gh, meta, platform, cacheDir)
-		if err != nil {
-			err = errors.Wrapf(err, "failed to get plugin %s from net", meta)
-			return
-		}
+	filename, resource, err := EnsureVersionedPluginCached(ctx, meta, platform, cacheDir, noCache, gh)
+	if err != nil {
+		return
 	}
 
 	print.Verb(meta, "retrieved package to file:", filename)
@@ -151,15 +134,60 @@ func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioni
 	return
 }
 
+// EnsureVersionedPluginCached ensures that a plugin exists in the cache
+func EnsureVersionedPluginCached(
+	ctx context.Context,
+	meta versioning.DependencyMeta,
+	platform,
+	cacheDir string,
+	noCache bool,
+	gh *github.Client,
+) (
+	filename string,
+	resource types.Resource,
+	err error,
+) {
+	hit := false
+	// only pull from cache if there is a version tag specified
+	if !noCache && meta.Tag != "" {
+		hit, filename, resource, err = PluginFromCache(meta, platform, cacheDir)
+		if err != nil {
+			err = errors.Wrapf(err, "failed to get plugin %s from cache", meta)
+			return
+		}
+	}
+	if !hit {
+		if meta.Tag == "" {
+			print.Info("Downloading newest plugin because no version is specified. Consider specifying a version for this dependency.")
+		}
+
+		filename, resource, err = PluginFromNet(ctx, gh, meta, platform, cacheDir)
+		if err != nil {
+			err = errors.Wrapf(err, "failed to get plugin %s from net", meta)
+			return
+		}
+	}
+
+	return
+}
+
 // PluginFromCache tries to grab a plugin asset from the cache, `hit` indicates if it was successful
 func PluginFromCache(meta versioning.DependencyMeta, platform, cacheDir string) (hit bool, filename string, resource types.Resource, err error) {
 	resourcePath := filepath.Join(cacheDir, GetResourcePath(meta))
 
 	print.Verb("getting plugin resource from cache", meta, resourcePath)
 
-	pkg, err := types.PackageFromDir(resourcePath)
+	pkg, err := types.GetCachedPackage(meta, cacheDir)
 	if err != nil {
-		print.Verb("cache hit failed:", err)
+		print.Verb("cache hit failed while trying to get cached package:", err)
+		err = nil
+		hit = false
+		return
+	}
+
+	files, err := ioutil.ReadDir(resourcePath)
+	if err != nil {
+		print.Verb("cache hit failed while trying to read cached plugin folder:", err)
 		err = nil
 		hit = false
 		return
@@ -173,12 +201,6 @@ func PluginFromCache(meta versioning.DependencyMeta, platform, cacheDir string) 
 	matcher, err := regexp.Compile(resource.Name)
 	if err != nil {
 		err = errors.Wrap(err, "resource name is not a valid regular expression")
-		return
-	}
-
-	files, err := ioutil.ReadDir(resourcePath)
-	if err != nil {
-		err = errors.Wrap(err, "failed to read cache directory for package")
 		return
 	}
 
@@ -202,7 +224,7 @@ func PluginFromCache(meta versioning.DependencyMeta, platform, cacheDir string) 
 
 // PluginFromNet downloads a plugin from the given metadata to the cache directory
 func PluginFromNet(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, platform, cacheDir string) (filename string, resource types.Resource, err error) {
-	print.Info("downloading plugin resource", meta)
+	print.Info(meta, "downloading plugin resource for", platform)
 
 	resourcePathOnly := GetResourcePath(meta)
 	resourcePath := filepath.Join(cacheDir, resourcePathOnly)
@@ -213,22 +235,11 @@ func PluginFromNet(ctx context.Context, gh *github.Client, meta versioning.Depen
 		return
 	}
 
-	pkg, err := types.GetRemotePackage(ctx, gh, meta)
+	pkg, err := types.GetCachedPackage(meta, cacheDir)
 	if err != nil {
-		err = errors.Wrap(err, "failed to get remote package definition file")
-		return
-	}
-
-	pkgJSON, err := json.Marshal(pkg)
-	if err != nil {
-		err = errors.Wrap(err, "failed to encode package to json")
-		return
-	}
-
-	err = ioutil.WriteFile(filepath.Join(resourcePath, "pawn.json"), pkgJSON, 0700)
-	if err != nil {
-		err = errors.Wrap(err, "failed to write package file to cache")
+		pkg, err = types.GetRemotePackage(ctx, gh, meta)
 		if err != nil {
+			err = errors.Wrap(err, "failed to get remote package definition file")
 			return
 		}
 	}
@@ -248,6 +259,8 @@ func PluginFromNet(ctx context.Context, gh *github.Client, meta versioning.Depen
 	if err != nil {
 		return
 	}
+
+	print.Verb(meta, "downloaded", filename, "to cache")
 
 	return
 }

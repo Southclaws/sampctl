@@ -71,7 +71,7 @@ func TestPackageFromDir(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotPkg, err := PackageFromDir(true, tt.args.dir, runtime.GOOS, "")
+			gotPcx, err := NewPackageContext(gh, gitAuth, true, tt.args.dir, runtime.GOOS, "./tests/cache", "")
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -80,7 +80,7 @@ func TestPackageFromDir(t *testing.T) {
 
 			tt.wantPkg.Vendor = filepath.FromSlash(tt.wantPkg.Vendor)
 
-			assert.Equal(t, tt.wantPkg, gotPkg)
+			assert.Equal(t, tt.wantPkg, gotPcx.Package)
 		})
 	}
 }

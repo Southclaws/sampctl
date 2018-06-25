@@ -91,6 +91,11 @@ func main() {
 			Name:  "verbose",
 			Usage: "output all detailed information - useful for debugging",
 		},
+		cli.StringFlag{
+			Name:  "platform",
+			Value: "",
+			Usage: "manually specify the target platform for downloaded binaries to either `windows`, `linux` or `darwin`.",
+		},
 	}
 	app.Commands = []cli.Command{
 		{
@@ -330,4 +335,12 @@ func CheckForUpdates(thisVersion string) {
 			print.Info("  https://github.com/Southclaws/sampctl/issues/new")
 		}
 	}
+}
+
+func platform(c *cli.Context) (platform string) {
+	platform = c.String("platform")
+	if platform == "" {
+		platform = runtime.GOOS
+	}
+	return
 }

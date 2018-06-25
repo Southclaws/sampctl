@@ -92,10 +92,11 @@ docs: fast
 dist:
 	# for osx tar fix
 	# https://github.com/goreleaser/goreleaser/issues/409
-	PATH="/usr/local/opt/gnu-tar/libexec/gnubin:$PATH" \
+	PATH="/usr/local/opt/gnu-tar/libexec/gnubin:$(PATH)" \
+	SEGMENT_KEY=$(SEGMENT_KEY) \
+	GITHUB_TOKEN=$(GITHUB_TOKEN) \
 	goreleaser \
-		--skip-publish \
-		--skip-validate \
+		--snapshot \
 		--rm-dist
 
 

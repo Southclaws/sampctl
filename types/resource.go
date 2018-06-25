@@ -32,5 +32,6 @@ func (res Resource) Validate() (err error) {
 // Path returns a file path for a resource based on a hash of the label
 // nolint
 func (res Resource) Path(pkg Package) (path string) {
-	return filepath.Join("extracted-asset-resources", fmt.Sprintf("%s-%x", pkg.Repo, md5.Sum([]byte(res.Name))))
+	sum := md5.Sum([]byte(res.Name))
+	return filepath.Join(".resources", fmt.Sprintf("%s-%x", pkg.Repo, sum[:3]))
 }
