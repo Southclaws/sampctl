@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/pkg/errors"
@@ -56,7 +55,7 @@ func packageTemplateMake(c *cli.Context) (err error) {
 	}
 	name := c.Args().First()
 
-	pcx, err := rook.NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, cacheDir, "")
+	pcx, err := rook.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "")
 	if err != nil {
 		return
 	}

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"runtime"
 	"time"
 
 	"github.com/pkg/errors"
@@ -55,7 +54,7 @@ func packageEnsure(c *cli.Context) error {
 	dir := util.FullPath(c.String("dir"))
 	forceUpdate := c.Bool("update")
 
-	pcx, err := rook.NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, cacheDir, "")
+	pcx, err := rook.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "")
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}

@@ -80,7 +80,7 @@ func packageBuild(c *cli.Context) error {
 		return errors.Wrap(err, "failed to get or create cache directory")
 	}
 
-	pcx, err := rook.NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, cacheDir, "")
+	pcx, err := rook.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "")
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}

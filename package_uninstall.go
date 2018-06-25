@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -63,12 +62,12 @@ func packageUninstall(c *cli.Context) error {
 		deps = append(deps, versioning.DependencyString(dep))
 	}
 
-	pcx, err := rook.NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, cacheDir, "")
+	pcx, err := rook.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "")
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	err = rook.Uninstall(context.Background(), gh, pcx.Package, deps, development, gitAuth, runtime.GOOS, cacheDir)
+	err = rook.Uninstall(context.Background(), gh, pcx.Package, deps, development, gitAuth, platform(c), cacheDir)
 	if err != nil {
 		return err
 	}

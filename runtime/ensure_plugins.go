@@ -157,6 +157,10 @@ func EnsureVersionedPluginCached(
 		}
 	}
 	if !hit {
+		if meta.Tag == "" {
+			print.Info("Downloading newest plugin because no version is specified. Consider specifying a version for this dependency.")
+		}
+
 		filename, resource, err = PluginFromNet(ctx, gh, meta, platform, cacheDir)
 		if err != nil {
 			err = errors.Wrapf(err, "failed to get plugin %s from net", meta)
@@ -175,7 +179,15 @@ func PluginFromCache(meta versioning.DependencyMeta, platform, cacheDir string) 
 
 	pkg, err := types.GetCachedPackage(meta, cacheDir)
 	if err != nil {
-		print.Verb("cache hit failed:", err)
+		print.Verb("cache hit failed while trying to get cached package:", err)
+		err = nil
+		hit = false
+		return
+	}
+
+	files, err := ioutil.ReadDir(resourcePath)
+	if err != nil {
+		print.Verb("cache hit failed while trying to read cached plugin folder:", err)
 		err = nil
 		hit = false
 		return
@@ -189,12 +201,6 @@ func PluginFromCache(meta versioning.DependencyMeta, platform, cacheDir string) 
 	matcher, err := regexp.Compile(resource.Name)
 	if err != nil {
 		err = errors.Wrap(err, "resource name is not a valid regular expression")
-		return
-	}
-
-	files, err := ioutil.ReadDir(resourcePath)
-	if err != nil {
-		err = errors.Wrap(err, "failed to read cache directory for package")
 		return
 	}
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"runtime"
 
 	"github.com/pkg/errors"
 	"gopkg.in/segmentio/analytics-go.v3"
@@ -53,7 +52,7 @@ func packageTemplateBuild(c *cli.Context) (err error) {
 		return errors.Errorf("no such file or directory: %s", filename)
 	}
 
-	pcx, err := rook.NewPackageContext(gh, gitAuth, true, templatePath, runtime.GOOS, cacheDir, "")
+	pcx, err := rook.NewPackageContext(gh, gitAuth, true, templatePath, platform(c), cacheDir, "")
 	if err != nil {
 		return errors.Wrap(err, "template package is invalid")
 	}

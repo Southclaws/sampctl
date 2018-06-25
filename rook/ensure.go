@@ -106,10 +106,20 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 		}
 	}
 
+	// To install resources (includes from within release archives) we can't use the user's locally
+	// cloned copy of the package that resides in `dependencies/` because that repository may be
+	// checked out to a commit that existed before a `pawn.json` file was added that describes where
+	// resources can be downloaded from. Therefore, we instead instantiate a new types.Package from
+	// the cached version of the package because the cached copy is always at the latest version, or
+	// at least guaranteed to be either later or equal to the local dependency version.
 	pkg, err := types.GetCachedPackage(meta, pcx.CacheDir)
 	if err != nil {
 		return
 	}
+
+	// But the cached copy will have the latest tag assigned to it, so before ensuring it, apply the
+	// tag of the actual package we installed.
+	pkg.Tag = meta.Tag
 
 	var includePath string
 	for _, resource := range pkg.Resources {

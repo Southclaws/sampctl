@@ -1,7 +1,6 @@
 package rook
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 
@@ -10,7 +9,6 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 
 	"github.com/Southclaws/sampctl/print"
-	"github.com/Southclaws/sampctl/runtime"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
@@ -35,7 +33,6 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 	var (
 		recurse        func(meta versioning.DependencyMeta)
 		visited        = make(map[string]bool)
-		pluginMeta     versioning.DependencyMeta
 		dependencyPath = pcx.Package.LocalPath
 		firstIter      = true
 		currentPackage types.Package
@@ -79,29 +76,6 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 		// mark the repo as visited so we don't hit it again in case it appears
 		// multiple times within the dependency tree.
 		visited[currentMeta.Repo] = true
-
-		// now iterate the runtime plugins of the package. If there are entries
-		// in here, that means this package is actually a plugin package that
-		// provides binaries that should be downloaded.
-		if currentPackage.Runtime != nil {
-			print.Verb(pcx.Package, "gathering plugins from", currentPackage)
-			for _, pluginDepStr := range currentPackage.Runtime.Plugins {
-				pluginMeta, errInner = pluginDepStr.AsDep()
-				pluginMeta.Tag = currentPackage.Tag
-				print.Verb(pcx.Package, "adding plugin from package runtime", pluginDepStr, "as", pluginMeta)
-				if errInner != nil {
-					print.Warn(pcx.Package, "Invalid plugin dependency string:", pluginDepStr, "in", currentPackage, errInner)
-					return
-				}
-
-				_, _, err := runtime.EnsureVersionedPluginCached(context.Background(), pluginMeta, pcx.Platform, pcx.CacheDir, false, pcx.GitHub)
-				if err != nil {
-					print.Warn(pcx.Package, "Failed to download dependency plugin", pluginMeta, "to cache")
-					return
-				}
-				pcx.AllPlugins = append(pcx.AllPlugins, pluginMeta)
-			}
-		}
 
 		var subPackageDepStrings []versioning.DependencyString
 

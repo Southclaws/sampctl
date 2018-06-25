@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"runtime"
 
 	"github.com/pkg/errors"
 	"gopkg.in/segmentio/analytics-go.v3"
@@ -42,12 +41,12 @@ func packageInit(c *cli.Context) error {
 		return err
 	}
 
-	_, err = rook.NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, cacheDir, "")
+	_, err = rook.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "")
 	if err == nil {
 		return errors.New("Directory already appears to be a package")
 	}
 
-	err = rook.Init(context.Background(), gh, dir, config, gitAuth, runtime.GOOS, cacheDir)
+	err = rook.Init(context.Background(), gh, dir, config, gitAuth, platform(c), cacheDir)
 
 	return err
 }

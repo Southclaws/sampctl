@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"os"
-	"runtime"
 
 	"github.com/pkg/errors"
 	"gopkg.in/segmentio/analytics-go.v3"
@@ -99,7 +98,7 @@ func packageRun(c *cli.Context) error {
 		return err
 	}
 
-	pcx, err := rook.NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, cacheDir, "")
+	pcx, err := rook.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "")
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}

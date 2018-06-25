@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 
 	"gopkg.in/segmentio/analytics-go.v3"
@@ -52,7 +51,7 @@ func packageGet(c *cli.Context) error {
 		dir = util.FullPath(".")
 	}
 
-	err = rook.Get(context.Background(), gh, dep, dir, gitAuth, runtime.GOOS, cacheDir)
+	err = rook.Get(context.Background(), gh, dep, dir, gitAuth, platform(c), cacheDir)
 	if err != nil {
 		return err
 	}
