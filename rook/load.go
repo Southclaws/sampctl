@@ -30,7 +30,7 @@ func PackageFromDir(parent bool, dir, platform, vendor string) (pkg types.Packag
 	if err == nil {
 		vtag, errInner := versioning.GetRepoCurrentVersionedTag(repo)
 		if errInner != nil {
-			print.Warn("failed to get version information:", errInner)
+			print.Verb("failed to get version information:", errInner)
 		} else if vtag != nil {
 			pkg.Tag = vtag.Name
 		}
