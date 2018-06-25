@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -103,7 +104,7 @@ func TestPackage_Build(t *testing.T) {
 			CacheDir:        "./tests/cache",
 			GitHub:          gh,
 			GitAuth:         gitAuth,
-			Platform:        "darwin",
+			Platform:        runtime.GOOS,
 			Package:         tt.args.pkg,
 			AllDependencies: tt.args.dependencies,
 		}
