@@ -4,14 +4,10 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"sort"
 
-	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/go-git.v4/plumbing/storer"
 
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/runtime"
@@ -198,7 +194,7 @@ func (pcx *PackageContext) updateRepoState(repo *git.Repository, meta versioning
 	if meta.Tag != "" {
 		print.Verb(meta, "package has tag constraint:", meta.Tag)
 
-		ref, err = RefFromTag(repo, meta)
+		ref, err = versioning.RefFromTag(repo, meta)
 		if err != nil {
 			return errors.Wrap(err, "failed to get ref from tag")
 		}
@@ -213,7 +209,7 @@ func (pcx *PackageContext) updateRepoState(repo *git.Repository, meta versioning
 			return errors.Wrap(err, "failed to pull repo branch")
 		}
 
-		ref, err = RefFromBranch(repo, meta)
+		ref, err = versioning.RefFromBranch(repo, meta)
 		if err != nil {
 			return errors.Wrap(err, "failed to get ref from branch")
 		}
@@ -225,7 +221,7 @@ func (pcx *PackageContext) updateRepoState(repo *git.Repository, meta versioning
 			return errors.Wrap(err, "failed to pull repo")
 		}
 
-		ref, err = RefFromCommit(repo, meta)
+		ref, err = versioning.RefFromCommit(repo, meta)
 		if err != nil {
 			return errors.Wrap(err, "failed to get ref from commit")
 		}
@@ -255,126 +251,5 @@ func (pcx *PackageContext) updateRepoState(repo *git.Repository, meta versioning
 		}
 	}
 
-	return
-}
-
-// RefFromTag returns a ref from a given tag
-func RefFromTag(repo *git.Repository, meta versioning.DependencyMeta) (ref *plumbing.Reference, err error) {
-	constraint, constraintErr := semver.NewConstraint(meta.Tag)
-	versionedTags, err := versioning.GetRepoSemverTags(repo)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get repo tags")
-	}
-
-	if constraintErr != nil || len(versionedTags) == 0 {
-		print.Verb(meta, "specified version or repo tags not semantic versions", constraintErr)
-
-		var tags storer.ReferenceIter
-		tags, err = repo.Tags()
-		if err != nil {
-			err = errors.Wrap(err, "failed to get repo tags")
-			return nil, err
-		}
-		defer tags.Close()
-
-		tagList := []string{}
-		err = tags.ForEach(func(pr *plumbing.Reference) error {
-			tag := pr.Name().Short()
-			if tag == meta.Tag {
-				ref = pr
-				return storer.ErrStop
-			}
-			tagList = append(tagList, tag)
-			return nil
-		})
-		if err != nil {
-			err = errors.Wrap(err, "failed to iterate tags")
-		}
-
-		if ref == nil {
-			err = errors.Errorf("failed to satisfy constraint, '%s' not in %v", meta.Tag, tagList)
-		}
-	} else {
-		print.Verb(meta, "specified version and repo tags are semantic versions")
-
-		sort.Sort(sort.Reverse(versionedTags))
-
-		for _, version := range versionedTags {
-			if !constraint.Check(version.Version) {
-				print.Verb(meta, "incompatible tag", version.Name, "does not satisfy constraint", meta.Tag)
-				continue
-			}
-
-			print.Verb(meta, "discovered tag", version.Version, "that matches constraint", meta.Tag)
-			ref = version.Ref
-			break
-		}
-
-		if ref == nil {
-			err = errors.Errorf("failed to satisfy constraint, '%s' not in %v", meta.Tag, versionedTags)
-		}
-	}
-
-	return
-}
-
-// RefFromBranch returns a ref from a branch name
-func RefFromBranch(repo *git.Repository, meta versioning.DependencyMeta) (ref *plumbing.Reference, err error) {
-	branches, err := repo.Branches()
-	if err != nil {
-		err = errors.Wrap(err, "failed to get repo branches")
-		return nil, err
-	}
-	defer branches.Close()
-
-	branchList := []string{}
-	err = branches.ForEach(func(pr *plumbing.Reference) error {
-		branch := pr.Name().Short()
-
-		print.Verb(meta, "checking branch", branch)
-		if branch == meta.Branch {
-			ref = pr
-			return storer.ErrStop
-		}
-		branchList = append(branchList, branch)
-
-		return nil
-	})
-	if err != nil {
-		err = errors.Wrap(err, "failed to iterate branches")
-	}
-	if ref == nil {
-		err = errors.Errorf("no branch named '%s' found in %v", meta.Branch, branchList)
-	}
-	return
-}
-
-// RefFromCommit returns a ref from a commit hash
-func RefFromCommit(repo *git.Repository, meta versioning.DependencyMeta) (ref *plumbing.Reference, err error) {
-	commits, err := repo.CommitObjects()
-	if err != nil {
-		err = errors.Wrap(err, "failed to get repo commits")
-		return
-	}
-	defer commits.Close()
-
-	err = commits.ForEach(func(commit *object.Commit) error {
-		hash := commit.Hash.String()
-
-		print.Verb(meta, "checking commit", hash, "<>", meta.Commit)
-		if hash == meta.Commit {
-			print.Verb(meta, "match found")
-			ref = plumbing.NewHashReference(plumbing.ReferenceName(hash), commit.Hash)
-			return storer.ErrStop
-		}
-
-		return nil
-	})
-	if err != nil {
-		err = errors.Wrap(err, "failed to iterate commits")
-	}
-	if ref == nil {
-		err = errors.Errorf("no commit named '%s' found", meta.Commit)
-	}
 	return
 }
