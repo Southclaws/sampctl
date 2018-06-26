@@ -35,7 +35,7 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 		errInner := pcx.EnsurePackage(dependency, forceUpdate)
 		if errInner != nil {
 			print.Warn(errors.Wrapf(errInner, "failed to ensure package %s", dependency))
-			return
+			continue
 		}
 		print.Info(pcx.Package, "successfully ensured dependency files for", dependency)
 	}
