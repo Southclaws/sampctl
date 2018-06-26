@@ -33,7 +33,7 @@ jobs:
         - bash <(curl -s https://codecov.io/bash)
     - stage: test rook
       script:
-        - go test -race -v -p 4 -coverprofile=coverage.txt ./rook
+        - go test -race -v -p 4 -coverprofile=coverage.txt -timeout=20m ./rook
         - bash <(curl -s https://codecov.io/bash)
     - stage: deploy
       if: branch =~ ^(v?(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[\da-z-]+(?:\.[\da-z-]+)*)?(?:\+[\da-z-]+(?:\.[\da-z-]+)*)?)$
