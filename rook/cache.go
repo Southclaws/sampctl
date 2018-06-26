@@ -186,8 +186,13 @@ func (pcx PackageContext) ensureRepoExists(from, to, branch string, ssh, forceUp
 		print.Verb("pulling latest copy to", to, "with", pullOpts)
 		err = wt.Pull(pullOpts)
 		if err != nil && err != git.NoErrAlreadyUpToDate {
-			err = errors.Wrap(err, "failed to pull repository")
-			return
+			print.Verb("failed to pull, removing repository and starting fresh")
+			err = os.RemoveAll(to)
+			if err != nil {
+				err = errors.Wrap(err, "failed to remove repo in bad state for re-clone")
+				return
+			}
+			return pcx.ensureRepoExists(from, to, branch, ssh, false)
 		}
 	}
 
