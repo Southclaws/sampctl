@@ -3,6 +3,7 @@ package rook
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 	"gopkg.in/src-d/go-git.v4"
@@ -17,8 +18,6 @@ import (
 // EnsureDependenciesCached will recursively visit a parent package dependencies
 // in the cache, pulling them if they do not exist yet.
 func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
-	print.Verb(pcx.Package, "building dependency tree and ensuring cached copies")
-
 	if !pcx.Package.Parent {
 		errOuter = errors.New("package is not a parent package")
 		return
@@ -48,27 +47,34 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 	// does, this prevents an infinite recursion.
 	visited[pcx.Package.DependencyMeta.Repo] = true
 
+	// keep track of recursion depth
+	verboseDepth := 0
+
 	recurse = func(currentMeta versioning.DependencyMeta) {
+		// this makes visualising the dependency tree easier with --verbose
+		verboseDepth++
+		prefix := strings.Repeat("|-", verboseDepth)
+
 		// the first iteration of this recursive function is called on the
 		// parent package. This means it does not need to be cloned to the cache
 		// and the path will be it's true, user-defined location.
 		if firstIter {
-			print.Verb(pcx.Package, "processing parent package in recursive function")
 			currentPackage = pcx.Package // set the current package to the parent
+			print.Verb(prefix, currentPackage, "is parent")
 		} else {
 			dependencyPath = currentMeta.CachePath(pcx.CacheDir)
-
-			print.Verb(pcx.Package, "ensuring", currentMeta, "to", dependencyPath)
 
 			_, errInner = pcx.EnsureDependencyCached(currentMeta, false)
 			if errInner != nil {
 				print.Erro(errInner)
 				return
 			}
+			pcx.AllDependencies = append(pcx.AllDependencies, currentMeta)
+			print.Verb(prefix, currentMeta, "ensured")
 
 			currentPackage, errInner = types.PackageFromDir(dependencyPath)
 			if errInner != nil {
-				print.Verb(pcx.Package, "dependency", currentMeta, "is not a package:", errInner)
+				print.Verb(prefix, currentMeta, "is not a package:", errInner)
 				return
 			}
 		}
@@ -77,14 +83,14 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 		// include paths that will be used for includes from resource archives.
 		for _, res := range currentPackage.Resources {
 			if res.Platform != pcx.Platform {
-				print.Verb(currentPackage, "ignoring platform mismatch", res.Platform)
+				print.Verb(prefix, "ignoring platform mismatch", res.Platform)
 				continue
 			}
 
 			if len(res.Includes) > 0 {
 				targetPath := filepath.Join(pcx.Package.Vendor, res.Path(currentPackage))
 				pcx.AllIncludePaths = append(pcx.AllIncludePaths, targetPath)
-				print.Verb(currentPackage, "added target path for resource includes:", targetPath)
+				print.Verb(prefix, "added target path for resource includes:", targetPath)
 			}
 		}
 
@@ -104,21 +110,22 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 		// operate on dependencies
 		firstIter = false
 
-		print.Verb(pcx.Package, "recursively iterating", len(subPackageDepStrings), "dependencies of", currentPackage)
+		print.Verb(prefix, "iterating", len(subPackageDepStrings), "dependencies of", currentPackage)
 		var subPackageDepMeta versioning.DependencyMeta
 		for _, subPackageDepString := range subPackageDepStrings {
 			subPackageDepMeta, errInner = subPackageDepString.Explode()
 			if errInner != nil {
-				print.Verb(pcx.Package, "invalid dependency string:", subPackageDepMeta, "in", currentPackage, errInner)
+				print.Verb(prefix, "invalid dependency string:", subPackageDepMeta, "in", currentPackage, errInner)
 				continue
 			}
+
 			if _, ok := visited[subPackageDepMeta.Repo]; !ok {
-				pcx.AllDependencies = append(pcx.AllDependencies, subPackageDepMeta)
 				recurse(subPackageDepMeta)
 			} else {
-				print.Verb(pcx.Package, "already visited", subPackageDepMeta)
+				print.Verb(prefix, "already visited", subPackageDepMeta)
 			}
 		}
+		verboseDepth--
 	}
 	recurse(pcx.Package.DependencyMeta)
 
@@ -147,7 +154,6 @@ func (pcx PackageContext) EnsureDependencyFromCache(meta versioning.DependencyMe
 
 // EnsureDependencyCached clones a package to path using the default branch
 func (pcx PackageContext) EnsureDependencyCached(meta versioning.DependencyMeta, forceUpdate bool) (repo *git.Repository, err error) {
-	print.Verb(meta, "ensuring dependency package is cached, force update:", forceUpdate)
 	return pcx.ensureRepoExists(meta.URL(), meta.CachePath(pcx.CacheDir), meta.Branch, meta.SSH != "", forceUpdate)
 }
 

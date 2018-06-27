@@ -259,25 +259,28 @@ func (pcx *PackageContext) buildPrepare(ctx context.Context, build string, ensur
 		// check if local package has a definition
 		incPath := ""
 		hasIncludeResources := false
+		noPackage := false
 		depDir := filepath.Join(pcx.Package.LocalPath, "dependencies", depMeta.Repo)
 		pkgInner, errInner := types.PackageFromDir(depDir)
 		if errInner != nil {
-			print.Verb(depMeta, "usinc cached copy for include path checking")
+			print.Verb(depMeta, "using cached copy for include path checking")
 			pkgInner, errInner = types.GetCachedPackage(depMeta, pcx.CacheDir)
 			if errInner != nil {
-				continue
+				noPackage = true
 			}
 		}
 
-		// check if package specifies an include path
-		if pkgInner.IncludePath != "" {
-			incPath = pkgInner.IncludePath
-		}
-		// check if the package specifies resources that contain includes
-		for _, res := range pkgInner.Resources {
-			if len(res.Includes) > 0 {
-				hasIncludeResources = true
-				break
+		if !noPackage {
+			// check if package specifies an include path
+			if pkgInner.IncludePath != "" {
+				incPath = pkgInner.IncludePath
+			}
+			// check if the package specifies resources that contain includes
+			for _, res := range pkgInner.Resources {
+				if len(res.Includes) > 0 {
+					hasIncludeResources = true
+					break
+				}
 			}
 		}
 
