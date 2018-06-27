@@ -184,11 +184,11 @@ func (pcx *PackageContext) runPrepare(ctx context.Context) (err error) {
 		}
 	}
 
-	for _, pluginMeta := range pcx.AllPlugins {
-		print.Verb("read plugin from dependency:", pluginMeta)
-		pcx.Package.Runtime.PluginDeps = append(pcx.Package.Runtime.PluginDeps, pluginMeta)
+	err = pcx.EnsureDependencies(ctx, false)
+	if err != nil {
+		err = errors.Wrap(err, "failed to ensure dependencies")
+		return
 	}
-	print.Verb(pcx.Package.Runtime.PluginDeps)
 
 	err = runtime.Ensure(ctx, pcx.GitHub, pcx.Package.Runtime, pcx.NoCache)
 	if err != nil {
