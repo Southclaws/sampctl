@@ -254,22 +254,36 @@ func (pcx *PackageContext) buildPrepare(ctx context.Context, build string, ensur
 		}
 	}
 
-	var pkgInner types.Package
 	for _, depMeta := range pcx.AllDependencies {
-		depDir := filepath.Join(pcx.Package.LocalPath, "dependencies", depMeta.Repo)
-		incPath := depMeta.Path
 
-		// check if local package has a definition, if so, check if it has an IncludePath field
-		pkgInner, err = types.PackageFromDir(depDir)
-		if err == nil {
-			if pkgInner.IncludePath != "" {
-				incPath = pkgInner.IncludePath
+		// check if local package has a definition
+		incPath := ""
+		hasIncludeResources := false
+		depDir := filepath.Join(pcx.Package.LocalPath, "dependencies", depMeta.Repo)
+		pkgInner, errInner := types.PackageFromDir(depDir)
+		if errInner != nil {
+			print.Verb(depMeta, "usinc cached copy for include path checking")
+			pkgInner, errInner = types.GetCachedPackage(depMeta, pcx.CacheDir)
+			if errInner != nil {
+				continue
 			}
-		} else {
-			err = nil
 		}
 
-		config.Includes = append(config.Includes, filepath.Join(depDir, incPath))
+		// check if package specifies an include path
+		if pkgInner.IncludePath != "" {
+			incPath = pkgInner.IncludePath
+		}
+		// check if the package specifies resources that contain includes
+		for _, res := range pkgInner.Resources {
+			if len(res.Includes) > 0 {
+				hasIncludeResources = true
+				break
+			}
+		}
+
+		if !hasIncludeResources {
+			config.Includes = append(config.Includes, filepath.Join(depDir, incPath))
+		}
 	}
 
 	config.Includes = append(config.Includes, pcx.AllIncludePaths...)

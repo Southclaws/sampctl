@@ -81,9 +81,11 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 				continue
 			}
 
-			targetPath := filepath.Join(pcx.Package.Vendor, res.Path(currentPackage))
-			pcx.AllIncludePaths = append(pcx.AllIncludePaths, targetPath)
-			print.Verb(currentPackage, "added target path for resource includes:", targetPath)
+			if len(res.Includes) > 0 {
+				targetPath := filepath.Join(pcx.Package.Vendor, res.Path(currentPackage))
+				pcx.AllIncludePaths = append(pcx.AllIncludePaths, targetPath)
+				print.Verb(currentPackage, "added target path for resource includes:", targetPath)
+			}
 		}
 
 		// mark the repo as visited so we don't hit it again in case it appears
