@@ -100,7 +100,7 @@ func NewPackageContext(
 	}
 	types.ApplyRuntimeDefaults(pcx.Package.Runtime)
 
-	print.Verb(pcx.Package, "ensuring dependencies are cached and flattening dependency tree")
+	print.Verb(pcx.Package, "building dependency tree and ensuring cached copies")
 	err = pcx.EnsureDependenciesCached()
 	if err != nil {
 		err = errors.Wrap(err, "failed to ensure dependencies are cached")

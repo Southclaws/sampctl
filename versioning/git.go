@@ -266,18 +266,19 @@ func GetRepoCurrentVersionedTag(repo *git.Repository) (tag *VersionedTag, err er
 
 // RefFromTagRef resolves a tag reference to its actual object
 func RefFromTagRef(repo *git.Repository, pr *plumbing.Reference) (ref *plumbing.Reference, err error) {
-	if pr.Name().IsTag() {
-		refTagObject, errInnerInner := repo.TagObject(pr.Hash())
-		if errInnerInner != nil {
-			return pr, nil
-		}
-		refCommit, errInnerInner := refTagObject.Commit()
-		if errInnerInner != nil {
-			return nil, errInnerInner
-		}
-		return plumbing.NewHashReference(pr.Name(), refCommit.Hash), nil
-	} else {
-		ref = pr
+	if !pr.Name().IsTag() {
+		return pr, nil
 	}
-	return
+
+	obj, err := repo.TagObject(pr.Hash())
+	if err != nil {
+		return pr, nil
+	}
+
+	commit, err := obj.Commit()
+	if err != nil {
+		return
+	}
+
+	return plumbing.NewHashReference(pr.Name(), commit.Hash), nil
 }
