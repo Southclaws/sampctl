@@ -272,7 +272,7 @@ func RefFromTagRef(repo *git.Repository, pr *plumbing.Reference) (ref *plumbing.
 
 	obj, err := repo.TagObject(pr.Hash())
 	if err != nil {
-		return
+		return pr, nil
 	}
 
 	commit, err := obj.Commit()
