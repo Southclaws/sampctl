@@ -73,6 +73,19 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 			}
 		}
 
+		// Run through resources for the target platform and grab all the
+		// include paths that will be used for includes from resource archives.
+		for _, res := range currentPackage.Resources {
+			if res.Platform != pcx.Platform {
+				print.Verb(currentPackage, "ignoring platform mismatch", res.Platform)
+				continue
+			}
+
+			targetPath := filepath.Join(pcx.Package.Vendor, res.Path(currentPackage))
+			pcx.AllIncludePaths = append(pcx.AllIncludePaths, targetPath)
+			print.Verb(currentPackage, "added target path for resource includes:", targetPath)
+		}
+
 		// mark the repo as visited so we don't hit it again in case it appears
 		// multiple times within the dependency tree.
 		visited[currentMeta.Repo] = true
