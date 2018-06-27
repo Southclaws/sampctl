@@ -29,14 +29,14 @@ func TestPackage_Install(t *testing.T) {
 			"repo": "install-test",
 			"entry": "gamemodes/test.pwn",
 			"output": "gamemodes/test.amx",
-			"dependencies": ["Southclaws/samp-stdlib"]
+			"dependencies": ["sampctl/samp-stdlib"]
 		}`), args{[]versioning.DependencyString{"Southclaws/samp-ini"}, false}, false},
 		{"dev", []byte(`{
 			"user": "Southclaws",
 			"repo": "install-test",
 			"entry": "gamemodes/test.pwn",
 			"output": "gamemodes/test.amx",
-			"dependencies": ["Southclaws/samp-stdlib"]
+			"dependencies": ["sampctl/samp-stdlib"]
 		}`), args{[]versioning.DependencyString{"Southclaws/samp-ini"}, true}, false},
 	}
 	for _, tt := range tests {

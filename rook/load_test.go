@@ -30,9 +30,9 @@ func TestPackageFromDir(t *testing.T) {
 			Entry:          "gamemodes/test.pwn",
 			Output:         "gamemodes/test.amx",
 			Dependencies: []versioning.DependencyString{
-				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
+				"sampctl/samp-stdlib:0.3.7-R2-2-1",
 				"Southclaws/SIF:1.6.2",
-				"Misiur/YSI-Includes",
+				"pawn-lang/YSI-Includes",
 				"samp-incognito/samp-streamer-plugin:2.9.1",
 				"Zeex/amx_assembly",
 				"Zeex/samp-plugin-crashdetect/include",
@@ -54,9 +54,9 @@ func TestPackageFromDir(t *testing.T) {
 			Entry:          "gamemodes/test.pwn",
 			Output:         "gamemodes/test.amx",
 			Dependencies: []versioning.DependencyString{
-				"Southclaws/samp-stdlib:0.3.7-R2-2-1",
+				"sampctl/samp-stdlib:0.3.7-R2-2-1",
 				"Southclaws/SIF:1.6.2",
-				"Misiur/YSI-Includes",
+				"pawn-lang/YSI-Includes",
 				"samp-incognito/samp-streamer-plugin:2.9.1",
 				"Zeex/amx_assembly",
 			},
