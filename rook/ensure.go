@@ -44,6 +44,13 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 		print.Verb(pcx.Package, "ensuring local runtime dependencies to", pcx.Package.LocalPath)
 		pcx.Package.Runtime.WorkingDir = pcx.Package.LocalPath
 		pcx.Package.Runtime.Format = pcx.Package.Format
+
+		for _, pluginMeta := range pcx.AllPlugins {
+			print.Verb("read plugin from dependency:", pluginMeta)
+			pcx.Package.Runtime.PluginDeps = append(pcx.Package.Runtime.PluginDeps, pluginMeta)
+		}
+		print.Verb(pcx.Package.Runtime.PluginDeps)
+
 		err = runtime.Ensure(ctx, pcx.GitHub, pcx.Package.Runtime, false)
 		if err != nil {
 			return
@@ -129,6 +136,19 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 		}
 		pcx.AllIncludePaths = append(pcx.AllIncludePaths, includePath)
 		print.Verb(includePath)
+	}
+
+	if pkg.Runtime != nil {
+		for _, plugin := range pkg.Runtime.Plugins {
+			pluginMeta, err := plugin.AsDep()
+			if err != nil {
+				print.Warn(meta, "failed to parse plugin as dependency string")
+				continue
+			}
+			pluginMeta.Tag = meta.Tag
+			pcx.AllPlugins = append(pcx.AllPlugins, pluginMeta)
+			print.Verb(meta, "added plugin", pluginMeta)
+		}
 	}
 
 	return
