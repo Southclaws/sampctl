@@ -45,4 +45,4 @@ jobs:
         - gem install --no-ri --no-rdoc fpm
         - curl -sL https://git.io/goreleaser | bash
 go:
-  - 1.x
+  - "1.10"
