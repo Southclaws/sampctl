@@ -154,6 +154,8 @@ func (pcx *PackageContext) runPrepare(ctx context.Context) (err error) {
 	}
 
 	if !pcx.Package.Local {
+		print.Verb(pcx.Package, "package is not local, preparing temporary runtime")
+
 		scriptfiles := filepath.Join(pcx.Package.LocalPath, "scriptfiles")
 		if !util.Exists(scriptfiles) {
 			scriptfiles = ""
@@ -176,7 +178,10 @@ func (pcx *PackageContext) runPrepare(ctx context.Context) (err error) {
 
 		pcx.Package.Runtime.WorkingDir = runtime.GetRuntimePath(pcx.CacheDir, pcx.Package.Runtime.Version)
 	} else {
+		print.Verb(pcx.Package, "package is local, using working directory")
+
 		pcx.Package.Runtime.WorkingDir = pcx.Package.LocalPath
+		pcx.Package.Runtime.Format = pcx.Package.Format
 
 		err = pcx.Package.Runtime.Validate()
 		if err != nil {
@@ -184,15 +189,24 @@ func (pcx *PackageContext) runPrepare(ctx context.Context) (err error) {
 		}
 	}
 
+	print.Verb(pcx.Package, "ensuring dependencies pre-run")
 	err = pcx.EnsureDependencies(ctx, false)
 	if err != nil {
 		err = errors.Wrap(err, "failed to ensure dependencies")
 		return
 	}
 
+	print.Verb(pcx.Package, "gathering plugins pre-run")
+	err = pcx.GatherPlugins()
+	if err != nil {
+		err = errors.Wrap(err, "failed to gather plugins")
+		return
+	}
+
+	print.Verb(pcx.Package, "ensuring runtime pre-run")
 	err = runtime.Ensure(ctx, pcx.GitHub, pcx.Package.Runtime, pcx.NoCache)
 	if err != nil {
-		err = errors.Wrap(err, "failed to ensure temporary runtime")
+		err = errors.Wrap(err, "failed to ensure runtime")
 		return
 	}
 
