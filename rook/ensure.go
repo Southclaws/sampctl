@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 	"gopkg.in/src-d/go-git.v4"
@@ -117,31 +118,35 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 	// tag of the actual package we installed.
 	pkg.Tag = meta.Tag
 
+	// some resources may not be plugins
+	isPlugin := false
+
 	var includePath string
 	for _, resource := range pkg.Resources {
-		if resource.Platform != pcx.Platform || len(resource.Includes) == 0 {
+		if resource.Platform != pcx.Platform {
 			continue
 		}
 
-		includePath, err = pcx.extractResourceDependencies(context.Background(), pkg, resource)
-		if err != nil {
-			return
+		if len(resource.Includes) == 0 {
+			if strings.Contains(resource.Name, "dll") || strings.Contains(resource.Name, "so") {
+				isPlugin = true
+			}
+		} else {
+			includePath, err = pcx.extractResourceDependencies(context.Background(), pkg, resource)
+			if err != nil {
+				return
+			}
+			pcx.AllIncludePaths = append(pcx.AllIncludePaths, includePath)
+
+			if len(resource.Plugins) > 0 {
+				isPlugin = true
+			}
 		}
-		pcx.AllIncludePaths = append(pcx.AllIncludePaths, includePath)
-		print.Verb(includePath)
 	}
 
-	if pkg.Runtime != nil {
-		for _, plugin := range pkg.Runtime.Plugins {
-			pluginMeta, err := plugin.AsDep()
-			if err != nil {
-				print.Warn(meta, "failed to parse plugin as dependency string")
-				continue
-			}
-			pluginMeta.Tag = meta.Tag
-			pcx.AllPlugins = append(pcx.AllPlugins, pluginMeta)
-			print.Verb(meta, "added plugin", pluginMeta)
-		}
+	if isPlugin {
+		pcx.AllPlugins = append(pcx.AllPlugins, meta)
+		print.Verb(meta, "added plugin", meta)
 	}
 
 	return
