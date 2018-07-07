@@ -8,6 +8,7 @@ import (
 )
 
 func platformRun(cmd *exec.Cmd, w io.Writer, r io.Reader) (err error) {
+	cmd.Stderr = w
 	cmd.Stdout = w
 	cmd.Stdin = r
 	err = cmd.Run()
