@@ -50,9 +50,6 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 	// keep track of recursion depth
 	verboseDepth := 0
 
-	// some resources may not be plugins
-	isPlugin := false
-
 	recurse = func(currentMeta versioning.DependencyMeta) {
 		// this makes visualising the dependency tree easier with --verbose
 		verboseDepth++
@@ -81,6 +78,9 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 				return
 			}
 		}
+
+		// some resources may not be plugins
+		isPlugin := false
 
 		// Run through resources for the target platform and grab all the
 		// include paths that will be used for includes from resource archives.
