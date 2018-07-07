@@ -50,6 +50,9 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 	// keep track of recursion depth
 	verboseDepth := 0
 
+	// some resources may not be plugins
+	isPlugin := false
+
 	recurse = func(currentMeta versioning.DependencyMeta) {
 		// this makes visualising the dependency tree easier with --verbose
 		verboseDepth++
@@ -104,6 +107,23 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 			subPackageDepStrings = currentPackage.GetAllDependencies()
 		} else {
 			subPackageDepStrings = currentPackage.Dependencies
+		}
+
+		for _, resource := range currentPackage.Resources {
+			if resource.Archive {
+				if len(resource.Plugins) > 0 {
+					isPlugin = true
+				}
+			} else {
+				if strings.Contains(resource.Name, "dll") || strings.Contains(resource.Name, "so") {
+					isPlugin = true
+				}
+			}
+		}
+
+		if isPlugin {
+			pcx.AllPlugins = append(pcx.AllPlugins, currentMeta)
+			print.Verb(prefix, currentMeta, "is a plugin")
 		}
 
 		// first iteration has finished, mark it false and next iterations will

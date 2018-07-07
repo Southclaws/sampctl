@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/pkg/errors"
 	"gopkg.in/src-d/go-git.v4"
@@ -44,6 +43,7 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 	return
 }
 
+// GatherPlugins iterates the AllPlugins list and appends them to the runtime dependencies list
 func (pcx *PackageContext) GatherPlugins() (err error) {
 	print.Verb(pcx.Package, "gathering", len(pcx.AllPlugins), "plugins from package context")
 	for _, pluginMeta := range pcx.AllPlugins {
@@ -118,35 +118,19 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 	// tag of the actual package we installed.
 	pkg.Tag = meta.Tag
 
-	// some resources may not be plugins
-	isPlugin := false
-
 	var includePath string
 	for _, resource := range pkg.Resources {
 		if resource.Platform != pcx.Platform {
 			continue
 		}
 
-		if len(resource.Includes) == 0 {
-			if strings.Contains(resource.Name, "dll") || strings.Contains(resource.Name, "so") {
-				isPlugin = true
-			}
-		} else {
+		if len(resource.Includes) > 0 {
 			includePath, err = pcx.extractResourceDependencies(context.Background(), pkg, resource)
 			if err != nil {
 				return
 			}
 			pcx.AllIncludePaths = append(pcx.AllIncludePaths, includePath)
-
-			if len(resource.Plugins) > 0 {
-				isPlugin = true
-			}
 		}
-	}
-
-	if isPlugin {
-		pcx.AllPlugins = append(pcx.AllPlugins, meta)
-		print.Verb(meta, "added plugin", meta)
 	}
 
 	return

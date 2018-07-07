@@ -189,12 +189,12 @@ func (pcx *PackageContext) runPrepare(ctx context.Context) (err error) {
 		}
 	}
 
-	print.Verb(pcx.Package, "ensuring dependencies pre-run")
-	err = pcx.EnsureDependencies(ctx, false)
-	if err != nil {
-		err = errors.Wrap(err, "failed to ensure dependencies")
-		return
-	}
+	// print.Verb(pcx.Package, "ensuring dependencies pre-run")
+	// err = pcx.EnsureDependencies(ctx, false)
+	// if err != nil {
+	// 	err = errors.Wrap(err, "failed to ensure dependencies")
+	// 	return
+	// }
 
 	print.Verb(pcx.Package, "gathering plugins pre-run")
 	err = pcx.GatherPlugins()
