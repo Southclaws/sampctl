@@ -40,17 +40,32 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 		print.Info(pcx.Package, "successfully ensured dependency files for", dependency)
 	}
 
+	if pcx.Package.Local {
+		print.Verb(pcx.Package, "package is local, ensuring binaries too")
+		pcx.ActualRuntime.WorkingDir = pcx.Package.LocalPath
+		pcx.ActualRuntime.Format = pcx.Package.Format
+
+		pcx.ActualRuntime.PluginDeps, err = pcx.GatherPlugins()
+		if err != nil {
+			return
+		}
+		err = runtime.Ensure(ctx, pcx.GitHub, &pcx.ActualRuntime, false)
+		if err != nil {
+			return
+		}
+	}
+
 	return
 }
 
 // GatherPlugins iterates the AllPlugins list and appends them to the runtime dependencies list
-func (pcx *PackageContext) GatherPlugins() (err error) {
+func (pcx *PackageContext) GatherPlugins() (pluginDeps []versioning.DependencyMeta, err error) {
 	print.Verb(pcx.Package, "gathering", len(pcx.AllPlugins), "plugins from package context")
 	for _, pluginMeta := range pcx.AllPlugins {
 		print.Verb("read plugin from dependency:", pluginMeta)
-		pcx.Package.Runtime.PluginDeps = append(pcx.Package.Runtime.PluginDeps, pluginMeta)
+		pluginDeps = append(pluginDeps, pluginMeta)
 	}
-	print.Verb(pcx.Package, "gathered plugins:", pcx.Package.Runtime.PluginDeps)
+	print.Verb(pcx.Package, "gathered plugins:", pluginDeps)
 	return
 }
 

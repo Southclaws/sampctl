@@ -63,6 +63,7 @@ func packageEnsure(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	pcx.ActualRuntime.Platform = pcx.Platform
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
 	defer cancel()
