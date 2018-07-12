@@ -72,9 +72,6 @@ func packageRun(c *cli.Context) error {
 	relativePaths := c.Bool("relativePaths")
 
 	runtimeName := c.Args().Get(0)
-	if runtimeName == "" {
-		runtimeName = "default"
-	}
 
 	if config.Metrics {
 		segment.Enqueue(analytics.Track{

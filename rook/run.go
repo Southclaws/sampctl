@@ -28,7 +28,7 @@ func (pcx *PackageContext) Run(ctx context.Context, output io.Writer, input io.R
 		return errors.Wrap(err, "failed to prepare package for running")
 	}
 
-	err = runtime.Run(ctx, *pcx.Package.Runtime, pcx.CacheDir, true, false, output, input)
+	err = runtime.Run(ctx, pcx.ActualRuntime, pcx.CacheDir, true, false, output, input)
 	if err != nil {
 		return errors.Wrap(err, "failed to run package")
 	}
@@ -91,7 +91,7 @@ loop:
 				defer cancel()
 			}
 
-			err = runtime.CopyFileToRuntime(pcx.CacheDir, pcx.Package.Runtime.Version, util.FullPath(pcx.Package.Output))
+			err = runtime.CopyFileToRuntime(pcx.CacheDir, pcx.ActualRuntime.Version, util.FullPath(pcx.Package.Output))
 			if err != nil {
 				err = errors.Wrap(err, "failed to copy amx file to temporary runtime directory")
 				print.Erro(err)
@@ -100,7 +100,7 @@ loop:
 			fmt.Println("watch-run: executing package code")
 			go func() {
 				running.Store(true)
-				err = runtime.Run(ctxInner, *pcx.Package.Runtime, pcx.CacheDir, true, false, os.Stdout, os.Stdin)
+				err = runtime.Run(ctxInner, pcx.ActualRuntime, pcx.CacheDir, true, false, os.Stdout, os.Stdin)
 				running.Store(false)
 
 				if err != nil {
@@ -141,16 +141,21 @@ func (pcx *PackageContext) runPrepare(ctx context.Context) (err error) {
 		return
 	}
 
-	pcx.Package.Runtime = GetRuntimeConfig(pcx.Package, pcx.Runtime)
-	pcx.Package.Runtime.Gamemodes = []string{strings.TrimSuffix(filepath.Base(pcx.Package.Output), ".amx")}
+	print.Verb("getting runtime config")
+	pcx.ActualRuntime, err = GetRuntimeConfig(pcx.Package, pcx.Runtime)
+	if err != nil {
+		return
+	}
 
-	pcx.Package.Runtime.AppVersion = pcx.AppVersion
-	pcx.Package.Runtime.Format = pcx.Package.Format
+	pcx.ActualRuntime.Gamemodes = []string{strings.TrimSuffix(filepath.Base(pcx.Package.Output), ".amx")}
+
+	pcx.ActualRuntime.AppVersion = pcx.AppVersion
+	pcx.ActualRuntime.Format = pcx.Package.Format
 	if pcx.Container {
-		pcx.Package.Runtime.Container = &types.ContainerConfig{MountCache: true}
-		pcx.Package.Runtime.Platform = "linux"
+		pcx.ActualRuntime.Container = &types.ContainerConfig{MountCache: true}
+		pcx.ActualRuntime.Platform = "linux"
 	} else {
-		pcx.Package.Runtime.Platform = rt.GOOS
+		pcx.ActualRuntime.Platform = rt.GOOS
 	}
 
 	if !pcx.Package.Local {
@@ -162,39 +167,32 @@ func (pcx *PackageContext) runPrepare(ctx context.Context) (err error) {
 		}
 		err = runtime.PrepareRuntimeDirectory(
 			pcx.CacheDir,
-			pcx.Package.Runtime.Version,
-			pcx.Package.Runtime.Platform,
+			pcx.ActualRuntime.Version,
+			pcx.ActualRuntime.Platform,
 			scriptfiles)
 		if err != nil {
 			err = errors.Wrap(err, "failed to prepare temporary runtime area")
 			return
 		}
 
-		err = runtime.CopyFileToRuntime(pcx.CacheDir, pcx.Package.Runtime.Version, filename)
+		err = runtime.CopyFileToRuntime(pcx.CacheDir, pcx.ActualRuntime.Version, filename)
 		if err != nil {
 			err = errors.Wrap(err, "failed to copy amx file to temporary runtime directory")
 			return
 		}
 
-		pcx.Package.Runtime.WorkingDir = runtime.GetRuntimePath(pcx.CacheDir, pcx.Package.Runtime.Version)
+		pcx.ActualRuntime.WorkingDir = runtime.GetRuntimePath(pcx.CacheDir, pcx.ActualRuntime.Version)
 	} else {
 		print.Verb(pcx.Package, "package is local, using working directory")
 
-		pcx.Package.Runtime.WorkingDir = pcx.Package.LocalPath
-		pcx.Package.Runtime.Format = pcx.Package.Format
+		pcx.ActualRuntime.WorkingDir = pcx.Package.LocalPath
+		pcx.ActualRuntime.Format = pcx.Package.Format
 
-		err = pcx.Package.Runtime.Validate()
+		err = pcx.ActualRuntime.Validate()
 		if err != nil {
 			return
 		}
 	}
-
-	// print.Verb(pcx.Package, "ensuring dependencies pre-run")
-	// err = pcx.EnsureDependencies(ctx, false)
-	// if err != nil {
-	// 	err = errors.Wrap(err, "failed to ensure dependencies")
-	// 	return
-	// }
 
 	print.Verb(pcx.Package, "gathering plugins pre-run")
 	err = pcx.GatherPlugins()
@@ -204,7 +202,7 @@ func (pcx *PackageContext) runPrepare(ctx context.Context) (err error) {
 	}
 
 	print.Verb(pcx.Package, "ensuring runtime pre-run")
-	err = runtime.Ensure(ctx, pcx.GitHub, pcx.Package.Runtime, pcx.NoCache)
+	err = runtime.Ensure(ctx, pcx.GitHub, &pcx.ActualRuntime, pcx.NoCache)
 	if err != nil {
 		err = errors.Wrap(err, "failed to ensure runtime")
 		return
@@ -216,34 +214,35 @@ func (pcx *PackageContext) runPrepare(ctx context.Context) (err error) {
 // GetRuntimeConfig returns a matching runtime config by name from the package
 // runtime list. If no name is specified, the first config is returned. If the
 // package has no configurations, a default configuration is returned.
-func GetRuntimeConfig(pkg types.Package, name string) (config *types.Runtime) {
-	if len(pkg.Runtimes) > 0 || pkg.Runtime != nil {
+func GetRuntimeConfig(pkg types.Package, name string) (config types.Runtime, err error) {
+	if len(pkg.Runtimes) > 0 {
 		// if the user did not specify a specific runtime config, use the first
 		// otherwise, search for a matching config by name
-		if name == "default" {
-			if pkg.Runtime != nil {
-				config = pkg.Runtime
-			} else {
-				config = pkg.Runtimes[0]
-			}
+		if name == "" {
+			config = *pkg.Runtimes[0]
+			print.Verb(pkg, "searching", name, "in 'runtimes' list")
 		} else {
+			print.Verb(pkg, "using first config from 'runtimes' list")
+			found := false
 			for _, cfg := range pkg.Runtimes {
 				if cfg.Name == name {
-					config = cfg
+					config = *cfg
+					found = true
 					break
 				}
 			}
+			if !found {
+				err = errors.Errorf("no runtime config '%s'", name)
+			}
 		}
-
-		if config == nil {
-			print.Warn("No runtime config called:", name, "using default")
-		}
+	} else if pkg.Runtime != nil {
+		print.Verb(pkg, "using config from 'runtime' field")
+		config = *pkg.Runtime
 	} else {
-		print.Warn("No runtime config for package, using default")
-		config = &types.Runtime{}
+		print.Verb(pkg, "using default config")
+		config = types.Runtime{}
 	}
-
-	types.ApplyRuntimeDefaults(config)
+	types.ApplyRuntimeDefaults(&config)
 
 	return
 }

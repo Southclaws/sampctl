@@ -59,7 +59,10 @@ func packageEnsure(c *cli.Context) error {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	pcx.Package.Runtime = rook.GetRuntimeConfig(pcx.Package, runtimeName)
+	pcx.ActualRuntime, err = rook.GetRuntimeConfig(pcx.Package, runtimeName)
+	if err != nil {
+		return err
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
 	defer cancel()

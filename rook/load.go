@@ -23,6 +23,8 @@ type PackageContext struct {
 	AllDependencies []versioning.DependencyMeta // flattened list of dependencies
 	AllPlugins      []versioning.DependencyMeta // flattened list of plugin dependencies
 	AllIncludePaths []string                    // any additional include paths specified by resources
+	ActualBuild     types.BuildConfig           // actual build configuration to use for running the package
+	ActualRuntime   types.Runtime               // actual runtime configuration to use for running the package
 
 	// Runtime specific fields
 	Runtime     string // the runtime config to use, defaults to `default`

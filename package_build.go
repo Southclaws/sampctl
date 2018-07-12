@@ -58,9 +58,6 @@ func packageBuild(c *cli.Context) error {
 	relativePaths := c.Bool("relativePaths")
 
 	build := c.Args().Get(0)
-	if build == "" {
-		build = "default"
-	}
 
 	if config.Metrics {
 		segment.Enqueue(analytics.Track{
@@ -71,7 +68,7 @@ func packageBuild(c *cli.Context) error {
 				Set("watch", watch).
 				Set("watch", watch).
 				Set("buildFile", buildFile != "").
-				Set("build", build != "default"),
+				Set("build", build != ""),
 		})
 	}
 

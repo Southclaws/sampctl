@@ -307,7 +307,7 @@ func GetBuildConfig(pkg types.Package, name string) (config *types.BuildConfig) 
 
 	// if the user did not specify a specific build config, use the first
 	// otherwise, search for a matching config by name
-	if name == "default" {
+	if name == "" {
 		if pkg.Build != nil {
 			config = pkg.Build
 		} else {
