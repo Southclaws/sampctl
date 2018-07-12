@@ -63,7 +63,17 @@ func EnsurePlugins(ctx context.Context, gh *github.Client, cfg *types.Runtime, c
 }
 
 // EnsureVersionedPlugin automatically downloads a plugin binary from its github releases page
-func EnsureVersionedPlugin(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, dir, platform, cacheDir string, plugins, includes, noCache bool) (files []types.Plugin, err error) {
+func EnsureVersionedPlugin(
+	ctx context.Context,
+	gh *github.Client,
+	meta versioning.DependencyMeta,
+	dir string,
+	platform string,
+	cacheDir string,
+	plugins bool,
+	includes bool,
+	noCache bool,
+) (files []types.Plugin, err error) {
 	filename, resource, err := EnsureVersionedPluginCached(ctx, meta, platform, cacheDir, noCache, gh)
 	if err != nil {
 		return

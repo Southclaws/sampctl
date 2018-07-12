@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	rt "runtime"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -155,7 +154,7 @@ func (pcx *PackageContext) runPrepare(ctx context.Context) (err error) {
 		pcx.ActualRuntime.Container = &types.ContainerConfig{MountCache: true}
 		pcx.ActualRuntime.Platform = "linux"
 	} else {
-		pcx.ActualRuntime.Platform = rt.GOOS
+		pcx.ActualRuntime.Platform = pcx.Platform
 	}
 
 	if !pcx.Package.Local {
@@ -195,7 +194,7 @@ func (pcx *PackageContext) runPrepare(ctx context.Context) (err error) {
 	}
 
 	print.Verb(pcx.Package, "gathering plugins pre-run")
-	err = pcx.GatherPlugins()
+	pcx.ActualRuntime.PluginDeps, err = pcx.GatherPlugins()
 	if err != nil {
 		err = errors.Wrap(err, "failed to gather plugins")
 		return
