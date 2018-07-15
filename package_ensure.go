@@ -32,16 +32,13 @@ func packageEnsure(c *cli.Context) error {
 	}
 
 	runtimeName := c.Args().Get(0)
-	if runtimeName == "" {
-		runtimeName = "default"
-	}
 
 	if config.Metrics {
 		segment.Enqueue(analytics.Track{
 			Event:  "package run",
 			UserId: config.UserID,
 			Properties: analytics.NewProperties().
-				Set("runtime", runtimeName != "default"),
+				Set("runtime", runtimeName != ""),
 		})
 	}
 

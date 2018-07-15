@@ -96,7 +96,7 @@ func packageTemplateRun(c *cli.Context) (err error) {
 	if !problems.IsValid() {
 		return errors.New("cannot run with build errors")
 	}
-	pcx.Runtime = "default"
+	pcx.Runtime = ""
 	pcx.Container = false
 	pcx.AppVersion = c.App.Version
 	pcx.CacheDir = cacheDir
