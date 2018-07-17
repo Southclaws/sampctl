@@ -9,6 +9,7 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/google/go-github/github"
+	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 	"gopkg.in/segmentio/analytics-go.v3"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
@@ -31,6 +32,12 @@ var (
 )
 
 func main() {
+	cacheDir, err := download.GetCacheDir()
+	if err != nil {
+		print.Erro("Failed to retrieve cache directory path (attempted <user folder>/.samp) ", err)
+		return
+	}
+
 	app := cli.NewApp()
 
 	app.Author = "Southclaws"
@@ -43,47 +50,6 @@ func main() {
 	cli.VersionFlag = cli.BoolFlag{
 		Name:  "appVersion, V",
 		Usage: "sampctl version",
-	}
-
-	cacheDir, err := download.GetCacheDir()
-	if err != nil {
-		print.Erro("Failed to retrieve cache directory path (attempted <user folder>/.samp) ", err)
-		return
-	}
-
-	config, err = types.LoadOrCreateConfig(cacheDir)
-	if err != nil {
-		print.Erro("Failed to load or create sampctl config in", cacheDir, "-", err)
-		return
-	}
-
-	if config.GitHubToken == "" {
-		gh = github.NewClient(nil)
-	} else {
-		gh = github.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(&oauth2.Token{AccessToken: config.GitHubToken})))
-	}
-
-	if config.GitUsername != "" && config.GitPassword != "" {
-		gitAuth = http.NewBasicAuth(config.GitUsername, config.GitPassword)
-	} else {
-		gitAuth, err = ssh.DefaultAuthBuilder("git")
-		if err != nil {
-			print.Verb("Failed to set up SSH:", err)
-		}
-	}
-
-	if config.Metrics {
-		if segmentKey == "" {
-			print.Warn("Segment.io key is unset!")
-		} else {
-			segment = analytics.New(segmentKey)
-			if config.NewUser {
-				print.Info("Usage metrics are active. See https://github.com/Southclaws/sampctl/wiki/Usage-Metrics for more information.")
-				segment.Enqueue(analytics.Identify{
-					UserId: config.UserID,
-				})
-			}
-		}
 	}
 
 	globalFlags := []cli.Flag{
@@ -254,13 +220,50 @@ func main() {
 
 	app.Flags = globalFlags
 	app.Before = func(c *cli.Context) error {
-		if c.GlobalBool("verbose") {
+		verbose := c.GlobalBool("verbose")
+
+		if verbose {
 			print.SetVerbose()
 			print.Verb("Verbose logging active")
 		}
 		if runtime.GOOS != "windows" {
 			print.SetColoured()
 		}
+
+		config, err = types.LoadOrCreateConfig(cacheDir, verbose)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to load or create sampctl config in %s", cacheDir)
+		}
+
+		if config.GitHubToken == "" {
+			gh = github.NewClient(nil)
+		} else {
+			gh = github.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(&oauth2.Token{AccessToken: config.GitHubToken})))
+		}
+
+		if config.GitUsername != "" && config.GitPassword != "" {
+			gitAuth = http.NewBasicAuth(config.GitUsername, config.GitPassword)
+		} else {
+			gitAuth, err = ssh.DefaultAuthBuilder("git")
+			if err != nil {
+				print.Verb("Failed to set up SSH:", err)
+			}
+		}
+
+		if config.Metrics && config.CI == "" {
+			if segmentKey == "" {
+				print.Warn("Segment.io key is unset!")
+			} else {
+				segment = analytics.New(segmentKey)
+				if config.NewUser {
+					print.Info("Usage metrics are active. See https://github.com/Southclaws/sampctl/wiki/Usage-Metrics for more information.")
+					segment.Enqueue(analytics.Identify{
+						UserId: config.UserID,
+					})
+				}
+			}
+		}
+
 		return nil
 	}
 	app.After = func(c *cli.Context) error {
