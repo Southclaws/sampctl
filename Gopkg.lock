@@ -2,6 +2,12 @@
 
 
 [[projects]]
+  name = "github.com/BurntSushi/toml"
+  packages = ["."]
+  revision = "b26d9c308763d68093482582cea63d69be07a0f0"
+  version = "v0.3.0"
+
+[[projects]]
   name = "github.com/Masterminds/semver"
   packages = ["."]
   revision = "15d8430ab86497c5c0da827b748823945e1cf1e1"
@@ -108,6 +114,12 @@
   name = "github.com/jbenet/go-context"
   packages = ["io"]
   revision = "d14ea06fba99483203c19d92cfcd13ebe73135f4"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/jinzhu/configor"
+  packages = ["."]
+  revision = "4edaf76fe18865e36de734d887f4c01bd05707af"
 
 [[projects]]
   name = "github.com/joho/godotenv"
@@ -390,6 +402,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "da4945676700997c50a70092201c6bed5c3ca5eaa3b25b385ebd92c8567f9e60"
+  inputs-digest = "33bcd7de500d0cc02be05e55ef0dbfbc12b6547c17fe6497e148bfb9565d2e48"
   solver-name = "gps-cdcl"
   solver-version = 1
