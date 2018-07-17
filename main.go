@@ -62,6 +62,10 @@ func main() {
 			Value: "",
 			Usage: "manually specify the target platform for downloaded binaries to either `windows`, `linux` or `darwin`.",
 		},
+		cli.BoolFlag{
+			Name:  "bare",
+			Usage: "skip all pre-run configuration",
+		},
 	}
 	app.Commands = []cli.Command{
 		{
@@ -222,6 +226,11 @@ func main() {
 	app.Before = func(c *cli.Context) error {
 		verbose := c.GlobalBool("verbose")
 
+		// "bare" mode is for CI use only
+		if c.GlobalBool("bare") {
+			return nil
+		}
+
 		if verbose {
 			print.SetVerbose()
 			print.Verb("Verbose logging active")
@@ -276,7 +285,10 @@ func main() {
 		// that are even numbers. 12:56:44 will work, 12:57:44 will not, etc...
 		// this is done because the GitHub API has rate limits and we don't want to use all our requests
 		// up on version checks when package management is more important.
-		if !c.GlobalIsSet("generate-bash-completion") && time.Now().Minute()%2 == 0 && time.Now().Second()%2 == 0 {
+		if !c.GlobalIsSet("generate-bash-completion") &&
+			!c.GlobalIsSet("bare") &&
+			time.Now().Minute()%2 == 0 &&
+			time.Now().Second()%2 == 0 {
 			CheckForUpdates(app.Version)
 		}
 		return nil
@@ -287,11 +299,14 @@ func main() {
 		print.Erro(err)
 	}
 
-	err = types.WriteConfig(cacheDir, *config)
-	if err != nil {
-		print.Erro("Failed to write updated configuration file to", cacheDir, "-", err)
-		return
+	if config != nil {
+		err = types.WriteConfig(cacheDir, *config)
+		if err != nil {
+			print.Erro("Failed to write updated configuration file to", cacheDir, "-", err)
+			return
+		}
 	}
+
 	if segment != nil {
 		segment.Close()
 	}
