@@ -2,7 +2,6 @@ package types
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/user"
@@ -97,54 +96,6 @@ func LoadOrCreateConfig(cacheDir string, verbose bool) (cfg *Config, err error) 
 			return
 		}
 	}
-
-	fmt.Printf("%#v\n", cfg)
-
-	/*
-		var contents []byte
-		if util.Exists(configFile) {
-			contents, err = ioutil.ReadFile(configFile)
-			if err != nil {
-				return
-			}
-
-			err = json.Unmarshal(contents, &cfg)
-			if err != nil {
-				return
-			}
-
-			if cfg.UserID == "" {
-				cfg.UserID = uuid.New().String()
-				cfg.Metrics = true
-				cfg.NewUser = true
-			}
-		} else {
-			var (
-				u        *user.User
-				username string
-			)
-			u, err = user.Current()
-			if err != nil {
-				username = ""
-			} else {
-				username = u.Username
-			}
-
-			cfg.UserID = uuid.New().String()
-			cfg.Metrics = true
-			cfg.NewUser = true
-
-			cfg.DefaultUser = username
-			contents, err = json.MarshalIndent(cfg, "", "    ")
-			if err != nil {
-				return
-			}
-			err = ioutil.WriteFile(configFile, contents, 0666)
-			if err != nil {
-				return
-			}
-		}
-	*/
 
 	return
 }
