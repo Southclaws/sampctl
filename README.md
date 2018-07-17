@@ -214,7 +214,7 @@ directory.
 ---
 # `sampctl`
 
-1.8.19 - Southclaws <hello@southcla.ws>
+1.8.20 - Southclaws <hello@southcla.ws>
 
 The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
 
@@ -238,6 +238,7 @@ Bootstrap a new SA:MP server and generates a `samp.json`/`samp.yaml` configurati
 
 - `--verbose`: output all detailed information - useful for debugging
 - `--platform windows`: manually specify the target platform for downloaded binaries to either windows, `linux` or `darwin`.
+- `--bare`: skip all pre-run configuration
 - `--version value`: the SA:MP server version to use (default: "0.3.7")
 - `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
 
@@ -251,6 +252,7 @@ Downloads the files necessary to run a SA:MP server to the current directory (un
 
 - `--verbose`: output all detailed information - useful for debugging
 - `--platform windows`: manually specify the target platform for downloaded binaries to either windows, `linux` or `darwin`.
+- `--bare`: skip all pre-run configuration
 - `--version value`: the SA:MP server version to use (default: "0.3.7")
 - `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
 
@@ -264,6 +266,7 @@ Ensures the server environment is representative of the configuration specified 
 
 - `--verbose`: output all detailed information - useful for debugging
 - `--platform windows`: manually specify the target platform for downloaded binaries to either windows, `linux` or `darwin`.
+- `--bare`: skip all pre-run configuration
 - `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
 - `--noCache --forceEnsure`: forces download of plugins if --forceEnsure is set
 
@@ -277,6 +280,7 @@ Generates a `server.cfg` file based on the configuration inside `samp.json`/`sam
 
 - `--verbose`: output all detailed information - useful for debugging
 - `--platform windows`: manually specify the target platform for downloaded binaries to either windows, `linux` or `darwin`.
+- `--bare`: skip all pre-run configuration
 - `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
 - `--container`: starts the server as a Linux container instead of running it in the current directory
 - `--mountCache --container`: if --container is set, mounts the local cache directory inside the container
@@ -303,6 +307,7 @@ Helper tool to bootstrap a new package or turn an existing project into a packag
 
 - `--verbose`: output all detailed information - useful for debugging
 - `--platform windows`: manually specify the target platform for downloaded binaries to either windows, `linux` or `darwin`.
+- `--bare`: skip all pre-run configuration
 - `--dir value`: working directory for the project - by default, uses the current directory (default: ".")
 
 ### `sampctl package ensure`
@@ -315,6 +320,7 @@ Ensures dependencies are up to date based on the `dependencies` field in `pawn.j
 
 - `--verbose`: output all detailed information - useful for debugging
 - `--platform windows`: manually specify the target platform for downloaded binaries to either windows, `linux` or `darwin`.
+- `--bare`: skip all pre-run configuration
 - `--dir value`: working directory for the project - by default, uses the current directory (default: ".")
 - `--update`: update cached dependencies to latest version
 
@@ -328,6 +334,7 @@ Installs a new package by adding it to the `dependencies` field in `pawn.json`/`
 
 - `--verbose`: output all detailed information - useful for debugging
 - `--platform windows`: manually specify the target platform for downloaded binaries to either windows, `linux` or `darwin`.
+- `--bare`: skip all pre-run configuration
 - `--dir value`: working directory for the project - by default, uses the current directory (default: ".")
 - `--dev`: for specifying dependencies only necessary for development or testing of the package
 
@@ -341,6 +348,7 @@ Uninstalls package by removing it from the `dependencies` field in `pawn.json`/`
 
 - `--verbose`: output all detailed information - useful for debugging
 - `--platform windows`: manually specify the target platform for downloaded binaries to either windows, `linux` or `darwin`.
+- `--bare`: skip all pre-run configuration
 - `--dir value`: working directory for the project - by default, uses the current directory (default: ".")
 - `--dev`: for specifying dependencies only necessary for development or testing of the package
 
@@ -354,6 +362,7 @@ Creates a release version and tags the repository with the next version number, 
 
 - `--verbose`: output all detailed information - useful for debugging
 - `--platform windows`: manually specify the target platform for downloaded binaries to either windows, `linux` or `darwin`.
+- `--bare`: skip all pre-run configuration
 - `--dir value`: working directory for the project - by default, uses the current directory (default: ".")
 
 ### `sampctl package get`
@@ -366,6 +375,7 @@ Clones a GitHub package to either a directory named after the repo or, if the cw
 
 - `--verbose`: output all detailed information - useful for debugging
 - `--platform windows`: manually specify the target platform for downloaded binaries to either windows, `linux` or `darwin`.
+- `--bare`: skip all pre-run configuration
 
 ### `sampctl package build`
 
@@ -377,6 +387,7 @@ Builds a package defined by a `pawn.json`/`pawn.yaml` file.
 
 - `--verbose`: output all detailed information - useful for debugging
 - `--platform windows`: manually specify the target platform for downloaded binaries to either windows, `linux` or `darwin`.
+- `--bare`: skip all pre-run configuration
 - `--dir value`: working directory for the project - by default, uses the current directory (default: ".")
 - `--forceEnsure`: forces dependency ensure before build
 - `--dryRun`: does not run the build but outputs the command necessary to do so
@@ -394,6 +405,7 @@ Compiles and runs a package defined by a `pawn.json`/`pawn.yaml` file.
 
 - `--verbose`: output all detailed information - useful for debugging
 - `--platform windows`: manually specify the target platform for downloaded binaries to either windows, `linux` or `darwin`.
+- `--bare`: skip all pre-run configuration
 - `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
 - `--container`: starts the server as a Linux container instead of running it in the current directory
 - `--build --forceBuild`: build configuration to use if --forceBuild is set
@@ -422,6 +434,7 @@ Creates a template package from the current directory if it is a package.
 
 - `--verbose`: output all detailed information - useful for debugging
 - `--platform windows`: manually specify the target platform for downloaded binaries to either windows, `linux` or `darwin`.
+- `--bare`: skip all pre-run configuration
 - `--dir value`: working directory for the package - by default, uses the current directory (default: ".")
 - `--update`: update cached dependencies to latest version
 
@@ -435,6 +448,7 @@ Builds the specified file in the context of the given template.
 
 - `--verbose`: output all detailed information - useful for debugging
 - `--platform windows`: manually specify the target platform for downloaded binaries to either windows, `linux` or `darwin`.
+- `--bare`: skip all pre-run configuration
 
 ### `sampctl package template run`
 
@@ -446,6 +460,7 @@ Builds and runs the specified file in the context of the given template.
 
 - `--verbose`: output all detailed information - useful for debugging
 - `--platform windows`: manually specify the target platform for downloaded binaries to either windows, `linux` or `darwin`.
+- `--bare`: skip all pre-run configuration
 - `--version value`: the SA:MP server version to use (default: "0.3.7")
 - `--mode value`: runtime mode, one of: server, main, y_testing (default: "main")
 
@@ -483,6 +498,7 @@ Usage: `Shows a list of commands or help for one command`
 
 - `--verbose`: output all detailed information - useful for debugging
 - `--platform windows`: manually specify the target platform for downloaded binaries to either windows, `linux` or `darwin`.
+- `--bare`: skip all pre-run configuration
 - `--help, -h`: show help
 - `--appVersion, -V`: sampctl version
 
