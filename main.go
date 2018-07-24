@@ -259,17 +259,21 @@ func main() {
 			}
 		}
 
-		if config.Metrics && config.CI == "" {
-			if segmentKey == "" {
-				print.Warn("Segment.io key is unset!")
-			} else {
-				segment = analytics.New(segmentKey)
-				if config.NewUser {
-					print.Info("Usage metrics are active. See https://github.com/Southclaws/sampctl/wiki/Usage-Metrics for more information.")
-					segment.Enqueue(analytics.Identify{
-						UserId: config.UserID,
-					})
-				}
+		if config.CI != "" {
+			config.Metrics = false
+		}
+		if segmentKey == "" {
+			print.Warn("Segment.io key is unset!")
+			config.Metrics = false
+		}
+
+		if config.Metrics {
+			segment = analytics.New(segmentKey)
+			if config.NewUser {
+				print.Info("Usage metrics are active. See https://github.com/Southclaws/sampctl/wiki/Usage-Metrics for more information.")
+				segment.Enqueue(analytics.Identify{
+					UserId: config.UserID,
+				})
 			}
 		}
 
