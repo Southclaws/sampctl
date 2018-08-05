@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jinzhu/configor"
@@ -32,7 +33,9 @@ func LoadOrCreateConfig(cacheDir string, verbose bool) (cfg *Config, err error) 
 	cfg = new(Config)
 
 	err = godotenv.Load(".env")
-	if err != nil && err.Error() != "open .env: no such file or directory" {
+	// on unix: "open .env: no such file or directory"
+	// on windows: "open .env: The system cannot find the file specified"
+	if err != nil && !strings.HasPrefix(err.Error(), "open .env") {
 		print.Warn("Failed to load .env:", err)
 	}
 
@@ -41,16 +44,15 @@ func LoadOrCreateConfig(cacheDir string, verbose bool) (cfg *Config, err error) 
 		filepath.Join(cacheDir, "config.yaml"),
 		filepath.Join(cacheDir, "config.toml"),
 	}
-
-	exists := false
-	for _, configFile := range configFiles {
+	configIdx := -1
+	for i, configFile := range configFiles {
 		if util.Exists(configFile) {
-			exists = true
+			configIdx = i
 			break
 		}
 	}
 
-	if exists {
+	if configIdx == -1 {
 		cnfgr := configor.New(&configor.Config{
 			ENVPrefix:            "SAMPCTL",
 			Debug:                os.Getenv("DEBUG") != "",
@@ -58,7 +60,7 @@ func LoadOrCreateConfig(cacheDir string, verbose bool) (cfg *Config, err error) 
 			ErrorOnUnmatchedKeys: true,
 		})
 
-		err = cnfgr.Load(cfg, configFiles...)
+		err = cnfgr.Load(cfg, configFiles[configIdx:configIdx]...)
 		if err != nil {
 			return nil, err
 		}
