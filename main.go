@@ -324,38 +324,41 @@ func CheckForUpdates(thisVersion string) {
 	release, _, err := gh.Repositories.GetLatestRelease(ctx, "Southclaws", "sampctl")
 	if err != nil {
 		print.Erro("Failed to check for latest sampctl release:", err)
-	} else {
-		latest, err := semver.NewVersion(release.GetTagName())
-		if err != nil {
-			print.Erro("Failed to interpret latest release tag as a semantic version:", err)
-		}
+		return
+	}
 
-		this, err := semver.NewVersion(thisVersion)
-		if err != nil {
-			print.Erro("Failed to interpret this version number as a semantic version:", err)
-		}
+	latest, err := semver.NewVersion(release.GetTagName())
+	if err != nil {
+		print.Erro("Failed to interpret latest release tag as a semantic version:", err)
+		return
+	}
 
-		if latest.GreaterThan(this) {
-			print.Info("\n-\n")
-			print.Info("sampctl version", latest.String(), "available!")
-			print.Info("You are currently using", thisVersion)
-			print.Info("To upgrade, use the following command:")
-			switch runtime.GOOS {
-			case "windows":
-				print.Info("  scoop update")
-				print.Info("  scoop update sampctl")
-			case "linux":
-				print.Info("  Debian/Ubuntu based systems:")
-				print.Info("  curl https://raw.githubusercontent.com/Southclaws/sampctl/master/install-deb.sh | sh")
-				print.Info("  CentOS/Red Hat based systems")
-				print.Info("  curl https://raw.githubusercontent.com/Southclaws/sampctl/master/install-rpm.sh | sh")
-			case "darwin":
-				print.Info("  brew update")
-				print.Info("  brew upgrade sampctl")
-			}
-			print.Info("If you have any problems upgrading, please open an issue:")
-			print.Info("  https://github.com/Southclaws/sampctl/issues/new")
+	this, err := semver.NewVersion(thisVersion)
+	if err != nil {
+		print.Erro("Failed to interpret this version number as a semantic version:", err)
+		return
+	}
+
+	if latest.GreaterThan(this) {
+		print.Info("\n-\n")
+		print.Info("sampctl version", latest.String(), "available!")
+		print.Info("You are currently using", thisVersion)
+		print.Info("To upgrade, use the following command:")
+		switch runtime.GOOS {
+		case "windows":
+			print.Info("  scoop update")
+			print.Info("  scoop update sampctl")
+		case "linux":
+			print.Info("  Debian/Ubuntu based systems:")
+			print.Info("  curl https://raw.githubusercontent.com/Southclaws/sampctl/master/install-deb.sh | sh")
+			print.Info("  CentOS/Red Hat based systems")
+			print.Info("  curl https://raw.githubusercontent.com/Southclaws/sampctl/master/install-rpm.sh | sh")
+		case "darwin":
+			print.Info("  brew update")
+			print.Info("  brew upgrade sampctl")
 		}
+		print.Info("If you have any problems upgrading, please open an issue:")
+		print.Info("  https://github.com/Southclaws/sampctl/issues/new")
 	}
 }
 
