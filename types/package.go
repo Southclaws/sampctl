@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/google/go-github/github"
 	"github.com/jinzhu/configor"
@@ -101,10 +100,9 @@ func PackageFromDep(depString versioning.DependencyString) (pkg Package, err err
 // PackageFromDir attempts to parse a pawn.json or pawn.yaml file from a directory
 func PackageFromDir(dir string) (pkg Package, err error) {
 	err = godotenv.Load(filepath.Join(dir, ".env"))
-	// on unix: "open .env: no such file or directory"
-	// on windows: "open .env: The system cannot find the file specified"
-	if err != nil && !strings.HasPrefix(err.Error(), "open .env") {
-		print.Warn("Failed to load package .env:", err)
+	if err != nil {
+		print.Verb("Failed to load package .env:", err)
+		err = nil
 	}
 
 	packageDefinitions := []string{
