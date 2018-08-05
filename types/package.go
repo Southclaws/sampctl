@@ -6,12 +6,17 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/go-github/github"
+	"github.com/jinzhu/configor"
+	"github.com/joho/godotenv"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -95,57 +100,45 @@ func PackageFromDep(depString versioning.DependencyString) (pkg Package, err err
 
 // PackageFromDir attempts to parse a pawn.json or pawn.yaml file from a directory
 func PackageFromDir(dir string) (pkg Package, err error) {
-	jsonFile := filepath.Join(dir, "pawn.json")
-	if util.Exists(jsonFile) {
-		return PackageFromJSON(jsonFile)
+	err = godotenv.Load(filepath.Join(dir, ".env"))
+	// on unix: "open .env: no such file or directory"
+	// on windows: "open .env: The system cannot find the file specified"
+	if err != nil && !strings.HasPrefix(err.Error(), "open .env") {
+		print.Warn("Failed to load package .env:", err)
 	}
 
-	yamlFile := filepath.Join(dir, "pawn.yaml")
-	if util.Exists(yamlFile) {
-		return PackageFromYAML(yamlFile)
+	packageDefinitions := []string{
+		filepath.Join(dir, "pawn.json"),
+		filepath.Join(dir, "pawn.yaml"),
+		filepath.Join(dir, "pawn.toml"),
+	}
+	packageDefinitionIdx := -1
+	packageDefinitionFormat := ""
+	for i, configFile := range packageDefinitions {
+		if util.Exists(configFile) {
+			packageDefinitionIdx = i
+			packageDefinitionFormat = filepath.Ext(configFile)[1:]
+			break
+		}
 	}
 
-	err = errors.New("no pawn.json/pawn.yaml present")
-
-	return
-}
-
-// PackageFromJSON creates a config from a JSON file
-func PackageFromJSON(file string) (pkg Package, err error) {
-	var contents []byte
-	contents, err = ioutil.ReadFile(file)
-	if err != nil {
-		err = errors.Wrap(err, "failed to read pawn.json")
+	if packageDefinitionIdx == -1 {
+		err = errors.New("no pawn.json/pawn.yaml present")
 		return
 	}
 
-	err = json.Unmarshal(contents, &pkg)
+	cnfgr := configor.New(&configor.Config{
+		ENVPrefix:            "SAMP",
+		Debug:                os.Getenv("DEBUG") != "",
+		ErrorOnUnmatchedKeys: true,
+	})
+
+	err = cnfgr.Load(pkg, packageDefinitions[packageDefinitionIdx:packageDefinitionIdx]...)
 	if err != nil {
-		err = errors.Wrap(err, "failed to unmarshal pawn.json")
 		return
 	}
 
-	pkg.Format = "json"
-
-	return
-}
-
-// PackageFromYAML creates a config from a YAML file
-func PackageFromYAML(file string) (pkg Package, err error) {
-	var contents []byte
-	contents, err = ioutil.ReadFile(file)
-	if err != nil {
-		err = errors.Wrap(err, "failed to read pawn.yaml")
-		return
-	}
-
-	err = yaml.Unmarshal(contents, &pkg)
-	if err != nil {
-		err = errors.Wrap(err, "failed to unmarshal pawn.yaml")
-		return
-	}
-
-	pkg.Format = "yaml"
+	pkg.Format = packageDefinitionFormat
 
 	return
 }
@@ -174,6 +167,9 @@ func (pkg Package) WriteDefinition() (err error) {
 		if err != nil {
 			return errors.Wrap(err, "failed to write pawn.yaml")
 		}
+	case "toml":
+		// TODO: Toml writer
+		err = errors.New("toml output not supported")
 	default:
 		err = errors.New("package has no format associated with it")
 	}
