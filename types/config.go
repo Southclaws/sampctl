@@ -52,7 +52,7 @@ func LoadOrCreateConfig(cacheDir string, verbose bool) (cfg *Config, err error) 
 		}
 	}
 
-	if configIdx == -1 {
+	if configIdx != -1 {
 		cnfgr := configor.New(&configor.Config{
 			ENVPrefix:            "SAMPCTL",
 			Debug:                os.Getenv("DEBUG") != "",
