@@ -318,6 +318,10 @@ func main() {
 
 // CheckForUpdates uses the GitHub API to check if a new release is available.
 func CheckForUpdates(thisVersion string) {
+	if gh == nil {
+		return
+	}
+
 	ctx, cf := context.WithTimeout(context.Background(), time.Second*10)
 	defer cf()
 
