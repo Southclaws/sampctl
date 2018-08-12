@@ -44,15 +44,15 @@ func LoadOrCreateConfig(cacheDir string, verbose bool) (cfg *Config, err error) 
 		filepath.Join(cacheDir, "config.yaml"),
 		filepath.Join(cacheDir, "config.toml"),
 	}
-	configIdx := -1
-	for i, configFile := range configFiles {
-		if util.Exists(configFile) {
-			configIdx = i
+	configFile := ""
+	for _, file := range configFiles {
+		if util.Exists(file) {
+			configFile = file
 			break
 		}
 	}
 
-	if configIdx != -1 {
+	if configFile != "" {
 		cnfgr := configor.New(&configor.Config{
 			ENVPrefix:            "SAMPCTL",
 			Debug:                os.Getenv("DEBUG") != "",
@@ -60,7 +60,7 @@ func LoadOrCreateConfig(cacheDir string, verbose bool) (cfg *Config, err error) 
 			ErrorOnUnmatchedKeys: true,
 		})
 
-		err = cnfgr.Load(cfg, configFiles[configIdx:configIdx]...)
+		err = cnfgr.Load(cfg, configFile)
 		if err != nil {
 			return nil, err
 		}
