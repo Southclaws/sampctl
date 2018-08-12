@@ -263,7 +263,7 @@ func (pcx *PackageContext) buildPrepare(ctx context.Context, build string, ensur
 		depDir := filepath.Join(pcx.Package.LocalPath, "dependencies", depMeta.Repo)
 		pkgInner, errInner := types.PackageFromDir(depDir)
 		if errInner != nil {
-			print.Verb(depMeta, "using cached copy for include path checking")
+			print.Verb(depMeta, "error while loading:", errInner, "using cached copy for include path checking")
 			pkgInner, errInner = types.GetCachedPackage(depMeta, pcx.CacheDir)
 			if errInner != nil {
 				noPackage = true

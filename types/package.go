@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/go-github/github"
 	"github.com/jinzhu/configor"
@@ -101,7 +102,7 @@ func PackageFromDep(depString versioning.DependencyString) (pkg Package, err err
 func PackageFromDir(dir string) (pkg Package, err error) {
 	err = godotenv.Load(filepath.Join(dir, ".env"))
 	if err != nil {
-		print.Verb("Failed to load package .env:", err)
+		print.Verb("could not load .env:", err)
 		err = nil
 	}
 
@@ -110,30 +111,40 @@ func PackageFromDir(dir string) (pkg Package, err error) {
 		filepath.Join(dir, "pawn.yaml"),
 		filepath.Join(dir, "pawn.toml"),
 	}
-	packageDefinitionIdx := -1
+	packageDefinition := ""
 	packageDefinitionFormat := ""
-	for i, configFile := range packageDefinitions {
+	for _, configFile := range packageDefinitions {
 		if util.Exists(configFile) {
-			packageDefinitionIdx = i
+			packageDefinition = configFile
 			packageDefinitionFormat = filepath.Ext(configFile)[1:]
 			break
 		}
 	}
 
-	if packageDefinitionIdx == -1 {
-		err = errors.New("no pawn.json/pawn.yaml present")
+	if packageDefinition == "" {
+		err = errors.New("no package definition file (pawn.{json|yaml|toml})")
 		return
 	}
 
 	cnfgr := configor.New(&configor.Config{
+		Environment:          "development",
 		ENVPrefix:            "SAMP",
 		Debug:                os.Getenv("DEBUG") != "",
+		Verbose:              os.Getenv("DEBUG") != "",
 		ErrorOnUnmatchedKeys: true,
 	})
 
-	err = cnfgr.Load(pkg, packageDefinitions[packageDefinitionIdx:packageDefinitionIdx]...)
+	print.Verb("loading package definition", packageDefinitionFormat, "file", packageDefinition)
+
+	// Note: configor returns weird errors on success for some dumb reason, awaiting fix upstream.
+	err = cnfgr.Load(&pkg, packageDefinition)
 	if err != nil {
-		return
+		if strings.Contains(err.Error(), "cannot unmarshal !!seq into string") {
+			err = nil
+		} else {
+			err = errors.Wrapf(err, "failed to load configuration from '%s'", packageDefinition)
+			return
+		}
 	}
 
 	pkg.Format = packageDefinitionFormat
