@@ -93,6 +93,10 @@ func packageBuild(c *cli.Context) error {
 			return cli.NewExitError(err.Error(), 1)
 		}
 
+		if build == "" {
+			build = "default"
+		}
+
 		if problems.Fatal() {
 			return cli.NewExitError(errors.New("Build encountered fatal error"), 1)
 		} else if len(problems.Errors()) > 0 {
