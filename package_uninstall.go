@@ -67,7 +67,7 @@ func packageUninstall(c *cli.Context) error {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	err = rook.Uninstall(context.Background(), gh, pcx.Package, deps, development, gitAuth, platform(c), cacheDir)
+	err = pcx.Uninstall(context.Background(), deps, development)
 	if err != nil {
 		return err
 	}
