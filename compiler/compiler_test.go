@@ -71,8 +71,8 @@ func TestCompileSource(t *testing.T) {
 			types.BuildProblems{
 				{File: "script.pwn", Line: 1, Severity: types.ProblemError, Description: `invalid function or declaration`},
 				{File: "script.pwn", Line: 3, Severity: types.ProblemError, Description: `invalid function or declaration`},
-				{File: "script.pwn", Line: 6, Severity: types.ProblemWarning, Description: `symbol is never used: "a"`},
-				{File: "script.pwn", Line: 6, Severity: types.ProblemError, Description: `no entry point (no public functions)`},
+				{File: "script.pwn", Line: 2, Severity: types.ProblemWarning, Description: `symbol is never used: "a"`},
+				{File: "script.pwn", Line: 2, Severity: types.ProblemError, Description: `no entry point (no public functions)`},
 			},
 			types.BuildResult{},
 			false, false},
@@ -88,8 +88,8 @@ func TestCompileSource(t *testing.T) {
 			types.BuildProblems{
 				{File: "script.pwn", Line: 1, Severity: types.ProblemError, Description: `invalid function or declaration`},
 				{File: "script.pwn", Line: 3, Severity: types.ProblemError, Description: `invalid function or declaration`},
-				{File: "script.pwn", Line: 6, Severity: types.ProblemWarning, Description: `symbol is never used: "a"`},
-				{File: "script.pwn", Line: 6, Severity: types.ProblemError, Description: `no entry point (no public functions)`},
+				{File: "script.pwn", Line: 2, Severity: types.ProblemWarning, Description: `symbol is never used: "a"`},
+				{File: "script.pwn", Line: 2, Severity: types.ProblemError, Description: `no entry point (no public functions)`},
 			},
 			types.BuildResult{},
 			false, false},
