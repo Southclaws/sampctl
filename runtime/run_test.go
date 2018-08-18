@@ -17,6 +17,11 @@ import (
 )
 
 func TestRun(t *testing.T) {
+	// these tests don't run on mac!
+	if runtime.GOOS == "darwin" {
+		return
+	}
+
 	tests := []struct {
 		name       string
 		wantOutput string
