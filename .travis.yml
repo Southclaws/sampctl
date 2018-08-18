@@ -11,32 +11,20 @@ addons:
 language: go
 jobs:
   include:
-    - stage: test versioning
+    - stage: test smallbits
       script:
-        - go test -race -v -p 4 -coverprofile=coverage.txt ./versioning
-        - bash <(curl -s https://codecov.io/bash)
-    - stage: test util
-      script:
-        - go test -race -v -p 4 -coverprofile=coverage.txt ./util
-        - bash <(curl -s https://codecov.io/bash)
-    - stage: test download
-      script:
-        - go test -race -v -p 4 -coverprofile=coverage.txt ./download
-        - bash <(curl -s https://codecov.io/bash)
-    - stage: test compiler
-      script:
-        - go test -race -v -p 4 -coverprofile=coverage.txt ./compiler
+        - go test -race -p 4 -coverprofile=coverage.txt ./versioning ./util ./download ./compiler
         - bash <(curl -s https://codecov.io/bash)
     - stage: test runtime
       script:
-        - go test -race -v -p 4 -coverprofile=coverage.txt ./runtime
+        - go test -race -p 4 -coverprofile=coverage.txt ./runtime
         - bash <(curl -s https://codecov.io/bash)
     - stage: test rook
       script:
-        - go test -race -v -p 4 -coverprofile=coverage.txt -timeout=20m ./rook
+        - go test -race -p 4 -coverprofile=coverage.txt -timeout=20m ./rook
         - bash <(curl -s https://codecov.io/bash)
     - stage: deploy
-      if: branch =~ ^(v?(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[\da-z-]+(?:\.[\da-z-]+)*)?(?:\+[\da-z-]+(?:\.[\da-z-]+)*)?)$
+      if: branch=~^(v?(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[\da-z-]+(?:\.[\da-z-]+)*)?(?:\+[\da-z-]+(?:\.[\da-z-]+)*)?)$
       script:
         - test -n "$TRAVIS_TAG"
         - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
