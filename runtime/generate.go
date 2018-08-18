@@ -157,24 +157,28 @@ func fromSlice(name string, obj reflect.Value, required bool, defaultValue strin
 }
 
 func fromBool(name string, obj reflect.Value, required bool, defaultValue string) (result string, err error) {
-	var value int
+	var value bool
 	if obj.IsNil() {
 		if required {
 			return "", errors.Errorf("field %s is required", name)
 		}
-		value, err = strconv.Atoi(defaultValue)
+		value, err = strconv.ParseBool(defaultValue)
 		if err != nil {
 			panic(errors.Wrapf(err, "default bool value %s failed to convert", defaultValue))
 		}
 	} else {
 		if obj.Elem().Bool() {
-			value = 1
+			value = true
 		} else {
-			value = 0
+			value = false
 		}
 	}
+	asInt := 0
+	if value {
+		asInt = 1
+	}
 
-	return fmt.Sprintf("%s %d\n", name, value), nil
+	return fmt.Sprintf("%s %d\n", name, asInt), nil
 }
 
 func fromInt(name string, obj reflect.Value, required bool, defaultValue string) (result string, err error) {

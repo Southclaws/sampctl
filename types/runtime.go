@@ -66,13 +66,13 @@ type Runtime struct {
 	ChatLogging       *bool    `default:"true"         required:"0" json:"chatlogging,omitempty"       yaml:"chatlogging,omitempty"`       // 1
 	Timestamp         *bool    `default:"true"         required:"0" json:"timestamp,omitempty"         yaml:"timestamp,omitempty"`         // 1
 	NoSign            *string  `                       required:"0" json:"nosign,omitempty"            yaml:"nosign,omitempty"`            //
-	LogTimeFormat     *string  `default:"'[%H:%M:%S]'" required:"0" json:"logtimeformat,omitempty"     yaml:"logtimeformat,omitempty"`     // [%H:%M:%S]
+	LogTimeFormat     *string  `                       required:"0" json:"logtimeformat,omitempty"     yaml:"logtimeformat,omitempty"`     // [%H:%M:%S]
 	MessageHoleLimit  *int     `default:"3000"         required:"0" json:"messageholelimit,omitempty"  yaml:"messageholelimit,omitempty"`  // 3000
 	MessagesLimit     *int     `default:"500"          required:"0" json:"messageslimit,omitempty"     yaml:"messageslimit,omitempty"`     // 500
 	AcksLimit         *int     `default:"3000"         required:"0" json:"ackslimit,omitempty"         yaml:"ackslimit,omitempty"`         // 3000
 	PlayerTimeout     *int     `default:"10000"        required:"0" json:"playertimeout,omitempty"     yaml:"playertimeout,omitempty"`     // 10000
 	MinConnectionTime *int     `default:"0"            required:"0" json:"minconnectiontime,omitempty" yaml:"minconnectiontime,omitempty"` // 0
-	LagCompmode       *int     `default:"0"            required:"0" json:"lagcompmode,omitempty"       yaml:"lagcompmode,omitempty"`       // 1
+	LagCompmode       *int     `default:"1"            required:"0" json:"lagcompmode,omitempty"       yaml:"lagcompmode,omitempty"`       // 1
 	ConnseedTime      *int     `default:"300000"       required:"0" json:"connseedtime,omitempty"      yaml:"connseedtime,omitempty"`      // 300000
 	DBLogging         *bool    `default:"false"        required:"0" json:"db_logging,omitempty"        yaml:"db_logging,omitempty"`        // 0
 	DBLogQueries      *bool    `default:"false"        required:"0" json:"db_log_queries,omitempty"    yaml:"db_log_queries,omitempty"`    // 0

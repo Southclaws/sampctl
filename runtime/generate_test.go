@@ -69,7 +69,6 @@ incar_rate 30
 weapon_rate 30
 chatlogging 1
 timestamp 1
-logtimeformat [%H:%M:%S]
 messageholelimit 3000
 messageslimit 500
 ackslimit 3000
@@ -135,7 +134,6 @@ incar_rate 30
 weapon_rate 30
 chatlogging 1
 timestamp 1
-logtimeformat [%H:%M:%S]
 messageholelimit 3000
 messageslimit 500
 ackslimit 3000
@@ -205,7 +203,6 @@ incar_rate 30
 weapon_rate 30
 chatlogging 1
 timestamp 1
-logtimeformat [%H:%M:%S]
 messageholelimit 3000
 messageslimit 500
 ackslimit 3000
