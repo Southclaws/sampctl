@@ -34,7 +34,7 @@ func TestCompileSource(t *testing.T) {
 				Input:      "./tests/build-simple-pass/script.pwn",
 				Output:     "./tests/build-simple-pass/script.amx",
 				Includes:   []string{},
-				Version:    "3.10.8",
+				Version:    "3.10.4",
 			}, false},
 			nil,
 			types.BuildResult{},
@@ -47,7 +47,7 @@ func TestCompileSource(t *testing.T) {
 				Output:     "./tests/build-simple-pass/script.amx",
 				Args:       []string{"-d3"},
 				Includes:   []string{},
-				Version:    "3.10.8",
+				Version:    "3.10.4",
 			}, false},
 			nil,
 			types.BuildResult{
@@ -66,7 +66,7 @@ func TestCompileSource(t *testing.T) {
 				Input:      "./tests/build-simple-fail/script.pwn",
 				Output:     "./tests/build-simple-fail/script.amx",
 				Includes:   []string{},
-				Version:    "3.10.8",
+				Version:    "3.10.4",
 			}, false},
 			types.BuildProblems{
 				{File: "script.pwn", Line: 1, Severity: types.ProblemError, Description: `invalid function or declaration`},
@@ -83,7 +83,7 @@ func TestCompileSource(t *testing.T) {
 				Input:      "./tests/build-simple-fail/script.pwn",
 				Output:     "./tests/build-simple-fail/script.amx",
 				Includes:   []string{},
-				Version:    "3.10.8",
+				Version:    "3.10.4",
 			}, true},
 			types.BuildProblems{
 				{File: "script.pwn", Line: 1, Severity: types.ProblemError, Description: `invalid function or declaration`},
@@ -101,7 +101,7 @@ func TestCompileSource(t *testing.T) {
 				Output:     "./tests/build-local-include-pass/script.amx",
 				Args:       []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
 				Includes:   []string{},
-				Version:    "3.10.8",
+				Version:    "3.10.4",
 			}, false},
 			nil,
 			types.BuildResult{
@@ -121,7 +121,7 @@ func TestCompileSource(t *testing.T) {
 				Output:     "./tests/build-local-include-warn/script.amx",
 				Args:       []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
 				Includes:   []string{},
-				Version:    "3.10.8",
+				Version:    "3.10.4",
 			}, false},
 			types.BuildProblems{
 				{File: "library.inc", Line: 6, Severity: types.ProblemWarning, Description: `symbol is never used: "b"`},
@@ -144,7 +144,7 @@ func TestCompileSource(t *testing.T) {
 				Output:     "./tests/build-fatal/script.amx",
 				Args:       []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
 				Includes:   []string{},
-				Version:    "3.10.8",
+				Version:    "3.10.4",
 			}, false},
 			types.BuildProblems{
 				{File: "script.pwn", Line: 1, Severity: types.ProblemFatal, Description: `cannot read from file: "idonotexist"`},

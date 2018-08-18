@@ -3,6 +3,7 @@ package download
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -69,12 +70,14 @@ func FromCache(cacheDir, filename, dir string, method ExtractFunc, paths map[str
 		return
 	}
 
-	_, err = method(path, dir, paths)
+	paths, err = method(path, dir, paths)
 	if err != nil {
 		hit = false
 		err = errors.Wrapf(err, "failed to unzip package %s", path)
 		return
 	}
+
+	fmt.Println(paths)
 
 	return true, nil
 }

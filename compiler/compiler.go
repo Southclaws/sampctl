@@ -250,7 +250,7 @@ func CompileWithCommand(cmd *exec.Cmd, workingDir, errorDir string, relative boo
 		close(resultChan)
 	}()
 
-	print.Verb("executing compiler in", workingDir, "as", cmd.Args)
+	print.Verb("executing compiler in", workingDir, "as", cmd.Env, cmd.Args)
 	cmdError := cmd.Run()
 
 	err = outputWriter.Close()
