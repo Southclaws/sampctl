@@ -66,14 +66,14 @@ func TestPackage_Build(t *testing.T) {
 			}, nil, false,
 		},
 		{
-			"colandreasinc", []byte(`#include <a_samp>
-			#include <colandreas>
+			"uuid", []byte(`#include <a_samp>
+			#include <uuid>
 			main() {}`,
 			), args{
 				types.Package{
 					Parent:         true,
-					LocalPath:      util.FullPath("./tests/build-auto-colandreasinc"),
-					DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "colandreasinc"},
+					LocalPath:      util.FullPath("./tests/build-auto-requests"),
+					DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "requests"},
 					Entry:          "gamemodes/test.pwn",
 					Output:         "gamemodes/test.amx",
 				},
@@ -81,7 +81,7 @@ func TestPackage_Build(t *testing.T) {
 				[]versioning.DependencyMeta{
 					{Site: "github.com", User: "sampctl", Repo: "samp-stdlib"},
 					{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
-					{Site: "github.com", User: "Pottus", Repo: "ColAndreas"},
+					{Site: "github.com", User: "Southclaws", Repo: "pawn-uuid"},
 				},
 			}, nil, false,
 		},
