@@ -252,7 +252,7 @@ func ApplyRuntimeDefaults(rt *Runtime) {
 	}
 	if rt.Echo == nil {
 		rt.Echo = new(string)
-		*rt.Echo = ""
+		*rt.Echo = "-"
 	}
 }
 

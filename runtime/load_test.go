@@ -54,7 +54,7 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 				Format:  "json",
 				Version: "0.3.7",
 				Mode:    types.Server,
-				Echo:    &[]string{""}[0],
+				Echo:    &[]string{"-"}[0],
 				Gamemodes: []string{
 					"rivershell",
 					"baserace",
