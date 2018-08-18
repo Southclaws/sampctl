@@ -20,6 +20,12 @@
   version = "v0.4.5"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/Southclaws/configor"
+  packages = ["."]
+  revision = "84c96aa9c620209bd4f929a5b3fc2549c3f65bc6"
+
+[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
@@ -86,6 +92,12 @@
   version = "v1.4.7"
 
 [[projects]]
+  name = "github.com/go-yaml/yaml"
+  packages = ["."]
+  revision = "5420a8b6744d3b0345ab293f6fcba19c978f1183"
+  version = "v2.2.1"
+
+[[projects]]
   name = "github.com/golang/protobuf"
   packages = ["proto"]
   revision = "925541529c1fa6821df4e44ce2723319eb2be768"
@@ -114,12 +126,6 @@
   name = "github.com/jbenet/go-context"
   packages = ["io"]
   revision = "d14ea06fba99483203c19d92cfcd13ebe73135f4"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/jinzhu/configor"
-  packages = ["."]
-  revision = "4edaf76fe18865e36de734d887f4c01bd05707af"
 
 [[projects]]
   name = "github.com/joho/godotenv"
@@ -402,6 +408,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "33bcd7de500d0cc02be05e55ef0dbfbc12b6547c17fe6497e148bfb9565d2e48"
+  inputs-digest = "2c4238536427fb813892f81b404ac7c692ed7000f18788054cdd6e7058dcc06d"
   solver-name = "gps-cdcl"
   solver-version = 1

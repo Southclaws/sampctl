@@ -58,27 +58,27 @@ type Runtime struct {
 	MaxNPC     *int    `default:"0"     required:"0" json:"maxnpc,omitempty"     yaml:"maxnpc,omitempty"`     // 0
 
 	// Rates and performance
-	StreamRate        *int     `default:"1000"       required:"0" json:"stream_rate,omitempty"       yaml:"stream_rate,omitempty"`       // 1000
-	StreamDistance    *float32 `default:"200.0"      required:"0" json:"stream_distance,omitempty"   yaml:"stream_distance,omitempty"`   // 200.0
-	OnFootRate        *int     `default:"30"         required:"0" json:"onfoot_rate,omitempty"       yaml:"onfoot_rate,omitempty"`       // 30
-	InCarRate         *int     `default:"30"         required:"0" json:"incar_rate,omitempty"        yaml:"incar_rate,omitempty"`        // 30
-	WeaponRate        *int     `default:"30"         required:"0" json:"weapon_rate,omitempty"       yaml:"weapon_rate,omitempty"`       // 30
-	ChatLogging       *bool    `default:"true"       required:"0" json:"chatlogging,omitempty"       yaml:"chatlogging,omitempty"`       // 1
-	Timestamp         *bool    `default:"true"       required:"0" json:"timestamp,omitempty"         yaml:"timestamp,omitempty"`         // 1
-	NoSign            *string  `                     required:"0" json:"nosign,omitempty"            yaml:"nosign,omitempty"`            //
-	LogTimeFormat     *string  `default:"[%H:%M:%S]" required:"0" json:"logtimeformat,omitempty"     yaml:"logtimeformat,omitempty"`     // [%H:%M:%S]
-	MessageHoleLimit  *int     `default:"3000"       required:"0" json:"messageholelimit,omitempty"  yaml:"messageholelimit,omitempty"`  // 3000
-	MessagesLimit     *int     `default:"500"        required:"0" json:"messageslimit,omitempty"     yaml:"messageslimit,omitempty"`     // 500
-	AcksLimit         *int     `default:"3000"       required:"0" json:"ackslimit,omitempty"         yaml:"ackslimit,omitempty"`         // 3000
-	PlayerTimeout     *int     `default:"10000"      required:"0" json:"playertimeout,omitempty"     yaml:"playertimeout,omitempty"`     // 10000
-	MinConnectionTime *int     `default:"0"          required:"0" json:"minconnectiontime,omitempty" yaml:"minconnectiontime,omitempty"` // 0
-	LagCompmode       *int     `default:"0"          required:"0" json:"lagcompmode,omitempty"       yaml:"lagcompmode,omitempty"`       // 1
-	ConnseedTime      *int     `default:"300000"     required:"0" json:"connseedtime,omitempty"      yaml:"connseedtime,omitempty"`      // 300000
-	DBLogging         *bool    `default:"false"      required:"0" json:"db_logging,omitempty"        yaml:"db_logging,omitempty"`        // 0
-	DBLogQueries      *bool    `default:"false"      required:"0" json:"db_log_queries,omitempty"    yaml:"db_log_queries,omitempty"`    // 0
-	ConnectCookies    *bool    `default:"true"       required:"0" json:"conncookies,omitempty"       yaml:"conncookies,omitempty"`       // 1
-	CookieLogging     *bool    `default:"false"      required:"0" json:"cookielogging,omitempty"     yaml:"cookielogging,omitempty"`     // 1
-	Output            *bool    `default:"true"       required:"0" json:"output,omitempty"            yaml:"output,omitempty"`            // 1
+	StreamRate        *int     `default:"1000"         required:"0" json:"stream_rate,omitempty"       yaml:"stream_rate,omitempty"`       // 1000
+	StreamDistance    *float32 `default:"200.0"        required:"0" json:"stream_distance,omitempty"   yaml:"stream_distance,omitempty"`   // 200.0
+	OnFootRate        *int     `default:"30"           required:"0" json:"onfoot_rate,omitempty"       yaml:"onfoot_rate,omitempty"`       // 30
+	InCarRate         *int     `default:"30"           required:"0" json:"incar_rate,omitempty"        yaml:"incar_rate,omitempty"`        // 30
+	WeaponRate        *int     `default:"30"           required:"0" json:"weapon_rate,omitempty"       yaml:"weapon_rate,omitempty"`       // 30
+	ChatLogging       *bool    `default:"true"         required:"0" json:"chatlogging,omitempty"       yaml:"chatlogging,omitempty"`       // 1
+	Timestamp         *bool    `default:"true"         required:"0" json:"timestamp,omitempty"         yaml:"timestamp,omitempty"`         // 1
+	NoSign            *string  `                       required:"0" json:"nosign,omitempty"            yaml:"nosign,omitempty"`            //
+	LogTimeFormat     *string  `default:"'[%H:%M:%S]'" required:"0" json:"logtimeformat,omitempty"     yaml:"logtimeformat,omitempty"`     // [%H:%M:%S]
+	MessageHoleLimit  *int     `default:"3000"         required:"0" json:"messageholelimit,omitempty"  yaml:"messageholelimit,omitempty"`  // 3000
+	MessagesLimit     *int     `default:"500"          required:"0" json:"messageslimit,omitempty"     yaml:"messageslimit,omitempty"`     // 500
+	AcksLimit         *int     `default:"3000"         required:"0" json:"ackslimit,omitempty"         yaml:"ackslimit,omitempty"`         // 3000
+	PlayerTimeout     *int     `default:"10000"        required:"0" json:"playertimeout,omitempty"     yaml:"playertimeout,omitempty"`     // 10000
+	MinConnectionTime *int     `default:"0"            required:"0" json:"minconnectiontime,omitempty" yaml:"minconnectiontime,omitempty"` // 0
+	LagCompmode       *int     `default:"0"            required:"0" json:"lagcompmode,omitempty"       yaml:"lagcompmode,omitempty"`       // 1
+	ConnseedTime      *int     `default:"300000"       required:"0" json:"connseedtime,omitempty"      yaml:"connseedtime,omitempty"`      // 300000
+	DBLogging         *bool    `default:"false"        required:"0" json:"db_logging,omitempty"        yaml:"db_logging,omitempty"`        // 0
+	DBLogQueries      *bool    `default:"false"        required:"0" json:"db_log_queries,omitempty"    yaml:"db_log_queries,omitempty"`    // 0
+	ConnectCookies    *bool    `default:"true"         required:"0" json:"conncookies,omitempty"       yaml:"conncookies,omitempty"`       // 1
+	CookieLogging     *bool    `default:"false"        required:"0" json:"cookielogging,omitempty"     yaml:"cookielogging,omitempty"`     // 1
+	Output            *bool    `default:"true"         required:"0" json:"output,omitempty"            yaml:"output,omitempty"`            // 1
 
 	// Extra properties for plugins etc
 	Extra map[string]string `required:"0" json:"extra,omitempty" yaml:"extra,omitempty"`

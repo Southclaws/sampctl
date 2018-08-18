@@ -12,7 +12,5 @@ import (
 // If there are any keys in the data that do not match fields in the config
 // interface, they will be silently ignored.
 func unmarshalJSON(data []byte, config interface{}, errorOnUnmatchedKeys bool) error {
-
 	return json.Unmarshal(data, &config)
-
 }

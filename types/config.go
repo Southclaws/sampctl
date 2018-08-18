@@ -3,13 +3,12 @@ package types
 import (
 	"encoding/json"
 	"io/ioutil"
-	"os"
 	"os/user"
 	"path/filepath"
 	"strings"
 
+	"github.com/Southclaws/configor"
 	"github.com/google/uuid"
-	"github.com/jinzhu/configor"
 	"github.com/joho/godotenv"
 
 	"github.com/Southclaws/sampctl/print"
@@ -54,8 +53,7 @@ func LoadOrCreateConfig(cacheDir string, verbose bool) (cfg *Config, err error) 
 
 	if configFile != "" {
 		cnfgr := configor.New(&configor.Config{
-			ENVPrefix:            "SAMPCTL",
-			Debug:                os.Getenv("DEBUG") != "",
+			EnvironmentPrefix:    "SAMPCTL",
 			Verbose:              verbose,
 			ErrorOnUnmatchedKeys: true,
 		})

@@ -238,7 +238,7 @@ func TestUnmatchedKeyInTomlConfigFile(t *testing.T) {
 	var result configStruct
 
 	// Do not return error when there are unmatched keys but ErrorOnUnmatchedKeys is false
-	if err := configor.New(&configor.Config{}).Load(&result, filename); err != nil {
+	if err = configor.New(&configor.Config{}).Load(&result, filename); err != nil {
 		t.Errorf("Should NOT get error when loading configuration with extra keys. Error: %v", err)
 	}
 
@@ -282,18 +282,19 @@ func TestUnmatchedKeyInYamlConfigFile(t *testing.T) {
 
 	filename := file.Name()
 
-	if data, err := yaml.Marshal(config); err == nil {
+	data, err := yaml.Marshal(config)
+	if err == nil {
 		file.WriteString(string(data))
 
 		var result configStruct
 
 		// Do not return error when there are unmatched keys but ErrorOnUnmatchedKeys is false
-		if err := configor.New(&configor.Config{}).Load(&result, filename); err != nil {
+		if err = configor.New(&configor.Config{}).Load(&result, filename); err != nil {
 			t.Errorf("Should NOT get error when loading configuration with extra keys. Error: %v", err)
 		}
 
 		// Return an error when there are unmatched keys and ErrorOnUnmatchedKeys is true
-		if err := configor.New(&configor.Config{ErrorOnUnmatchedKeys: true}).Load(&result, filename); err == nil {
+		if err = configor.New(&configor.Config{ErrorOnUnmatchedKeys: true}).Load(&result, filename); err == nil {
 			t.Errorf("Should get error when loading configuration with extra keys")
 
 			// The error should be of type *yaml.TypeError

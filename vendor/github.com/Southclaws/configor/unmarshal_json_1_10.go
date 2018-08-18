@@ -24,5 +24,4 @@ func unmarshalJSON(data []byte, config interface{}, errorOnUnmatchedKeys bool) e
 		return err
 	}
 	return nil
-
 }
