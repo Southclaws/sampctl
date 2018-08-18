@@ -49,6 +49,7 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 		if err != nil {
 			return
 		}
+		types.ApplyRuntimeDefaults(&pcx.ActualRuntime)
 		err = runtime.Ensure(ctx, pcx.GitHub, &pcx.ActualRuntime, false)
 		if err != nil {
 			return
