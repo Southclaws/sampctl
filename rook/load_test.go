@@ -34,6 +34,7 @@ func TestPackageFromDir(t *testing.T) {
 				"Southclaws/pawn-errors:1.2.3",
 			},
 			Runtime: &types.Runtime{
+				Echo:         &[]string{"-"}[0],
 				Version:      "0.3.7",
 				Platform:     runtime.GOOS,
 				RCONPassword: &[]string{"password"}[0],
@@ -54,6 +55,7 @@ func TestPackageFromDir(t *testing.T) {
 				"Southclaws/pawn-errors:1.2.3",
 			},
 			Runtime: &types.Runtime{
+				Echo:         &[]string{"-"}[0],
 				Version:      "0.3.7",
 				Platform:     runtime.GOOS,
 				RCONPassword: &[]string{"password"}[0],
