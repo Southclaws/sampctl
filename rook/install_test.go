@@ -13,7 +13,7 @@ import (
 	"github.com/Southclaws/sampctl/versioning"
 )
 
-func TestPackage_Install(t *testing.T) {
+func Test_PackageInstall(t *testing.T) {
 	type args struct {
 		targets     []versioning.DependencyString
 		development bool
@@ -30,14 +30,14 @@ func TestPackage_Install(t *testing.T) {
 			"entry": "gamemodes/test.pwn",
 			"output": "gamemodes/test.amx",
 			"dependencies": ["sampctl/samp-stdlib"]
-		}`), args{[]versioning.DependencyString{"Southclaws/samp-ini"}, false}, false},
+		}`), args{[]versioning.DependencyString{"thecodeah/pawn-humanize:v1.1.1"}, false}, false},
 		{"dev", []byte(`{
 			"user": "Southclaws",
 			"repo": "install-test",
 			"entry": "gamemodes/test.pwn",
 			"output": "gamemodes/test.amx",
 			"dependencies": ["sampctl/samp-stdlib"]
-		}`), args{[]versioning.DependencyString{"Southclaws/samp-ini"}, true}, false},
+		}`), args{[]versioning.DependencyString{"thecodeah/pawn-humanize:v1.1.1"}, true}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -77,7 +77,7 @@ func TestPackage_Install(t *testing.T) {
 	}
 }
 
-func TestGet(t *testing.T) {
+func Test_PackageGet(t *testing.T) {
 	type args struct {
 		dep versioning.DependencyMeta
 		dir string
@@ -87,8 +87,8 @@ func TestGet(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{"direct", args{versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "samp-logger"}, "./tests/get/direct"}, false},
-		{"get-auto", args{versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "samp-logger"}, "./tests/get"}, false},
+		{"direct", args{versioning.DependencyMeta{Site: "github.com", User: "thecodeah", Repo: "pawn-humanize", Tag: "v1.1.1"}, "./tests/get/direct"}, false},
+		{"get-auto", args{versioning.DependencyMeta{Site: "github.com", User: "thecodeah", Repo: "pawn-humanize", Tag: "v1.1.1"}, "./tests/get"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

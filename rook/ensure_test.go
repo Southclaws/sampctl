@@ -76,7 +76,7 @@ func TestPackageContext_EnsurePackage(t *testing.T) {
 			"7a13c662e619a478b0e8d1d6d113e3aa41cb6d37", nil, false},
 		{"tag", args{versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "samp-stdlib", Tag: "0.3z-R4"}, false},
 			"de2ed6d59f0304dab726588afd3b6f6df77ca87d", nil, false},
-		{"branch", args{versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "YSI-Includes", Branch: "5.x"}, false},
+		{"branch", args{versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-errors", Branch: "v2"}, false},
 			"", nil, false},
 		{"resource", args{versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "package-resource-test"}, false},
 			"", []string{"package-resource-test-07ad0b/include.inc"}, false},
