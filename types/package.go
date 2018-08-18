@@ -136,6 +136,7 @@ func PackageFromDir(dir string) (pkg Package, err error) {
 
 	print.Verb("loading package definition", packageDefinitionFormat, "file", packageDefinition)
 
+	pkg = Package{}
 	// Note: configor returns weird errors on success for some dumb reason, awaiting fix upstream.
 	err = cnfgr.Load(&pkg, packageDefinition)
 	if err != nil {
