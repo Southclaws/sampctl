@@ -250,6 +250,10 @@ func ApplyRuntimeDefaults(rt *Runtime) {
 	if rt.Mode == "" {
 		rt.Mode = def.Mode
 	}
+	if rt.Echo == nil {
+		rt.Echo = new(string)
+		*rt.Echo = ""
+	}
 }
 
 // AsDep attempts to interpret the plugin string as a dependency string
