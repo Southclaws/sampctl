@@ -15,11 +15,10 @@ builds:
     env:
       - CGO_ENABLED=0
     ldflags:
-      -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.segmentKey={{.Env.SEGMENT_KEY}}
+      - "s -w -X main.version={{.Version}} -X main.segmentKey={{.Env.SEGMENT_KEY}}"
 archive:
   format: tar.gz
-  name_template:
-    "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+  name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
   files:
     - licence*
     - LICENCE*
@@ -39,13 +38,16 @@ dockers:
     goarch: "386"
     binary: sampctl
     dockerfile: Dockerfile
-    latest: true
+    tag_templates:
+      - "{{ .Tag }}"
+      - "v{{ .Major }}"
+      - "v{{ .Major }}.{{ .Minor }}"
+      - latest
 nfpm:
   vendor: Southclaws
   homepage: https://github.com/Southclaws/sampctl
   maintainer: Southclaws <hello@southcla.ws>
-  description:
-    The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
+  description: The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
   license: GPLv3
   formats:
     - deb
@@ -55,13 +57,11 @@ brew:
     owner: Southclaws
     name: homebrew-sampctl
   homepage: https://github.com/Southclaws/sampctl
-  description:
-    The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
+  description: The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
 scoop:
   bucket:
     owner: Southclaws
     name: scoops
   homepage: http://sampctl.com
-  description:
-    The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
+  description: The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
   license: GPLv3
