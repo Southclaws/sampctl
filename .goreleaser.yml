@@ -15,7 +15,7 @@ builds:
     env:
       - CGO_ENABLED=0
     ldflags:
-      - "s -w -X main.version={{.Version}} -X main.segmentKey={{.Env.SEGMENT_KEY}}"
+      - "-s -w -X main.version={{.Version}} -X main.segmentKey={{.Env.SEGMENT_KEY}}"
 archive:
   format: tar.gz
   name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
