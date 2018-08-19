@@ -9,6 +9,7 @@ import (
 )
 
 // Resource represents a resource associated with a package
+// nolint:lll
 type Resource struct {
 	Name     string            `json:"name,omitempty"`     // filename pattern of the resource
 	Platform string            `json:"platform,omitempty"` // target platform, if empty the resource is always used but if this is set and does not match the runtime OS, the resource is ignored

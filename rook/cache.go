@@ -149,11 +149,15 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 	}
 	recurse(pcx.Package.DependencyMeta)
 
-	return
+	return nil
 }
 
 // EnsureDependencyFromCache ensures the repository at `path` is up to date
-func (pcx PackageContext) EnsureDependencyFromCache(meta versioning.DependencyMeta, path string, forceUpdate bool) (repo *git.Repository, err error) {
+func (pcx PackageContext) EnsureDependencyFromCache(
+	meta versioning.DependencyMeta,
+	path string,
+	forceUpdate bool,
+) (repo *git.Repository, err error) {
 	print.Verb(meta, "ensuring dependency package from cache to", path, "force update:", forceUpdate)
 
 	from, err := filepath.Abs(meta.CachePath(pcx.CacheDir))
@@ -173,11 +177,20 @@ func (pcx PackageContext) EnsureDependencyFromCache(meta versioning.DependencyMe
 }
 
 // EnsureDependencyCached clones a package to path using the default branch
-func (pcx PackageContext) EnsureDependencyCached(meta versioning.DependencyMeta, forceUpdate bool) (repo *git.Repository, err error) {
+func (pcx PackageContext) EnsureDependencyCached(
+	meta versioning.DependencyMeta,
+	forceUpdate bool,
+) (repo *git.Repository, err error) {
 	return pcx.ensureRepoExists(meta.URL(), meta.CachePath(pcx.CacheDir), meta.Branch, meta.SSH != "", forceUpdate)
 }
 
-func (pcx PackageContext) ensureRepoExists(from, to, branch string, ssh, forceUpdate bool) (repo *git.Repository, err error) {
+func (pcx PackageContext) ensureRepoExists(
+	from,
+	to,
+	branch string,
+	ssh,
+	forceUpdate bool,
+) (repo *git.Repository, err error) {
 	repo, err = git.PlainOpen(to)
 	if err != nil {
 		print.Verb("no repo at", to, "-", err, "cloning new copy")

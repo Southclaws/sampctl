@@ -29,6 +29,7 @@ var packageInstallFlags = []cli.Flag{
 	},
 }
 
+//nolint:dupl
 func packageInstall(c *cli.Context) error {
 	if c.Bool("verbose") {
 		print.SetVerbose()
@@ -38,6 +39,7 @@ func packageInstall(c *cli.Context) error {
 	development := c.Bool("dev")
 
 	if config.Metrics {
+		//nolint:errcheck
 		segment.Enqueue(analytics.Track{
 			Event:  "package install",
 			UserId: config.UserID,

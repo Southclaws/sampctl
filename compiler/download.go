@@ -17,7 +17,12 @@ import (
 )
 
 // FromCache attempts to get a compiler package from the cache, `hit` represents success
-func FromCache(meta versioning.DependencyMeta, dir, platform, cacheDir string) (compiler types.Compiler, hit bool, err error) {
+func FromCache(
+	meta versioning.DependencyMeta,
+	dir string,
+	platform string,
+	cacheDir string,
+) (compiler types.Compiler, hit bool, err error) {
 	compiler, err = GetCompilerPackageInfo(cacheDir, platform)
 	if err != nil {
 		return
@@ -43,7 +48,14 @@ func FromCache(meta versioning.DependencyMeta, dir, platform, cacheDir string) (
 }
 
 // FromNet downloads a compiler package to the cache
-func FromNet(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, dir, platform, cacheDir string) (compiler types.Compiler, err error) {
+func FromNet(
+	ctx context.Context,
+	gh *github.Client,
+	meta versioning.DependencyMeta,
+	dir string,
+	platform string,
+	cacheDir string,
+) (compiler types.Compiler, err error) {
 	print.Info("Downloading compiler package", meta.Tag)
 
 	compiler, err = GetCompilerPackageInfo(cacheDir, platform)
@@ -59,7 +71,15 @@ func FromNet(ctx context.Context, gh *github.Client, meta versioning.DependencyM
 		}
 	}
 
-	path, _, err := download.ReleaseAssetByPattern(ctx, gh, meta, regexp.MustCompile(compiler.Match), "", GetCompilerFilename(meta.Tag, platform, compiler.Method), cacheDir)
+	path, _, err := download.ReleaseAssetByPattern(
+		ctx,
+		gh,
+		meta,
+		regexp.MustCompile(compiler.Match),
+		"",
+		GetCompilerFilename(meta.Tag, platform, compiler.Method),
+		cacheDir,
+	)
 	if err != nil {
 		return
 	}
@@ -76,11 +96,18 @@ func FromNet(ctx context.Context, gh *github.Client, meta versioning.DependencyM
 		return
 	}
 
-	return
+	return compiler, nil
 }
 
 // GetCompilerPackage downloads and installs a Pawn compiler to a user directory
-func GetCompilerPackage(ctx context.Context, gh *github.Client, version types.CompilerVersion, dir, platform, cacheDir string) (compiler types.Compiler, err error) {
+func GetCompilerPackage(
+	ctx context.Context,
+	gh *github.Client,
+	version types.CompilerVersion,
+	dir string,
+	platform string,
+	cacheDir string,
+) (compiler types.Compiler, err error) {
 	meta := versioning.DependencyMeta{
 		Site: "github.com",
 		User: "pawn-lang",
@@ -109,7 +136,7 @@ func GetCompilerPackage(ctx context.Context, gh *github.Client, version types.Co
 		return
 	}
 
-	return
+	return compiler, nil
 }
 
 // GetCompilerPackageInfo returns the URL for a specific compiler version

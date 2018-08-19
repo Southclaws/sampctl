@@ -10,7 +10,7 @@ type BuildConfig struct {
 	Args       []string          `json:"args,omitempty"`       // list of arguments to pass to the compiler
 	Input      string            `json:"input,omitempty"`      // input .pwn file
 	Output     string            `json:"output,omitempty"`     // output .amx file
-	Includes   []string          `json:"includes,omitempty"`   // list of include files to include in compilation via -i flags
+	Includes   []string          `json:"includes,omitempty"`   // list of include files to pass to compiler via -i flags
 	Constants  map[string]string `json:"constants,omitempty"`  // set of constant definitions to pass to the compiler
 	Plugins    [][]string        `json:"plugins,omitempty"`    // set of commands to run before compilation
 }

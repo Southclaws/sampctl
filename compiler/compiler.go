@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -22,6 +23,7 @@ import (
 	"github.com/Southclaws/sampctl/util"
 )
 
+//nolint:lll
 var (
 	// matches warnings or errors
 	matchCompilerProblem = regexp.MustCompile(`^(.*?)\(([0-9]*)[- 0-9]*\) \: (fatal error|error|warning) [0-9]*\: (.*)$`)
@@ -43,7 +45,20 @@ var (
 )
 
 // CompileSource compiles a given input script to the specified output path using compiler version
-func CompileSource(ctx context.Context, gh *github.Client, execDir, errorDir, cacheDir, platform string, config types.BuildConfig, relative bool) (problems types.BuildProblems, result types.BuildResult, err error) {
+func CompileSource(
+	ctx context.Context,
+	gh *github.Client,
+	execDir,
+	errorDir,
+	cacheDir,
+	platform string,
+	config types.BuildConfig,
+	relative bool,
+) (
+	problems types.BuildProblems,
+	result types.BuildResult,
+	err error,
+) {
 	print.Info("Compiling", config.Input, "with compiler version", config.Version)
 
 	cmd, err := PrepareCommand(ctx, gh, execDir, cacheDir, platform, config)
@@ -60,7 +75,14 @@ func CompileSource(ctx context.Context, gh *github.Client, execDir, errorDir, ca
 }
 
 // PrepareCommand prepares a build command for compiling the given input script
-func PrepareCommand(ctx context.Context, gh *github.Client, execDir, cacheDir, platform string, config types.BuildConfig) (cmd *exec.Cmd, err error) {
+func PrepareCommand(
+	ctx context.Context,
+	gh *github.Client,
+	execDir,
+	cacheDir,
+	platform string,
+	config types.BuildConfig,
+) (cmd *exec.Cmd, err error) {
 	var (
 		input  string
 		output string
@@ -131,7 +153,10 @@ func PrepareCommand(ctx context.Context, gh *github.Client, execDir, cacheDir, p
 			if fileExt == ".inc" {
 				if location, exists := includeFiles[fileName]; exists {
 					if location != fullPath {
-						includeErrors = append(includeErrors, fmt.Sprintf("Duplicate '%s' found in both\n'%s'\n'%s'\n", fileName, location, fullPath))
+						includeErrors = append(includeErrors, fmt.Sprintf(
+							"Duplicate '%s' found in both\n'%s'\n'%s'\n",
+							fileName, location, fullPath,
+						))
 					}
 				} else {
 					includeFiles[fileName] = fullPath
@@ -168,11 +193,16 @@ func PrepareCommand(ctx context.Context, gh *github.Client, execDir, cacheDir, p
 		fmt.Sprintf("DYLD_LIBRARY_PATH=%s", runtimeDir),
 	}
 
-	return
+	return cmd, nil
 }
 
 // CompileWithCommand takes a prepared command and executes it
-func CompileWithCommand(cmd *exec.Cmd, workingDir, errorDir string, relative bool) (problems types.BuildProblems, result types.BuildResult, err error) {
+func CompileWithCommand(
+	cmd *exec.Cmd,
+	workingDir,
+	errorDir string,
+	relative bool,
+) (problems types.BuildProblems, result types.BuildResult, err error) {
 	var (
 		outputReader, outputWriter = io.Pipe()
 		problemChan                = make(chan types.BuildProblem, 2048)
@@ -215,7 +245,10 @@ func CompileWithCommand(cmd *exec.Cmd, workingDir, errorDir string, relative boo
 					}
 				}
 
-				problem.Line, _ = strconv.Atoi(groups[2])
+				problem.Line, err = strconv.Atoi(groups[2])
+				if err != nil {
+					return
+				}
 
 				switch groups[3] {
 				case "warning":
@@ -260,10 +293,10 @@ func CompileWithCommand(cmd *exec.Cmd, workingDir, errorDir string, relative boo
 
 	if cmdError != nil {
 		if !strings.HasPrefix(cmdError.Error(), "exit status") {
-			// if the failure was not caused by a simple compile error
-			print.Erro("Failed to execute compiler")
-			print.Erro("if you're on a 64 bit system this may be because the system is not set up to execute 32 bit binaries")
-			print.Erro("please enable this by allowing i386 packages and/or installing g++-multilib")
+			if runtime.GOOS == "linux" {
+				print.Erro("if you're on a 64 bit system, you may need to enable 32 bit binaries")
+				print.Erro("you can do this by allowing i386 packages and installing g++-multilib")
+			}
 			err = errors.Wrap(cmdError, "failed to execute compiler")
 			return
 		} else if cmdError.Error() == "exit status 1" {
@@ -281,6 +314,7 @@ func CompileWithCommand(cmd *exec.Cmd, workingDir, errorDir string, relative boo
 		problems = append(problems, problem)
 	}
 
+	//nolint:errcheck
 	for line := range resultChan {
 		if g := matchHeader.FindStringSubmatch(line); len(g) == 2 {
 			result.Header, _ = strconv.Atoi(g[1])
@@ -296,7 +330,7 @@ func CompileWithCommand(cmd *exec.Cmd, workingDir, errorDir string, relative boo
 		}
 	}
 
-	return
+	return problems, result, err
 }
 
 // RunPlugins executes the plugins for a given build config

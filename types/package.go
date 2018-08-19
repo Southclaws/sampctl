@@ -35,6 +35,7 @@ import (
 // Finally, if a repository stores its package source files in a subdirectory, that directory should
 // be specified in the Include field. This is common practice for plugins that store the plugin
 // source code in the root and the Pawn source in a subdirectory called 'include'.
+// nolint:lll
 type Package struct {
 	// Parent indicates that this package is a "working" package that the user has explicitly
 	// created and is developing. The opposite of this would be packages that exist in the
@@ -94,6 +95,7 @@ func (pkg Package) GetAllDependencies() (result []versioning.DependencyString) {
 // PackageFromDep creates a Package object from a Dependency String
 func PackageFromDep(depString versioning.DependencyString) (pkg Package, err error) {
 	dep, err := depString.Explode()
+	//nolint:lll
 	pkg.Site, pkg.User, pkg.Repo, pkg.Path, pkg.Tag, pkg.Branch, pkg.Commit = dep.Site, dep.User, dep.Repo, dep.Path, dep.Tag, dep.Branch, dep.Commit
 	return
 }
@@ -149,7 +151,7 @@ func PackageFromDir(dir string) (pkg Package, err error) {
 
 	pkg.Format = packageDefinitionFormat
 
-	return
+	return pkg, nil
 }
 
 // WriteDefinition creates a JSON or YAML file for a package object, the format depends
@@ -196,7 +198,11 @@ func GetCachedPackage(meta versioning.DependencyMeta, cacheDir string) (pkg Pack
 // It first checks the the sampctl central repository, if that fails it falls back to using the
 // repository for the package itself. This means upstream changes to plugins can be first staged in
 // the official central repository before being pulled to the package specific repository.
-func GetRemotePackage(ctx context.Context, client *github.Client, meta versioning.DependencyMeta) (pkg Package, err error) {
+func GetRemotePackage(
+	ctx context.Context,
+	client *github.Client,
+	meta versioning.DependencyMeta,
+) (pkg Package, err error) {
 	pkg, err = PackageFromOfficialRepo(ctx, client, meta)
 	if err != nil {
 		return PackageFromRepo(ctx, client, meta)
@@ -205,14 +211,21 @@ func GetRemotePackage(ctx context.Context, client *github.Client, meta versionin
 }
 
 // PackageFromRepo attempts to get a package from the given package definition's public repo
-func PackageFromRepo(ctx context.Context, client *github.Client, meta versioning.DependencyMeta) (pkg Package, err error) {
+func PackageFromRepo(
+	ctx context.Context,
+	client *github.Client,
+	meta versioning.DependencyMeta,
+) (pkg Package, err error) {
 	repo, _, err := client.Repositories.Get(ctx, meta.User, meta.Repo)
 	if err != nil {
 		return
 	}
 	var resp *http.Response
 
-	resp, err = http.Get(fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/pawn.json", meta.User, meta.Repo, *repo.DefaultBranch))
+	resp, err = http.Get(fmt.Sprintf(
+		"https://raw.githubusercontent.com/%s/%s/%s/pawn.json",
+		meta.User, meta.Repo, *repo.DefaultBranch,
+	))
 	if err != nil {
 		return
 	}
@@ -226,7 +239,10 @@ func PackageFromRepo(ctx context.Context, client *github.Client, meta versioning
 		return
 	}
 
-	resp, err = http.Get(fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/pawn.yaml", meta.User, meta.Repo, *repo.DefaultBranch))
+	resp, err = http.Get(fmt.Sprintf(
+		"https://raw.githubusercontent.com/%s/%s/%s/pawn.yaml",
+		meta.User, meta.Repo, *repo.DefaultBranch,
+	))
 	if err != nil {
 		return
 	}
@@ -240,15 +256,20 @@ func PackageFromRepo(ctx context.Context, client *github.Client, meta versioning
 		return
 	}
 
-	err = errors.Wrap(err, "package does not point to a valid remote package")
-
-	return
+	return pkg, errors.Wrap(err, "package does not point to a valid remote package")
 }
 
 // PackageFromOfficialRepo attempts to get a package from the sampctl/plugins official repository
 // this repo is mainly only used for testing plugins before being PR'd into their respective repos.
-func PackageFromOfficialRepo(ctx context.Context, client *github.Client, meta versioning.DependencyMeta) (pkg Package, err error) {
-	resp, err := http.Get(fmt.Sprintf("https://raw.githubusercontent.com/sampctl/plugins/master/%s-%s.json", meta.User, meta.Repo))
+func PackageFromOfficialRepo(
+	ctx context.Context,
+	client *github.Client,
+	meta versioning.DependencyMeta,
+) (pkg Package, err error) {
+	resp, err := http.Get(fmt.Sprintf(
+		"https://raw.githubusercontent.com/sampctl/plugins/master/%s-%s.json",
+		meta.User, meta.Repo,
+	))
 	if err != nil {
 		err = errors.Wrapf(err, "failed to get plugin '%s' from official repo", meta)
 		return
@@ -270,5 +291,5 @@ func PackageFromOfficialRepo(ctx context.Context, client *github.Client, meta ve
 		return
 	}
 
-	return
+	return pkg, nil
 }

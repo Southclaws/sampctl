@@ -67,6 +67,7 @@ func main() {
 			Usage: "skip all pre-run configuration",
 		},
 	}
+	//nolint:lll
 	app.Commands = []cli.Command{
 		{
 			Name:        "server",
@@ -133,12 +134,12 @@ func main() {
 					BashComplete: packageInstallBash,
 				},
 				{
-					Name:         "uninstall",
-					Usage:        "sampctl package uninstall [package definition]",
-					Description:  "Uninstalls package by removing it from the `dependencies` field in `pawn.json`/`pawn.yaml` and deletes the contents.",
-					Action:       packageUninstall,
-					Flags:        append(globalFlags, packageUninstallFlags...),
-					BashComplete: packageUninstallBash,
+					Name:        "uninstall",
+					Usage:       "sampctl package uninstall [package definition]",
+					Description: "Uninstalls package by removing it from the `dependencies` field in `pawn.json`/`pawn.yaml` and deletes the contents.",
+					Action:      packageUninstall,
+					Flags:       append(globalFlags, packageUninstallFlags...),
+					// BashComplete: packageUninstallBash,
 				},
 				{
 					Name:        "release",
@@ -247,7 +248,10 @@ func main() {
 		if config.GitHubToken == "" {
 			gh = github.NewClient(nil)
 		} else {
-			gh = github.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(&oauth2.Token{AccessToken: config.GitHubToken})))
+			gh = github.NewClient(
+				oauth2.NewClient(context.Background(),
+					oauth2.StaticTokenSource(&oauth2.Token{AccessToken: config.GitHubToken})),
+			)
 		}
 
 		if config.GitUsername != "" && config.GitPassword != "" {
@@ -270,7 +274,9 @@ func main() {
 		if config.Metrics {
 			segment = analytics.New(segmentKey)
 			if config.NewUser {
+				//nolint:lll
 				print.Info("Usage metrics are active. See https://github.com/Southclaws/sampctl/wiki/Usage-Metrics for more information.")
+				//nolint:errcheck
 				segment.Enqueue(analytics.Identify{
 					UserId: config.UserID,
 				})

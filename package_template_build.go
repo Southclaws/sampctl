@@ -30,6 +30,7 @@ func packageTemplateBuild(c *cli.Context) (err error) {
 	}
 
 	if config.Metrics {
+		//nolint:errcheck
 		segment.Enqueue(analytics.Track{
 			Event:  "package template build",
 			UserId: config.UserID,
@@ -68,13 +69,15 @@ func packageTemplateBuild(c *cli.Context) (err error) {
 	}
 
 	print.Info("Build complete with", len(problems), "problems")
-	print.Info(fmt.Sprintf("Results, in bytes: Header: %d, Code: %d, Data: %d, Stack/Heap: %d, Estimated usage: %d, Total: %d\n",
+	print.Info(fmt.Sprintf(
+		"Results, in bytes: Header: %d, Code: %d, Data: %d, Stack/Heap: %d, Estimated usage: %d, Total: %d\n",
 		result.Header,
 		result.Code,
 		result.Data,
 		result.StackHeap,
 		result.Estimate,
-		result.Total))
+		result.Total,
+	))
 
-	return
+	return nil
 }

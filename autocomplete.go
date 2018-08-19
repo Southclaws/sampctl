@@ -18,7 +18,10 @@ func autoComplete(c *cli.Context) (err error) {
 		flavour = "zsh"
 	}
 
-	resp, err := http.Get(fmt.Sprintf("https://raw.githubusercontent.com/urfave/cli/master/autocomplete/%s_autocomplete", flavour))
+	resp, err := http.Get(fmt.Sprintf(
+		"https://raw.githubusercontent.com/urfave/cli/master/autocomplete/%s_autocomplete",
+		flavour,
+	))
 	if err != nil {
 		return
 	}
@@ -49,5 +52,5 @@ func autoComplete(c *cli.Context) (err error) {
 	print.Info("To enable, add the following line to your .bashrc file (or equivalent)")
 	print.Info("PROG=sampctl source", completionFile)
 
-	return
+	return nil
 }

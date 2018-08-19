@@ -26,7 +26,14 @@ import (
 
 // RunContainer does what Run does but inside a Linux container
 // nolint:gocyclo
-func RunContainer(ctx context.Context, cfg sampctltypes.Runtime, cacheDir string, passArgs bool, output io.Writer, input io.Reader) (err error) {
+func RunContainer(
+	ctx context.Context,
+	cfg sampctltypes.Runtime,
+	cacheDir string,
+	passArgs bool,
+	output io.Writer,
+	input io.Reader,
+) (err error) {
 	cli, err := client.NewEnvClient()
 	if err != nil {
 		return
@@ -192,5 +199,5 @@ func RunContainer(ctx context.Context, cfg sampctltypes.Runtime, cacheDir string
 		err = nil
 	}
 
-	return
+	return err
 }

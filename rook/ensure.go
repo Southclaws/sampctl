@@ -56,7 +56,7 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 		}
 	}
 
-	return
+	return err
 }
 
 // GatherPlugins iterates the AllPlugins list and appends them to the runtime dependencies list
@@ -149,10 +149,14 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 		}
 	}
 
-	return
+	return err
 }
 
-func (pcx PackageContext) extractResourceDependencies(ctx context.Context, pkg types.Package, res types.Resource) (dir string, err error) {
+func (pcx PackageContext) extractResourceDependencies(
+	ctx context.Context,
+	pkg types.Package,
+	res types.Resource,
+) (dir string, err error) {
 	dir = filepath.Join(pcx.Package.Vendor, res.Path(pkg))
 	print.Verb(pkg, "installing resource-based dependency", res.Name, "to", dir)
 
@@ -162,17 +166,31 @@ func (pcx PackageContext) extractResourceDependencies(ctx context.Context, pkg t
 		return
 	}
 
-	_, err = runtime.EnsureVersionedPlugin(ctx, pcx.GitHub, pkg.DependencyMeta, dir, pcx.Platform, pcx.CacheDir, false, true, false)
+	_, err = runtime.EnsureVersionedPlugin(
+		ctx,
+		pcx.GitHub,
+		pkg.DependencyMeta,
+		dir,
+		pcx.Platform,
+		pcx.CacheDir,
+		false,
+		true,
+		false,
+	)
 	if err != nil {
 		err = errors.Wrap(err, "failed to ensure asset")
 		return
 	}
 
-	return
+	return dir, nil
 }
 
 // updateRepoState takes a repo that exists on disk and ensures it matches tag, branch or commit constraints
-func (pcx *PackageContext) updateRepoState(repo *git.Repository, meta versioning.DependencyMeta, forcePull bool) (err error) {
+func (pcx *PackageContext) updateRepoState(
+	repo *git.Repository,
+	meta versioning.DependencyMeta,
+	forcePull bool,
+) (err error) {
 	print.Verb(meta, "updating repository state with", pcx.GitAuth, "authentication method")
 
 	var wt *git.Worktree
@@ -269,5 +287,5 @@ func (pcx *PackageContext) updateRepoState(repo *git.Repository, meta versioning
 		}
 	}
 
-	return
+	return err
 }

@@ -1,4 +1,5 @@
-// Package download handles downloading and extracting sa-mp server versions. Packages are cached in ~/.samp to avoid unnecessary downloads.
+// Package download handles downloading and extracting sa-mp server versions.
+// Packages are cached in ~/.samp to avoid unnecessary downloads.
 package download
 
 import (
@@ -110,10 +111,18 @@ func FromNet(location, cacheDir, filename string) (result string, err error) {
 }
 
 // ReleaseAssetByPattern downloads a resource file, which is a GitHub release asset
-func ReleaseAssetByPattern(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, matcher *regexp.Regexp, dir, outputFile, cacheDir string) (filename, tag string, err error) {
+func ReleaseAssetByPattern(
+	ctx context.Context,
+	gh *github.Client,
+	meta versioning.DependencyMeta,
+	matcher *regexp.Regexp,
+	dir,
+	outputFile,
+	cacheDir string,
+) (filename, tag string, err error) {
 	var (
 		asset  *github.ReleaseAsset
-		assets []string
+		assets = make([]string, 1)
 	)
 
 	var release *github.RepositoryRelease
@@ -152,10 +161,19 @@ func ReleaseAssetByPattern(ctx context.Context, gh *github.Client, meta versioni
 	}
 
 	filename, err = FromNet(*asset.BrowserDownloadURL, cacheDir, outputFile)
-	return
+	if err != nil {
+		return
+	}
+
+	return filename, tag, nil
 }
 
-func getLatestReleaseOrPreRelease(ctx context.Context, gh *github.Client, owner, repo string) (release *github.RepositoryRelease, err error) {
+func getLatestReleaseOrPreRelease(
+	ctx context.Context,
+	gh *github.Client,
+	owner string,
+	repo string,
+) (release *github.RepositoryRelease, err error) {
 	releases, _, err := gh.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{})
 	if err != nil {
 		err = errors.Wrap(err, "failed to list releases")

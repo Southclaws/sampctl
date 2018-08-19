@@ -128,7 +128,7 @@ loop:
 	if err != nil {
 		err = errors.Wrap(err, "unhandled error while parsing archive")
 	}
-	return
+	return files, err
 }
 
 // Unzip will un-compress a zip archive, moving all files and folders to an output directory.
@@ -145,6 +145,7 @@ func Unzip(src, dst string, paths map[string]string) (files map[string]string, e
 	}()
 
 	files = make(map[string]string)
+	var archivedFile io.ReadCloser
 	for _, header := range reader.File {
 		if header.Name == "" {
 			continue
@@ -176,7 +177,7 @@ func Unzip(src, dst string, paths map[string]string) (files map[string]string, e
 				}
 			}
 
-			archivedFile, err := header.Open()
+			archivedFile, err = header.Open()
 			if err != nil {
 				return nil, err
 			}
@@ -205,7 +206,7 @@ func Unzip(src, dst string, paths map[string]string) (files map[string]string, e
 			files[source] = target
 		}
 	}
-	return
+	return files, err
 }
 
 func nameInPaths(name string, paths map[string]string) (found bool, source, target string) {

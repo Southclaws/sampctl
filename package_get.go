@@ -24,6 +24,7 @@ func packageGet(c *cli.Context) error {
 	}
 
 	if config.Metrics {
+		//nolint:errcheck
 		segment.Enqueue(analytics.Track{
 			Event:  "package get",
 			UserId: config.UserID,

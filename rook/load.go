@@ -110,7 +110,7 @@ func NewPackageContext(
 	}
 
 	print.Verb(pcx.Package, "flattened dependencies to", len(pcx.AllDependencies), "leaves")
-	return
+	return pcx, nil
 }
 
 func getPackageTag(dir string) (tag string) {
@@ -118,7 +118,6 @@ func getPackageTag(dir string) (tag string) {
 	if err != nil {
 		// repo may be intentionally not a git repo, so only print verbosely
 		print.Verb("failed to open repo as git repository:", err)
-		err = nil
 	} else {
 		vtag, errInner := versioning.GetRepoCurrentVersionedTag(repo)
 		if errInner != nil {

@@ -34,6 +34,7 @@ func packageEnsure(c *cli.Context) error {
 	runtimeName := c.Args().Get(0)
 
 	if config.Metrics {
+		//nolint:errcheck
 		segment.Enqueue(analytics.Track{
 			Event:  "package run",
 			UserId: config.UserID,

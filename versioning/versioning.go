@@ -62,6 +62,7 @@ func (dm DependencyMeta) Validate() (err error) {
 	return
 }
 
+//nolint:lll
 var (
 	// MatchGitSSH matches ssh URLs such as 'git@github.com:Southclaws/sampctl'
 	MatchGitSSH = regexp.MustCompile(`^([a-zA-Z][a-zA-Z0-9_]+)\@((?:[a-zA-Z][a-zA-Z0-9\-]*\.)*[a-zA-Z][a-zA-Z0-9\-]*)\:((?:[A-Za-z0-9_\-\.]+\/?)*)$`)
@@ -129,7 +130,7 @@ func (d DependencyString) Explode() (dep DependencyMeta, err error) {
 		return DependencyMeta{}, err
 	}
 
-	return
+	return dep, nil
 }
 
 func attemptGitSSH(d string) (username, host, path string, success bool) {
@@ -176,7 +177,7 @@ func explodePath(d string) (dep DependencyMeta, err error) {
 			err = errors.New("version must be a branch (@) or a tag (:)")
 		}
 	}
-	return
+	return dep, err
 }
 
 // URL generates a GitHub URL for a package - it does not test the validity of the URL

@@ -28,6 +28,7 @@ func InitialiseServer(version, dir, platform string) (err error) {
 	)
 
 	if !util.Exists(gamemodesDir) {
+		//nolint:lll
 		print.Warn("This directory does not appear to have a gamemodes directory, you must add at least one gamemode to run a server")
 	} else {
 		gamemodesList = getAmxFiles(gamemodesDir)
@@ -155,8 +156,11 @@ func InitialiseServer(version, dir, platform string) (err error) {
 	print.Info("Plugins: ", answers.Plugins)
 
 	err = config.ToFile()
+	if err != nil {
+		return errors.Wrap(err, "failed to generate config")
+	}
 
-	return
+	return nil
 }
 
 func getAmxFiles(dir string) (result []string) {

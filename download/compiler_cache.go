@@ -1,3 +1,4 @@
+//nolint:dupl,golint
 package download
 
 import (

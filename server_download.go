@@ -33,6 +33,7 @@ func serverDownload(c *cli.Context) error {
 	dir := util.FullPath(c.String("dir"))
 
 	if config.Metrics {
+		//nolint:errcheck
 		segment.Enqueue(analytics.Track{
 			Event:  "server download",
 			UserId: config.UserID,

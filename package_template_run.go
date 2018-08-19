@@ -36,6 +36,7 @@ func packageTemplateRun(c *cli.Context) (err error) {
 	}
 
 	if config.Metrics {
+		//nolint:errcheck
 		segment.Enqueue(analytics.Track{
 			Event:  "package template run",
 			UserId: config.UserID,
@@ -82,13 +83,15 @@ func packageTemplateRun(c *cli.Context) (err error) {
 	}
 
 	print.Info("Build complete with", len(problems), "problems")
-	print.Info(fmt.Sprintf("Results, in bytes: Header: %d, Code: %d, Data: %d, Stack/Heap: %d, Estimated usage: %d, Total: %d\n",
+	print.Info(fmt.Sprintf(
+		"Results, in bytes: Header: %d, Code: %d, Data: %d, Stack/Heap: %d, Estimated usage: %d, Total: %d\n",
 		result.Header,
 		result.Code,
 		result.Data,
 		result.StackHeap,
 		result.Estimate,
-		result.Total))
+		result.Total,
+	))
 
 	// override the version with the one passed by --version
 	pcx.Package.Runtime.Version = version
@@ -115,5 +118,5 @@ func packageTemplateRun(c *cli.Context) (err error) {
 		return
 	}
 
-	return
+	return nil
 }

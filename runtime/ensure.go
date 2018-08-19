@@ -51,7 +51,7 @@ func Ensure(ctx context.Context, gh *github.Client, cfg *types.Runtime, noCache 
 		return errors.Wrap(err, "failed to generate server.cfg")
 	}
 
-	return
+	return nil
 }
 
 // EnsureBinaries ensures the dir has all the necessary files to run a server
@@ -96,7 +96,10 @@ func EnsureScripts(cfg types.Runtime) (err error) {
 		for _, gamemode := range cfg.Gamemodes {
 			fullpath := filepath.Join(gamemodes, gamemode+".amx")
 			if !util.Exists(fullpath) {
-				errs = append(errs, fmt.Sprintf("gamemode '%s' is missing its .amx file from the gamemodes directory", gamemode))
+				errs = append(errs, fmt.Sprintf(
+					"gamemode '%s' is missing its .amx file from the gamemodes directory",
+					gamemode,
+				))
 			}
 		}
 	} else {
@@ -108,7 +111,10 @@ func EnsureScripts(cfg types.Runtime) (err error) {
 		for _, filterscript := range cfg.Filterscripts {
 			fullpath := filepath.Join(cfg.WorkingDir, "filterscripts", filterscript+".amx")
 			if !util.Exists(fullpath) {
-				errs = append(errs, fmt.Sprintf("filterscript '%s' is missing its .amx file from the filterscripts directory", filterscript))
+				errs = append(errs, fmt.Sprintf(
+					"filterscript '%s' is missing its .amx file from the filterscripts directory",
+					filterscript,
+				))
 			}
 		}
 	} else {
@@ -124,7 +130,7 @@ func EnsureScripts(cfg types.Runtime) (err error) {
 		err = errors.New(strings.Join(errs, ", "))
 	}
 
-	return
+	return err
 }
 
 func pluginExtForFile(os string) (ext string) {

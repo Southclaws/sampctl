@@ -106,7 +106,7 @@ func RefFromTag(repo *git.Repository, meta DependencyMeta) (ref *plumbing.Refere
 		}
 	}
 
-	return
+	return ref, err
 }
 
 // RefFromBranch returns a ref from a branch name
@@ -218,7 +218,7 @@ func GetRepoSemverTags(repo *git.Repository) (versionedTags VersionedTags, err e
 		err = errors.Wrap(err, "failed to iterate commits")
 	}
 
-	return
+	return versionedTags, err
 }
 
 // GetRepoCurrentVersionedTag returns the current versioned tag of a repo if
@@ -261,7 +261,7 @@ func GetRepoCurrentVersionedTag(repo *git.Repository) (tag *VersionedTag, err er
 		return storer.ErrStop
 	})
 
-	return
+	return tag, err
 }
 
 // RefFromTagRef resolves a tag reference to its actual object

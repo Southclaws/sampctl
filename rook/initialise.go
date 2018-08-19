@@ -43,7 +43,15 @@ type Answers struct {
 }
 
 // Init prompts the user to initialise a package
-func Init(ctx context.Context, gh *github.Client, dir string, config *types.Config, auth transport.AuthMethod, platform, cacheDir string) (err error) {
+func Init(
+	ctx context.Context,
+	gh *github.Client,
+	dir string,
+	config *types.Config,
+	auth transport.AuthMethod,
+	platform,
+	cacheDir string,
+) (err error) {
 	var (
 		pwnFiles []string
 		incFiles []string
@@ -322,8 +330,11 @@ func Init(ctx context.Context, gh *github.Client, dir string, config *types.Conf
 		return
 	}
 	err = pcx.EnsureDependencies(ctx, true)
+	if err != nil {
+		return
+	}
 
-	return
+	return nil
 }
 
 func getTemplateFile(dir, filename string, answers Answers) (err error) {
@@ -374,8 +385,11 @@ func getTemplateFile(dir, filename string, answers Answers) (err error) {
 	}()
 
 	_, err = file.WriteString(outputContents)
+	if err != nil {
+		return
+	}
 
-	return
+	return nil
 }
 
 func validateUser(ans interface{}) (err error) {

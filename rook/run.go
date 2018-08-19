@@ -113,7 +113,7 @@ loop:
 
 	print.Info("finished running run watcher")
 
-	return
+	return err
 }
 
 func (pcx *PackageContext) runPrepare(ctx context.Context) (err error) {
@@ -207,7 +207,7 @@ func (pcx *PackageContext) runPrepare(ctx context.Context) (err error) {
 		return
 	}
 
-	return
+	return nil
 }
 
 // GetRuntimeConfig returns a matching runtime config by name from the package
@@ -232,6 +232,7 @@ func GetRuntimeConfig(pkg types.Package, name string) (config types.Runtime, err
 			}
 			if !found {
 				err = errors.Errorf("no runtime config '%s'", name)
+				return
 			}
 		}
 	} else if pkg.Runtime != nil {
@@ -243,5 +244,5 @@ func GetRuntimeConfig(pkg types.Package, name string) (config types.Runtime, err
 	}
 	types.ApplyRuntimeDefaults(&config)
 
-	return
+	return config, nil
 }

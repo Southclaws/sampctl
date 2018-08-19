@@ -16,11 +16,15 @@ import (
 )
 
 // Install adds a new dependency to an existing local parent package
-func (pcx *PackageContext) Install(ctx context.Context, targets []versioning.DependencyString, development bool) (err error) {
+func (pcx *PackageContext) Install(
+	ctx context.Context,
+	targets []versioning.DependencyString,
+	development bool,
+) (err error) {
 	exists := false
 
 	for _, target := range targets {
-		_, err = versioning.DependencyString(target).Explode()
+		_, err = target.Explode()
 		if err != nil {
 			return errors.Wrapf(err, "failed to parse %s as a dependency string", target)
 		}
@@ -56,12 +60,23 @@ func (pcx *PackageContext) Install(ctx context.Context, targets []versioning.Dep
 	}
 
 	err = pcx.Package.WriteDefinition()
+	if err != nil {
+		return
+	}
 
-	return
+	return nil
 }
 
 // Get simply performs a git clone of the given package to the specified directory then ensures it
-func Get(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, dir string, auth transport.AuthMethod, platform, cacheDir string) (err error) {
+func Get(
+	ctx context.Context,
+	gh *github.Client,
+	meta versioning.DependencyMeta,
+	dir string,
+	auth transport.AuthMethod,
+	platform,
+	cacheDir string,
+) (err error) {
 	err = os.MkdirAll(dir, 0700)
 	if err != nil {
 		return errors.Wrap(err, "failed to create directory for clone")
@@ -91,5 +106,5 @@ func Get(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta,
 		return errors.Wrap(err, "failed to ensure dependencies for cloned package")
 	}
 
-	return
+	return nil
 }

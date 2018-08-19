@@ -35,6 +35,7 @@ func packageTemplateMake(c *cli.Context) (err error) {
 	}
 
 	if config.Metrics {
+		//nolint:errcheck
 		segment.Enqueue(analytics.Track{
 			Event:  "package template make",
 			UserId: config.UserID,
@@ -94,5 +95,5 @@ func packageTemplateMake(c *cli.Context) (err error) {
 	print.Info(fmt.Sprintf("- `cd %s` and use sampctl as normal", templatePath))
 	print.Info(fmt.Sprintf("- pass `--dir %s` to sampctl commands", templatePath))
 
-	return
+	return nil
 }

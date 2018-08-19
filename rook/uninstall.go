@@ -1,8 +1,6 @@
 package rook
 
 import (
-	"context"
-
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/print"
@@ -10,9 +8,12 @@ import (
 )
 
 // Uninstall removes a dependency from a package and attempts to delete the contents
-func (pcx *PackageContext) Uninstall(ctx context.Context, targets []versioning.DependencyString, development bool) (err error) {
+func (pcx *PackageContext) Uninstall(
+	targets []versioning.DependencyString,
+	development bool,
+) (err error) {
 	for _, target := range targets {
-		err = pcx.uninstall(ctx, target, development)
+		err = pcx.uninstall(target, development)
 		if err != nil {
 			return
 		}
@@ -23,22 +24,25 @@ func (pcx *PackageContext) Uninstall(ctx context.Context, targets []versioning.D
 	return
 }
 
-func (pcx *PackageContext) uninstall(ctx context.Context, target versioning.DependencyString, development bool) (err error) {
-	_, err = versioning.DependencyString(target).Explode()
+func (pcx *PackageContext) uninstall(
+	target versioning.DependencyString,
+	development bool,
+) (err error) {
+	_, err = target.Explode()
 	if err != nil {
 		return errors.Wrapf(err, "failed to parse %s as a dependency string", target)
 	}
 
 	if development {
-		pcx.uninstallDev(ctx, target)
+		err = pcx.uninstallDev(target)
 	} else {
-		pcx.uninstallDep(ctx, target)
+		err = pcx.uninstallDep(target)
 	}
 	return
 }
 
 // regular dependencies
-func (pcx *PackageContext) uninstallDep(ctx context.Context, target versioning.DependencyString) (err error) {
+func (pcx *PackageContext) uninstallDep(target versioning.DependencyString) (err error) {
 	idx := -1
 	for i, dep := range pcx.Package.Dependencies {
 		if dep == target {
@@ -58,7 +62,7 @@ func (pcx *PackageContext) uninstallDep(ctx context.Context, target versioning.D
 }
 
 // development dependencies
-func (pcx *PackageContext) uninstallDev(ctx context.Context, target versioning.DependencyString) (err error) {
+func (pcx *PackageContext) uninstallDev(target versioning.DependencyString) (err error) {
 	idx := -1
 	for i, dep := range pcx.Package.Development {
 		if dep == target {

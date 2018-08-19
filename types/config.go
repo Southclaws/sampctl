@@ -16,6 +16,7 @@ import (
 )
 
 // Config represents a local configuration for sampctl
+// nolint:lll
 type Config struct {
 	UserID      string `json:"user_id"                env:"__do_not_set__"`       // Anonymous user ID for metrics
 	Metrics     bool   `json:"metrics"                env:"SAMPCTL_METRICS"`      // Whether or not to report telemetry metrics
@@ -97,7 +98,7 @@ func LoadOrCreateConfig(cacheDir string, verbose bool) (cfg *Config, err error) 
 		}
 	}
 
-	return
+	return cfg, nil
 }
 
 // WriteConfig writes a configuration file to the given cache directory

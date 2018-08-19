@@ -46,6 +46,7 @@ func serverRun(c *cli.Context) error {
 	noCache := c.Bool("noCache")
 
 	if config.Metrics {
+		//nolint:errcheck
 		segment.Enqueue(analytics.Track{
 			Event:  "server run",
 			UserId: config.UserID,

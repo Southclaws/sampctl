@@ -19,7 +19,13 @@ import (
 )
 
 // EnsurePlugins validates and downloads plugin binary files
-func EnsurePlugins(ctx context.Context, gh *github.Client, cfg *types.Runtime, cacheDir string, noCache bool) (err error) {
+func EnsurePlugins(
+	ctx context.Context,
+	gh *github.Client,
+	cfg *types.Runtime,
+	cacheDir string,
+	noCache bool,
+) (err error) {
 	pluginsDir := util.FullPath(filepath.Join(cfg.WorkingDir, "plugins"))
 
 	err = os.MkdirAll(pluginsDir, 0700)
@@ -59,7 +65,7 @@ func EnsurePlugins(ctx context.Context, gh *github.Client, cfg *types.Runtime, c
 		added[pluginName] = struct{}{}
 	}
 
-	return
+	return err
 }
 
 // EnsureVersionedPlugin automatically downloads a plugin binary from its github releases page
@@ -141,7 +147,7 @@ func EnsureVersionedPlugin(
 		files = []types.Plugin{types.Plugin(base)}
 	}
 
-	return
+	return files, err
 }
 
 // EnsureVersionedPluginCached ensures that a plugin exists in the cache
@@ -168,6 +174,7 @@ func EnsureVersionedPluginCached(
 	}
 	if !hit {
 		if meta.Tag == "" {
+			//nolint:lll
 			print.Info("Downloading newest plugin because no version is specified. Consider specifying a version for this dependency.")
 		}
 
@@ -178,11 +185,15 @@ func EnsureVersionedPluginCached(
 		}
 	}
 
-	return
+	return filename, resource, nil
 }
 
 // PluginFromCache tries to grab a plugin asset from the cache, `hit` indicates if it was successful
-func PluginFromCache(meta versioning.DependencyMeta, platform, cacheDir string) (hit bool, filename string, resource types.Resource, err error) {
+func PluginFromCache(
+	meta versioning.DependencyMeta,
+	platform string,
+	cacheDir string,
+) (hit bool, filename string, resource types.Resource, err error) {
 	resourcePath := filepath.Join(cacheDir, GetResourcePath(meta))
 
 	print.Verb("getting plugin resource from cache", meta, resourcePath)
@@ -229,11 +240,18 @@ func PluginFromCache(meta versioning.DependencyMeta, platform, cacheDir string) 
 
 	hit = true
 	filename = filepath.Join(resourcePath, name)
-	return
+
+	return hit, filename, resource, nil
 }
 
 // PluginFromNet downloads a plugin from the given metadata to the cache directory
-func PluginFromNet(ctx context.Context, gh *github.Client, meta versioning.DependencyMeta, platform, cacheDir string) (filename string, resource types.Resource, err error) {
+func PluginFromNet(
+	ctx context.Context,
+	gh *github.Client,
+	meta versioning.DependencyMeta,
+	platform string,
+	cacheDir string,
+) (filename string, resource types.Resource, err error) {
 	print.Info(meta, "downloading plugin resource for", platform)
 
 	resourcePathOnly := GetResourcePath(meta)
@@ -272,7 +290,7 @@ func PluginFromNet(ctx context.Context, gh *github.Client, meta versioning.Depen
 
 	print.Verb(meta, "downloaded", filename, "to cache")
 
-	return
+	return filename, resource, nil
 }
 
 // GetResourceForPlatform searches a list of resources for one that matches the given platform

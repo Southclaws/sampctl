@@ -49,7 +49,14 @@ func (pcx *PackageContext) Build(
 		}
 	}
 
-	command, err := compiler.PrepareCommand(ctx, pcx.GitHub, pcx.Package.LocalPath, pcx.CacheDir, pcx.Platform, *config)
+	command, err := compiler.PrepareCommand(
+		ctx,
+		pcx.GitHub,
+		pcx.Package.LocalPath,
+		pcx.CacheDir,
+		pcx.Platform,
+		*config,
+	)
 	if err != nil {
 		return
 	}
@@ -70,7 +77,12 @@ func (pcx *PackageContext) Build(
 		}
 		print.Verb("building", pcx.Package, "with", config.Version)
 
-		problems, result, err = compiler.CompileWithCommand(command, config.WorkingDir, pcx.Package.LocalPath, relative)
+		problems, result, err = compiler.CompileWithCommand(
+			command,
+			config.WorkingDir,
+			pcx.Package.LocalPath,
+			relative,
+		)
 		if err != nil {
 			err = errors.Wrap(err, "failed to compile package entry")
 		}
@@ -85,11 +97,18 @@ func (pcx *PackageContext) Build(
 		}
 	}
 
-	return
+	return problems, result, err
 }
 
 // BuildWatch runs the Build code on file changes
-func (pcx *PackageContext) BuildWatch(ctx context.Context, build string, ensure bool, buildFile string, relative bool, trigger chan types.BuildProblems) (err error) {
+func (pcx *PackageContext) BuildWatch(
+	ctx context.Context,
+	build string,
+	ensure bool,
+	buildFile string,
+	relative bool,
+	trigger chan types.BuildProblems,
+) (err error) {
 	config, err := pcx.buildPrepare(ctx, build, ensure, true)
 	if err != nil {
 		return
@@ -232,10 +251,15 @@ loop:
 
 	print.Info("finished running build watcher")
 
-	return
+	return err
 }
 
-func (pcx *PackageContext) buildPrepare(ctx context.Context, build string, ensure, forceUpdate bool) (config *types.BuildConfig, err error) {
+func (pcx *PackageContext) buildPrepare(
+	ctx context.Context,
+	build string,
+	ensure,
+	forceUpdate bool,
+) (config *types.BuildConfig, err error) {
 	config = GetBuildConfig(pcx.Package, build)
 	if config == nil {
 		err = errors.Errorf("no build config named '%s'", build)
@@ -291,7 +315,7 @@ func (pcx *PackageContext) buildPrepare(ctx context.Context, build string, ensur
 
 	config.Includes = append(config.Includes, pcx.AllIncludePaths...)
 
-	return
+	return config, err
 }
 
 // GetBuildConfig returns a matching build by name from the package build list. If no name is
@@ -334,7 +358,7 @@ func GetBuildConfig(pkg types.Package, name string) (config *types.BuildConfig) 
 		config.Args = def.Args
 	}
 
-	return
+	return config
 }
 
 func readInt(file string) (n uint32, err error) {

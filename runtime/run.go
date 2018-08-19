@@ -32,7 +32,15 @@ type testResults struct {
 }
 
 // Run handles the actual running of the server process - it collects log output too
-func Run(ctx context.Context, cfg types.Runtime, cacheDir string, passArgs, recover bool, output io.Writer, input io.Reader) (err error) {
+func Run(
+	ctx context.Context,
+	cfg types.Runtime,
+	cacheDir string,
+	passArgs,
+	recover bool,
+	output io.Writer,
+	input io.Reader,
+) (err error) {
 	if cfg.Container != nil {
 		return RunContainer(ctx, cfg, cacheDir, passArgs, output, input)
 	}
@@ -45,7 +53,14 @@ func Run(ctx context.Context, cfg types.Runtime, cacheDir string, passArgs, reco
 }
 
 // nolint:gocyclo
-func run(ctx context.Context, binary string, runType types.RunMode, recover bool, output io.Writer, input io.Reader) (err error) {
+func run(
+	ctx context.Context,
+	binary string,
+	runType types.RunMode,
+	recover bool,
+	output io.Writer,
+	input io.Reader,
+) (err error) {
 	// termination is an internal instruction for communicating successful or failed runs.
 	// It contains an error and a boolean to indicate whether or not to terminate the process.
 	type termination struct {
@@ -230,7 +245,7 @@ loop:
 
 func testResultsFromLine(line string) (results testResults) {
 	match := matchTestEnd.FindStringSubmatch(line)
-	results.Tests, _ = strconv.Atoi(match[1])
-	results.Fails, _ = strconv.Atoi(match[2])
+	results.Tests, _ = strconv.Atoi(match[1]) //nolint:errcheck
+	results.Fails, _ = strconv.Atoi(match[2]) //nolint:errcheck
 	return
 }

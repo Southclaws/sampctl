@@ -1,11 +1,6 @@
 package main
 
 import (
-	"context"
-	"fmt"
-	"os"
-	"strings"
-
 	"github.com/pkg/errors"
 	"gopkg.in/segmentio/analytics-go.v3"
 	"gopkg.in/urfave/cli.v1"
@@ -25,10 +20,11 @@ var packageUninstallFlags = []cli.Flag{
 	},
 	cli.BoolFlag{
 		Name:  "dev",
-		Usage: "for specifying dependencies only necessary for development or testing of the package",
+		Usage: "for specifying development dependencies",
 	},
 }
 
+//nolint:dupl
 func packageUninstall(c *cli.Context) error {
 	if c.Bool("verbose") {
 		print.SetVerbose()
@@ -38,6 +34,7 @@ func packageUninstall(c *cli.Context) error {
 	development := c.Bool("dev")
 
 	if config.Metrics {
+		//nolint:errcheck
 		segment.Enqueue(analytics.Track{
 			Event:  "package uninstall",
 			UserId: config.UserID,
@@ -67,7 +64,7 @@ func packageUninstall(c *cli.Context) error {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	err = pcx.Uninstall(context.Background(), deps, development)
+	err = pcx.Uninstall(deps, development)
 	if err != nil {
 		return err
 	}
@@ -75,26 +72,4 @@ func packageUninstall(c *cli.Context) error {
 	print.Info("successfully removed dependency")
 
 	return nil
-}
-
-// TODO: iterate through package dependencies not package index
-func packageUninstallBash(c *cli.Context) {
-	cacheDir, err := download.GetCacheDir()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to retrieve cache directory path (attempted <user folder>/.samp) ", err)
-		return
-	}
-
-	packages, err := download.GetPackageList(cacheDir)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to get package list:", err)
-		return
-	}
-
-	query := c.Args().First()
-	for _, pkg := range packages {
-		if strings.HasPrefix(pkg.String(), query) {
-			fmt.Println(pkg)
-		}
-	}
 }

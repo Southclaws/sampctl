@@ -227,12 +227,16 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 	// if answers.Distribution {
 	// }
 
-	return
+	return nil
 }
 
 func generateVersionInc(pkg types.Package, version *semver.Version) (filename string, err error) {
 	filename = packageSlug(pkg.Repo) + "_version.inc"
-	err = ioutil.WriteFile(filepath.Join(pkg.LocalPath, filename), []byte(generateVersionIncString(pkg.Repo, version)), 0600)
+	err = ioutil.WriteFile(
+		filepath.Join(pkg.LocalPath, filename),
+		[]byte(generateVersionIncString(pkg.Repo, version)),
+		0600,
+	)
 	return
 }
 

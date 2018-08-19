@@ -64,9 +64,9 @@ func GenerateServerCfg(cfg *types.Runtime) (err error) {
 		case "*string":
 			line, err = fromString(name, fieldval, required, defaultValue)
 		case "[]string":
-			line, err = fromSlice(name, fieldval, required, defaultValue, numbered)
+			line, err = fromSlice(name, fieldval, required, numbered)
 		case "[]types.Plugin":
-			line, err = fromSlice(name, fieldval, required, defaultValue, numbered)
+			line, err = fromSlice(name, fieldval, required, numbered)
 		case "*bool":
 			line, err = fromBool(name, fieldval, required, defaultValue)
 		case "*int":
@@ -74,7 +74,7 @@ func GenerateServerCfg(cfg *types.Runtime) (err error) {
 		case "*float32":
 			line, err = fromFloat(name, fieldval, required, defaultValue)
 		case "map[string]string":
-			line, err = fromMap(name, fieldval, required, defaultValue)
+			line, err = fromMap(name, fieldval, required)
 		default:
 			err = errors.Errorf("unknown kind '%s'", stype.Type.String())
 		}
@@ -88,7 +88,7 @@ func GenerateServerCfg(cfg *types.Runtime) (err error) {
 		}
 	}
 
-	return
+	return nil
 }
 
 // adjustForOS quickly does some tweaks depending on the OS such as .so plugin extension on linux
@@ -132,7 +132,7 @@ func fromString(name string, obj reflect.Value, required bool, defaultValue stri
 	return fmt.Sprintf("%s %s\n", name, value), nil
 }
 
-func fromSlice(name string, obj reflect.Value, required bool, defaultValue string, numbered bool) (result string, err error) {
+func fromSlice(name string, obj reflect.Value, required bool, num bool) (result string, err error) {
 	if obj.IsNil() {
 		if required {
 			return "", errors.Errorf("field %s is required", name)
@@ -142,7 +142,7 @@ func fromSlice(name string, obj reflect.Value, required bool, defaultValue strin
 
 	len := obj.Len()
 
-	if numbered {
+	if num {
 		for i := 0; i < len; i++ {
 			result += fmt.Sprintf("%s%d %s\n", name, i, obj.Index(i).String())
 		}
@@ -218,7 +218,7 @@ func fromFloat(name string, obj reflect.Value, required bool, defaultValue strin
 	return fmt.Sprintf("%s %f\n", name, value), nil
 }
 
-func fromMap(name string, obj reflect.Value, required bool, defaultValue string) (result string, err error) {
+func fromMap(name string, obj reflect.Value, required bool) (result string, err error) {
 	if obj.IsNil() {
 		if required {
 			return "", errors.Errorf("field %s is required", name)

@@ -32,8 +32,8 @@ func TestEnsureDependenciesCached(t *testing.T) {
 			GitAuth:  gitAuth,
 		},
 			[]versioning.DependencyMeta{
-				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "samp-stdlib"},
-				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
+				{Site: "github.com", User: "sampctl", Repo: "samp-stdlib"},
+				{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
 			},
 			false,
 		},
@@ -52,9 +52,9 @@ func TestEnsureDependenciesCached(t *testing.T) {
 			GitAuth:  gitAuth,
 		},
 			[]versioning.DependencyMeta{
-				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "samp-stdlib"},
-				versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
-				versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-requests"},
+				{Site: "github.com", User: "sampctl", Repo: "samp-stdlib"},
+				{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
+				{Site: "github.com", User: "Southclaws", Repo: "pawn-requests"},
 			},
 			false,
 		},

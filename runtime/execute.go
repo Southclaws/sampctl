@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -47,11 +48,11 @@ func PrepareRuntimeDirectory(cacheDir, version, platform, scriptfiles string) (e
 	if scriptfiles != "" {
 		err = os.Symlink(scriptfiles, scriptfilesTmp)
 		if err != nil {
-			return errors.Wrap(err, "failed to create scriptfiles symlink")
+			print.Erro("Failed to create scriptfiles symlink:", err)
 		}
 	}
 
-	return
+	return nil
 }
 
 // CopyFileToRuntime copies a specific file to execute to the specified version's runtime directory

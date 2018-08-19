@@ -102,10 +102,19 @@ func FromNet(cacheDir, version, dir, platform string) (err error) {
 		return errors.Errorf("server binary does not match checksum for version %s", version)
 	}
 
-	return
+	return nil
 }
 
-func infoForPlatform(pkg types.RuntimePackage, platform string) (location, filename string, method download.ExtractFunc, paths map[string]string, err error) {
+func infoForPlatform(
+	pkg types.RuntimePackage,
+	platform string,
+) (
+	location,
+	filename string,
+	method download.ExtractFunc,
+	paths map[string]string,
+	err error,
+) {
 	if platform == "windows" {
 		location = pkg.Win32
 		method = download.Unzip
@@ -118,7 +127,6 @@ func infoForPlatform(pkg types.RuntimePackage, platform string) (location, filen
 		err = errors.Errorf("unsupported OS %s", platform)
 		return
 	}
-
 	u, err := url.Parse(location)
 	if err != nil {
 		err = errors.Wrapf(err, "failed to parse location %s", location)

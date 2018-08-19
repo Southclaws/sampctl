@@ -60,6 +60,7 @@ func packageBuild(c *cli.Context) error {
 	build := c.Args().Get(0)
 
 	if config.Metrics {
+		//nolint:errcheck
 		segment.Enqueue(analytics.Track{
 			Event:  "package build",
 			UserId: config.UserID,
@@ -107,13 +108,15 @@ func packageBuild(c *cli.Context) error {
 			print.Info("Build", build, "successful with", len(problems), "problems")
 		}
 
-		print.Verb(fmt.Sprintf("Results, in bytes: Header: %d, Code: %d, Data: %d, Stack/Heap: %d, Estimated usage: %d, Total: %d\n",
+		print.Verb(fmt.Sprintf(
+			"Results, in bytes: Header: %d, Code: %d, Data: %d, Stack/Heap: %d, Estimated usage: %d, Total: %d\n",
 			result.Header,
 			result.Code,
 			result.Data,
 			result.StackHeap,
 			result.Estimate,
-			result.Total))
+			result.Total,
+		))
 	}
 
 	return nil

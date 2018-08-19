@@ -16,6 +16,7 @@ import (
 )
 
 // Runtime stores the server settings and working directory
+// nolint:lll
 type Runtime struct {
 	// Only used internally
 	WorkingDir string                      `ignore:"1" json:"-" yaml:"-"` // local directory that configuration points to
