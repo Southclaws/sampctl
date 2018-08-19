@@ -217,71 +217,7 @@ func CompileWithCommand(
 	cmd.Stderr = outputWriter
 	workingDir = util.FullPath(workingDir)
 
-	go func() {
-		scanner := bufio.NewScanner(outputReader)
-		for scanner.Scan() {
-			line := scanner.Text()
-			groups := matchCompilerProblem.FindStringSubmatch(line)
-
-			if len(groups) == 5 {
-				// output is a warning or error
-
-				problem := types.BuildProblem{}
-
-				if filepath.IsAbs(groups[1]) {
-					problem.File = groups[1]
-				} else {
-					problem.File = filepath.Join(workingDir, groups[1])
-				}
-
-				if string(filepath.Separator) != `\` {
-					problem.File = strings.Replace(problem.File, "\\", "/", -1)
-				}
-				problem.File = filepath.Clean(problem.File)
-				if relative {
-					rel, errInner := filepath.Rel(errorDir, problem.File)
-					if errInner == nil {
-						problem.File = rel
-					}
-				}
-
-				problem.Line, err = strconv.Atoi(groups[2])
-				if err != nil {
-					return
-				}
-
-				switch groups[3] {
-				case "warning":
-					problem.Severity = types.ProblemWarning
-				case "error":
-					problem.Severity = types.ProblemError
-				case "fatal error":
-					problem.Severity = types.ProblemFatal
-				}
-
-				problem.Description = groups[4]
-
-				problemChan <- problem
-			} else {
-				// output is pre-roll or post-roll
-				if strings.HasPrefix(line, "Pawn compiler") {
-					continue
-				} else if strings.HasPrefix(line, "Compilation aborted") {
-					continue
-				} else if strings.HasSuffix(line, "Error.") {
-					continue
-				} else if len(strings.TrimSpace(line)) == 0 {
-					continue
-				} else {
-					resultChan <- line
-				}
-			}
-		}
-
-		// close output channels once scanner is closed
-		close(problemChan)
-		close(resultChan)
-	}()
+	go watchCompiler(outputReader, workingDir, errorDir, relative, problemChan, resultChan)
 
 	print.Verb("executing compiler in", workingDir, "as", cmd.Env, cmd.Args)
 	cmdError := cmd.Run()
@@ -331,6 +267,83 @@ func CompileWithCommand(
 	}
 
 	return problems, result, err
+}
+
+func watchCompiler(
+	outputReader io.Reader,
+	workingDir string,
+	errorDir string,
+	relative bool,
+	problemChan chan types.BuildProblem,
+	resultChan chan string,
+) {
+	var err error
+	scanner := bufio.NewScanner(outputReader)
+	for scanner.Scan() {
+		line := scanner.Text()
+		groups := matchCompilerProblem.FindStringSubmatch(line)
+
+		if len(groups) == 5 {
+			// output is a warning or error
+
+			problem := types.BuildProblem{}
+
+			if filepath.IsAbs(groups[1]) {
+				problem.File = groups[1]
+			} else {
+				problem.File = filepath.Join(workingDir, groups[1])
+			}
+
+			if string(filepath.Separator) != `\` {
+				problem.File = strings.Replace(problem.File, "\\", "/", -1)
+			}
+			problem.File = filepath.Clean(problem.File)
+			if relative {
+				var rel string
+				rel, err = filepath.Rel(errorDir, problem.File)
+				if err == nil {
+					problem.File = rel
+				}
+			}
+
+			problem.Line, err = strconv.Atoi(groups[2])
+			if err != nil {
+				return
+			}
+
+			switch groups[3] {
+			case "warning":
+				problem.Severity = types.ProblemWarning
+			case "error":
+				problem.Severity = types.ProblemError
+			case "fatal error":
+				problem.Severity = types.ProblemFatal
+			}
+
+			problem.Description = groups[4]
+
+			problemChan <- problem
+		} else {
+			// output is pre-roll or post-roll
+			if strings.HasPrefix(line, "Pawn compiler") {
+				continue
+			} else if strings.HasPrefix(line, "Compilation aborted") {
+				continue
+			} else if strings.HasSuffix(line, "Error.") {
+				continue
+			} else if len(strings.TrimSpace(line)) == 0 {
+				continue
+			} else {
+				resultChan <- line
+			}
+		}
+	}
+
+	// close output channels once scanner is closed
+	close(problemChan)
+	close(resultChan)
+
+	return
 }
 
 // RunPlugins executes the plugins for a given build config
