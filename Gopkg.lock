@@ -201,12 +201,28 @@
   version = "0.4"
 
 [[projects]]
+  digest = "1:3108ec0946181c60040ff51b811908f89d03e521e2b4ade5ef5c65b3c0e911ae"
+  name = "github.com/kr/pretty"
+  packages = ["."]
+  pruneopts = ""
+  revision = "73f6ac0b30a98e433b289500d779f50c1a6f0712"
+  version = "v0.1.0"
+
+[[projects]]
   digest = "1:094e04c4742b596bce4455eb535d4e4365016b44016db76f8593211406d77299"
   name = "github.com/kr/pty"
   packages = ["."]
   pruneopts = ""
   revision = "fa756f09eeb418bf1cc6268c66ceaad9bb98f598"
   version = "v1.1.2"
+
+[[projects]]
+  digest = "1:11b056b4421396ab14e384ab8ab8c2079b03f1e51aa5eb4d9b81f9e0d1aa8fbf"
+  name = "github.com/kr/text"
+  packages = ["."]
+  pruneopts = ""
+  revision = "e2ffdb16a802fe2bb95e2e35ff34f0e53aeef34f"
+  version = "v0.1.0"
 
 [[projects]]
   digest = "1:9ea83adf8e96d6304f394d40436f2eb44c1dc3250d223b74088cc253a6cd0a1c"
@@ -567,6 +583,7 @@
     "github.com/google/go-github/github",
     "github.com/google/uuid",
     "github.com/joho/godotenv",
+    "github.com/kr/pretty",
     "github.com/kr/pty",
     "github.com/michaelbironneau/garbler/lib",
     "github.com/minio/go-homedir",
