@@ -255,7 +255,7 @@ func main() {
 		}
 
 		if config.GitUsername != "" && config.GitPassword != "" {
-			gitAuth = &http.BasicAuth{Username: config.GitUsername, Password: config.GitPassword}
+			gitAuth = http.NewBasicAuth(config.GitUsername, config.GitPassword)
 		} else {
 			gitAuth, err = ssh.DefaultAuthBuilder("git")
 			if err != nil {
