@@ -11,8 +11,8 @@ import (
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
 
+	"github.com/src-d/go-git-fixtures"
 	. "gopkg.in/check.v1"
-	"gopkg.in/src-d/go-git-fixtures.v3"
 )
 
 type DiffTreeSuite struct {
@@ -45,17 +45,25 @@ func (s *DiffTreeSuite) storageFromPackfile(f *fixtures.Fixture) storer.EncodedO
 		return sto
 	}
 
-	storer := memory.NewStorage()
+	sto = memory.NewStorage()
 
 	pf := f.Packfile()
+
 	defer pf.Close()
 
-	if err := packfile.UpdateObjectStorage(storer, pf); err != nil {
+	n := packfile.NewScanner(pf)
+	d, err := packfile.NewDecoder(n, sto)
+	if err != nil {
 		panic(err)
 	}
 
-	s.cache[f.URL] = storer
-	return storer
+	_, err = d.Decode()
+	if err != nil {
+		panic(err)
+	}
+
+	s.cache[f.URL] = sto
+	return sto
 }
 
 var _ = Suite(&DiffTreeSuite{})

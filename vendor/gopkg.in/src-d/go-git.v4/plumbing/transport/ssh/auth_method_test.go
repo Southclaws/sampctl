@@ -32,16 +32,16 @@ func (s *SuiteCommon) TestKeyboardInteractiveString(c *C) {
 
 func (s *SuiteCommon) TestPasswordName(c *C) {
 	a := &Password{
-		User:     "test",
-		Password: "",
+		User: "test",
+		Pass: "",
 	}
 	c.Assert(a.Name(), Equals, PasswordName)
 }
 
 func (s *SuiteCommon) TestPasswordString(c *C) {
 	a := &Password{
-		User:     "test",
-		Password: "",
+		User: "test",
+		Pass: "",
 	}
 	c.Assert(a.String(), Equals, fmt.Sprintf("user: test, name: %s", PasswordName))
 }
@@ -142,10 +142,4 @@ func (*SuiteCommon) TestNewPublicKeysFromFile(c *C) {
 	auth, err := NewPublicKeysFromFile("foo", f.Name(), "")
 	c.Assert(err, IsNil)
 	c.Assert(auth, NotNil)
-}
-
-func (*SuiteCommon) TestNewPublicKeysWithInvalidPEM(c *C) {
-	auth, err := NewPublicKeys("foo", []byte("bar"), "")
-	c.Assert(err, NotNil)
-	c.Assert(auth, IsNil)
 }

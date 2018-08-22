@@ -2,6 +2,7 @@ package diff
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -43,6 +44,8 @@ const (
 
 	DefaultContextLines = 3
 )
+
+var ErrBothFilesEmpty = errors.New("both files are empty")
 
 // UnifiedEncoder encodes an unified diff into the provided Writer.
 // There are some unsupported features:
@@ -103,7 +106,7 @@ func (e *UnifiedEncoder) printMessage(message string) {
 func (e *UnifiedEncoder) header(from, to File, isBinary bool) error {
 	switch {
 	case from == nil && to == nil:
-		return nil
+		return ErrBothFilesEmpty
 	case from != nil && to != nil:
 		hashEquals := from.Hash() == to.Hash()
 
@@ -262,15 +265,11 @@ func (c *hunksGenerator) processEqualsLines(ls []string, i int) {
 		c.current.AddOp(Equal, c.afterContext...)
 		c.afterContext = nil
 	} else {
-		ctxLines := c.ctxLines
-		if ctxLines > len(c.afterContext) {
-			ctxLines = len(c.afterContext)
-		}
-		c.current.AddOp(Equal, c.afterContext[:ctxLines]...)
+		c.current.AddOp(Equal, c.afterContext[:c.ctxLines]...)
 		c.hunks = append(c.hunks, c.current)
 
 		c.current = nil
-		c.beforeContext = c.afterContext[ctxLines:]
+		c.beforeContext = c.afterContext[c.ctxLines:]
 		c.afterContext = nil
 	}
 }

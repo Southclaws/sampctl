@@ -11,8 +11,8 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/storer"
 	"gopkg.in/src-d/go-git.v4/storage/filesystem"
 
+	"github.com/src-d/go-git-fixtures"
 	. "gopkg.in/check.v1"
-	"gopkg.in/src-d/go-git-fixtures.v3"
 )
 
 func Test(t *testing.T) { TestingT(t) }
@@ -197,9 +197,8 @@ func (s *ObjectsSuite) TestObjectIter(c *C) {
 		}
 
 		c.Assert(err, IsNil)
-		c.Assert(o.ID(), Equals, objects[i].ID())
-		c.Assert(o.Type(), Equals, objects[i].Type())
-		i++
+		c.Assert(o, DeepEquals, objects[i])
+		i += 1
 	}
 
 	iter.Close()
