@@ -61,7 +61,7 @@ func EnsurePlugins(
 		}
 
 		print.Verb("adding runtime plugin", pluginName)
-		cfg.Plugins = append([]types.Plugin{pluginName}, cfg.Plugins...)
+		cfg.Plugins = append(cfg.Plugins, pluginName)
 		added[pluginName] = struct{}{}
 	}
 
