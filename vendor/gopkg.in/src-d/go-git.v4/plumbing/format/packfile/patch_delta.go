@@ -38,8 +38,11 @@ func ApplyDelta(target, base plumbing.EncodedObject, delta []byte) error {
 
 	target.SetSize(int64(len(dst)))
 
-	_, err = w.Write(dst)
-	return err
+	if _, err := w.Write(dst); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 var (
@@ -63,8 +66,8 @@ func PatchDelta(src, delta []byte) ([]byte, error) {
 	targetSz, delta := decodeLEB128(delta)
 	remainingTargetSz := targetSz
 
+	var dest []byte
 	var cmd byte
-	dest := make([]byte, 0, targetSz)
 	for {
 		if len(delta) == 0 {
 			return nil, ErrInvalidDelta

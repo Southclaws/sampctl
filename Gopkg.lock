@@ -98,21 +98,6 @@
   version = "v0.3.3"
 
 [[projects]]
-  digest = "1:ba7c75e38d81b9cf3e8601c081567be3b71bccca8c11aee5de98871360aa4d7b"
-  name = "github.com/emirpasic/gods"
-  packages = [
-    "containers",
-    "lists",
-    "lists/arraylist",
-    "trees",
-    "trees/binaryheap",
-    "utils",
-  ]
-  pruneopts = ""
-  revision = "f6c17b524822278a87e3b3bd809fec33b51f5b46"
-  version = "v1.9.0"
-
-[[projects]]
   digest = "1:e988ed0ca0d81f4d28772760c02ee95084961311291bdfefc1b04617c178b722"
   name = "github.com/fatih/color"
   packages = ["."]
@@ -191,14 +176,6 @@
   packages = ["."]
   pruneopts = ""
   revision = "95032a82bc518f77982ea72343cc1ade730072f0"
-
-[[projects]]
-  digest = "1:7fe04787f53bb61c1ba9c659b1a90ee3da16b4d6a1c41566bcb5077efbd30f97"
-  name = "github.com/kevinburke/ssh_config"
-  packages = ["."]
-  pruneopts = ""
-  revision = "9fc7bb800b555d63157c65a904c86a2cc7b4e795"
-  version = "0.4"
 
 [[projects]]
   digest = "1:3108ec0946181c60040ff51b811908f89d03e521e2b4ade5ef5c65b3c0e911ae"
@@ -291,14 +268,6 @@
   revision = "780cc39d5c78bcc7a47926818c450bb6749b89af"
 
 [[projects]]
-  digest = "1:049b5bee78dfdc9628ee0e557219c41f683e5b06c5a5f20eaba0105ccc586689"
-  name = "github.com/pelletier/go-buffruneio"
-  packages = ["."]
-  pruneopts = ""
-  revision = "c37440a7cf42ac63b919c752ca73a85067e05992"
-  version = "v0.2.0"
-
-[[projects]]
   digest = "1:7365acd48986e205ccb8652cc746f09c8b7876030d53710ea6ef7d0bd0dcd7ca"
   name = "github.com/pkg/errors"
   packages = ["."]
@@ -372,18 +341,11 @@
   digest = "1:793a79198b755828dec284c6f1325e24e09186f1b7ba818b65c7c35104ed86eb"
   name = "golang.org/x/crypto"
   packages = [
-    "cast5",
     "curve25519",
     "ed25519",
     "ed25519/internal/edwards25519",
     "internal/chacha20",
     "internal/subtle",
-    "openpgp",
-    "openpgp/armor",
-    "openpgp/elgamal",
-    "openpgp/errors",
-    "openpgp/packet",
-    "openpgp/s2k",
     "poly1305",
     "ssh",
     "ssh/agent",
@@ -479,8 +441,8 @@
   version = "3.0.0"
 
 [[projects]]
-  digest = "1:6715e0bec216255ab784fe04aa4d5a0a626ae07a3a209080182e469bc142761a"
-  name = "gopkg.in/src-d/go-billy.v4"
+  digest = "1:e1b484fdba1d9927133fc8b8c52a808d83d20847e630470dbe82bc12429fe76c"
+  name = "gopkg.in/src-d/go-billy.v3"
   packages = [
     ".",
     "helper/chroot",
@@ -489,11 +451,11 @@
     "util",
   ]
   pruneopts = ""
-  revision = "83cf655d40b15b427014d7875d10850f96edba14"
-  version = "v4.2.0"
+  revision = "c329b7bc7b9d24905d2bc1b85bfa29f7ae266314"
+  version = "v3.1.0"
 
 [[projects]]
-  digest = "1:72401bfad0edfdfc6a1ee76399a08ca9ae3753d6851465d2a9ab92f728cdba43"
+  digest = "1:33a44878d7740876cbc407c114ba7721a98b9041bb9e80397b07c92f1d714f67"
   name = "gopkg.in/src-d/go-git.v4"
   packages = [
     ".",
@@ -526,7 +488,7 @@
     "plumbing/transport/ssh",
     "storage",
     "storage/filesystem",
-    "storage/filesystem/dotgit",
+    "storage/filesystem/internal/dotgit",
     "storage/memory",
     "utils/binary",
     "utils/diff",
@@ -538,8 +500,7 @@
     "utils/merkletrie/noder",
   ]
   pruneopts = ""
-  revision = "7b6c1266556f59ac436fada3fa6106d4a84f9b56"
-  version = "v4.6.0"
+  revision = "f9879dd043f84936a1f8acb8a53b74332a7ae135"
 
 [[projects]]
   digest = "1:e85837cb04b78f61688c6eba93ea9d14f60d611e2aaf8319999b1a60d2dafbfa"
