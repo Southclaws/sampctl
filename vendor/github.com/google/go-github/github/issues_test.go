@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -19,9 +20,10 @@ func TestIssuesService_List_all(t *testing.T) {
 	client, mux, _, teardown := setup()
 	defer teardown()
 
+	acceptHeaders := []string{mediaTypeReactionsPreview, mediaTypeLabelDescriptionSearchPreview, mediaTypeLockReasonPreview}
 	mux.HandleFunc("/issues", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "GET")
-		testHeader(t, r, "Accept", mediaTypeReactionsPreview)
+		testHeader(t, r, "Accept", strings.Join(acceptHeaders, ", "))
 		testFormValues(t, r, values{
 			"filter":    "all",
 			"state":     "closed",
@@ -55,9 +57,10 @@ func TestIssuesService_List_owned(t *testing.T) {
 	client, mux, _, teardown := setup()
 	defer teardown()
 
+	acceptHeaders := []string{mediaTypeReactionsPreview, mediaTypeLabelDescriptionSearchPreview, mediaTypeLockReasonPreview}
 	mux.HandleFunc("/user/issues", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "GET")
-		testHeader(t, r, "Accept", mediaTypeReactionsPreview)
+		testHeader(t, r, "Accept", strings.Join(acceptHeaders, ", "))
 		fmt.Fprint(w, `[{"number":1}]`)
 	})
 
@@ -76,9 +79,10 @@ func TestIssuesService_ListByOrg(t *testing.T) {
 	client, mux, _, teardown := setup()
 	defer teardown()
 
+	acceptHeaders := []string{mediaTypeReactionsPreview, mediaTypeLabelDescriptionSearchPreview, mediaTypeLockReasonPreview}
 	mux.HandleFunc("/orgs/o/issues", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "GET")
-		testHeader(t, r, "Accept", mediaTypeReactionsPreview)
+		testHeader(t, r, "Accept", strings.Join(acceptHeaders, ", "))
 		fmt.Fprint(w, `[{"number":1}]`)
 	})
 
@@ -105,9 +109,10 @@ func TestIssuesService_ListByRepo(t *testing.T) {
 	client, mux, _, teardown := setup()
 	defer teardown()
 
+	acceptHeaders := []string{mediaTypeReactionsPreview, mediaTypeLabelDescriptionSearchPreview, mediaTypeLockReasonPreview}
 	mux.HandleFunc("/repos/o/r/issues", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "GET")
-		testHeader(t, r, "Accept", mediaTypeReactionsPreview)
+		testHeader(t, r, "Accept", strings.Join(acceptHeaders, ", "))
 		testFormValues(t, r, values{
 			"milestone": "*",
 			"state":     "closed",
@@ -150,9 +155,10 @@ func TestIssuesService_Get(t *testing.T) {
 	client, mux, _, teardown := setup()
 	defer teardown()
 
+	acceptHeaders := []string{mediaTypeReactionsPreview, mediaTypeLabelDescriptionSearchPreview, mediaTypeLockReasonPreview}
 	mux.HandleFunc("/repos/o/r/issues/1", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "GET")
-		testHeader(t, r, "Accept", mediaTypeReactionsPreview)
+		testHeader(t, r, "Accept", strings.Join(acceptHeaders, ", "))
 		fmt.Fprint(w, `{"number":1, "labels": [{"url": "u", "name": "n", "color": "c"}]}`)
 	})
 
@@ -198,6 +204,7 @@ func TestIssuesService_Create(t *testing.T) {
 		json.NewDecoder(r.Body).Decode(v)
 
 		testMethod(t, r, "POST")
+		testHeader(t, r, "Accept", mediaTypeLabelDescriptionSearchPreview)
 		if !reflect.DeepEqual(v, input) {
 			t.Errorf("Request body = %+v, want %+v", v, input)
 		}
@@ -235,6 +242,7 @@ func TestIssuesService_Edit(t *testing.T) {
 		json.NewDecoder(r.Body).Decode(v)
 
 		testMethod(t, r, "PATCH")
+		testHeader(t, r, "Accept", mediaTypeLabelDescriptionSearchPreview)
 		if !reflect.DeepEqual(v, input) {
 			t.Errorf("Request body = %+v, want %+v", v, input)
 		}
@@ -271,7 +279,24 @@ func TestIssuesService_Lock(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 
-	if _, err := client.Issues.Lock(context.Background(), "o", "r", 1); err != nil {
+	if _, err := client.Issues.Lock(context.Background(), "o", "r", 1, nil); err != nil {
+		t.Errorf("Issues.Lock returned error: %v", err)
+	}
+}
+
+func TestIssuesService_LockWithReason(t *testing.T) {
+	client, mux, _, teardown := setup()
+	defer teardown()
+
+	mux.HandleFunc("/repos/o/r/issues/1/lock", func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, "PUT")
+		testHeader(t, r, "Accept", mediaTypeLockReasonPreview)
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	opt := &LockIssueOptions{LockReason: "off-topic"}
+
+	if _, err := client.Issues.Lock(context.Background(), "o", "r", 1, opt); err != nil {
 		t.Errorf("Issues.Lock returned error: %v", err)
 	}
 }

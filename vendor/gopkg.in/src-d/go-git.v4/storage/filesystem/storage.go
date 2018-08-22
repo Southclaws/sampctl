@@ -2,9 +2,9 @@
 package filesystem
 
 import (
-	"gopkg.in/src-d/go-git.v4/storage/filesystem/internal/dotgit"
+	"gopkg.in/src-d/go-git.v4/storage/filesystem/dotgit"
 
-	"gopkg.in/src-d/go-billy.v3"
+	"gopkg.in/src-d/go-billy.v4"
 )
 
 // Storage is an implementation of git.Storer that stores data on disk in the
@@ -25,7 +25,7 @@ type Storage struct {
 // NewStorage returns a new Storage backed by a given `fs.Filesystem`
 func NewStorage(fs billy.Filesystem) (*Storage, error) {
 	dir := dotgit.New(fs)
-	o, err := newObjectStorage(dir)
+	o, err := NewObjectStorage(dir)
 	if err != nil {
 		return nil, err
 	}

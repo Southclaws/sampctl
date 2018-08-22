@@ -82,23 +82,16 @@ func (configor *Configor) processTags(config interface{}, prefixes ...string) (e
 		}
 
 		if envName == "" {
-			envNames = append(envNames, strings.Join(append(prefixes, fieldStruct.Name), "_"))                  // Configor_DB_Name
-			envNames = append(envNames, strings.ToUpper(strings.Join(append(prefixes, fieldStruct.Name), "_"))) // CONFIGOR_DB_NAME
+			envNames = append(envNames, strings.Join(append(prefixes, fieldStruct.Name), "_"))
+			envNames = append(envNames, strings.ToUpper(strings.Join(append(prefixes, fieldStruct.Name), "_")))
 		} else {
 			envNames = []string{envName}
-		}
-
-		if configor.Config.Verbose {
-			fmt.Printf("Trying to load struct `%v`'s field `%v` from env %v\n", configType.Name(), fieldStruct.Name, strings.Join(envNames, ", "))
 		}
 
 		// Load From Shell ENV
 		for _, env := range envNames {
 			if value := os.Getenv(env); value != "" {
-				if configor.Config.Verbose {
-					fmt.Printf("Loading configuration for struct `%v`'s field `%v` from env %v...\n", configType.Name(), fieldStruct.Name, env)
-				}
-				if err := yaml.Unmarshal([]byte(value), field.Addr().Interface()); err != nil {
+				if err = yaml.Unmarshal([]byte(value), field.Addr().Interface()); err != nil {
 					return err
 				}
 				break
@@ -108,7 +101,7 @@ func (configor *Configor) processTags(config interface{}, prefixes ...string) (e
 		if isBlank := reflect.DeepEqual(field.Interface(), reflect.Zero(field.Type()).Interface()); isBlank {
 			// Set default configuration if blank
 			if value := fieldStruct.Tag.Get("default"); value != "" {
-				if err := yaml.Unmarshal([]byte(value), field.Addr().Interface()); err != nil {
+				if err = yaml.Unmarshal([]byte(value), field.Addr().Interface()); err != nil {
 					return err
 				}
 			} else if fieldStruct.Tag.Get("required") == "true" {

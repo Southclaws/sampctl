@@ -21,9 +21,9 @@ import (
 )
 
 type UploadPackSuite struct {
-	Endpoint            transport.Endpoint
-	EmptyEndpoint       transport.Endpoint
-	NonExistentEndpoint transport.Endpoint
+	Endpoint            *transport.Endpoint
+	EmptyEndpoint       *transport.Endpoint
+	NonExistentEndpoint *transport.Endpoint
 	EmptyAuth           transport.AuthMethod
 	Client              transport.Transport
 }
@@ -258,11 +258,8 @@ func (s *UploadPackSuite) checkObjectNumber(c *C, r io.Reader, n int) {
 	b, err := ioutil.ReadAll(r)
 	c.Assert(err, IsNil)
 	buf := bytes.NewBuffer(b)
-	scanner := packfile.NewScanner(buf)
 	storage := memory.NewStorage()
-	d, err := packfile.NewDecoder(scanner, storage)
-	c.Assert(err, IsNil)
-	_, err = d.Decode()
+	err = packfile.UpdateObjectStorage(storage, buf)
 	c.Assert(err, IsNil)
 	c.Assert(len(storage.Objects), Equals, n)
 }

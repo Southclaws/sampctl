@@ -8,10 +8,10 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/BurntSushi/toml"
 	"gopkg.in/yaml.v2"
 
-	"github.com/BurntSushi/toml"
-	"github.com/jinzhu/configor"
+	"github.com/Southclaws/configor"
 )
 
 type Anonymous struct {
@@ -396,7 +396,7 @@ func TestLoadConfigurationByEnvironmentSetByConfig(t *testing.T) {
 			t.Errorf("result should be load configurations by environment correctly")
 		}
 
-		if Configor.GetEnvironment() != "production" {
+		if Configor.Environment != "production" {
 			t.Errorf("configor's environment should be production")
 		}
 	}
@@ -471,7 +471,7 @@ func TestOverwriteConfigurationWithEnvironmentThatSetByConfig(t *testing.T) {
 			defer os.Setenv("APP1_DB_Name", "")
 
 			var result Config
-			var Configor = configor.New(&configor.Config{ENVPrefix: "APP1"})
+			var Configor = configor.New(&configor.Config{EnvironmentPrefix: "APP1"})
 			Configor.Load(&result, file.Name())
 
 			var defaultConfig = generateDefaultConfig()
@@ -579,17 +579,5 @@ func TestAnonymousStruct(t *testing.T) {
 				t.Errorf("result should equal to original configuration")
 			}
 		}
-	}
-}
-
-func TestENV(t *testing.T) {
-	if configor.ENV() != "test" {
-		t.Errorf("Env should be test when running `go test`, instead env is %v", configor.ENV())
-	}
-
-	os.Setenv("CONFIGOR_ENV", "production")
-	defer os.Setenv("CONFIGOR_ENV", "")
-	if configor.ENV() != "production" {
-		t.Errorf("Env should be production when set it with CONFIGOR_ENV")
 	}
 }

@@ -413,9 +413,7 @@ func TestDo(t *testing.T) {
 	}
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if m := "GET"; m != r.Method {
-			t.Errorf("Request method = %v, want %v", r.Method, m)
-		}
+		testMethod(t, r, "GET")
 		fmt.Fprint(w, `{"A":"a"}`)
 	})
 
@@ -513,7 +511,7 @@ func TestDo_rateLimit(t *testing.T) {
 	if got, want := resp.Rate.Remaining, 59; got != want {
 		t.Errorf("Client rate remaining = %v, want %v", got, want)
 	}
-	reset := time.Date(2013, 7, 1, 17, 47, 53, 0, time.UTC)
+	reset := time.Date(2013, time.July, 1, 17, 47, 53, 0, time.UTC)
 	if resp.Rate.Reset.UTC() != reset {
 		t.Errorf("Client rate reset = %v, want %v", resp.Rate.Reset, reset)
 	}
@@ -545,7 +543,7 @@ func TestDo_rateLimit_errorResponse(t *testing.T) {
 	if got, want := resp.Rate.Remaining, 59; got != want {
 		t.Errorf("Client rate remaining = %v, want %v", got, want)
 	}
-	reset := time.Date(2013, 7, 1, 17, 47, 53, 0, time.UTC)
+	reset := time.Date(2013, time.July, 1, 17, 47, 53, 0, time.UTC)
 	if resp.Rate.Reset.UTC() != reset {
 		t.Errorf("Client rate reset = %v, want %v", resp.Rate.Reset, reset)
 	}
@@ -584,7 +582,7 @@ func TestDo_rateLimit_rateLimitError(t *testing.T) {
 	if got, want := rateLimitErr.Rate.Remaining, 0; got != want {
 		t.Errorf("rateLimitErr rate remaining = %v, want %v", got, want)
 	}
-	reset := time.Date(2013, 7, 1, 17, 47, 53, 0, time.UTC)
+	reset := time.Date(2013, time.July, 1, 17, 47, 53, 0, time.UTC)
 	if rateLimitErr.Rate.Reset.UTC() != reset {
 		t.Errorf("rateLimitErr rate reset = %v, want %v", rateLimitErr.Rate.Reset.UTC(), reset)
 	}
@@ -657,7 +655,41 @@ func TestDo_rateLimit_abuseRateLimitError(t *testing.T) {
 		// there is no "Retry-After" header.
 		fmt.Fprintln(w, `{
    "message": "You have triggered an abuse detection mechanism and have been temporarily blocked from content creation. Please retry your request again later.",
-   "documentation_url": "https://developer.github.com/v3#abuse-rate-limits"
+   "documentation_url": "https://developer.github.com/v3/#abuse-rate-limits"
+}`)
+	})
+
+	req, _ := client.NewRequest("GET", ".", nil)
+	_, err := client.Do(context.Background(), req, nil)
+
+	if err == nil {
+		t.Error("Expected error to be returned.")
+	}
+	abuseRateLimitErr, ok := err.(*AbuseRateLimitError)
+	if !ok {
+		t.Fatalf("Expected a *AbuseRateLimitError error; got %#v.", err)
+	}
+	if got, want := abuseRateLimitErr.RetryAfter, (*time.Duration)(nil); got != want {
+		t.Errorf("abuseRateLimitErr RetryAfter = %v, want %v", got, want)
+	}
+}
+
+// Ensure *AbuseRateLimitError is returned when the response indicates that
+// the client has triggered an abuse detection mechanism on GitHub Enterprise.
+func TestDo_rateLimit_abuseRateLimitErrorEnterprise(t *testing.T) {
+	client, mux, _, teardown := setup()
+	defer teardown()
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusForbidden)
+		// When the abuse rate limit error is of the "temporarily blocked from content creation" type,
+		// there is no "Retry-After" header.
+		// This response returns a documentation url like the one returned for GitHub Enterprise, this
+		// url changes between versions but follows roughly the same format.
+		fmt.Fprintln(w, `{
+   "message": "You have triggered an abuse detection mechanism and have been temporarily blocked from content creation. Please retry your request again later.",
+   "documentation_url": "https://developer.github.com/enterprise/2.12/v3/#abuse-rate-limits"
 }`)
 	})
 
@@ -687,7 +719,7 @@ func TestDo_rateLimit_abuseRateLimitError_retryAfter(t *testing.T) {
 		w.WriteHeader(http.StatusForbidden)
 		fmt.Fprintln(w, `{
    "message": "You have triggered an abuse detection mechanism ...",
-   "documentation_url": "https://developer.github.com/v3#abuse-rate-limits"
+   "documentation_url": "https://developer.github.com/v3/#abuse-rate-limits"
 }`)
 	})
 
@@ -768,7 +800,7 @@ func TestCheckResponse(t *testing.T) {
 			CreatedAt *Timestamp `json:"created_at,omitempty"`
 		}{
 			Reason:    "dmca",
-			CreatedAt: &Timestamp{time.Date(2016, 3, 17, 15, 39, 46, 0, time.UTC)},
+			CreatedAt: &Timestamp{time.Date(2016, time.March, 17, 15, 39, 46, 0, time.UTC)},
 		},
 	}
 	if !reflect.DeepEqual(err, want) {
@@ -853,9 +885,7 @@ func TestRateLimits(t *testing.T) {
 	defer teardown()
 
 	mux.HandleFunc("/rate_limit", func(w http.ResponseWriter, r *http.Request) {
-		if m := "GET"; m != r.Method {
-			t.Errorf("Request method = %v, want %v", r.Method, m)
-		}
+		testMethod(t, r, "GET")
 		fmt.Fprint(w, `{"resources":{
 			"core": {"limit":2,"remaining":1,"reset":1372700873},
 			"search": {"limit":3,"remaining":2,"reset":1372700874}
@@ -871,12 +901,12 @@ func TestRateLimits(t *testing.T) {
 		Core: &Rate{
 			Limit:     2,
 			Remaining: 1,
-			Reset:     Timestamp{time.Date(2013, 7, 1, 17, 47, 53, 0, time.UTC).Local()},
+			Reset:     Timestamp{time.Date(2013, time.July, 1, 17, 47, 53, 0, time.UTC).Local()},
 		},
 		Search: &Rate{
 			Limit:     3,
 			Remaining: 2,
-			Reset:     Timestamp{time.Date(2013, 7, 1, 17, 47, 54, 0, time.UTC).Local()},
+			Reset:     Timestamp{time.Date(2013, time.July, 1, 17, 47, 54, 0, time.UTC).Local()},
 		},
 	}
 	if !reflect.DeepEqual(rate, want) {

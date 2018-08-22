@@ -48,7 +48,7 @@ func init() {
 	Consonants = []rune("bcdfghjklmnpqrstvwxyz")
 	GarblableConsonants = []rune("bdgls")
 	ConsonantGarblers = []rune("86915")
-	Punctuation = []rune("!-.,?;:/")
+	Punctuation = []rune("!-.,?;:/^+=_*|\"<>[]{}`'()@&$#%")
 }
 
 //Generate a password given requirements

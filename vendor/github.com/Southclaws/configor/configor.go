@@ -19,7 +19,6 @@ type Configor struct {
 type Config struct {
 	Environment       string
 	EnvironmentPrefix string
-	Verbose           bool
 
 	// In case of json files, this field will be used only when compiled with
 	// go 1.10 or later.
@@ -27,7 +26,7 @@ type Config struct {
 	ErrorOnUnmatchedKeys bool
 }
 
-// New initializes a configuration loader
+// New initialises a configuration loader
 func New(config *Config) *Configor {
 	if config == nil {
 		config = &Config{}
@@ -54,9 +53,6 @@ func (configor *Configor) Load(config interface{}, files ...string) (err error) 
 	}
 
 	for _, file := range configFiles {
-		if configor.Config.Verbose {
-			fmt.Println("loading configuration from", file)
-		}
 		if err := UnmarshalFile(config, file, configor.ErrorOnUnmatchedKeys); err != nil {
 			return err
 		}

@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"runtime"
 
+	shellquote "github.com/kballard/go-shellquote"
 	"gopkg.in/AlecAivazis/survey.v1/core"
 	"gopkg.in/AlecAivazis/survey.v1/terminal"
 )
@@ -29,6 +30,7 @@ type Editor struct {
 	Message       string
 	Default       string
 	Help          string
+	Editor        string
 	HideDefault   bool
 	AppendDefault bool
 }
@@ -81,12 +83,13 @@ func (e *Editor) Prompt() (interface{}, error) {
 	}
 
 	// start reading runes from the standard in
-	rr := terminal.NewRuneReader(os.Stdin)
+	rr := e.NewRuneReader()
 	rr.SetTermMode()
 	defer rr.RestoreTermMode()
 
-	terminal.CursorHide()
-	defer terminal.CursorShow()
+	cursor := e.NewCursor()
+	cursor.Hide()
+	defer cursor.Show()
 
 	for {
 		r, _, err := rr.ReadRune()
@@ -143,12 +146,25 @@ func (e *Editor) Prompt() (interface{}, error) {
 		return "", err
 	}
 
+	// check is input editor exist
+	if e.Editor != "" {
+		editor = e.Editor
+	}
+
+	stdio := e.Stdio()
+
+	args, err := shellquote.Split(editor)
+	if err != nil {
+		return "", err
+	}
+	args = append(args, f.Name())
+
 	// open the editor
-	cmd := exec.Command(editor, f.Name())
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	terminal.CursorShow()
+	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Stdin = stdio.In
+	cmd.Stdout = stdio.Out
+	cmd.Stderr = stdio.Err
+	cursor.Show()
 	if err := cmd.Run(); err != nil {
 		return "", err
 	}

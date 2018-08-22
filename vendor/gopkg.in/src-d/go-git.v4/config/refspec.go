@@ -51,26 +51,24 @@ func (s RefSpec) Validate() error {
 
 // IsForceUpdate returns if update is allowed in non fast-forward merges.
 func (s RefSpec) IsForceUpdate() bool {
-	if s[0] == refSpecForce[0] {
-		return true
-	}
-
-	return false
+	return s[0] == refSpecForce[0]
 }
 
 // IsDelete returns true if the refspec indicates a delete (empty src).
 func (s RefSpec) IsDelete() bool {
-	if s[0] == refSpecSeparator[0] {
-		return true
-	}
-
-	return false
+	return s[0] == refSpecSeparator[0]
 }
 
 // Src return the src side.
 func (s RefSpec) Src() string {
 	spec := string(s)
-	start := strings.Index(spec, refSpecForce) + 1
+
+	var start int
+	if s.IsForceUpdate() {
+		start = 1
+	} else {
+		start = 0
+	}
 	end := strings.Index(spec, refSpecSeparator)
 
 	return spec[start:end]
@@ -87,7 +85,7 @@ func (s RefSpec) Match(n plumbing.ReferenceName) bool {
 
 // IsWildcard returns true if the RefSpec contains a wildcard.
 func (s RefSpec) IsWildcard() bool {
-	return strings.Index(string(s), refSpecWildcard) != -1
+	return strings.Contains(string(s), refSpecWildcard)
 }
 
 func (s RefSpec) matchExact(n plumbing.ReferenceName) bool {

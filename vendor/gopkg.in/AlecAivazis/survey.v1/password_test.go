@@ -1,8 +1,10 @@
 package survey
 
 import (
+	"fmt"
 	"testing"
 
+	expect "github.com/Netflix/go-expect"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/AlecAivazis/survey.v1/core"
 )
@@ -24,20 +26,19 @@ func TestPasswordRender(t *testing.T) {
 			"Test Password question output",
 			Password{Message: "Tell me your secret:"},
 			PasswordTemplateData{},
-			"? Tell me your secret: ",
+			fmt.Sprintf("%s Tell me your secret: ", core.QuestionIcon),
 		},
 		{
 			"Test Password question output with help hidden",
 			Password{Message: "Tell me your secret:", Help: "This is helpful"},
 			PasswordTemplateData{},
-			"? Tell me your secret: [? for help] ",
+			fmt.Sprintf("%s Tell me your secret: [%s for help] ", core.QuestionIcon, string(core.HelpInputRune)),
 		},
 		{
 			"Test Password question output with help shown",
 			Password{Message: "Tell me your secret:", Help: "This is helpful"},
 			PasswordTemplateData{ShowHelp: true},
-			`ⓘ This is helpful
-? Tell me your secret: `,
+			fmt.Sprintf("%s This is helpful\n%s Tell me your secret: ", core.HelpIcon, core.QuestionIcon),
 		},
 	}
 
@@ -49,5 +50,45 @@ func TestPasswordRender(t *testing.T) {
 		)
 		assert.Nil(t, err, test.title)
 		assert.Equal(t, test.expected, actual, test.title)
+	}
+}
+
+func TestPasswordPrompt(t *testing.T) {
+	tests := []PromptTest{
+		{
+			"Test Password prompt interaction",
+			&Password{
+				Message: "Please type your password",
+			},
+			func(c *expect.Console) {
+				c.ExpectString("Please type your password")
+				c.Send("secret")
+				c.SendLine("")
+				c.ExpectEOF()
+			},
+			"secret",
+		},
+		{
+			"Test Password prompt interaction with help",
+			&Password{
+				Message: "Please type your password",
+				Help:    "It's a secret",
+			},
+			func(c *expect.Console) {
+				c.ExpectString("Please type your password")
+				c.SendLine("?")
+				c.ExpectString("It's a secret")
+				c.Send("secret")
+				c.SendLine("")
+				c.ExpectEOF()
+			},
+			"secret",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			RunPromptTest(t, test)
+		})
 	}
 }

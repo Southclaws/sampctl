@@ -10,6 +10,7 @@ import (
 	"github.com/Southclaws/configor"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
+	"github.com/kr/pretty"
 
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/util"
@@ -55,7 +56,6 @@ func LoadOrCreateConfig(cacheDir string, verbose bool) (cfg *Config, err error) 
 	if configFile != "" {
 		cnfgr := configor.New(&configor.Config{
 			EnvironmentPrefix:    "SAMPCTL",
-			Verbose:              verbose,
 			ErrorOnUnmatchedKeys: true,
 		})
 
@@ -69,6 +69,7 @@ func LoadOrCreateConfig(cacheDir string, verbose bool) (cfg *Config, err error) 
 			cfg.Metrics = true
 			cfg.NewUser = true
 		}
+		print.Verb("Using configuration:", pretty.Sprint(cfg))
 	} else {
 		print.Verb("No configuration file found, using default configuration")
 		var (

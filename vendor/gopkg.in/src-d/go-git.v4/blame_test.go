@@ -1,10 +1,10 @@
 package git
 
 import (
-	"github.com/src-d/go-git-fixtures"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 
 	. "gopkg.in/check.v1"
+	"gopkg.in/src-d/go-git-fixtures.v3"
 )
 
 type BlameSuite struct {
@@ -32,6 +32,10 @@ func (s *BlameSuite) TestBlame(c *C) {
 		obt, err := Blame(commit, t.path)
 		c.Assert(err, IsNil)
 		c.Assert(obt, DeepEquals, exp)
+
+		for i, l := range obt.Lines {
+			c.Assert(l.Hash.String(), Equals, t.blames[i])
+		}
 	}
 }
 
@@ -53,6 +57,8 @@ func (s *BlameSuite) mockBlame(c *C, t blameTest, r *Repository) (blame *BlameRe
 		l := &Line{
 			Author: commit.Author.Email,
 			Text:   lines[i],
+			Date:   commit.Author.When,
+			Hash:   commit.Hash,
 		}
 		blamedLines = append(blamedLines, l)
 	}

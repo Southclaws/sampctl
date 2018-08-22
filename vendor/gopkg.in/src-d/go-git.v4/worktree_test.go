@@ -3,25 +3,29 @@ package git
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
-
-	"golang.org/x/text/unicode/norm"
+	"testing"
+	"time"
 
 	"gopkg.in/src-d/go-git.v4/config"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/filemode"
+	"gopkg.in/src-d/go-git.v4/plumbing/format/gitignore"
 	"gopkg.in/src-d/go-git.v4/plumbing/format/index"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 
-	"github.com/src-d/go-git-fixtures"
+	"golang.org/x/text/unicode/norm"
 	. "gopkg.in/check.v1"
-	"gopkg.in/src-d/go-billy.v3/memfs"
-	"gopkg.in/src-d/go-billy.v3/osfs"
-	"gopkg.in/src-d/go-billy.v3/util"
+	"gopkg.in/src-d/go-billy.v4/memfs"
+	"gopkg.in/src-d/go-billy.v4/osfs"
+	"gopkg.in/src-d/go-billy.v4/util"
+	"gopkg.in/src-d/go-git-fixtures.v3"
 )
 
 type WorktreeSuite struct {
@@ -61,10 +65,12 @@ func (s *WorktreeSuite) TestPullFastForward(c *C) {
 	server, err := PlainClone(url, false, &CloneOptions{
 		URL: path,
 	})
+	c.Assert(err, IsNil)
 
 	r, err := PlainClone(c.MkDir(), false, &CloneOptions{
 		URL: url,
 	})
+	c.Assert(err, IsNil)
 
 	w, err := server.Worktree()
 	c.Assert(err, IsNil)
@@ -91,10 +97,12 @@ func (s *WorktreeSuite) TestPullNonFastForward(c *C) {
 	server, err := PlainClone(url, false, &CloneOptions{
 		URL: path,
 	})
+	c.Assert(err, IsNil)
 
 	r, err := PlainClone(c.MkDir(), false, &CloneOptions{
 		URL: url,
 	})
+	c.Assert(err, IsNil)
 
 	w, err := server.Worktree()
 	c.Assert(err, IsNil)
@@ -192,6 +200,10 @@ func (s *WorktreeSuite) TestPullProgress(c *C) {
 }
 
 func (s *WorktreeSuite) TestPullProgressWithRecursion(c *C) {
+	if testing.Short() {
+		c.Skip("skipping test in short mode.")
+	}
+
 	path := fixtures.ByTag("submodule").One().Worktree().Root()
 
 	dir, err := ioutil.TempDir("", "plain-clone-submodule")
@@ -213,6 +225,7 @@ func (s *WorktreeSuite) TestPullProgressWithRecursion(c *C) {
 	c.Assert(err, IsNil)
 
 	cfg, err := r.Config()
+	c.Assert(err, IsNil)
 	c.Assert(cfg.Submodules, HasLen, 2)
 }
 
@@ -307,6 +320,7 @@ func (s *WorktreeSuite) TestCheckoutSymlink(c *C) {
 	}
 
 	dir, err := ioutil.TempDir("", "checkout")
+	c.Assert(err, IsNil)
 	defer os.RemoveAll(dir)
 
 	r, err := PlainInit(dir, false)
@@ -345,6 +359,7 @@ func (s *WorktreeSuite) TestFilenameNormalization(c *C) {
 	server, err := PlainClone(url, false, &CloneOptions{
 		URL: path,
 	})
+	c.Assert(err, IsNil)
 
 	filename := "페"
 
@@ -359,6 +374,7 @@ func (s *WorktreeSuite) TestFilenameNormalization(c *C) {
 	r, err := Clone(memory.NewStorage(), memfs.New(), &CloneOptions{
 		URL: url,
 	})
+	c.Assert(err, IsNil)
 
 	w, err = r.Worktree()
 	c.Assert(err, IsNil)
@@ -372,7 +388,11 @@ func (s *WorktreeSuite) TestFilenameNormalization(c *C) {
 
 	modFilename := norm.Form(norm.NFKD).String(filename)
 	util.WriteFile(w.Filesystem, modFilename, []byte("foo"), 0755)
+
 	_, err = w.Add(filename)
+	c.Assert(err, IsNil)
+	_, err = w.Add(modFilename)
+	c.Assert(err, IsNil)
 
 	status, err = w.Status()
 	c.Assert(err, IsNil)
@@ -441,6 +461,7 @@ func (s *WorktreeSuite) TestCheckoutIndexMem(c *C) {
 
 func (s *WorktreeSuite) TestCheckoutIndexOS(c *C) {
 	dir, err := ioutil.TempDir("", "checkout")
+	c.Assert(err, IsNil)
 	defer os.RemoveAll(dir)
 
 	fs := osfs.New(filepath.Join(dir, "worktree"))
@@ -600,6 +621,10 @@ func (s *WorktreeSuite) TestCheckoutTag(c *C) {
 }
 
 func (s *WorktreeSuite) TestCheckoutBisect(c *C) {
+	if testing.Short() {
+		c.Skip("skipping test in short mode.")
+	}
+
 	s.testCheckoutBisect(c, "https://github.com/src-d/go-git.git")
 }
 
@@ -809,7 +834,7 @@ func (s *WorktreeSuite) TestResetMerge(c *C) {
 	c.Assert(err, IsNil)
 
 	err = w.Reset(&ResetOptions{Mode: MergeReset, Commit: commitB})
-	c.Assert(err, Equals, ErrUnstaggedChanges)
+	c.Assert(err, Equals, ErrUnstagedChanges)
 
 	branch, err = w.r.Reference(plumbing.Master, false)
 	c.Assert(err, IsNil)
@@ -861,6 +886,7 @@ func (s *WorktreeSuite) TestStatusAfterCheckout(c *C) {
 
 func (s *WorktreeSuite) TestStatusModified(c *C) {
 	dir, err := ioutil.TempDir("", "status")
+	c.Assert(err, IsNil)
 	defer os.RemoveAll(dir)
 
 	fs := osfs.New(filepath.Join(dir, "worktree"))
@@ -954,6 +980,7 @@ func (s *WorktreeSuite) TestStatusUntracked(c *C) {
 
 func (s *WorktreeSuite) TestStatusDeleted(c *C) {
 	dir, err := ioutil.TempDir("", "status")
+	c.Assert(err, IsNil)
 	defer os.RemoveAll(dir)
 
 	fs := osfs.New(filepath.Join(dir, "worktree"))
@@ -1046,6 +1073,35 @@ func (s *WorktreeSuite) TestAddUntracked(c *C) {
 	c.Assert(obj.Size(), Equals, int64(3))
 }
 
+func (s *WorktreeSuite) TestIgnored(c *C) {
+	fs := memfs.New()
+	w := &Worktree{
+		r:          s.Repository,
+		Filesystem: fs,
+	}
+
+	w.Excludes = make([]gitignore.Pattern, 0)
+	w.Excludes = append(w.Excludes, gitignore.ParsePattern("foo", nil))
+
+	err := w.Checkout(&CheckoutOptions{Force: true})
+	c.Assert(err, IsNil)
+
+	idx, err := w.r.Storer.Index()
+	c.Assert(err, IsNil)
+	c.Assert(idx.Entries, HasLen, 9)
+
+	err = util.WriteFile(w.Filesystem, "foo", []byte("FOO"), 0755)
+	c.Assert(err, IsNil)
+
+	status, err := w.Status()
+	c.Assert(err, IsNil)
+	c.Assert(status, HasLen, 0)
+
+	file := status.File("foo")
+	c.Assert(file.Staging, Equals, Untracked)
+	c.Assert(file.Worktree, Equals, Untracked)
+}
+
 func (s *WorktreeSuite) TestAddModified(c *C) {
 	fs := memfs.New()
 	w := &Worktree{
@@ -1100,8 +1156,43 @@ func (s *WorktreeSuite) TestAddUnmodified(c *C) {
 	c.Assert(err, IsNil)
 }
 
+func (s *WorktreeSuite) TestAddRemoved(c *C) {
+	fs := memfs.New()
+	w := &Worktree{
+		r:          s.Repository,
+		Filesystem: fs,
+	}
+
+	err := w.Checkout(&CheckoutOptions{Force: true})
+	c.Assert(err, IsNil)
+
+	idx, err := w.r.Storer.Index()
+	c.Assert(err, IsNil)
+	c.Assert(idx.Entries, HasLen, 9)
+
+	err = w.Filesystem.Remove("LICENSE")
+	c.Assert(err, IsNil)
+
+	hash, err := w.Add("LICENSE")
+	c.Assert(err, IsNil)
+	c.Assert(hash.String(), Equals, "c192bd6a24ea1ab01d78686e417c8bdc7c3d197f")
+
+	e, err := idx.Entry("LICENSE")
+	c.Assert(err, IsNil)
+	c.Assert(e.Hash, Equals, hash)
+	c.Assert(e.Mode, Equals, filemode.Regular)
+
+	status, err := w.Status()
+	c.Assert(err, IsNil)
+	c.Assert(status, HasLen, 1)
+
+	file := status.File("LICENSE")
+	c.Assert(file.Staging, Equals, Deleted)
+}
+
 func (s *WorktreeSuite) TestAddSymlink(c *C) {
 	dir, err := ioutil.TempDir("", "checkout")
+	c.Assert(err, IsNil)
 	defer os.RemoveAll(dir)
 
 	r, err := PlainInit(dir, false)
@@ -1125,7 +1216,124 @@ func (s *WorktreeSuite) TestAddSymlink(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(obj, NotNil)
 	c.Assert(obj.Size(), Equals, int64(3))
+}
 
+func (s *WorktreeSuite) TestAddDirectory(c *C) {
+	fs := memfs.New()
+	w := &Worktree{
+		r:          s.Repository,
+		Filesystem: fs,
+	}
+
+	err := w.Checkout(&CheckoutOptions{Force: true})
+	c.Assert(err, IsNil)
+
+	idx, err := w.r.Storer.Index()
+	c.Assert(err, IsNil)
+	c.Assert(idx.Entries, HasLen, 9)
+
+	err = util.WriteFile(w.Filesystem, "qux/foo", []byte("FOO"), 0755)
+	c.Assert(err, IsNil)
+	err = util.WriteFile(w.Filesystem, "qux/baz/bar", []byte("BAR"), 0755)
+	c.Assert(err, IsNil)
+
+	h, err := w.Add("qux")
+	c.Assert(err, IsNil)
+	c.Assert(h.IsZero(), Equals, true)
+
+	idx, err = w.r.Storer.Index()
+	c.Assert(err, IsNil)
+	c.Assert(idx.Entries, HasLen, 11)
+
+	e, err := idx.Entry("qux/foo")
+	c.Assert(err, IsNil)
+	c.Assert(e.Mode, Equals, filemode.Executable)
+
+	e, err = idx.Entry("qux/baz/bar")
+	c.Assert(err, IsNil)
+	c.Assert(e.Mode, Equals, filemode.Executable)
+
+	status, err := w.Status()
+	c.Assert(err, IsNil)
+	c.Assert(status, HasLen, 2)
+
+	file := status.File("qux/foo")
+	c.Assert(file.Staging, Equals, Added)
+	c.Assert(file.Worktree, Equals, Unmodified)
+
+	file = status.File("qux/baz/bar")
+	c.Assert(file.Staging, Equals, Added)
+	c.Assert(file.Worktree, Equals, Unmodified)
+}
+
+func (s *WorktreeSuite) TestAddDirectoryErrorNotFound(c *C) {
+	r, _ := Init(memory.NewStorage(), memfs.New())
+	w, _ := r.Worktree()
+
+	h, err := w.Add("foo")
+	c.Assert(err, NotNil)
+	c.Assert(h.IsZero(), Equals, true)
+}
+
+func (s *WorktreeSuite) TestAddGlob(c *C) {
+	fs := memfs.New()
+	w := &Worktree{
+		r:          s.Repository,
+		Filesystem: fs,
+	}
+
+	err := w.Checkout(&CheckoutOptions{Force: true})
+	c.Assert(err, IsNil)
+
+	idx, err := w.r.Storer.Index()
+	c.Assert(err, IsNil)
+	c.Assert(idx.Entries, HasLen, 9)
+
+	err = util.WriteFile(w.Filesystem, "qux/qux", []byte("QUX"), 0755)
+	c.Assert(err, IsNil)
+	err = util.WriteFile(w.Filesystem, "qux/baz", []byte("BAZ"), 0755)
+	c.Assert(err, IsNil)
+	err = util.WriteFile(w.Filesystem, "qux/bar/baz", []byte("BAZ"), 0755)
+	c.Assert(err, IsNil)
+
+	err = w.AddGlob(w.Filesystem.Join("qux", "b*"))
+	c.Assert(err, IsNil)
+
+	idx, err = w.r.Storer.Index()
+	c.Assert(err, IsNil)
+	c.Assert(idx.Entries, HasLen, 11)
+
+	e, err := idx.Entry("qux/baz")
+	c.Assert(err, IsNil)
+	c.Assert(e.Mode, Equals, filemode.Executable)
+
+	e, err = idx.Entry("qux/bar/baz")
+	c.Assert(err, IsNil)
+	c.Assert(e.Mode, Equals, filemode.Executable)
+
+	status, err := w.Status()
+	c.Assert(err, IsNil)
+	c.Assert(status, HasLen, 3)
+
+	file := status.File("qux/qux")
+	c.Assert(file.Staging, Equals, Untracked)
+	c.Assert(file.Worktree, Equals, Untracked)
+
+	file = status.File("qux/baz")
+	c.Assert(file.Staging, Equals, Added)
+	c.Assert(file.Worktree, Equals, Unmodified)
+
+	file = status.File("qux/bar/baz")
+	c.Assert(file.Staging, Equals, Added)
+	c.Assert(file.Worktree, Equals, Unmodified)
+}
+
+func (s *WorktreeSuite) TestAddGlobErrorNoMatches(c *C) {
+	r, _ := Init(memory.NewStorage(), memfs.New())
+	w, _ := r.Worktree()
+
+	err := w.AddGlob("foo")
+	c.Assert(err, Equals, ErrGlobNoMatches)
 }
 
 func (s *WorktreeSuite) TestRemove(c *C) {
@@ -1163,6 +1371,58 @@ func (s *WorktreeSuite) TestRemoveNotExistentEntry(c *C) {
 	c.Assert(err, NotNil)
 }
 
+func (s *WorktreeSuite) TestRemoveDirectory(c *C) {
+	fs := memfs.New()
+	w := &Worktree{
+		r:          s.Repository,
+		Filesystem: fs,
+	}
+
+	err := w.Checkout(&CheckoutOptions{Force: true})
+	c.Assert(err, IsNil)
+
+	hash, err := w.Remove("json")
+	c.Assert(hash.IsZero(), Equals, true)
+	c.Assert(err, IsNil)
+
+	status, err := w.Status()
+	c.Assert(err, IsNil)
+	c.Assert(status, HasLen, 2)
+	c.Assert(status.File("json/long.json").Staging, Equals, Deleted)
+	c.Assert(status.File("json/short.json").Staging, Equals, Deleted)
+
+	_, err = w.Filesystem.Stat("json")
+	c.Assert(os.IsNotExist(err), Equals, true)
+}
+
+func (s *WorktreeSuite) TestRemoveDirectoryUntracked(c *C) {
+	fs := memfs.New()
+	w := &Worktree{
+		r:          s.Repository,
+		Filesystem: fs,
+	}
+
+	err := w.Checkout(&CheckoutOptions{Force: true})
+	c.Assert(err, IsNil)
+
+	err = util.WriteFile(w.Filesystem, "json/foo", []byte("FOO"), 0755)
+	c.Assert(err, IsNil)
+
+	hash, err := w.Remove("json")
+	c.Assert(hash.IsZero(), Equals, true)
+	c.Assert(err, IsNil)
+
+	status, err := w.Status()
+	c.Assert(err, IsNil)
+	c.Assert(status, HasLen, 3)
+	c.Assert(status.File("json/long.json").Staging, Equals, Deleted)
+	c.Assert(status.File("json/short.json").Staging, Equals, Deleted)
+	c.Assert(status.File("json/foo").Staging, Equals, Untracked)
+
+	_, err = w.Filesystem.Stat("json")
+	c.Assert(err, IsNil)
+}
+
 func (s *WorktreeSuite) TestRemoveDeletedFromWorktree(c *C) {
 	fs := memfs.New()
 	w := &Worktree{
@@ -1184,6 +1444,74 @@ func (s *WorktreeSuite) TestRemoveDeletedFromWorktree(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(status, HasLen, 1)
 	c.Assert(status.File("LICENSE").Staging, Equals, Deleted)
+}
+
+func (s *WorktreeSuite) TestRemoveGlob(c *C) {
+	fs := memfs.New()
+	w := &Worktree{
+		r:          s.Repository,
+		Filesystem: fs,
+	}
+
+	err := w.Checkout(&CheckoutOptions{Force: true})
+	c.Assert(err, IsNil)
+
+	err = w.RemoveGlob(w.Filesystem.Join("json", "l*"))
+	c.Assert(err, IsNil)
+
+	status, err := w.Status()
+	c.Assert(err, IsNil)
+	c.Assert(status, HasLen, 1)
+	c.Assert(status.File("json/long.json").Staging, Equals, Deleted)
+}
+
+func (s *WorktreeSuite) TestRemoveGlobDirectory(c *C) {
+	fs := memfs.New()
+	w := &Worktree{
+		r:          s.Repository,
+		Filesystem: fs,
+	}
+
+	err := w.Checkout(&CheckoutOptions{Force: true})
+	c.Assert(err, IsNil)
+
+	err = w.RemoveGlob("js*")
+	c.Assert(err, IsNil)
+
+	status, err := w.Status()
+	c.Assert(err, IsNil)
+	c.Assert(status, HasLen, 2)
+	c.Assert(status.File("json/short.json").Staging, Equals, Deleted)
+	c.Assert(status.File("json/long.json").Staging, Equals, Deleted)
+
+	_, err = w.Filesystem.Stat("json")
+	c.Assert(os.IsNotExist(err), Equals, true)
+}
+
+func (s *WorktreeSuite) TestRemoveGlobDirectoryDeleted(c *C) {
+	fs := memfs.New()
+	w := &Worktree{
+		r:          s.Repository,
+		Filesystem: fs,
+	}
+
+	err := w.Checkout(&CheckoutOptions{Force: true})
+	c.Assert(err, IsNil)
+
+	err = fs.Remove("json/short.json")
+	c.Assert(err, IsNil)
+
+	err = util.WriteFile(w.Filesystem, "json/foo", []byte("FOO"), 0755)
+	c.Assert(err, IsNil)
+
+	err = w.RemoveGlob("js*")
+	c.Assert(err, IsNil)
+
+	status, err := w.Status()
+	c.Assert(err, IsNil)
+	c.Assert(status, HasLen, 3)
+	c.Assert(status.File("json/short.json").Staging, Equals, Deleted)
+	c.Assert(status.File("json/long.json").Staging, Equals, Deleted)
 }
 
 func (s *WorktreeSuite) TestMove(c *C) {
@@ -1236,4 +1564,340 @@ func (s *WorktreeSuite) TestMoveToExistent(c *C) {
 	hash, err := w.Move(".gitignore", "LICENSE")
 	c.Assert(hash.IsZero(), Equals, true)
 	c.Assert(err, Equals, ErrDestinationExists)
+}
+
+func (s *WorktreeSuite) TestClean(c *C) {
+	fs := fixtures.ByTag("dirty").One().Worktree()
+
+	// Open the repo.
+	fs, err := fs.Chroot("repo")
+	c.Assert(err, IsNil)
+	r, err := PlainOpen(fs.Root())
+	c.Assert(err, IsNil)
+
+	wt, err := r.Worktree()
+	c.Assert(err, IsNil)
+
+	// Status before cleaning.
+	status, err := wt.Status()
+	c.Assert(len(status), Equals, 2)
+
+	err = wt.Clean(&CleanOptions{})
+	c.Assert(err, IsNil)
+
+	// Status after cleaning.
+	status, err = wt.Status()
+	c.Assert(err, IsNil)
+
+	c.Assert(len(status), Equals, 1)
+
+	// Clean with Dir: true.
+	err = wt.Clean(&CleanOptions{Dir: true})
+	c.Assert(err, IsNil)
+
+	status, err = wt.Status()
+	c.Assert(err, IsNil)
+
+	c.Assert(len(status), Equals, 0)
+}
+
+func (s *WorktreeSuite) TestAlternatesRepo(c *C) {
+	fs := fixtures.ByTag("alternates").One().Worktree()
+
+	// Open 1st repo.
+	rep1fs, err := fs.Chroot("rep1")
+	c.Assert(err, IsNil)
+	rep1, err := PlainOpen(rep1fs.Root())
+	c.Assert(err, IsNil)
+
+	// Open 2nd repo.
+	rep2fs, err := fs.Chroot("rep2")
+	c.Assert(err, IsNil)
+	rep2, err := PlainOpen(rep2fs.Root())
+	c.Assert(err, IsNil)
+
+	// Get the HEAD commit from the main repo.
+	h, err := rep1.Head()
+	c.Assert(err, IsNil)
+	commit1, err := rep1.CommitObject(h.Hash())
+	c.Assert(err, IsNil)
+
+	// Get the HEAD commit from the shared repo.
+	h, err = rep2.Head()
+	c.Assert(err, IsNil)
+	commit2, err := rep2.CommitObject(h.Hash())
+	c.Assert(err, IsNil)
+
+	c.Assert(commit1.String(), Equals, commit2.String())
+}
+
+func (s *WorktreeSuite) TestGrep(c *C) {
+	cases := []struct {
+		name           string
+		options        GrepOptions
+		wantResult     []GrepResult
+		dontWantResult []GrepResult
+		wantError      error
+	}{
+		{
+			name: "basic word match",
+			options: GrepOptions{
+				Patterns: []*regexp.Regexp{regexp.MustCompile("import")},
+			},
+			wantResult: []GrepResult{
+				{
+					FileName:   "go/example.go",
+					LineNumber: 3,
+					Content:    "import (",
+					TreeName:   "6ecf0ef2c2dffb796033e5a02219af86ec6584e5",
+				},
+				{
+					FileName:   "vendor/foo.go",
+					LineNumber: 3,
+					Content:    "import \"fmt\"",
+					TreeName:   "6ecf0ef2c2dffb796033e5a02219af86ec6584e5",
+				},
+			},
+		}, {
+			name: "case insensitive match",
+			options: GrepOptions{
+				Patterns: []*regexp.Regexp{regexp.MustCompile(`(?i)IMport`)},
+			},
+			wantResult: []GrepResult{
+				{
+					FileName:   "go/example.go",
+					LineNumber: 3,
+					Content:    "import (",
+					TreeName:   "6ecf0ef2c2dffb796033e5a02219af86ec6584e5",
+				},
+				{
+					FileName:   "vendor/foo.go",
+					LineNumber: 3,
+					Content:    "import \"fmt\"",
+					TreeName:   "6ecf0ef2c2dffb796033e5a02219af86ec6584e5",
+				},
+			},
+		}, {
+			name: "invert match",
+			options: GrepOptions{
+				Patterns:    []*regexp.Regexp{regexp.MustCompile("import")},
+				InvertMatch: true,
+			},
+			dontWantResult: []GrepResult{
+				{
+					FileName:   "go/example.go",
+					LineNumber: 3,
+					Content:    "import (",
+					TreeName:   "6ecf0ef2c2dffb796033e5a02219af86ec6584e5",
+				},
+				{
+					FileName:   "vendor/foo.go",
+					LineNumber: 3,
+					Content:    "import \"fmt\"",
+					TreeName:   "6ecf0ef2c2dffb796033e5a02219af86ec6584e5",
+				},
+			},
+		}, {
+			name: "match at a given commit hash",
+			options: GrepOptions{
+				Patterns:   []*regexp.Regexp{regexp.MustCompile("The MIT License")},
+				CommitHash: plumbing.NewHash("b029517f6300c2da0f4b651b8642506cd6aaf45d"),
+			},
+			wantResult: []GrepResult{
+				{
+					FileName:   "LICENSE",
+					LineNumber: 1,
+					Content:    "The MIT License (MIT)",
+					TreeName:   "b029517f6300c2da0f4b651b8642506cd6aaf45d",
+				},
+			},
+			dontWantResult: []GrepResult{
+				{
+					FileName:   "go/example.go",
+					LineNumber: 3,
+					Content:    "import (",
+					TreeName:   "6ecf0ef2c2dffb796033e5a02219af86ec6584e5",
+				},
+			},
+		}, {
+			name: "match for a given pathspec",
+			options: GrepOptions{
+				Patterns:  []*regexp.Regexp{regexp.MustCompile("import")},
+				PathSpecs: []*regexp.Regexp{regexp.MustCompile("go/")},
+			},
+			wantResult: []GrepResult{
+				{
+					FileName:   "go/example.go",
+					LineNumber: 3,
+					Content:    "import (",
+					TreeName:   "6ecf0ef2c2dffb796033e5a02219af86ec6584e5",
+				},
+			},
+			dontWantResult: []GrepResult{
+				{
+					FileName:   "vendor/foo.go",
+					LineNumber: 3,
+					Content:    "import \"fmt\"",
+					TreeName:   "6ecf0ef2c2dffb796033e5a02219af86ec6584e5",
+				},
+			},
+		}, {
+			name: "match at a given reference name",
+			options: GrepOptions{
+				Patterns:      []*regexp.Regexp{regexp.MustCompile("import")},
+				ReferenceName: "refs/heads/master",
+			},
+			wantResult: []GrepResult{
+				{
+					FileName:   "go/example.go",
+					LineNumber: 3,
+					Content:    "import (",
+					TreeName:   "refs/heads/master",
+				},
+			},
+		}, {
+			name: "ambiguous options",
+			options: GrepOptions{
+				Patterns:      []*regexp.Regexp{regexp.MustCompile("import")},
+				CommitHash:    plumbing.NewHash("2d55a722f3c3ecc36da919dfd8b6de38352f3507"),
+				ReferenceName: "somereferencename",
+			},
+			wantError: ErrHashOrReference,
+		}, {
+			name: "multiple patterns",
+			options: GrepOptions{
+				Patterns: []*regexp.Regexp{
+					regexp.MustCompile("import"),
+					regexp.MustCompile("License"),
+				},
+			},
+			wantResult: []GrepResult{
+				{
+					FileName:   "go/example.go",
+					LineNumber: 3,
+					Content:    "import (",
+					TreeName:   "6ecf0ef2c2dffb796033e5a02219af86ec6584e5",
+				},
+				{
+					FileName:   "vendor/foo.go",
+					LineNumber: 3,
+					Content:    "import \"fmt\"",
+					TreeName:   "6ecf0ef2c2dffb796033e5a02219af86ec6584e5",
+				},
+				{
+					FileName:   "LICENSE",
+					LineNumber: 1,
+					Content:    "The MIT License (MIT)",
+					TreeName:   "6ecf0ef2c2dffb796033e5a02219af86ec6584e5",
+				},
+			},
+		}, {
+			name: "multiple pathspecs",
+			options: GrepOptions{
+				Patterns: []*regexp.Regexp{regexp.MustCompile("import")},
+				PathSpecs: []*regexp.Regexp{
+					regexp.MustCompile("go/"),
+					regexp.MustCompile("vendor/"),
+				},
+			},
+			wantResult: []GrepResult{
+				{
+					FileName:   "go/example.go",
+					LineNumber: 3,
+					Content:    "import (",
+					TreeName:   "6ecf0ef2c2dffb796033e5a02219af86ec6584e5",
+				},
+				{
+					FileName:   "vendor/foo.go",
+					LineNumber: 3,
+					Content:    "import \"fmt\"",
+					TreeName:   "6ecf0ef2c2dffb796033e5a02219af86ec6584e5",
+				},
+			},
+		},
+	}
+
+	path := fixtures.Basic().ByTag("worktree").One().Worktree().Root()
+	server, err := PlainClone(c.MkDir(), false, &CloneOptions{
+		URL: path,
+	})
+	c.Assert(err, IsNil)
+
+	w, err := server.Worktree()
+	c.Assert(err, IsNil)
+
+	for _, tc := range cases {
+		gr, err := w.Grep(&tc.options)
+		if tc.wantError != nil {
+			c.Assert(err, Equals, tc.wantError)
+		} else {
+			c.Assert(err, IsNil)
+		}
+
+		// Iterate through the results and check if the wanted result is present
+		// in the got result.
+		for _, wantResult := range tc.wantResult {
+			found := false
+			for _, gotResult := range gr {
+				if wantResult == gotResult {
+					found = true
+					break
+				}
+			}
+			if !found {
+				c.Errorf("unexpected grep results for %q, expected result to contain: %v", tc.name, wantResult)
+			}
+		}
+
+		// Iterate through the results and check if the not wanted result is
+		// present in the got result.
+		for _, dontWantResult := range tc.dontWantResult {
+			found := false
+			for _, gotResult := range gr {
+				if dontWantResult == gotResult {
+					found = true
+					break
+				}
+			}
+			if found {
+				c.Errorf("unexpected grep results for %q, expected result to NOT contain: %v", tc.name, dontWantResult)
+			}
+		}
+	}
+}
+
+func (s *WorktreeSuite) TestAddAndCommit(c *C) {
+	dir, err := ioutil.TempDir("", "plain-repo")
+	c.Assert(err, IsNil)
+	defer os.RemoveAll(dir)
+
+	repo, err := PlainInit(dir, false)
+	c.Assert(err, IsNil)
+
+	w, err := repo.Worktree()
+	c.Assert(err, IsNil)
+
+	_, err = w.Add(".")
+	c.Assert(err, IsNil)
+
+	w.Commit("Test Add And Commit", &CommitOptions{Author: &object.Signature{
+		Name:  "foo",
+		Email: "foo@foo.foo",
+		When:  time.Now(),
+	}})
+
+	iter, err := w.r.Log(&LogOptions{})
+	c.Assert(err, IsNil)
+	err = iter.ForEach(func(c *object.Commit) error {
+		files, err := c.Files()
+		if err != nil {
+			return err
+		}
+
+		err = files.ForEach(func(f *object.File) error {
+			return errors.New("Expected no files, got at least 1")
+		})
+		return err
+	})
+	c.Assert(err, IsNil)
 }

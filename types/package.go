@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -131,7 +130,6 @@ func PackageFromDir(dir string) (pkg Package, err error) {
 	cnfgr := configor.New(&configor.Config{
 		Environment:          "development",
 		EnvironmentPrefix:    "SAMP",
-		Verbose:              os.Getenv("DEBUG") != "",
 		ErrorOnUnmatchedKeys: true,
 	})
 

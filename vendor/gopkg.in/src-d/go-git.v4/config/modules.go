@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	"errors"
+	"regexp"
 
 	format "gopkg.in/src-d/go-git.v4/plumbing/format/config"
 )
@@ -10,6 +11,12 @@ import (
 var (
 	ErrModuleEmptyURL  = errors.New("module config: empty URL")
 	ErrModuleEmptyPath = errors.New("module config: empty path")
+	ErrModuleBadPath   = errors.New("submodule has an invalid path")
+)
+
+var (
+	// Matches module paths with dotdot ".." components.
+	dotdotPath = regexp.MustCompile(`(^|[/\\])\.\.([/\\]|$)`)
 )
 
 // Modules defines the submodules properties, represents a .gitmodules file
@@ -24,7 +31,7 @@ type Modules struct {
 // NewModules returns a new empty Modules
 func NewModules() *Modules {
 	return &Modules{
-		Submodules: make(map[string]*Submodule, 0),
+		Submodules: make(map[string]*Submodule),
 		raw:        format.New(),
 	}
 }
@@ -44,14 +51,7 @@ func (m *Modules) Unmarshal(b []byte) error {
 		return err
 	}
 
-	s := m.raw.Section(submoduleSection)
-	for _, sub := range s.Subsections {
-		mod := &Submodule{}
-		mod.unmarshal(sub)
-
-		m.Submodules[mod.Path] = mod
-	}
-
+	unmarshalSubmodules(m.raw, m.Submodules)
 	return nil
 }
 
@@ -100,6 +100,10 @@ func (m *Submodule) Validate() error {
 
 	if m.URL == "" {
 		return ErrModuleEmptyURL
+	}
+
+	if dotdotPath.MatchString(m.Path) {
+		return ErrModuleBadPath
 	}
 
 	return nil

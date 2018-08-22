@@ -19,9 +19,8 @@ type upSession struct {
 	*session
 }
 
-func newUploadPackSession(c *http.Client, ep transport.Endpoint, auth transport.AuthMethod) (transport.UploadPackSession, error) {
+func newUploadPackSession(c *http.Client, ep *transport.Endpoint, auth transport.AuthMethod) (transport.UploadPackSession, error) {
 	s, err := newSession(c, ep, auth)
-
 	return &upSession{s}, err
 }
 
@@ -88,8 +87,8 @@ func (s *upSession) doRequest(
 		return nil, plumbing.NewPermanentError(err)
 	}
 
-	applyHeadersToRequest(req, content, s.endpoint.Host(), transport.UploadPackServiceName)
-	s.applyAuthToRequest(req)
+	applyHeadersToRequest(req, content, s.endpoint.Host, transport.UploadPackServiceName)
+	s.ApplyAuthToRequest(req)
 
 	res, err := s.client.Do(req.WithContext(ctx))
 	if err != nil {

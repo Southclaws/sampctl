@@ -5,11 +5,12 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"testing"
 
-	"github.com/src-d/go-git-fixtures"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 
 	. "gopkg.in/check.v1"
+	"gopkg.in/src-d/go-git-fixtures.v3"
 )
 
 type SubmoduleSuite struct {
@@ -66,6 +67,10 @@ func (s *SubmoduleSuite) TestInit(c *C) {
 }
 
 func (s *SubmoduleSuite) TestUpdate(c *C) {
+	if testing.Short() {
+		c.Skip("skipping test in short mode.")
+	}
+
 	sm, err := s.Worktree.Submodule("basic")
 	c.Assert(err, IsNil)
 
@@ -118,6 +123,10 @@ func (s *SubmoduleSuite) TestUpdateWithNotFetch(c *C) {
 }
 
 func (s *SubmoduleSuite) TestUpdateWithRecursion(c *C) {
+	if testing.Short() {
+		c.Skip("skipping test in short mode.")
+	}
+
 	sm, err := s.Worktree.Submodule("itself")
 	c.Assert(err, IsNil)
 
@@ -134,6 +143,10 @@ func (s *SubmoduleSuite) TestUpdateWithRecursion(c *C) {
 }
 
 func (s *SubmoduleSuite) TestUpdateWithInitAndUpdate(c *C) {
+	if testing.Short() {
+		c.Skip("skipping test in short mode.")
+	}
+
 	sm, err := s.Worktree.Submodule("basic")
 	c.Assert(err, IsNil)
 
@@ -183,6 +196,21 @@ func (s *SubmoduleSuite) TestSubmodulesInit(c *C) {
 	}
 }
 
+func (s *SubmoduleSuite) TestGitSubmodulesSymlink(c *C) {
+	f, err := s.Worktree.Filesystem.Create("badfile")
+	c.Assert(err, IsNil)
+	defer f.Close()
+
+	err = s.Worktree.Filesystem.Remove(gitmodulesFile)
+	c.Assert(err, IsNil)
+
+	err = s.Worktree.Filesystem.Symlink("badfile", gitmodulesFile)
+	c.Assert(err, IsNil)
+
+	_, err = s.Worktree.Submodules()
+	c.Assert(err, Equals, ErrGitModulesSymlink)
+}
+
 func (s *SubmoduleSuite) TestSubmodulesStatus(c *C) {
 	sm, err := s.Worktree.Submodules()
 	c.Assert(err, IsNil)
@@ -193,6 +221,10 @@ func (s *SubmoduleSuite) TestSubmodulesStatus(c *C) {
 }
 
 func (s *SubmoduleSuite) TestSubmodulesUpdateContext(c *C) {
+	if testing.Short() {
+		c.Skip("skipping test in short mode.")
+	}
+
 	sm, err := s.Worktree.Submodules()
 	c.Assert(err, IsNil)
 
