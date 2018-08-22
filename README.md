@@ -214,7 +214,7 @@ directory.
 ---
 # `sampctl`
 
-1.8.29 - Southclaws <hello@southcla.ws>
+1.8.30 - Southclaws <hello@southcla.ws>
 
 The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
 
@@ -350,7 +350,7 @@ Uninstalls package by removing it from the `dependencies` field in `pawn.json`/`
 - `--platform windows`: manually specify the target platform for downloaded binaries to either windows, `linux` or `darwin`.
 - `--bare`: skip all pre-run configuration
 - `--dir value`: working directory for the project - by default, uses the current directory (default: ".")
-- `--dev`: for specifying dependencies only necessary for development or testing of the package
+- `--dev`: for specifying development dependencies
 
 ### `sampctl package release`
 
