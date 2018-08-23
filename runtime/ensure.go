@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
@@ -31,21 +32,25 @@ func Ensure(ctx context.Context, gh *github.Client, cfg *types.Runtime, noCache 
 		return
 	}
 
+	print.Verb("ensuring server binaries")
 	err = EnsureBinaries(cacheDir, *cfg)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure runtime binaries")
 	}
 
+	print.Verb("ensuring all dependency and static plugins")
 	err = EnsurePlugins(ctx, gh, cfg, cacheDir, noCache)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure plugins")
 	}
 
+	print.Verb("ensuring all compiled scripts")
 	err = EnsureScripts(*cfg)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure scripts")
 	}
 
+	print.Verb("generating legacy server configuration file")
 	err = GenerateServerCfg(cfg)
 	if err != nil {
 		return errors.Wrap(err, "failed to generate server.cfg")

@@ -41,13 +41,13 @@ func EnsurePlugins(
 	)
 
 	for _, plugin := range cfg.PluginDeps {
-		print.Verb("plugin", plugin, "is a package dependency")
 		files, err = EnsureVersionedPlugin(ctx, gh, plugin, cfg.WorkingDir, cfg.Platform, cacheDir, true, false, noCache)
 		if err != nil {
 			print.Warn("failed to ensure plugin", plugin, err)
 			err = nil
 			continue
 		}
+		print.Verb("adding dependency", plugin, "files", files, "to plugins list")
 		newPlugins = append(newPlugins, files...)
 	}
 
@@ -60,7 +60,7 @@ func EnsurePlugins(
 			continue
 		}
 
-		print.Verb("adding runtime plugin", pluginName)
+		print.Verb("adding plugin by local filename", pluginName)
 		cfg.Plugins = append(cfg.Plugins, pluginName)
 		added[pluginName] = struct{}{}
 	}
@@ -88,6 +88,7 @@ func EnsureVersionedPlugin(
 	print.Verb(meta, "retrieved package to file:", filename)
 
 	if resource.Archive {
+		print.Verb(meta, "plugin resource is an archive")
 		var (
 			ext    = filepath.Ext(filename)
 			method download.ExtractFunc
@@ -106,6 +107,7 @@ func EnsureVersionedPlugin(
 		// get plugins
 		if plugins {
 			for _, plugin := range resource.Plugins {
+				print.Verb(meta, "marking plugin path", plugin, "for extraction to ./plugins/")
 				paths[plugin] = "plugins/"
 			}
 		}
@@ -113,12 +115,14 @@ func EnsureVersionedPlugin(
 		// get include directories
 		if includes {
 			for _, include := range resource.Includes {
+				print.Verb(meta, "marking include path", include, "for extraction")
 				paths[include] = ""
 			}
 		}
 
 		// get additional files
 		for src, dest := range resource.Files {
+			print.Verb(meta, "marking misc file path", src, "for extraction to", dest)
 			paths[src] = dest
 		}
 
@@ -128,15 +132,23 @@ func EnsureVersionedPlugin(
 			err = errors.Wrapf(err, "failed to extract plugin %s to %s", meta, dir)
 			return
 		}
+		if len(extractedFiles) == 0 {
+			//nolint:lll
+			err = errors.Errorf("no files extracted from plugin %s: check the package definition of this dependency against the release assets", meta)
+			return
+		}
+		print.Verb(meta, "extracted", len(extractedFiles), "plugin files to", dir)
 
 		for source, target := range extractedFiles {
 			for _, plugin := range resource.Plugins {
+				print.Verb(meta, "checking resource source", source, "against plugin", plugin)
 				if source == plugin {
 					files = append(files, types.Plugin(filepath.Base(target)))
 				}
 			}
 		}
 	} else {
+		print.Verb(meta, "plugin resource is a single file")
 		base := filepath.Base(filename)
 		destination := filepath.Join(dir, "plugins", base)
 		err = util.CopyFile(filename, destination)

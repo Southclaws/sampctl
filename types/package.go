@@ -15,7 +15,6 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
-	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -102,9 +101,8 @@ func PackageFromDep(depString versioning.DependencyString) (pkg Package, err err
 // PackageFromDir attempts to parse a pawn.json or pawn.yaml file from a directory
 func PackageFromDir(dir string) (pkg Package, err error) {
 	err = godotenv.Load(filepath.Join(dir, ".env"))
-	if err != nil {
-		print.Verb("could not load .env:", err)
-		err = nil
+	if err != nil && !strings.HasSuffix(err.Error(), "no such file or directory") {
+		return
 	}
 
 	packageDefinitions := []string{
@@ -132,8 +130,6 @@ func PackageFromDir(dir string) (pkg Package, err error) {
 		EnvironmentPrefix:    "SAMP",
 		ErrorOnUnmatchedKeys: true,
 	})
-
-	print.Verb("loading package definition", packageDefinitionFormat, "file", packageDefinition)
 
 	pkg = Package{}
 	// Note: configor returns weird errors on success for some dumb reason, awaiting fix upstream.
