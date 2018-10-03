@@ -11,11 +11,9 @@ import (
 
 	"github.com/Southclaws/configor"
 	"github.com/google/go-github/github"
-	"github.com/joho/godotenv"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
-	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -101,11 +99,6 @@ func PackageFromDep(depString versioning.DependencyString) (pkg Package, err err
 
 // PackageFromDir attempts to parse a pawn.json or pawn.yaml file from a directory
 func PackageFromDir(dir string) (pkg Package, err error) {
-	err = godotenv.Load(filepath.Join(dir, ".env"))
-	if err != nil {
-		print.Verb(err)
-	}
-
 	packageDefinitions := []string{
 		filepath.Join(dir, "pawn.json"),
 		filepath.Join(dir, "pawn.yaml"),

@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"time"
 
 	"github.com/Masterminds/semver"
 	"github.com/google/go-github/github"
+	"github.com/joho/godotenv"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 	"gopkg.in/segmentio/analytics-go.v3"
@@ -225,6 +227,11 @@ func main() {
 
 	app.Flags = globalFlags
 	app.Before = func(c *cli.Context) error {
+		err = godotenv.Load(filepath.Join(dir, ".env"))
+		if err != nil {
+			print.Verb(err)
+		}
+
 		verbose := c.GlobalBool("verbose")
 
 		// "bare" mode is for CI use only
