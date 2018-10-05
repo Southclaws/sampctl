@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"runtime"
 	"time"
 
@@ -227,7 +226,7 @@ func main() {
 
 	app.Flags = globalFlags
 	app.Before = func(c *cli.Context) error {
-		err = godotenv.Load(filepath.Join(dir, ".env"))
+		err = godotenv.Load(".env")
 		if err != nil {
 			print.Verb(err)
 		}
