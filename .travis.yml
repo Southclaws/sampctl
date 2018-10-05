@@ -3,34 +3,42 @@ services:
   - docker
 before_install:
   - sudo dpkg --add-architecture i386
-  - sudo apt-get install -qq --force-yes build-essential gcc-multilib g++-multilib > /dev/null
+  - sudo apt-get install -qq --force-yes build-essential gcc-multilib
+    g++-multilib > /dev/null
 addons:
   apt:
     packages:
       - docker-ce
 language: go
+go:
+  - "1.11"
 jobs:
   include:
     - stage: test smallbits
       script:
-        - go test -race -p 4 -coverprofile=coverage.txt ./versioning ./util ./download ./compiler
+        - go get
+        - go test -race -p 4 -coverprofile=coverage.txt ./versioning ./util
+          ./download ./compiler
         - bash <(curl -s https://codecov.io/bash)
     - stage: test runtime
       script:
+        - go get
         - go test -race -p 4 -coverprofile=coverage.txt ./runtime
         - bash <(curl -s https://codecov.io/bash)
     - stage: test rook
       script:
+        - go get
         - go test -race -p 4 -coverprofile=coverage.txt -timeout=20m ./rook
         - bash <(curl -s https://codecov.io/bash)
     - stage: deploy
       if: branch=~^(v?(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[\da-z-]+(?:\.[\da-z-]+)*)?(?:\+[\da-z-]+(?:\.[\da-z-]+)*)?)$
       script:
         - test -n "$TRAVIS_TAG"
-        - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-        - if [ `uname -m` = x86_64 ]; then sudo apt-get install -qq --force-yes gcc-multilib > /dev/null; fi
+        - go get
+        - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME"
+          --password-stdin
+        - if [ `uname -m` = x86_64 ]; then sudo apt-get install -qq --force-yes
+          gcc-multilib > /dev/null; fi
         - sudo apt-get install -y build-essential rpm
         - gem install --no-ri --no-rdoc fpm
         - curl -sL https://git.io/goreleaser | bash
-go:
-  - "1.10"
