@@ -62,7 +62,6 @@ Number of vehicle models: 0
 			if err != nil {
 				panic(err)
 			}
-			config.AppVersion = Version
 			config.Platform = runtime.GOOS
 			config.Version = "0.3.7"
 			config.Gamemodes = []string{tt.name}
