@@ -217,14 +217,9 @@ func PackageFromRepo(
 	if err != nil {
 		return
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode == 200 {
-		var contents []byte
-		contents, err = ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return
-		}
-		err = json.Unmarshal(contents, &pkg)
-		return
+		return packageFromJSONResponse(resp, meta)
 	}
 
 	resp, err = http.Get(fmt.Sprintf(
@@ -234,14 +229,9 @@ func PackageFromRepo(
 	if err != nil {
 		return
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode == 200 {
-		var contents []byte
-		contents, err = ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return
-		}
-		err = yaml.Unmarshal(contents, &pkg)
-		return
+		return packageFromYAMLResponse(resp, meta)
 	}
 
 	return pkg, errors.Wrap(err, "package does not point to a valid remote package")
@@ -262,22 +252,32 @@ func PackageFromOfficialRepo(
 		err = errors.Wrapf(err, "failed to get plugin '%s' from official repo", meta)
 		return
 	}
+	defer resp.Body.Close()
+	return packageFromJSONResponse(resp, meta)
+}
 
+func packageFromJSONResponse(resp *http.Response, meta versioning.DependencyMeta) (pkg Package, err error) {
 	if resp.StatusCode != 200 {
 		err = errors.Errorf("plugin '%s' does not exist in official repo", meta)
 		return
 	}
-
-	payload, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		err = errors.Wrapf(err, "failed to read response for plugin package '%s'", meta)
-		return
-	}
-	err = json.Unmarshal(payload, &pkg)
+	err = json.NewDecoder(resp.Body).Decode(&pkg)
 	if err != nil {
 		err = errors.Wrapf(err, "failed to decode plugin package '%s'", meta)
 		return
 	}
+	return
+}
 
-	return pkg, nil
+func packageFromYAMLResponse(resp *http.Response, meta versioning.DependencyMeta) (pkg Package, err error) {
+	if resp.StatusCode != 200 {
+		err = errors.Errorf("plugin '%s' does not exist in official repo", meta)
+		return
+	}
+	err = yaml.NewDecoder(resp.Body).Decode(&pkg)
+	if err != nil {
+		err = errors.Wrapf(err, "failed to decode plugin package '%s'", meta)
+		return
+	}
+	return
 }
