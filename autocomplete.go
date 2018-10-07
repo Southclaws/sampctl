@@ -25,6 +25,7 @@ func autoComplete(c *cli.Context) (err error) {
 	if err != nil {
 		return
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		return errors.Errorf("failed to get bash completion: %s", resp.Status)

@@ -13,6 +13,9 @@
 # goreleaser build space
 dist/
 
+# Goland
+.idea/
+
 # main binary
 sampctl
 
