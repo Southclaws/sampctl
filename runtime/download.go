@@ -90,16 +90,18 @@ func FromNet(cacheDir, version, dir, platform string) (err error) {
 		return errors.Wrap(err, "failed to download package")
 	}
 
+	ok, err := MatchesChecksum(fullPath, platform, cacheDir, version)
+	if err != nil {
+		os.Remove(fullPath);
+		return errors.Wrap(err, "failed to match checksum")
+	} else if !ok {
+		os.Remove(fullPath);
+		return errors.Errorf("server binary does not match checksum for version %s", version)
+	}
+
 	_, err = method(fullPath, dir, paths)
 	if err != nil {
 		return errors.Wrapf(err, "failed to unzip package %s", filename)
-	}
-
-	ok, err := MatchesChecksum(filepath.Join(dir, getServerBinary(platform)), platform, cacheDir, version)
-	if err != nil {
-		return errors.Wrap(err, "failed to match checksum")
-	} else if !ok {
-		return errors.Errorf("server binary does not match checksum for version %s", version)
 	}
 
 	return nil
