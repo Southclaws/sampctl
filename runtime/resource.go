@@ -69,7 +69,7 @@ func MatchesChecksum(src, platform, cacheDir, version string) (ok bool, err erro
 
 	contents, err := ioutil.ReadFile(src)
 	if err != nil {
-		return false, errors.Wrap(err, "failed to read server binary")
+		return false, errors.Wrap(err, "failed to read downloaded server package")
 	}
 
 	want := ""
