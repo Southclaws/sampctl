@@ -80,15 +80,6 @@ func EnsureBinaries(cacheDir string, cfg types.Runtime) (err error) {
 		}
 	}
 
-	serverBinary := filepath.Join(cfg.WorkingDir, getServerBinary(cfg.Platform))
-
-	ok, err := MatchesChecksum(serverBinary, cfg.Platform, cacheDir, cfg.Version)
-	if err != nil {
-		return errors.Wrap(err, "failed to match checksum")
-	} else if !ok {
-		return errors.Errorf("existing binary does not match checksum for version %s", cfg.Version)
-	}
-
 	return
 }
 
