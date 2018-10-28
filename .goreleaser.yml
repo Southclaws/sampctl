@@ -33,16 +33,15 @@ snapshot:
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
 dockers:
-  - image: southclaws/sampctl
-    goos: linux
+  - goos: linux
     goarch: "386"
     binary: sampctl
     dockerfile: Dockerfile
-    tag_templates:
-      - "{{ .Tag }}"
-      - "v{{ .Major }}"
-      - "v{{ .Major }}.{{ .Minor }}"
-      - latest
+    image_templates:
+      - "southclaws/sampctl{{ .Tag }}"
+      - "southclaws/sampctlv{{ .Major }}"
+      - "southclaws/sampctlv{{ .Major }}.{{ .Minor }}"
+      - "southclaws/sampctl:latest"
 nfpm:
   vendor: Southclaws
   homepage: https://github.com/Southclaws/sampctl
