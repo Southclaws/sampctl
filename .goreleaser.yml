@@ -38,9 +38,9 @@ dockers:
     binary: sampctl
     dockerfile: Dockerfile
     image_templates:
-      - "southclaws/sampctl{{ .Tag }}"
-      - "southclaws/sampctlv{{ .Major }}"
-      - "southclaws/sampctlv{{ .Major }}.{{ .Minor }}"
+      - "southclaws/sampctl:{{ .Tag }}"
+      - "southclaws/sampctl:v{{ .Major }}"
+      - "southclaws/sampctl:v{{ .Major }}.{{ .Minor }}"
       - "southclaws/sampctl:latest"
 nfpm:
   vendor: Southclaws
