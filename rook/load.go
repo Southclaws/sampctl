@@ -121,7 +121,7 @@ func getPackageTag(dir string) (tag string) {
 	} else {
 		vtag, errInner := versioning.GetRepoCurrentVersionedTag(repo)
 		if errInner != nil {
-			// error information only needs to be printed wth --verbose
+			// error information only needs to be printed with --verbose
 			print.Verb("failed to get version information:", errInner)
 			// but we can let the user know that they should version their code!
 			print.Info("Package does not have any tags, consider versioning your code with: `sampctl package release`")
