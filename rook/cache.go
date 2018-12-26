@@ -77,23 +77,40 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 				print.Verb(prefix, currentMeta, "is not a package:", errInner)
 				return
 			}
-		}
 
-		// some resources may not be plugins
-		isPlugin := false
+			// Run through resources for the target platform and grab all the
+			// include paths that will be used for includes from resource archives.
+			for _, res := range currentPackage.Resources {
+				if res.Platform != pcx.Platform {
+					print.Verb(prefix, "ignoring platform mismatch", res.Platform)
+					continue
+				}
 
-		// Run through resources for the target platform and grab all the
-		// include paths that will be used for includes from resource archives.
-		for _, res := range currentPackage.Resources {
-			if res.Platform != pcx.Platform {
-				print.Verb(prefix, "ignoring platform mismatch", res.Platform)
-				continue
+				if len(res.Includes) > 0 {
+					targetPath := filepath.Join(pcx.Package.Vendor, res.Path(currentPackage))
+					pcx.AllIncludePaths = append(pcx.AllIncludePaths, targetPath)
+					print.Verb(prefix, "added target path for resource includes:", targetPath)
+				}
 			}
 
-			if len(res.Includes) > 0 {
-				targetPath := filepath.Join(pcx.Package.Vendor, res.Path(currentPackage))
-				pcx.AllIncludePaths = append(pcx.AllIncludePaths, targetPath)
-				print.Verb(prefix, "added target path for resource includes:", targetPath)
+			// some resources may not be plugins
+			isPlugin := false
+
+			for _, resource := range currentPackage.Resources {
+				if resource.Archive {
+					if len(resource.Plugins) > 0 {
+						isPlugin = true
+					}
+				} else {
+					if strings.Contains(resource.Name, "dll") || strings.Contains(resource.Name, "so") {
+						isPlugin = true
+					}
+				}
+			}
+
+			if isPlugin {
+				pcx.AllPlugins = append(pcx.AllPlugins, currentMeta)
+				print.Verb(prefix, currentMeta, "is a plugin")
 			}
 		}
 
@@ -101,34 +118,16 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 		// multiple times within the dependency tree.
 		visited[currentMeta.Repo] = true
 
-		var subPackageDepStrings []versioning.DependencyString
+		// first iteration has finished, mark it false and next iterations will
+		// operate on dependencies
+		firstIter = false
 
+		var subPackageDepStrings []versioning.DependencyString
 		if currentPackage.Parent {
 			subPackageDepStrings = currentPackage.GetAllDependencies()
 		} else {
 			subPackageDepStrings = currentPackage.Dependencies
 		}
-
-		for _, resource := range currentPackage.Resources {
-			if resource.Archive {
-				if len(resource.Plugins) > 0 {
-					isPlugin = true
-				}
-			} else {
-				if strings.Contains(resource.Name, "dll") || strings.Contains(resource.Name, "so") {
-					isPlugin = true
-				}
-			}
-		}
-
-		if isPlugin {
-			pcx.AllPlugins = append(pcx.AllPlugins, currentMeta)
-			print.Verb(prefix, currentMeta, "is a plugin")
-		}
-
-		// first iteration has finished, mark it false and next iterations will
-		// operate on dependencies
-		firstIter = false
 
 		print.Verb(prefix, "iterating", len(subPackageDepStrings), "dependencies of", currentPackage)
 		var subPackageDepMeta versioning.DependencyMeta
