@@ -59,10 +59,10 @@ github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b h1:j7+1HpAFS1zy5+Q4qx1f
 github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b/go.mod h1:01TrycV0kFyexm33Z7vhZRXopbI8J3TDReVlkTgMUxE=
 github.com/michaelbironneau/garbler v0.0.0-20180525195632-2018e2dc9c11 h1:6gKAJ00aaUiJOwkPpA2x9jWVL5AJRH/evlOfLSa9UQc=
 github.com/michaelbironneau/garbler v0.0.0-20180525195632-2018e2dc9c11/go.mod h1:cC8DSoNXYzvFn9C40caxONKbrlv8YIIZU6mQeZaGsPU=
-github.com/minio/go-homedir v0.0.0-20171204175109-4d76aabb80b2 h1:qekSCPLAlQ7KYNO3mWlHzM3NZtg0jYkDDJKYH2kxZAE=
-github.com/minio/go-homedir v0.0.0-20171204175109-4d76aabb80b2/go.mod h1:qWuvukyQdL3p0FsxUgXRyfYtuQwULDkEq2Z8R58SenI=
 github.com/mitchellh/go-homedir v0.0.0-20180801233206-58046073cbff h1:jM4Eo4qMmmcqePS3u6X2lcEELtVuXWkWJIS/pRI3oSk=
 github.com/mitchellh/go-homedir v0.0.0-20180801233206-58046073cbff/go.mod h1:SfyaCUpYCn1Vlf4IUYiD9fPX4A5wJrkLzIz1N1q0pr0=
+github.com/mitchellh/go-homedir v1.1.0 h1:lukF9ziXFxDFPkA1vsr5zpc1XuPDn/wFntq5mG+4E0Y=
+github.com/mitchellh/go-homedir v1.1.0/go.mod h1:SfyaCUpYCn1Vlf4IUYiD9fPX4A5wJrkLzIz1N1q0pr0=
 github.com/nbutton23/zxcvbn-go v0.0.0-20180510020640-780cc39d5c78 h1:+ARSqM2cUBNXei8Tdgzaqj91IqrNz6yO/+a7xNN6xz4=
 github.com/nbutton23/zxcvbn-go v0.0.0-20180510020640-780cc39d5c78/go.mod h1:o96djdrsSGy3AWPyBgZMAGfxZNfgntdJG+11KU4QvbU=
 github.com/pkg/errors v0.8.0 h1:WdK/asTD0HN+q6hsWO3/vpuAkAr+tw6aNJNDFFf0+qw=

@@ -30,8 +30,7 @@ require (
 	github.com/mattn/go-isatty v0.0.3 // indirect
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
 	github.com/michaelbironneau/garbler v0.0.0-20180525195632-2018e2dc9c11
-	github.com/minio/go-homedir v0.0.0-20171204175109-4d76aabb80b2
-	github.com/mitchellh/go-homedir v0.0.0-20180801233206-58046073cbff // indirect
+	github.com/mitchellh/go-homedir v1.1.0
 	github.com/nbutton23/zxcvbn-go v0.0.0-20180510020640-780cc39d5c78
 	github.com/pkg/errors v0.8.0
 	github.com/pmezard/go-difflib v1.0.0 // indirect

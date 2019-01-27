@@ -12,7 +12,7 @@ import (
 	"regexp"
 
 	"github.com/google/go-github/github"
-	"github.com/minio/go-homedir"
+	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/util"
