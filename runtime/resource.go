@@ -34,8 +34,8 @@ func getServerBinary(cacheDir, version, platform string) (binary string) {
 	}
 	
 	var (
-		paths map[string]string,
-		part string,
+		paths map[string]string
+		part string
 	)
 	switch platform {
 		case "windows": 
@@ -65,8 +65,8 @@ func getNpcBinary(cacheDir, version, platform string) (binary string) {
 	}
 	
 	var (
-		paths map[string]string,
-		part string,
+		paths map[string]string
+		part string
 	)
 	switch platform {
 		case "windows": 
@@ -96,8 +96,8 @@ func getAnnounceBinary(cacheDir, version, platform string) (binary string) {
 	}
 	
 	var (
-		paths map[string]string,
-		part string,
+		paths map[string]string
+		part string
 	)
 	switch platform {
 		case "windows": 
