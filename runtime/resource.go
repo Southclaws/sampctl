@@ -4,6 +4,7 @@ import (
 	"crypto/md5" //nolint:gas
 	"encoding/hex"
 	"io/ioutil"
+	"strings"
 
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/types"
@@ -26,37 +27,97 @@ import (
 // 	return false
 // }
 
-func getServerBinary(platform string) string {
-	switch platform {
-	case "windows":
-		return "samp-server.exe"
-	case "linux", "darwin":
-		return "samp03svr"
-	default:
-		return ""
+func getServerBinary(cacheDir, version, platform string) (binary string) {
+	pkg, err := FindPackage(cacheDir, version)
+	if err != nil {
+		return
 	}
+	
+	var (
+		paths map[string]string
+		part string
+	)
+	switch platform {
+		case "windows":
+			paths = pkg.Win32Paths
+			part = "samp-server"
+		case "linux", "darwin":
+			paths = pkg.LinuxPaths
+			part = "samp03svr"
+		default:
+			return
+	}
+	
+	for _, destination := range paths {
+		if strings.Contains(destination, part) {
+			binary = destination
+			break
+		}
+	}
+	
+	return
 }
 
-func getNpcBinary(platform string) string {
-	switch platform {
-	case "windows":
-		return "samp-npc.exe"
-	case "linux", "darwin":
-		return "samp-npc"
-	default:
-		return ""
+func getNpcBinary(cacheDir, version, platform string) (binary string) {
+	pkg, err := FindPackage(cacheDir, version)
+	if err != nil {
+		return
 	}
+	
+	var (
+		paths map[string]string
+		part string
+	)
+	switch platform {
+		case "windows":
+			paths = pkg.Win32Paths
+			part = "npc"
+		case "linux", "darwin":
+			paths = pkg.LinuxPaths
+			part = "npc"
+		default:
+			return
+	}
+	
+	for _, destination := range paths {
+		if strings.Contains(destination, part) {
+			binary = destination
+			break
+		}
+	}
+	
+	return
 }
 
-func getAnnounceBinary(platform string) string {
-	switch platform {
-	case "windows":
-		return "announce.exe"
-	case "linux", "darwin":
-		return "announce"
-	default:
-		return ""
+func getAnnounceBinary(cacheDir, version, platform string) (binary string) {
+	pkg, err := FindPackage(cacheDir, version)
+	if err != nil {
+		return
 	}
+	
+	var (
+		paths map[string]string
+		part string
+	)
+	switch platform {
+		case "windows":
+			paths = pkg.Win32Paths
+			part = "announ"
+		case "linux", "darwin":
+			paths = pkg.LinuxPaths
+			part = "announ"
+		default:
+			return
+	}
+	
+	for _, destination := range paths {
+		if strings.Contains(destination, part) {
+			binary = destination
+			break
+		}
+	}
+	
+	return
 }
 
 // MatchesChecksum checks if the file at the given path src is the correct file for the specified

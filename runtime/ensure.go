@@ -63,13 +63,13 @@ func Ensure(ctx context.Context, gh *github.Client, cfg *types.Runtime, noCache 
 func EnsureBinaries(cacheDir string, cfg types.Runtime) (err error) {
 	missing := false
 
-	if !util.Exists(filepath.Join(cfg.WorkingDir, getNpcBinary(cfg.Platform))) {
+	if !util.Exists(filepath.Join(cfg.WorkingDir, getNpcBinary(cacheDir, cfg.Version, cfg.Platform))) {
 		missing = true
 	}
-	if !util.Exists(filepath.Join(cfg.WorkingDir, getAnnounceBinary(cfg.Platform))) {
+	if !util.Exists(filepath.Join(cfg.WorkingDir, getAnnounceBinary(cacheDir, cfg.Version, cfg.Platform))) {
 		missing = true
 	}
-	if !util.Exists(filepath.Join(cfg.WorkingDir, getServerBinary(cfg.Platform))) {
+	if !util.Exists(filepath.Join(cfg.WorkingDir, getServerBinary(cacheDir, cfg.Version, cfg.Platform))) {
 		missing = true
 	}
 
