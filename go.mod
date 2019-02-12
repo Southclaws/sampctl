@@ -46,6 +46,7 @@ require (
 	golang.org/x/net v0.0.0-20180821023952-922f4815f713 // indirect
 	golang.org/x/oauth2 v0.0.0-20180821212333-d2e6202438be
 	golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f // indirect
+	golang.org/x/sys v0.0.0-20190209173611-3b5209105503 // indirect
 	golang.org/x/text v0.3.0 // indirect
 	google.golang.org/appengine v1.1.0 // indirect
 	gopkg.in/AlecAivazis/survey.v1 v1.6.2
