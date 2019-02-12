@@ -23,6 +23,8 @@ import (
 	"github.com/Southclaws/sampctl/types"
 )
 
+import _ "github.com/joho/godotenv/autoload"
+
 var (
 	version    = "master"
 	segmentKey = ""
