@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
-	"github.com/google/go-github/github"	
+	"github.com/google/go-github/github"
 	"github.com/joho/godotenv"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
