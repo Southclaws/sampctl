@@ -12,6 +12,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
+	_ "github.com/joho/godotenv/autoload"
 	"gopkg.in/segmentio/analytics-go.v3"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
