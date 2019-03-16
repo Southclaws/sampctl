@@ -266,9 +266,15 @@ func (pcx *PackageContext) buildPrepare(
 		return
 	}
 
-	config.WorkingDir = filepath.Dir(util.FullPath(pcx.Package.Entry))
-	config.Input = filepath.Join(pcx.Package.LocalPath, pcx.Package.Entry)
-	config.Output = filepath.Join(pcx.Package.LocalPath, pcx.Package.Output)
+	if config.WorkingDir == "" {
+		config.WorkingDir = filepath.Dir(util.FullPath(pcx.Package.Entry))
+	}
+	if config.Input == "" {
+		config.Input = filepath.Join(pcx.Package.LocalPath, pcx.Package.Entry)
+	}
+	if config.Output == "" {
+		config.Output = filepath.Join(pcx.Package.LocalPath, pcx.Package.Output)
+	}
 
 	if ensure {
 		err = pcx.EnsureDependencies(ctx, forceUpdate)
