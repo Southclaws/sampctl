@@ -19,18 +19,18 @@ jobs:
     - stage: test smallbits
       script:
         - go get
-        - go test -race -p 4 -coverprofile=coverage.txt ./versioning ./util
-          ./download ./compiler
+        - go test -race -p 4 -coverprofile=coverage.txt ./src/versioning ./src/util
+          ./src/download ./src/compiler
         - bash <(curl -s https://codecov.io/bash)
     - stage: test runtime
       script:
         - go get
-        - go test -race -p 4 -coverprofile=coverage.txt ./runtime
+        - go test -race -p 4 -coverprofile=coverage.txt ./src/runtime
         - bash <(curl -s https://codecov.io/bash)
     - stage: test rook
       script:
         - go get
-        - go test -race -p 4 -coverprofile=coverage.txt -timeout=20m ./rook
+        - go test -race -p 4 -coverprofile=coverage.txt -timeout=20m ./src/rook
         - bash <(curl -s https://codecov.io/bash)
     - stage: deploy
       if: branch=~^(v?(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[\da-z-]+(?:\.[\da-z-]+)*)?(?:\+[\da-z-]+(?:\.[\da-z-]+)*)?)$
