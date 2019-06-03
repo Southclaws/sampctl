@@ -24,12 +24,12 @@ clean:
 # -
 
 test:
-	go test -race -v ./src/versioning
-	go test -race -v ./src/util
-	go test -race -v ./src/download
-	go test -race -v ./src/compiler
-	go test -race -v ./src/runtime
-	go test -race -v ./src/rook
+	go test -race -v ./versioning
+	go test -race -v ./util
+	go test -race -v ./download
+	go test -race -v ./compiler
+	go test -race -v ./runtime
+	go test -race -v ./rook
 	echo SUCCESS!
 
 
