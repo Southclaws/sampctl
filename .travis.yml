@@ -20,7 +20,7 @@ jobs:
       script:
         - go get
         - go test -race -p 4 -coverprofile=coverage.txt ./versioning ./util
-          ./src/download ./src/compiler
+          ./download ./compiler
         - bash <(curl -s https://codecov.io/bash)
     - stage: test runtime
       script:
