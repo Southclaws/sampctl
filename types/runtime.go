@@ -1,17 +1,11 @@
 package types
 
 import (
-	"encoding/json"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"runtime"
 
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
 
 	"github.com/Southclaws/sampctl/print"
-	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
 
@@ -130,71 +124,6 @@ func (cfg Runtime) Validate() (err error) {
 	return
 }
 
-// RuntimeFromDir creates a config from a directory by searching for a JSON or YAML file to
-// read settings from. If both exist, the JSON file takes precedence.
-func RuntimeFromDir(dir string) (cfg Runtime, err error) {
-	jsonFile := filepath.Join(dir, "samp.json")
-	if util.Exists(jsonFile) {
-		cfg, err = RuntimeFromJSON(jsonFile)
-		if err != nil {
-			return
-		}
-		cfg.WorkingDir = dir
-		return
-	}
-
-	yamlFile := filepath.Join(dir, "samp.yaml")
-	if util.Exists(yamlFile) {
-		cfg, err = RuntimeFromYAML(yamlFile)
-		if err != nil {
-			return
-		}
-		cfg.WorkingDir = dir
-		return
-	}
-
-	err = errors.New("directory does not contain a samp.json or samp.yaml file")
-	return
-}
-
-// RuntimeFromJSON creates a config from a JSON file
-func RuntimeFromJSON(file string) (cfg Runtime, err error) {
-	var contents []byte
-	contents, err = ioutil.ReadFile(file)
-	if err != nil {
-		err = errors.Wrap(err, "failed to read samp.json")
-		return
-	}
-
-	err = json.Unmarshal(contents, &cfg)
-	if err != nil {
-		err = errors.Wrap(err, "failed to unmarshal samp.json")
-		return
-	}
-	cfg.Format = "json"
-
-	return
-}
-
-// RuntimeFromYAML creates a config from a YAML file
-func RuntimeFromYAML(file string) (cfg Runtime, err error) {
-	var contents []byte
-	contents, err = ioutil.ReadFile(file)
-	if err != nil {
-		err = errors.Wrap(err, "failed to read samp.json")
-		return
-	}
-
-	err = yaml.Unmarshal(contents, &cfg)
-	if err != nil {
-		err = errors.Wrap(err, "failed to unmarshal samp.json")
-		return
-	}
-	cfg.Format = "yaml"
-
-	return
-}
-
 // ResolveRemotePlugins separates simple plugin filenames from dependency strings
 func (cfg *Runtime) ResolveRemotePlugins() {
 	if cfg == nil {
@@ -261,77 +190,4 @@ func ApplyRuntimeDefaults(rt *Runtime) {
 func (plugin Plugin) AsDep() (dep versioning.DependencyMeta, err error) {
 	depStr := versioning.DependencyString(plugin)
 	return depStr.Explode()
-}
-
-// ToFile creates a JSON or YAML file for a config object, the format depends
-// on the `Format` field of the package.
-func (cfg Runtime) ToFile() (err error) {
-	switch cfg.Format {
-	case "json":
-		err = cfg.ToJSON()
-	case "yaml":
-		err = cfg.ToYAML()
-	default:
-		err = errors.New("package has no format associated with it")
-	}
-	return
-}
-
-// ToJSON simply marshals the data to a samp.json file in dir
-func (cfg Runtime) ToJSON() (err error) {
-	path := filepath.Join(cfg.WorkingDir, "samp.json")
-
-	if util.Exists(path) {
-		if err = os.Remove(path); err != nil {
-			panic(err)
-		}
-	}
-
-	fh, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0600)
-	if err != nil {
-		return
-	}
-	defer func() {
-		err = fh.Close()
-		if err != nil {
-			panic(err)
-		}
-	}()
-
-	contents, err := json.MarshalIndent(cfg, "", "\t")
-	if err != nil {
-		return
-	}
-
-	_, err = fh.Write(contents)
-	return
-}
-
-// ToYAML simply marshals the data to a samp.yaml file in dir
-func (cfg Runtime) ToYAML() (err error) {
-	path := filepath.Join(cfg.WorkingDir, "samp.yaml")
-
-	if util.Exists(path) {
-		if err = os.Remove(path); err != nil {
-			panic(err)
-		}
-	}
-
-	fh, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0600)
-	if err != nil {
-		return
-	}
-	defer func() {
-		if err = fh.Close(); err != nil {
-			panic(err)
-		}
-	}()
-
-	contents, err := yaml.Marshal(cfg)
-	if err != nil {
-		return
-	}
-
-	_, err = fh.Write(contents)
-	return
 }

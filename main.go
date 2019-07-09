@@ -72,42 +72,6 @@ func main() {
 	//nolint:lll
 	app.Commands = []cli.Command{
 		{
-			Name:        "server",
-			Aliases:     []string{"s"},
-			Usage:       "sampctl server <subcommand>",
-			Description: "For managing servers and runtime configurations.",
-			Subcommands: []cli.Command{
-				{
-					Name:        "init",
-					Usage:       "sampctl server init",
-					Description: "Bootstrap a new SA:MP server and generates a `samp.json`/`samp.yaml` configuration based on user input. If `gamemodes`, `filterscripts` or `plugins` directories are present, you will be prompted to select relevant files.",
-					Action:      serverInit,
-					Flags:       append(globalFlags, serverInitFlags...),
-				},
-				{
-					Name:        "download",
-					Usage:       "sampctl server download",
-					Description: "Downloads the files necessary to run a SA:MP server to the current directory (unless `--dir` specified). Will download the latest stable (non RC) server version unless `--version` is specified.",
-					Action:      serverDownload,
-					Flags:       append(globalFlags, serverDownloadFlags...),
-				},
-				{
-					Name:        "ensure",
-					Usage:       "sampctl server ensure",
-					Description: "Ensures the server environment is representative of the configuration specified in `samp.json`/`samp.yaml` - downloads server binaries and plugin files if necessary and generates a `server.cfg` file.",
-					Action:      serverEnsure,
-					Flags:       append(globalFlags, serverEnsureFlags...),
-				},
-				{
-					Name:        "run",
-					Usage:       "sampctl server run",
-					Description: "Generates a `server.cfg` file based on the configuration inside `samp.json`/`samp.yaml` then executes the server process and automatically restarts it on crashes.",
-					Action:      serverRun,
-					Flags:       append(globalFlags, serverRunFlags...),
-				},
-			},
-		},
-		{
 			Name:        "package",
 			Aliases:     []string{"p"},
 			Usage:       "sampctl package <subcommand>",

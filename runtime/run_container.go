@@ -39,7 +39,7 @@ func RunContainer(
 		return
 	}
 
-	args := strslice.StrSlice{"sampctl", "server", "run"}
+	args := strslice.StrSlice{"sampctl", "package", "run"}
 	if passArgs {
 		for i, arg := range os.Args {
 			// trim first 3 args and container specific flags
