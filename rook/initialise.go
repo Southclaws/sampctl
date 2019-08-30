@@ -40,6 +40,7 @@ type Answers struct {
 	Travis        bool
 	EntryGenerate bool
 	Entry         string
+	FileTemplate  string
 }
 
 // Init prompts the user to initialise a package
@@ -53,9 +54,10 @@ func Init(
 	cacheDir string,
 ) (err error) {
 	var (
-		pwnFiles []string
-		incFiles []string
-		dirName  = filepath.Base(dir)
+		pwnFiles      []string
+		incFiles      []string
+		fileTemplates []string
+		dirName       = filepath.Base(dir)
 	)
 
 	if !util.Exists(dir) {
@@ -92,6 +94,27 @@ func Init(
 	})
 	if err != nil {
 		return
+	}
+
+	// Get the sampctl installation location
+	exec, err := os.Executable()
+	if err != nil {
+		return
+	}
+	templatePath := filepath.Dir(exec) + "/templates/"
+
+	// Add a 'none' option
+	fileTemplates = append(fileTemplates, "none")
+
+	if util.Exists(templatePath) {
+		err = filepath.Walk(templatePath, func(path string, info os.FileInfo, err error) (innerErr error) {
+			ext := filepath.Ext(path)
+
+			if ext == ".pwn" || ext == ".inc" {
+				fileTemplates = append(fileTemplates, filepath.Base(path))
+			}
+			return
+		})
 	}
 
 	color.Green("Found %d pwn files and %d inc files.", len(pwnFiles), len(incFiles))
@@ -181,6 +204,15 @@ func Init(
 					Default: "test.pwn",
 				},
 			})
+
+			questions = append(questions, &survey.Question{
+				Name: "FileTemplate",
+				Prompt: &survey.Select{
+					Message: "Choose a file template to use - your file will then be created with the code from the selected template.",
+					Options: fileTemplates,
+					Default: "none",
+				},
+			})
 		}
 	}
 
@@ -214,6 +246,25 @@ func Init(
 			print.Warn("Entry point is not a .pwn file - it's advised to use a .pwn file as the compiled script.")
 			print.Warn("If you are writing a library and not a gamemode or filterscript,")
 			print.Warn("it's good to make a separate .pwn file that #includes the .inc file of your library.")
+		} else {
+			if answers.FileTemplate != "none" && answers.FileTemplate != "" {
+				fileTemplatePath := templatePath + answers.FileTemplate
+
+				if strings.ContainsAny(answers.Entry, "/") {
+					seperatorIndex := strings.Index(answers.Entry, "/")
+					os.Mkdir(answers.Entry[0:seperatorIndex], os.ModePerm)
+				}
+
+				buf, err := GenerateFileFromTemplate(fileTemplatePath)
+				if err != nil {
+					color.Red("Could not generate the file from the template!")
+				}
+
+				err = ioutil.WriteFile(answers.Entry, buf.Bytes(), 0600)
+				if err != nil {
+					color.Red("Failed to create the entry point!")
+				}
+			}
 		}
 	} else {
 		if answers.EntryGenerate {
