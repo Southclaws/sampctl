@@ -34,7 +34,7 @@ func GetCompilerList(cacheDir string) (compilers types.Compilers, err error) {
 		fmt.Fprintln(os.Stderr, "updating compiler list...") // nolint:gas
 		err = UpdateCompilerList(cacheDir)
 		if err != nil {
-			return
+			fmt.Fprintln(os.Stderr, "failed to update compiler list")
 		}
 	}
 
