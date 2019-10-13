@@ -42,10 +42,14 @@ func main() {
 
 	app := cli.NewApp()
 
-	app.Author = "Southclaws"
-	app.Email = "hello@southcla.ws"
+	app.Authors = []cli.Author{
+		{
+			Name: "Southclaws",
+			Email: "hello@southcla.ws",
+		},
+	}
 	app.Name = "sampctl"
-	app.Description = "The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer."
+	app.Usage = "The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer."
 	app.Version = version
 	app.EnableBashCompletion = true
 
