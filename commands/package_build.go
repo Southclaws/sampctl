@@ -1,4 +1,4 @@
-package main
+package commands
 
 import (
 	"context"
@@ -7,8 +7,7 @@ import (
 	"runtime"
 
 	"github.com/pkg/errors"
-	"gopkg.in/segmentio/analytics-go.v3"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli/v2"
 
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
@@ -16,36 +15,36 @@ import (
 	"github.com/Southclaws/sampctl/util"
 )
 
-var packageBuildFlags = []cli.Flag{
-	cli.StringFlag{
+var PackageBuildFlags = []cli.Flag{
+	&cli.StringFlag{
 		Name:  "dir",
 		Value: ".",
 		Usage: "working directory for the project - by default, uses the current directory",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "forceEnsure",
 		Usage: "forces dependency ensure before build",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "dryRun",
 		Usage: "does not run the build but outputs the command necessary to do so",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "watch",
 		Usage: "keeps sampctl running and triggers builds whenever source files change",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "buildFile",
 		Value: "",
 		Usage: "declares a file to store the incrementing build number for easy versioning",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "relativePaths",
 		Usage: "force compiler output to use relative paths instead of absolute",
 	},
 }
 
-func packageBuild(c *cli.Context) error {
+func PackageBuild(c *cli.Context) error {
 	if c.Bool("verbose") {
 		print.SetVerbose()
 	}
@@ -58,20 +57,6 @@ func packageBuild(c *cli.Context) error {
 	relativePaths := c.Bool("relativePaths")
 
 	build := c.Args().Get(0)
-
-	if config.Metrics {
-		//nolint:errcheck
-		segment.Enqueue(analytics.Track{
-			Event:  "package build",
-			UserId: config.UserID,
-			Properties: analytics.NewProperties().
-				Set("forceEnsure", forceEnsure).
-				Set("watch", watch).
-				Set("watch", watch).
-				Set("buildFile", buildFile != "").
-				Set("build", build != ""),
-		})
-	}
 
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
@@ -122,7 +107,7 @@ func packageBuild(c *cli.Context) error {
 	return nil
 }
 
-func packageBuildBash(c *cli.Context) {
+func PackageBuildBash(c *cli.Context) {
 	dir := util.FullPath(c.String("dir"))
 
 	cacheDir, err := download.GetCacheDir()

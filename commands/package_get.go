@@ -1,4 +1,4 @@
-package main
+package commands
 
 import (
 	"context"
@@ -6,8 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"gopkg.in/segmentio/analytics-go.v3"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli/v2"
 
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
@@ -16,22 +15,14 @@ import (
 	"github.com/Southclaws/sampctl/versioning"
 )
 
-var packageGetFlags = []cli.Flag{}
+var PackageGetFlags = []cli.Flag{}
 
-func packageGet(c *cli.Context) error {
+func PackageGet(c *cli.Context) error {
 	if c.Bool("verbose") {
 		print.SetVerbose()
 	}
 
-	if config.Metrics {
-		//nolint:errcheck
-		segment.Enqueue(analytics.Track{
-			Event:  "package get",
-			UserId: config.UserID,
-		})
-	}
-
-	if len(c.Args()) == 0 {
+	if c.Args().Len() == 0 {
 		cli.ShowCommandHelpAndExit(c, "get", 0)
 		return nil
 	}
@@ -62,7 +53,7 @@ func packageGet(c *cli.Context) error {
 	return nil
 }
 
-func packageGetBash(c *cli.Context) {
+func PackageGetBash(c *cli.Context) {
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Failed to retrieve cache directory path (attempted <user folder>/.samp) ", err)

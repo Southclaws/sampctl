@@ -1,40 +1,41 @@
-package main
+package commands
 
 import (
-	"context"
-
 	"github.com/pkg/errors"
-	"gopkg.in/segmentio/analytics-go.v3"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli/v2"
 
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/rook"
 	"github.com/Southclaws/sampctl/util"
+	"github.com/Southclaws/sampctl/versioning"
 )
 
-var packageReleaseFlags = []cli.Flag{
-	cli.StringFlag{
+var PackageUninstallFlags = []cli.Flag{
+	&cli.StringFlag{
 		Name:  "dir",
 		Value: ".",
 		Usage: "working directory for the project - by default, uses the current directory",
 	},
+	&cli.BoolFlag{
+		Name:  "dev",
+		Usage: "for specifying development dependencies",
+	},
 }
 
-func packageRelease(c *cli.Context) error {
+//nolint:dupl
+func PackageUninstall(c *cli.Context) error {
 	if c.Bool("verbose") {
 		print.SetVerbose()
 	}
 
-	if config.Metrics {
-		//nolint:errcheck
-		segment.Enqueue(analytics.Track{
-			Event:  "package release",
-			UserId: config.UserID,
-		})
-	}
-
 	dir := util.FullPath(c.String("dir"))
+	development := c.Bool("dev")
+
+	if c.Args().Len() == 0 {
+		cli.ShowCommandHelpAndExit(c, "uninstall", 0)
+		return nil
+	}
 
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
@@ -42,15 +43,22 @@ func packageRelease(c *cli.Context) error {
 		return err
 	}
 
+	deps := []versioning.DependencyString{}
+	for _, dep := range c.Args().Slice() {
+		deps = append(deps, versioning.DependencyString(dep))
+	}
+
 	pcx, err := rook.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "")
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	err = rook.Release(context.Background(), gh, gitAuth, pcx.Package)
+	err = pcx.Uninstall(deps, development)
 	if err != nil {
-		return errors.Wrap(err, "failed to release")
+		return err
 	}
+
+	print.Info("successfully removed dependency")
 
 	return nil
 }

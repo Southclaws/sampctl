@@ -20,7 +20,6 @@ import (
 // nolint:lll
 type Config struct {
 	UserID      string `json:"user_id"                env:"__do_not_set__"`       // Anonymous user ID for metrics
-	Metrics     bool   `json:"metrics"                env:"SAMPCTL_METRICS"`      // Whether or not to report telemetry metrics
 	DefaultUser string `json:"default_user"           env:"SAMPCTL_DEFAULT_USER"` // the default username for `package init`
 	GitHubToken string `json:"github_token,omitempty" env:"SAMPCTL_GITHUB_TOKEN"` // GitHub API token for extended API rate limit
 	GitUsername string `json:"git_username,omitempty" env:"SAMPCTL_GIT_USERNAME"` // Git username for private repositories
@@ -30,7 +29,7 @@ type Config struct {
 }
 
 // LoadOrCreateConfig reads a config file from the given cache directory
-func LoadOrCreateConfig(cacheDir string, verbose bool) (cfg *Config, err error) {
+func LoadOrCreateConfig(cacheDir string) (cfg *Config, err error) {
 	cfg = new(Config)
 
 	err = godotenv.Load(".env")
@@ -66,7 +65,6 @@ func LoadOrCreateConfig(cacheDir string, verbose bool) (cfg *Config, err error) 
 
 		if cfg.UserID == "" {
 			cfg.UserID = uuid.New().String()
-			cfg.Metrics = true
 			cfg.NewUser = true
 		}
 		print.Verb("Using configuration:", pretty.Sprint(cfg))
@@ -85,7 +83,6 @@ func LoadOrCreateConfig(cacheDir string, verbose bool) (cfg *Config, err error) 
 		}
 
 		cfg.UserID = uuid.New().String()
-		cfg.Metrics = true
 		cfg.NewUser = true
 
 		cfg.DefaultUser = username

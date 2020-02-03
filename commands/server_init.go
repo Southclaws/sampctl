@@ -1,47 +1,36 @@
-package main
+package commands
 
 import (
 	appRuntime "runtime"
 
 	"github.com/pkg/errors"
-	"gopkg.in/segmentio/analytics-go.v3"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli/v2"
 
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/runtime"
 	"github.com/Southclaws/sampctl/util"
 )
 
-var serverInitFlags = []cli.Flag{
-	cli.StringFlag{
+var ServerInitFlags = []cli.Flag{
+	&cli.StringFlag{
 		Name:  "version",
 		Value: "0.3.7",
 		Usage: "the SA:MP server version to use",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "dir",
 		Value: ".",
 		Usage: "working directory for the server - by default, uses the current directory",
 	},
 }
 
-func serverInit(c *cli.Context) error {
+func ServerInit(c *cli.Context) error {
 	if c.Bool("verbose") {
 		print.SetVerbose()
 	}
 
 	version := c.String("version")
 	dir := util.FullPath(c.String("dir"))
-
-	if config.Metrics {
-		//nolint:errcheck
-		segment.Enqueue(analytics.Track{
-			Event:  "server init",
-			UserId: config.UserID,
-			Properties: analytics.NewProperties().
-				Set("version", version),
-		})
-	}
 
 	err := runtime.InitialiseServer(version, dir, appRuntime.GOOS)
 	if err != nil {

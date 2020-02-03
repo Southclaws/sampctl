@@ -1,37 +1,29 @@
-package main
+package commands
 
 import (
 	"context"
 
 	"github.com/pkg/errors"
-	"gopkg.in/segmentio/analytics-go.v3"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli/v2"
 
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/rook"
+	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
 
-var packageInitFlags = []cli.Flag{
-	cli.StringFlag{
+var PackageInitFlags = []cli.Flag{
+	&cli.StringFlag{
 		Name:  "dir",
 		Value: ".",
 		Usage: "working directory for the project - by default, uses the current directory",
 	},
 }
 
-func packageInit(c *cli.Context) error {
+func PackageInit(c *cli.Context) error {
 	if c.Bool("verbose") {
 		print.SetVerbose()
-	}
-
-	if config.Metrics {
-		//nolint:errcheck
-		segment.Enqueue(analytics.Track{
-			Event:  "package init",
-			UserId: config.UserID,
-		})
 	}
 
 	dir := util.FullPath(c.String("dir"))
@@ -40,6 +32,11 @@ func packageInit(c *cli.Context) error {
 	if err != nil {
 		print.Erro("Failed to retrieve cache directory path (attempted <user folder>/.samp) ")
 		return err
+	}
+
+	config, err := types.LoadOrCreateConfig(cacheDir)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to load or create sampctl config in %s", cacheDir)
 	}
 
 	_, err = rook.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "")

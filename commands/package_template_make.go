@@ -1,4 +1,4 @@
-package main
+package commands
 
 import (
 	"context"
@@ -8,8 +8,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"gopkg.in/segmentio/analytics-go.v3"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli/v2"
 
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
@@ -17,35 +16,27 @@ import (
 	"github.com/Southclaws/sampctl/util"
 )
 
-var packageTemplateMakeFlags = []cli.Flag{
-	cli.StringFlag{
+var PackageTemplateMakeFlags = []cli.Flag{
+	&cli.StringFlag{
 		Name:  "dir",
 		Value: ".",
 		Usage: "working directory for the package - by default, uses the current directory",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "update",
 		Usage: "update cached dependencies to latest version",
 	},
 }
 
-func packageTemplateMake(c *cli.Context) (err error) {
+func PackageTemplateMake(c *cli.Context) (err error) {
 	if c.Bool("verbose") {
 		print.SetVerbose()
-	}
-
-	if config.Metrics {
-		//nolint:errcheck
-		segment.Enqueue(analytics.Track{
-			Event:  "package template make",
-			UserId: config.UserID,
-		})
 	}
 
 	dir := util.FullPath(c.String("dir"))
 	forceUpdate := c.Bool("update")
 
-	if len(c.Args()) != 1 {
+	if c.Args().Len() != 1 {
 		cli.ShowCommandHelpAndExit(c, "make", 0)
 		return nil
 	}

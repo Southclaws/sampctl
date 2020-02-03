@@ -1,53 +1,30 @@
-package main
+package commands
 
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/pkg/errors"
-	"gopkg.in/segmentio/analytics-go.v3"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli/v2"
 
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/rook"
-	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
 
-var packageTemplateRunFlags = []cli.Flag{
-	cli.StringFlag{
-		Name:  "version",
-		Value: "0.3.7",
-		Usage: "the SA:MP server version to use",
-	},
-	cli.StringFlag{
-		Name:  "mode",
-		Value: "main",
-		Usage: "runtime mode, one of: server, main, y_testing",
-	},
+var PackageTemplateBuildFlags = []cli.Flag{
+	//
 }
 
-func packageTemplateRun(c *cli.Context) (err error) {
+func PackageTemplateBuild(c *cli.Context) (err error) {
 	if c.Bool("verbose") {
 		print.SetVerbose()
 	}
 
-	if config.Metrics {
-		//nolint:errcheck
-		segment.Enqueue(analytics.Track{
-			Event:  "package template run",
-			UserId: config.UserID,
-		})
-	}
-
-	version := c.String("version")
-	mode := c.String("mode")
-
-	if len(c.Args()) != 2 {
-		cli.ShowCommandHelpAndExit(c, "run", 0)
+	if c.Args().Len() != 2 {
+		cli.ShowCommandHelpAndExit(c, "build", 0)
 		return nil
 	}
 
@@ -92,31 +69,6 @@ func packageTemplateRun(c *cli.Context) (err error) {
 		result.Estimate,
 		result.Total,
 	))
-
-	// override the version with the one passed by --version
-	pcx.Package.Runtime.Version = version
-
-	if !problems.IsValid() {
-		return errors.New("cannot run with build errors")
-	}
-	pcx.Runtime = ""
-	pcx.Container = false
-	pcx.AppVersion = c.App.Version
-	pcx.CacheDir = cacheDir
-	pcx.BuildName = ""
-	pcx.ForceBuild = false
-	pcx.ForceEnsure = false
-	pcx.NoCache = false
-	pcx.BuildFile = ""
-	pcx.Relative = false
-
-	pcx.Package.Runtime = new(types.Runtime)
-	pcx.Package.Runtime.Mode = types.RunMode(mode)
-
-	err = pcx.Run(context.Background(), os.Stdout, os.Stdin)
-	if err != nil {
-		return
-	}
 
 	return nil
 }

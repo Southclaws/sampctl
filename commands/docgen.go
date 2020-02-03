@@ -1,18 +1,18 @@
-package main
+package commands
 
 import (
 	"bytes"
 	"fmt"
 	"strings"
 
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli/v2"
 )
 
 // GenerateDocs generates markdown documentation for the commands in app
 func GenerateDocs(app *cli.App) (result string) {
 	buffer := bytes.Buffer{}
 
-	buffer.WriteString(fmt.Sprintf("# `%s`\n\n%s - %s <%s>\n\n", app.Name, app.Version, app.Author, app.Email))
+	buffer.WriteString(fmt.Sprintf("# `%s`\n\n%s - %s\n\n", app.Name, app.Version, app.Authors[0]))
 
 	if app.Description != "" {
 		buffer.WriteString(app.Description)
@@ -38,7 +38,7 @@ func GenerateDocs(app *cli.App) (result string) {
 }
 
 //nolint:gas
-func generateCommandDocs(prefix string, command cli.Command, buffer *bytes.Buffer) {
+func generateCommandDocs(prefix string, command *cli.Command, buffer *bytes.Buffer) {
 	buffer.WriteString(fmt.Sprintf("### `%s %s`\n\n", prefix, command.Name))
 	if command.Usage != "" {
 		buffer.WriteString(fmt.Sprintf("Usage: `%s`\n\n", command.Usage))

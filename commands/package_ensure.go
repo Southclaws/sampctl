@@ -1,12 +1,11 @@
-package main
+package commands
 
 import (
 	"context"
 	"time"
 
 	"github.com/pkg/errors"
-	"gopkg.in/segmentio/analytics-go.v3"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli/v2"
 
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
@@ -14,34 +13,24 @@ import (
 	"github.com/Southclaws/sampctl/util"
 )
 
-var packageEnsureFlags = []cli.Flag{
-	cli.StringFlag{
+var PackageEnsureFlags = []cli.Flag{
+	&cli.StringFlag{
 		Name:  "dir",
 		Value: ".",
 		Usage: "working directory for the project - by default, uses the current directory",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "update",
 		Usage: "update cached dependencies to latest version",
 	},
 }
 
-func packageEnsure(c *cli.Context) error {
+func PackageEnsure(c *cli.Context) error {
 	if c.Bool("verbose") {
 		print.SetVerbose()
 	}
 
 	runtimeName := c.Args().Get(0)
-
-	if config.Metrics {
-		//nolint:errcheck
-		segment.Enqueue(analytics.Track{
-			Event:  "package run",
-			UserId: config.UserID,
-			Properties: analytics.NewProperties().
-				Set("runtime", runtimeName != ""),
-		})
-	}
 
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
