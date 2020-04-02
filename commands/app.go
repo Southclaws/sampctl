@@ -1,9 +1,8 @@
-package main
+package commands
 
 import (
 	"context"
 	"fmt"
-	"os"
 	"runtime"
 	"time"
 
@@ -33,14 +32,7 @@ var (
 	segment    analytics.Client     // segment.io client
 )
 
-func main() {
-	if err := Run(); err != nil {
-		print.Erro(err)
-		os.Exit(1)
-	}
-}
-
-func Run() error {
+func Run(args []string) error {
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
 		return errors.Errorf("Failed to retrieve cache directory path (attempted <user folder>/.samp) %v", err)
@@ -321,7 +313,7 @@ func Run() error {
 		return nil
 	}
 
-	err = app.Run(os.Args)
+	err = app.Run(args)
 	if err != nil {
 		return err
 	}
