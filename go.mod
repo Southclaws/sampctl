@@ -1,5 +1,7 @@
 module github.com/Southclaws/sampctl
 
+go 1.14
+
 require (
 	github.com/BurntSushi/toml v0.3.0 // indirect
 	github.com/Masterminds/semver v1.4.2
