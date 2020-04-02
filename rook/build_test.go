@@ -38,7 +38,7 @@ func TestPackage_Build(t *testing.T) {
 					Entry:          "gamemodes/test.pwn",
 					Output:         "gamemodes/test.amx",
 					Builds: []*types.BuildConfig{
-						{Name: "build", Version: "3.10.9"},
+						{Name: "build", Version: "3.10.10"},
 					},
 				},
 				"build", true, []versioning.DependencyMeta{},
@@ -55,7 +55,7 @@ func TestPackage_Build(t *testing.T) {
 					Entry:          "gamemodes/test.pwn",
 					Output:         "gamemodes/test.amx",
 					Builds: []*types.BuildConfig{
-						{Name: "build", Version: "3.10.9"},
+						{Name: "build", Version: "3.10.10"},
 					},
 				},
 				"build", true,
