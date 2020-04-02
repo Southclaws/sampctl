@@ -24,7 +24,6 @@ import (
 )
 
 var (
-	version    = "master"
 	segmentKey = ""
 	config     *types.Config        // global config
 	gh         *github.Client       // a github client to use for API requests
@@ -32,7 +31,7 @@ var (
 	segment    analytics.Client     // segment.io client
 )
 
-func Run(args []string) error {
+func Run(args []string, version string) error {
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
 		return errors.Errorf("Failed to retrieve cache directory path (attempted <user folder>/.samp) %v", err)
