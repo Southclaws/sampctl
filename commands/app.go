@@ -27,8 +27,23 @@ import (
 )
 
 var (
-	gh      *github.Client
-	gitAuth transport.AuthMethod
+	gh          *github.Client
+	gitAuth     transport.AuthMethod
+	globalFlags = []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "verbose",
+			Usage: "output all detailed information - useful for debugging",
+		},
+		&cli.StringFlag{
+			Name:  "platform",
+			Value: "",
+			Usage: "manually specify the target platform for downloaded binaries to either `windows`, `linux` or `darwin`.",
+		},
+		&cli.BoolFlag{
+			Name:  "bare",
+			Usage: "skip all pre-run configuration",
+		},
+	}
 )
 
 func Run(version string) error {
@@ -50,21 +65,6 @@ func Run(version string) error {
 		Usage: "sampctl version",
 	}
 
-	globalFlags := []cli.Flag{
-		&cli.BoolFlag{
-			Name:  "verbose",
-			Usage: "output all detailed information - useful for debugging",
-		},
-		&cli.StringFlag{
-			Name:  "platform",
-			Value: "",
-			Usage: "manually specify the target platform for downloaded binaries to either `windows`, `linux` or `darwin`.",
-		},
-		&cli.BoolFlag{
-			Name:  "bare",
-			Usage: "skip all pre-run configuration",
-		},
-	}
 	//nolint:lll
 	app.Commands = []*cli.Command{
 		{
@@ -109,13 +109,7 @@ func Run(version string) error {
 			Usage:       "sampctl package <subcommand>",
 			Description: "For managing Pawn packages such as gamemodes and libraries.",
 			Subcommands: []*cli.Command{
-				{
-					Name:        "init",
-					Usage:       "sampctl package init",
-					Description: "Helper tool to bootstrap a new package or turn an existing project into a package.",
-					Action:      PackageInit,
-					Flags:       append(globalFlags, PackageInitFlags...),
-				},
+				PackageInit,
 				{
 					Name:        "ensure",
 					Usage:       "sampctl package ensure",
