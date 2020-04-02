@@ -22,7 +22,7 @@ type CompilerVersion string
 func GetBuildConfigDefault() *BuildConfig {
 	return &BuildConfig{
 		Args:    []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
-		Version: "3.10.9",
+		Version: "3.10.10",
 	}
 }
 

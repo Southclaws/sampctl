@@ -116,7 +116,7 @@ func GetCompilerPackage(
 	}
 
 	if meta.Tag == "" {
-		meta.Tag = "v3.10.9"
+		meta.Tag = "v3.10.10"
 	} else if meta.Tag[0] != 'v' {
 		meta.Tag = "v" + meta.Tag
 	}
