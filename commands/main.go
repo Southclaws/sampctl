@@ -10,9 +10,9 @@ import (
 	"github.com/Masterminds/semver"
 	"github.com/google/go-github/github"
 	"github.com/joho/godotenv"
+	_ "github.com/joho/godotenv/autoload"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
-	_ "github.com/joho/godotenv/autoload"
 	"gopkg.in/segmentio/analytics-go.v3"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
@@ -34,17 +34,23 @@ var (
 )
 
 func main() {
+	if err := Run(); err != nil {
+		print.Erro(err)
+		os.Exit(1)
+	}
+}
+
+func Run() error {
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
-		print.Erro("Failed to retrieve cache directory path (attempted <user folder>/.samp) ", err)
-		return
+		return errors.Errorf("Failed to retrieve cache directory path (attempted <user folder>/.samp) %v", err)
 	}
 
 	app := cli.NewApp()
 
 	app.Authors = []cli.Author{
 		{
-			Name: "Southclaws",
+			Name:  "Southclaws",
 			Email: "hello@southcla.ws",
 		},
 	}
@@ -317,20 +323,21 @@ func main() {
 
 	err = app.Run(os.Args)
 	if err != nil {
-		print.Erro(err)
+		return err
 	}
 
 	if config != nil {
 		err = types.WriteConfig(cacheDir, *config)
 		if err != nil {
-			print.Erro("Failed to write updated configuration file to", cacheDir, "-", err)
-			return
+			return errors.Errorf("Failed to write updated configuration file to", cacheDir, "- %v", err)
 		}
 	}
 
 	if segment != nil {
 		segment.Close()
 	}
+
+	return nil
 }
 
 // CheckForUpdates uses the GitHub API to check if a new release is available.
