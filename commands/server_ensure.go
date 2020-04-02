@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
-	"gopkg.in/segmentio/analytics-go.v3"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/print"
@@ -31,16 +30,6 @@ func serverEnsure(c *cli.Context) error {
 
 	dir := util.FullPath(c.String("dir"))
 	noCache := c.Bool("noCache")
-
-	if config.Metrics {
-		//nolint:errcheck
-		segment.Enqueue(analytics.Track{
-			Event:  "server ensure",
-			UserId: config.UserID,
-			Properties: analytics.NewProperties().
-				Set("noCache", noCache),
-		})
-	}
 
 	cfg, err := runtime.NewConfigFromEnvironment(dir)
 	if err != nil {

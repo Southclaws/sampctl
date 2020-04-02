@@ -3,7 +3,6 @@ package commands
 import (
 	appRuntime "runtime"
 
-	"gopkg.in/segmentio/analytics-go.v3"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/print"
@@ -31,16 +30,6 @@ func serverDownload(c *cli.Context) error {
 
 	version := c.String("version")
 	dir := util.FullPath(c.String("dir"))
-
-	if config.Metrics {
-		//nolint:errcheck
-		segment.Enqueue(analytics.Track{
-			Event:  "server download",
-			UserId: config.UserID,
-			Properties: analytics.NewProperties().
-				Set("version", version),
-		})
-	}
 
 	return runtime.GetServerPackage(version, dir, appRuntime.GOOS)
 }

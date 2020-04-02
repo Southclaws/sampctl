@@ -12,7 +12,6 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
-	"gopkg.in/segmentio/analytics-go.v3"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
@@ -24,12 +23,10 @@ import (
 )
 
 var (
-	version    = "master"
-	segmentKey = ""
-	config     *types.Config        // global config
-	gh         *github.Client       // a github client to use for API requests
-	gitAuth    transport.AuthMethod // for private dependencies
-	segment    analytics.Client     // segment.io client
+	version = "master"
+	config  *types.Config        // global config
+	gh      *github.Client       // a github client to use for API requests
+	gitAuth transport.AuthMethod // for private dependencies
 )
 
 func Run(args []string) error {
@@ -275,22 +272,6 @@ func Run(args []string) error {
 		if config.CI != "" {
 			config.Metrics = false
 		}
-		if segmentKey == "" {
-			print.Warn("Segment.io key is unset!")
-			config.Metrics = false
-		}
-
-		if config.Metrics {
-			segment = analytics.New(segmentKey)
-			if config.NewUser {
-				//nolint:lll
-				print.Info("Usage metrics are active. See https://github.com/Southclaws/sampctl/wiki/Usage-Metrics for more information.")
-				//nolint:errcheck
-				segment.Enqueue(analytics.Identify{
-					UserId: config.UserID,
-				})
-			}
-		}
 
 		return nil
 	}
@@ -323,10 +304,6 @@ func Run(args []string) error {
 		if err != nil {
 			return errors.Errorf("Failed to write updated configuration file to", cacheDir, "- %v", err)
 		}
-	}
-
-	if segment != nil {
-		segment.Close()
 	}
 
 	return nil
