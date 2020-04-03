@@ -1,8 +1,7 @@
-package main
+package commands
 
 import (
 	"context"
-	"time"
 
 	"github.com/pkg/errors"
 	"gopkg.in/segmentio/analytics-go.v3"
@@ -14,34 +13,28 @@ import (
 	"github.com/Southclaws/sampctl/util"
 )
 
-var packageEnsureFlags = []cli.Flag{
+var packageReleaseFlags = []cli.Flag{
 	cli.StringFlag{
 		Name:  "dir",
 		Value: ".",
 		Usage: "working directory for the project - by default, uses the current directory",
 	},
-	cli.BoolFlag{
-		Name:  "update",
-		Usage: "update cached dependencies to latest version",
-	},
 }
 
-func packageEnsure(c *cli.Context) error {
+func packageRelease(c *cli.Context) error {
 	if c.Bool("verbose") {
 		print.SetVerbose()
 	}
 
-	runtimeName := c.Args().Get(0)
-
 	if config.Metrics {
 		//nolint:errcheck
 		segment.Enqueue(analytics.Track{
-			Event:  "package run",
+			Event:  "package release",
 			UserId: config.UserID,
-			Properties: analytics.NewProperties().
-				Set("runtime", runtimeName != ""),
 		})
 	}
+
+	dir := util.FullPath(c.String("dir"))
 
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
@@ -49,29 +42,15 @@ func packageEnsure(c *cli.Context) error {
 		return err
 	}
 
-	dir := util.FullPath(c.String("dir"))
-	forceUpdate := c.Bool("update")
-
 	pcx, err := rook.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "")
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	pcx.ActualRuntime, err = rook.GetRuntimeConfig(pcx.Package, runtimeName)
+	err = rook.Release(context.Background(), gh, gitAuth, pcx.Package)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to release")
 	}
-	pcx.ActualRuntime.Platform = pcx.Platform
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
-	defer cancel()
-
-	err = pcx.EnsureDependencies(ctx, forceUpdate)
-	if err != nil {
-		return errors.Wrap(err, "failed to ensure")
-	}
-
-	print.Info("ensured dependencies for package")
 
 	return nil
 }

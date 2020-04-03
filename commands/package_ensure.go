@@ -1,6 +1,9 @@
-package main
+package commands
 
 import (
+	"context"
+	"time"
+
 	"github.com/pkg/errors"
 	"gopkg.in/segmentio/analytics-go.v3"
 	"gopkg.in/urfave/cli.v1"
@@ -9,43 +12,35 @@ import (
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/rook"
 	"github.com/Southclaws/sampctl/util"
-	"github.com/Southclaws/sampctl/versioning"
 )
 
-var packageUninstallFlags = []cli.Flag{
+var packageEnsureFlags = []cli.Flag{
 	cli.StringFlag{
 		Name:  "dir",
 		Value: ".",
 		Usage: "working directory for the project - by default, uses the current directory",
 	},
 	cli.BoolFlag{
-		Name:  "dev",
-		Usage: "for specifying development dependencies",
+		Name:  "update",
+		Usage: "update cached dependencies to latest version",
 	},
 }
 
-//nolint:dupl
-func packageUninstall(c *cli.Context) error {
+func packageEnsure(c *cli.Context) error {
 	if c.Bool("verbose") {
 		print.SetVerbose()
 	}
 
-	dir := util.FullPath(c.String("dir"))
-	development := c.Bool("dev")
+	runtimeName := c.Args().Get(0)
 
 	if config.Metrics {
 		//nolint:errcheck
 		segment.Enqueue(analytics.Track{
-			Event:  "package uninstall",
+			Event:  "package run",
 			UserId: config.UserID,
 			Properties: analytics.NewProperties().
-				Set("development", development),
+				Set("runtime", runtimeName != ""),
 		})
-	}
-
-	if len(c.Args()) == 0 {
-		cli.ShowCommandHelpAndExit(c, "uninstall", 0)
-		return nil
 	}
 
 	cacheDir, err := download.GetCacheDir()
@@ -54,22 +49,29 @@ func packageUninstall(c *cli.Context) error {
 		return err
 	}
 
-	deps := []versioning.DependencyString{}
-	for _, dep := range c.Args() {
-		deps = append(deps, versioning.DependencyString(dep))
-	}
+	dir := util.FullPath(c.String("dir"))
+	forceUpdate := c.Bool("update")
 
 	pcx, err := rook.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "")
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	err = pcx.Uninstall(deps, development)
+	pcx.ActualRuntime, err = rook.GetRuntimeConfig(pcx.Package, runtimeName)
 	if err != nil {
 		return err
 	}
+	pcx.ActualRuntime.Platform = pcx.Platform
 
-	print.Info("successfully removed dependency")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
+	defer cancel()
+
+	err = pcx.EnsureDependencies(ctx, forceUpdate)
+	if err != nil {
+		return errors.Wrap(err, "failed to ensure")
+	}
+
+	print.Info("ensured dependencies for package")
 
 	return nil
 }
