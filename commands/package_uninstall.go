@@ -2,7 +2,6 @@ package commands
 
 import (
 	"github.com/pkg/errors"
-	"gopkg.in/segmentio/analytics-go.v3"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
@@ -32,16 +31,6 @@ func packageUninstall(c *cli.Context) error {
 
 	dir := util.FullPath(c.String("dir"))
 	development := c.Bool("dev")
-
-	if config.Metrics {
-		//nolint:errcheck
-		segment.Enqueue(analytics.Track{
-			Event:  "package uninstall",
-			UserId: config.UserID,
-			Properties: analytics.NewProperties().
-				Set("development", development),
-		})
-	}
 
 	if len(c.Args()) == 0 {
 		cli.ShowCommandHelpAndExit(c, "uninstall", 0)

@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
-	"gopkg.in/segmentio/analytics-go.v3"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
@@ -44,18 +43,6 @@ func serverRun(c *cli.Context) error {
 	container := c.Bool("container")
 	mountCache := c.Bool("mountCache")
 	noCache := c.Bool("noCache")
-
-	if config.Metrics {
-		//nolint:errcheck
-		segment.Enqueue(analytics.Track{
-			Event:  "server run",
-			UserId: config.UserID,
-			Properties: analytics.NewProperties().
-				Set("container", container).
-				Set("mountCache", mountCache).
-				Set("noCache", noCache),
-		})
-	}
 
 	cfg, err := runtime.NewConfigFromEnvironment(dir)
 	if err != nil {
