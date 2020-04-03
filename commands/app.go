@@ -29,7 +29,7 @@ var (
 	gitAuth transport.AuthMethod // for private dependencies
 )
 
-func Run(args []string) error {
+func Run(args []string, version string) error {
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
 		return errors.Errorf("Failed to retrieve cache directory path (attempted <user folder>/.samp) %v", err)
