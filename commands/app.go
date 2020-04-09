@@ -23,7 +23,6 @@ import (
 )
 
 var (
-	version = "master"
 	config  *types.Config        // global config
 	gh      *github.Client       // a github client to use for API requests
 	gitAuth transport.AuthMethod // for private dependencies
