@@ -1,11 +1,10 @@
-package main
+package commands
 
 import (
 	"context"
 	"os"
 
 	"github.com/pkg/errors"
-	"gopkg.in/segmentio/analytics-go.v3"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
@@ -72,23 +71,6 @@ func packageRun(c *cli.Context) error {
 	relativePaths := c.Bool("relativePaths")
 
 	runtimeName := c.Args().Get(0)
-
-	if config.Metrics {
-		//nolint:errcheck
-		segment.Enqueue(analytics.Track{
-			Event:  "package run",
-			UserId: config.UserID,
-			Properties: analytics.NewProperties().
-				Set("container", container).
-				Set("build", build).
-				Set("forceBuild", forceBuild).
-				Set("forceEnsure", forceEnsure).
-				Set("noCache", noCache).
-				Set("watch", watch).
-				Set("buildFile", buildFile != "").
-				Set("relativePaths", relativePaths),
-		})
-	}
 
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {

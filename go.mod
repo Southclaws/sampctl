@@ -1,5 +1,7 @@
 module github.com/Southclaws/sampctl
 
+go 1.14
+
 require (
 	github.com/BurntSushi/toml v0.3.0 // indirect
 	github.com/Masterminds/semver v1.4.2
@@ -34,7 +36,6 @@ require (
 	github.com/nbutton23/zxcvbn-go v0.0.0-20180510020640-780cc39d5c78
 	github.com/pkg/errors v0.8.0
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/segmentio/backo-go v0.0.0-20160424052352-204274ad699c // indirect
 	github.com/sergi/go-diff v1.0.0 // indirect
 	github.com/src-d/gcfg v1.3.0 // indirect
 	github.com/src-d/go-git-fixtures v3.1.1+incompatible // indirect
@@ -50,7 +51,6 @@ require (
 	golang.org/x/text v0.3.0 // indirect
 	google.golang.org/appengine v1.1.0 // indirect
 	gopkg.in/AlecAivazis/survey.v1 v1.6.2
-	gopkg.in/segmentio/analytics-go.v3 v3.0.0
 	gopkg.in/src-d/go-billy.v3 v3.1.0 // indirect
 	gopkg.in/src-d/go-billy.v4 v4.3.0 // indirect
 	gopkg.in/src-d/go-git.v4 v4.0.0-rc15

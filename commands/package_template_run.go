@@ -1,4 +1,4 @@
-package main
+package commands
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
-	"gopkg.in/segmentio/analytics-go.v3"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
@@ -33,14 +32,6 @@ var packageTemplateRunFlags = []cli.Flag{
 func packageTemplateRun(c *cli.Context) (err error) {
 	if c.Bool("verbose") {
 		print.SetVerbose()
-	}
-
-	if config.Metrics {
-		//nolint:errcheck
-		segment.Enqueue(analytics.Track{
-			Event:  "package template run",
-			UserId: config.UserID,
-		})
 	}
 
 	version := c.String("version")
