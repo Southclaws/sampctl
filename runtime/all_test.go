@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,7 +18,13 @@ var gh *github.Client
 
 func TestMain(m *testing.M) {
 	godotenv.Load("../.env", "../../.env")
-	gh = github.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(&oauth2.Token{AccessToken: os.Getenv("GITHUB_TOKEN")})))
+
+	token := os.Getenv("GITHUB_TOKEN_FULL_ACCESS")
+	if len(token) == 0 {
+		fmt.Println("No token in `GITHUB_TOKEN_FULL_ACCESS`, skipping tests.")
+		return
+	}
+	gh = github.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})))
 
 	err := os.MkdirAll("./tests/cache", 0700)
 	if err != nil {
