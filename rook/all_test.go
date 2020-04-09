@@ -2,6 +2,7 @@ package rook
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 
@@ -18,7 +19,13 @@ var gitAuth transport.AuthMethod
 
 func TestMain(m *testing.M) {
 	godotenv.Load("../.env", "../../.env")
-	gh = github.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(&oauth2.Token{AccessToken: os.Getenv("GITHUB_TOKEN")})))
+
+	token := os.Getenv("FULL_ACCESS_GITHUB_TOKEN")
+	if len(token) == 0 {
+		fmt.Println("No token in `FULL_ACCESS_GITHUB_TOKEN`, skipping tests.")
+		return
+	}
+	gh = github.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})))
 
 	err := os.MkdirAll("./tests/cache", 0700)
 	if err != nil {
