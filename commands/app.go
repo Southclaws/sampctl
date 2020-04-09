@@ -302,7 +302,7 @@ func Run(args []string, version string) error {
 	if config != nil {
 		err = types.WriteConfig(cacheDir, *config)
 		if err != nil {
-			return errors.Errorf("Failed to write updated configuration file to", cacheDir, "- %v", err)
+			return errors.Errorf("Failed to write updated configuration file to %s - %v", cacheDir, err)
 		}
 	}
 
