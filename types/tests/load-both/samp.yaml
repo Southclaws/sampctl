@@ -1,5 +1,3 @@
 gamemodes:
 - rivershell
 rcon_password: hello
-port: null
-maxplayers: null
