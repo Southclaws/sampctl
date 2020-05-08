@@ -172,6 +172,7 @@ func (pcx PackageContext) extractResourceDependencies(
 		pkg.DependencyMeta,
 		dir,
 		pcx.Platform,
+		res.Version,
 		pcx.CacheDir,
 		false,
 		true,

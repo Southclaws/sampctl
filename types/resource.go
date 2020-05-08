@@ -13,6 +13,7 @@ import (
 type Resource struct {
 	Name     string            `json:"name,omitempty"`     // filename pattern of the resource
 	Platform string            `json:"platform,omitempty"` // target platform, if empty the resource is always used but if this is set and does not match the runtime OS, the resource is ignored
+	Version  string            `json:"version,omitempty"`  // which server version this resource belongs to
 	Archive  bool              `json:"archive,omitempty"`  // is this resource an archive file or just a single file?
 	Includes []string          `json:"includes,omitempty"` // if archive: paths to directories containing .inc files for the compiler
 	Plugins  []string          `json:"plugins,omitempty"`  // if archive: paths to plugin binaries, either .so or .dll
