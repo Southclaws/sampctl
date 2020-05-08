@@ -97,6 +97,11 @@ func PrepareCommand(
 		return
 	}
 
+	outputDir := filepath.Dir(output)
+	if !util.Exists(outputDir) {
+		os.MkdirAll(outputDir, 0700)
+	}
+
 	if config.WorkingDir == "" {
 		config.WorkingDir = filepath.Dir(input)
 	} else {
