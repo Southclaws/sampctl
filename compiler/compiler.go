@@ -99,7 +99,11 @@ func PrepareCommand(
 
 	outputDir := filepath.Dir(output)
 	if !util.Exists(outputDir) {
-		os.MkdirAll(outputDir, 0700)
+		err = os.MkdirAll(outputDir, 0700)
+		if err != nil {
+			err = errors.Wrap(err, "failed to create output directory")
+			return
+		}
 	}
 
 	if config.WorkingDir == "" {
