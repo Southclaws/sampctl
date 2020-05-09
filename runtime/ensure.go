@@ -69,7 +69,9 @@ func EnsureBinaries(cacheDir string, cfg types.Runtime) (err error) {
 	if !util.Exists(filepath.Join(cfg.WorkingDir, getAnnounceBinary(cfg.Platform))) {
 		missing = true
 	}
-	if !util.Exists(filepath.Join(cfg.WorkingDir, getServerBinary(cfg.Platform))) {
+
+	binary := getServerBinary(cfg.Platform, cacheDir, cfg.Version)
+	if !util.Exists(filepath.Join(cfg.WorkingDir, binary)) {
 		missing = true
 	}
 

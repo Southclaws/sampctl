@@ -45,7 +45,7 @@ func Run(
 		return RunContainer(ctx, cfg, cacheDir, passArgs, output, input)
 	}
 
-	binary := "./" + getServerBinary(cfg.Platform)
+	binary := getServerBinary(cfg.Platform, cacheDir, cfg.Version)
 	fullPath := filepath.Join(cfg.WorkingDir, binary)
 	print.Verb("starting", binary, "in", cfg.WorkingDir)
 

@@ -4,6 +4,7 @@ import (
 	"crypto/md5" //nolint:gas
 	"encoding/hex"
 	"io/ioutil"
+	"strings"
 
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/types"
@@ -26,15 +27,30 @@ import (
 // 	return false
 // }
 
-func getServerBinary(platform string) string {
+func getServerBinary(platform, cacheDir, version string) (binary string) {
+	pkg, err := FindPackage(cacheDir, version)
+	if err != nil {
+		return
+	}
+
+	var paths map[string]string
 	switch platform {
 	case "windows":
-		return "samp-server.exe"
+		paths = pkg.Win32Paths
 	case "linux", "darwin":
-		return "samp03svr"
+		paths = pkg.LinuxPaths
 	default:
-		return ""
+		return
 	}
+
+	for _, destination := range paths {
+		if strings.Contains(destination, "svr") {
+			binary = destination
+			break
+		}
+	}
+
+	return
 }
 
 func getNpcBinary(platform string) string {
