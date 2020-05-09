@@ -1,6 +1,8 @@
 package types
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // BuildConfig represents a configuration for compiling a file
 type BuildConfig struct {
@@ -13,16 +15,30 @@ type BuildConfig struct {
 	Includes   []string          `json:"includes,omitempty"`   // list of include files to pass to compiler via -i flags
 	Constants  map[string]string `json:"constants,omitempty"`  // set of constant definitions to pass to the compiler
 	Plugins    [][]string        `json:"plugins,omitempty"`    // set of commands to run before compilation
+	Compiler   CompilerConfig    `json:"compiler,omitempty"`   // a set of configurations for using a compiler
 }
 
 // CompilerVersion represents a compiler version number
 type CompilerVersion string
+
+// CompilerConfig represents a configuration for a compiler repository
+type CompilerConfig struct {
+	Site    string `json:"site"`    // The site hosting the repo
+	User    string `json:"user"`    // Name of the github user
+	Repo    string `json:"repo"`    // Name of the github repository
+	Version string `json:"version"` // The version of the compiler to use
+}
 
 // GetBuildConfigDefault defines and returns a default compiler configuration
 func GetBuildConfigDefault() *BuildConfig {
 	return &BuildConfig{
 		Args:    []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
 		Version: "3.10.10",
+		Compiler: CompilerConfig{
+			Site: "github.com",
+			User: "pawn-lang",
+			Repo: "compiler",
+		},
 	}
 }
 

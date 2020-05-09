@@ -104,7 +104,7 @@ func PrepareCommand(
 	}
 
 	runtimeDir := filepath.Join(cacheDir, "pawn", string(config.Version))
-	pkg, err := GetCompilerPackage(ctx, gh, config.Version, runtimeDir, platform, cacheDir)
+	pkg, err := GetCompilerPackage(ctx, gh, config, runtimeDir, platform, cacheDir)
 	if err != nil {
 		err = errors.Wrap(err, "failed to get compiler package")
 		return
