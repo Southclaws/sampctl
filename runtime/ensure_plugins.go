@@ -41,7 +41,7 @@ func EnsurePlugins(
 	)
 
 	for _, plugin := range cfg.PluginDeps {
-		files, err = EnsureVersionedPlugin(ctx, gh, plugin, cfg.WorkingDir, cfg.Platform, cacheDir, true, false, noCache)
+		files, err = EnsureVersionedPlugin(ctx, gh, plugin, cfg.WorkingDir, cfg.Platform, cfg.Version, cacheDir, true, false, noCache)
 		if err != nil {
 			print.Warn("failed to ensure plugin", plugin, err)
 			err = nil
@@ -75,12 +75,13 @@ func EnsureVersionedPlugin(
 	meta versioning.DependencyMeta,
 	dir string,
 	platform string,
+	version string,
 	cacheDir string,
 	plugins bool,
 	includes bool,
 	noCache bool,
 ) (files []types.Plugin, err error) {
-	filename, resource, err := EnsureVersionedPluginCached(ctx, meta, platform, cacheDir, noCache, gh)
+	filename, resource, err := EnsureVersionedPluginCached(ctx, meta, platform, version, cacheDir, noCache, gh)
 	if err != nil {
 		return
 	}
@@ -167,6 +168,7 @@ func EnsureVersionedPluginCached(
 	ctx context.Context,
 	meta versioning.DependencyMeta,
 	platform,
+	version,
 	cacheDir string,
 	noCache bool,
 	gh *github.Client,
@@ -178,7 +180,7 @@ func EnsureVersionedPluginCached(
 	hit := false
 	// only pull from cache if there is a version tag specified
 	if !noCache && meta.Tag != "" {
-		hit, filename, resource, err = PluginFromCache(meta, platform, cacheDir)
+		hit, filename, resource, err = PluginFromCache(meta, platform, version, cacheDir)
 		if err != nil {
 			err = errors.Wrapf(err, "failed to get plugin %s from cache", meta)
 			return
@@ -190,7 +192,7 @@ func EnsureVersionedPluginCached(
 			print.Info("Downloading newest plugin because no version is specified. Consider specifying a version for this dependency.")
 		}
 
-		filename, resource, err = PluginFromNet(ctx, gh, meta, platform, cacheDir)
+		filename, resource, err = PluginFromNet(ctx, gh, meta, platform, version, cacheDir)
 		if err != nil {
 			err = errors.Wrapf(err, "failed to get plugin %s from net", meta)
 			return
@@ -204,6 +206,7 @@ func EnsureVersionedPluginCached(
 func PluginFromCache(
 	meta versioning.DependencyMeta,
 	platform string,
+	version string,
 	cacheDir string,
 ) (hit bool, filename string, resource types.Resource, err error) {
 	resourcePath := filepath.Join(cacheDir, GetResourcePath(meta))
@@ -226,7 +229,7 @@ func PluginFromCache(
 		return
 	}
 
-	resource, err = GetResourceForPlatform(pkg.Resources, platform)
+	resource, err = GetResource(pkg.Resources, platform, version)
 	if err != nil {
 		return
 	}
@@ -262,6 +265,7 @@ func PluginFromNet(
 	gh *github.Client,
 	meta versioning.DependencyMeta,
 	platform string,
+	version string,
 	cacheDir string,
 ) (filename string, resource types.Resource, err error) {
 	print.Info(meta, "downloading plugin resource for", platform)
@@ -284,7 +288,7 @@ func PluginFromNet(
 		}
 	}
 
-	resource, err = GetResourceForPlatform(pkg.Resources, platform)
+	resource, err = GetResource(pkg.Resources, platform, version)
 	if err != nil {
 		return
 	}
@@ -305,17 +309,21 @@ func PluginFromNet(
 	return filename, resource, nil
 }
 
-// GetResourceForPlatform searches a list of resources for one that matches the given platform
-func GetResourceForPlatform(resources []types.Resource, platform string) (resource types.Resource, err error) {
+// GetResource searches a list of resources for one that matches the given platform
+func GetResource(resources []types.Resource, platform string, version string) (resource types.Resource, err error) {
 	var tmp *types.Resource
 	for _, res := range resources {
-		if res.Platform == platform {
+		if res.Version == "" {
+			res.Version = "0.3.7"
+		}
+
+		if res.Platform == platform && res.Version == version {
 			tmp = &res
 			break
 		}
 	}
 	if tmp == nil {
-		err = errors.Errorf("plugin does not provide binaries for target platform %s", platform)
+		err = errors.Errorf("plugin does not provide binaries for target platform %s and version %s", platform, version)
 		return
 	}
 
