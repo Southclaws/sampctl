@@ -317,6 +317,10 @@ func GetResource(resources []types.Resource, platform string, version string) (r
 			res.Version = "0.3.7"
 		}
 
+		if version == "" {
+			version = "0.3.7"
+		}
+
 		if res.Platform == platform && res.Version == version {
 			tmp = &res
 			break
