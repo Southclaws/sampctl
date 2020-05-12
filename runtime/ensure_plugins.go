@@ -311,6 +311,10 @@ func PluginFromNet(
 
 // GetResource searches a list of resources for one that matches the given platform
 func GetResource(resources []types.Resource, platform string, version string) (resource types.Resource, err error) {
+	if version == "" {
+		version = "0.3.7"
+	}
+
 	var tmp *types.Resource
 	for _, res := range resources {
 		if res.Version == "" {
