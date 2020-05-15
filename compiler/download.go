@@ -103,16 +103,16 @@ func FromNet(
 func GetCompilerPackage(
 	ctx context.Context,
 	gh *github.Client,
-	version types.CompilerVersion,
+	config types.BuildConfig,
 	dir string,
 	platform string,
 	cacheDir string,
 ) (compiler types.Compiler, err error) {
 	meta := versioning.DependencyMeta{
-		Site: "github.com",
-		User: "pawn-lang",
-		Repo: "compiler",
-		Tag:  string(version),
+		Site: config.Compiler.Site,
+		User: config.Compiler.User,
+		Repo: config.Compiler.Repo,
+		Tag:  config.Compiler.Version,
 	}
 
 	if meta.Tag == "" {
@@ -121,9 +121,21 @@ func GetCompilerPackage(
 		meta.Tag = "v" + meta.Tag
 	}
 
+	if meta.Site == "" {
+		meta.Site = "github.com"
+	}
+
+	if meta.User == "" {
+		meta.User = "pawn-lang"
+	}
+
+	if meta.Repo == "" {
+		meta.Repo = "compiler"
+	}
+
 	compiler, hit, err := FromCache(meta, dir, platform, cacheDir)
 	if err != nil {
-		err = errors.Wrapf(err, "failed to get package %s from cache", version)
+		err = errors.Wrapf(err, "failed to get package %s from cache", config.Compiler.Version)
 		return
 	}
 	if hit {
@@ -132,7 +144,7 @@ func GetCompilerPackage(
 
 	compiler, err = FromNet(ctx, gh, meta, dir, platform, cacheDir)
 	if err != nil {
-		err = errors.Wrapf(err, "failed to get package %s from net", version)
+		err = errors.Wrapf(err, "failed to get package %s from net", config.Compiler.Version)
 		return
 	}
 
