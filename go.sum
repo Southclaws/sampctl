@@ -108,6 +108,8 @@ gopkg.in/AlecAivazis/survey.v1 v1.6.2/go.mod h1:2Ehl7OqkBl3Xb8VmC4oFW2bItAhnUfzI
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 h1:qIbj1fsPNlZgppZ+VLlY7N33q108Sa+fhmuc+sWQYwY=
 gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
+gopkg.in/eapache/go-resiliency.v1 v1.2.0 h1:Ga62yQGVh5jQ/k6rDYhn2UsV9evgp2ZmMwXgGu2YcOQ=
+gopkg.in/eapache/go-resiliency.v1 v1.2.0/go.mod h1:ufQ2tre3XZoQT9X8nKYgTaqO8DrIudC5V1EOYUwIka0=
 gopkg.in/src-d/go-billy.v3 v3.1.0 h1:jQUeZbuaZTRIFkumLzrKPbx1HE2oaSr4bwv//3erGN4=
 gopkg.in/src-d/go-billy.v3 v3.1.0/go.mod h1:M8qZfUdoeVaxdZyDBaKp3COPKq3Bn3JZH3ycn7wlfBE=
 gopkg.in/src-d/go-billy.v4 v4.3.0 h1:KtlZ4c1OWbIs4jCv5ZXrTqG8EQocr0g/d4DjNg70aek=

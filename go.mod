@@ -51,6 +51,7 @@ require (
 	golang.org/x/text v0.3.0 // indirect
 	google.golang.org/appengine v1.1.0 // indirect
 	gopkg.in/AlecAivazis/survey.v1 v1.6.2
+	gopkg.in/eapache/go-resiliency.v1 v1.2.0
 	gopkg.in/src-d/go-billy.v3 v3.1.0 // indirect
 	gopkg.in/src-d/go-billy.v4 v4.3.0 // indirect
 	gopkg.in/src-d/go-git.v4 v4.0.0-rc15

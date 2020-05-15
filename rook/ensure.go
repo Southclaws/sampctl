@@ -4,8 +4,10 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/pkg/errors"
+	"gopkg.in/eapache/go-resiliency.v1/retrier"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 
@@ -32,12 +34,21 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 	pcx.Package.Vendor = filepath.Join(pcx.Package.LocalPath, "dependencies")
 
 	for _, dependency := range pcx.AllDependencies {
-		errInner := pcx.EnsurePackage(dependency, forceUpdate)
-		if errInner != nil {
-			print.Warn(errors.Wrapf(errInner, "failed to ensure package %s", dependency))
+		r := retrier.New(retrier.ConstantBackoff(2, 100*time.Millisecond), nil)
+		err := r.Run(func() error {
+			print.Verb("attempting to ensure dependency", dependency)
+			errInner := pcx.EnsurePackage(dependency, forceUpdate)
+			if errInner != nil {
+				print.Warn(errors.Wrapf(errInner, "failed to ensure package %s", dependency))
+				return errInner
+			}
+			print.Info(pcx.Package, "successfully ensured dependency files for", dependency)
+			return nil
+		})
+		if err != nil {
+			print.Warn("failed to ensure package '", dependency, "' after 2 attempts, skipping")
 			continue
 		}
-		print.Info(pcx.Package, "successfully ensured dependency files for", dependency)
 	}
 
 	if pcx.Package.Local {
@@ -105,9 +116,9 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 		repo, err = pcx.EnsureDependencyFromCache(meta, dependencyPath, false)
 		if err != nil {
 			errors.Wrap(err, "failed to ensure dependency from cache")
-			err2 := os.RemoveAll(dependencyPath)
-			if err2 != nil {
-				return errors.Wrap(err, "failed to remove corrupted dependency repo")
+			errInner := os.RemoveAll(dependencyPath)
+			if errInner != nil {
+				return errors.Wrap(errInner, "failed to remove corrupted dependency repo")
 			}
 			return
 		}
