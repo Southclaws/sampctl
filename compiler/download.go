@@ -108,10 +108,6 @@ func GetCompilerPackage(
 	platform string,
 	cacheDir string,
 ) (compiler types.Compiler, err error) {
-	if config.Version != "" {
-		config.Compiler.Version = string(config.Version)
-	}
-
 	meta := versioning.DependencyMeta{
 		Site: config.Compiler.Site,
 		User: config.Compiler.User,

@@ -75,7 +75,7 @@ func (pcx *PackageContext) Build(
 				return
 			}
 		}
-		print.Verb("building", pcx.Package, "with", config.Version)
+		print.Verb("building", pcx.Package, "with", config.Compiler.Version)
 
 		problems, result, err = compiler.CompileWithCommand(
 			command,
@@ -357,9 +357,14 @@ func GetBuildConfig(pkg types.Package, name string) (config *types.BuildConfig) 
 		return def
 	}
 
-	if config.Version == "" {
-		config.Version = def.Version
+	if config.Version != "" {
+		config.Compiler.Version = string(config.Version)
 	}
+
+	if config.Compiler.Version == "" {
+		config.Compiler.Version = def.Compiler.Version
+	}
+
 	if len(config.Args) == 0 {
 		config.Args = def.Args
 	}

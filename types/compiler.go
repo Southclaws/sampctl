@@ -32,12 +32,12 @@ type CompilerConfig struct {
 // GetBuildConfigDefault defines and returns a default compiler configuration
 func GetBuildConfigDefault() *BuildConfig {
 	return &BuildConfig{
-		Args:    []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
-		Version: "3.10.10",
+		Args: []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
 		Compiler: CompilerConfig{
-			Site: "github.com",
-			User: "pawn-lang",
-			Repo: "compiler",
+			Site:    "github.com",
+			User:    "pawn-lang",
+			Repo:    "compiler",
+			Version: "3.10.10",
 		},
 	}
 }

@@ -59,7 +59,7 @@ func CompileSource(
 	result types.BuildResult,
 	err error,
 ) {
-	print.Info("Compiling", config.Input, "with compiler version", config.Version)
+	print.Info("Compiling", config.Input, "with compiler version", config.Compiler.Version)
 
 	cmd, err := PrepareCommand(ctx, gh, execDir, cacheDir, platform, config)
 	if err != nil {
@@ -103,7 +103,7 @@ func PrepareCommand(
 		config.WorkingDir = util.FullPath(config.WorkingDir)
 	}
 
-	runtimeDir := filepath.Join(cacheDir, "pawn", string(config.Version))
+	runtimeDir := filepath.Join(cacheDir, "pawn", config.Compiler.Version)
 	pkg, err := GetCompilerPackage(ctx, gh, config, runtimeDir, platform, cacheDir)
 	if err != nil {
 		err = errors.Wrap(err, "failed to get compiler package")
