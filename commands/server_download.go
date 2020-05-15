@@ -28,6 +28,9 @@ func serverDownload(c *cli.Context) error {
 		print.SetVerbose()
 	}
 
+	print.Warn("The use of 'sampctl server' has been deprecated.")
+	print.Warn("Follow this guide to upgrade: https://github.com/Southclaws/sampctl/wiki/samp.json-To-pawn.json")
+
 	version := c.String("version")
 	dir := util.FullPath(c.String("dir"))
 

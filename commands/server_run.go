@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 
-	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
@@ -12,6 +11,7 @@ import (
 	"github.com/Southclaws/sampctl/runtime"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
+	"github.com/pkg/errors"
 )
 
 var serverRunFlags = []cli.Flag{
@@ -38,6 +38,9 @@ func serverRun(c *cli.Context) error {
 	if c.Bool("verbose") {
 		print.SetVerbose()
 	}
+
+	print.Warn("The use of 'sampctl server' has been deprecated.")
+	print.Warn("Follow this guide to upgrade: https://github.com/Southclaws/sampctl/wiki/samp.json-To-pawn.json")
 
 	dir := util.FullPath(c.String("dir"))
 	container := c.Bool("container")
