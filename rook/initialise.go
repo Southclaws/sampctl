@@ -31,6 +31,7 @@ type Answers struct {
 	User          string
 	Repo          string
 	RepoEscaped   string
+	PackageType   string
 	GitIgnore     bool
 	Readme        bool
 	Editor        string
@@ -120,6 +121,14 @@ func Init(
 				Default: dirName,
 			},
 			Validate: validateRepo,
+		},
+		{
+			Name: "PackageType",
+			Prompt: &survey.Select{
+				Message: "Package Type - Are you writing a gamemode or a reusable library?",
+				Default: "gamemode",
+				Options: []string{"gamemode", "library"},
+			},
 		},
 		{
 			Name:   "GitIgnore",
@@ -234,6 +243,12 @@ func Init(
 		}
 		pkg.Entry = "test.pwn"
 		pkg.Output = "test.amx"
+	}
+
+	if answers.PackageType == "gamemode" {
+		pkg.Local = true
+	} else {
+		pkg.Local = false
 	}
 
 	wg := sync.WaitGroup{}
