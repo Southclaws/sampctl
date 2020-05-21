@@ -7,14 +7,14 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
+	"github.com/go-git/go-git/v5/plumbing/transport"
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/google/go-github/github"
 	"github.com/joho/godotenv"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
@@ -260,7 +260,10 @@ func Run(args []string, version string) error {
 		}
 
 		if config.GitUsername != "" && config.GitPassword != "" {
-			gitAuth = http.NewBasicAuth(config.GitUsername, config.GitPassword)
+			gitAuth = &http.BasicAuth{
+				Username: config.GitUsername,
+				Password: config.GitPassword,
+			}
 		} else {
 			gitAuth, err = ssh.DefaultAuthBuilder("git")
 			if err != nil {
