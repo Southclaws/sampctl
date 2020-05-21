@@ -48,7 +48,7 @@ func Run(args []string, version string) error {
 	app.EnableBashCompletion = true
 
 	cli.VersionFlag = cli.BoolFlag{
-		Name:  "appVersion, V",
+		Name:  "appVersion, V, version",
 		Usage: "sampctl version",
 	}
 
@@ -291,6 +291,9 @@ func Run(args []string, version string) error {
 			CheckForUpdates(app.Version)
 		}
 		return nil
+	}
+	app.OnUsageError = func(c *cli.Context, err error, isSubcommand bool) error {
+		return err
 	}
 
 	err = app.Run(args)
