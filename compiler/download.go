@@ -37,7 +37,8 @@ func FromCache(
 		filename,
 		dir,
 		download.ExtractFuncFromName(compiler.Method),
-		compiler.Paths)
+		compiler.Paths,
+		platform)
 	if !hit {
 		return
 	}
