@@ -48,7 +48,7 @@ func Run(args []string, version string) error {
 	app.EnableBashCompletion = true
 
 	cli.VersionFlag = cli.BoolFlag{
-		Name:  "appVersion, V",
+		Name:  "appVersion, V, version",
 		Usage: "sampctl version",
 	}
 
