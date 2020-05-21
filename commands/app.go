@@ -292,6 +292,9 @@ func Run(args []string, version string) error {
 		}
 		return nil
 	}
+	app.OnUsageError = func(c *cli.Context, err error, isSubcommand bool) error {
+		return err
+	}
 
 	err = app.Run(args)
 	if err != nil {
