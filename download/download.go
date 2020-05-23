@@ -15,6 +15,7 @@ import (
 	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -62,7 +63,7 @@ func GetCacheDir() (cacheDir string, err error) {
 }
 
 // FromCache first checks if a file is cached, then
-func FromCache(cacheDir, filename, dir string, method ExtractFunc, paths map[string]string) (hit bool, err error) {
+func FromCache(cacheDir, filename, dir string, method ExtractFunc, paths map[string]string, platform string) (hit bool, err error) {
 	path := filepath.Join(cacheDir, filename)
 
 	if !util.Exists(path) {
@@ -70,11 +71,19 @@ func FromCache(cacheDir, filename, dir string, method ExtractFunc, paths map[str
 		return
 	}
 
-	_, err = method(path, dir, paths)
+	var files map[string]string
+	files, err = method(path, dir, paths)
 	if err != nil {
 		hit = false
 		err = errors.Wrapf(err, "failed to unzip package %s", path)
 		return
+	}
+
+	if platform == "linux" || platform == "darwin" {
+		print.Verb("setting permissions for binaries")
+		for _, file := range files {
+			os.Chmod(file, 0700)
+		}
 	}
 
 	return true, nil
