@@ -49,7 +49,7 @@ type Package struct {
 	Format string `json:"-" yaml:"-"`
 
 	// Inferred metadata, not always explicitly set via JSON/YAML but inferred from the dependency path
-	versioning.DependencyMeta
+	versioning.DependencyMeta `yaml:"-,inline"`
 
 	// Metadata, set by the package author to describe the package
 	Contributors []string `json:"contributors,omitempty" yaml:"contributors,omitempty"` // list of contributors
