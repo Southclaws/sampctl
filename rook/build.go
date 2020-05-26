@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/fsnotify/fsnotify"
 	"github.com/pkg/errors"
 
@@ -126,7 +128,13 @@ func (pcx *PackageContext) BuildWatch(
 	if err != nil {
 		return errors.Wrap(err, "failed to create new filesystem watcher")
 	}
-	err = filepath.Walk(pcx.Package.LocalPath, func(path string, info os.FileInfo, err error) error {
+
+	path := path.Dir(pcx.Package.Entry)
+	if path == "" {
+		path = pcx.Package.LocalPath
+	}
+
+	err = filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			print.Warn(err)
 			return nil
@@ -148,7 +156,7 @@ func (pcx *PackageContext) BuildWatch(
 		return errors.Wrap(err, "failed to add paths to filesystem watcher")
 	}
 
-	print.Verb("watching directory for changes", pcx.Package.LocalPath)
+	print.Verb("watching directory for changes", path)
 
 	signals := make(chan os.Signal, 1)
 	errorCh := make(chan error)
@@ -162,10 +170,12 @@ func (pcx *PackageContext) BuildWatch(
 	)
 
 	defer func() {
-		print.Warn("cancelled inner context")
+		print.Verb("cancelled inner context")
 		cancel()
 	}()
 	running.Store(false)
+
+	watcherColour := color.New(color.FgBlack, color.BgGreen).SprintFunc()
 
 	// send a fake first event to trigger an initial build
 	go func() { watcher.Events <- fsnotify.Event{Name: pcx.Package.Entry, Op: fsnotify.Write} }()
@@ -175,7 +185,7 @@ loop:
 		select {
 		case sig := <-signals:
 			fmt.Println("") // insert newline after the ^C
-			print.Info("signal received", sig, "stopping build watcher...")
+			print.Verb("signal received", sig, "stopping build watcher...")
 			break loop
 		case errInner := <-errorCh:
 			print.Erro("Error encountered during build:", errInner)
@@ -198,19 +208,15 @@ loop:
 
 			go func() {
 				if running.Load().(bool) {
-					fmt.Println("watch-build: killing existing compiler process")
+					print.Verb("Build interrupted by file change")
 					cancel()
-					fmt.Println("watch-build: killed existing compiler process")
 					// re-create context and canceler
 					ctxInner, cancel = context.WithCancel(ctx)
-					defer func() {
-						print.Verb("cancelling existing compiler execution context")
-						cancel()
-					}()
 				}
 
 				atomic.AddUint32(&buildNumber, 1)
-				fmt.Println("watch-build: starting compilation", buildNumber)
+				fmt.Printf("%s found modified file: %s\n", watcherColour("WATCHER:"), event.Name)
+				fmt.Printf("%s compiling %s with compiler version %s [%d]\n", watcherColour("WATCHER:"), config.Input, config.Compiler.Version, buildNumber)
 
 				running.Store(true)
 				problems, _, err = compiler.CompileSource(
@@ -227,13 +233,13 @@ loop:
 
 				if err != nil {
 					if err.Error() == "signal: killed" || err.Error() == "context canceled" {
-						print.Erro("non-fatal error occurred:", err)
+						print.Verb("non-fatal error occurred:", err)
 						return
 					}
 
 					errorCh <- errors.Wrapf(err, "failed to compile package, run: %d", buildNumber)
 				}
-				fmt.Println("watch-build: finished", buildNumber)
+				fmt.Printf("%s finished building: %s [%d]\n", watcherColour("WATCHER:"), event.Name, buildNumber)
 
 				if trigger != nil {
 					trigger <- problems
@@ -249,7 +255,7 @@ loop:
 		}
 	}
 
-	print.Info("finished running build watcher")
+	fmt.Printf("%s finished watching all builds\n", watcherColour("WATCHER:"))
 
 	return err
 }

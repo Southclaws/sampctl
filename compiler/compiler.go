@@ -11,7 +11,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 
@@ -59,8 +58,6 @@ func CompileSource(
 	result types.BuildResult,
 	err error,
 ) {
-	print.Info("Compiling", config.Input, "with compiler version", config.Compiler.Version)
-
 	cmd, err := PrepareCommand(ctx, gh, execDir, cacheDir, platform, config)
 	if err != nil {
 		return
@@ -237,18 +234,10 @@ func CompileWithCommand(
 	}
 
 	if cmdError != nil {
-		if !strings.HasPrefix(cmdError.Error(), "exit status") {
-			if runtime.GOOS == "linux" {
-				print.Erro("if you're on a 64 bit system, you may need to enable 32 bit binaries")
-				print.Erro("you can do this by allowing i386 packages and installing g++-multilib")
-			}
-			err = errors.Wrap(cmdError, "failed to execute compiler")
-			return
-		} else if cmdError.Error() == "exit status 1" {
+		if cmdError.Error() == "exit status 1" {
 			// compilation failed with errors and warnings
 			err = nil
 		} else {
-			// if cmdError.Error() == "signal: killed" || cmdError.Error() == "context canceled"
 			err = cmdError
 			return
 		}
