@@ -207,11 +207,15 @@ loop:
 			lastEvent = time.Now()
 
 			go func() {
+				defer func() {
+					print.Verb("cancelling existing compiler execution context")
+					cancel()
+					ctxInner, cancel = context.WithCancel(ctx)
+				}()
+
 				if running.Load().(bool) {
 					print.Verb("Build interrupted by file change")
 					cancel()
-					// re-create context and canceler
-					ctxInner, cancel = context.WithCancel(ctx)
 				}
 
 				atomic.AddUint32(&buildNumber, 1)
