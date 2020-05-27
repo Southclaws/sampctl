@@ -148,6 +148,10 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 	}
 	recurse(pcx.Package.DependencyMeta)
 
+	if errInner != nil {
+		return errors.New("Failed to clone the repo")
+	}
+
 	return nil
 }
 
