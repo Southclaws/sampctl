@@ -6,7 +6,7 @@ import (
 
 // BuildConfig represents a configuration for compiling a file
 type BuildConfig struct {
-	Name       string            `json:"name"`                                             // name of the configuration
+	Name       string            `json:"name" yaml:"name"`                                 // name of the configuration
 	Version    CompilerVersion   `json:"version,omitempty" yaml:"version,omitempty"`       // compiler version to use for this build
 	WorkingDir string            `json:"workingDir,omitempty" yaml:"workingDir,omitempty"` // working directory for the -D flag
 	Args       []string          `json:"args,omitempty" yaml:"args,omitempty"`             // list of arguments to pass to the compiler
