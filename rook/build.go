@@ -169,10 +169,8 @@ func (pcx *PackageContext) BuildWatch(
 		lastEvent        time.Time
 	)
 
-	defer func() {
-		print.Verb("cancelled inner context")
-		cancel()
-	}()
+	defer cancel()
+
 	running.Store(false)
 
 	watcherColour := color.New(color.FgBlack, color.BgGreen).SprintFunc()
@@ -207,15 +205,10 @@ loop:
 			lastEvent = time.Now()
 
 			go func() {
-				defer func() {
-					print.Verb("cancelling existing compiler execution context")
+				if running.Load().(bool) {
+					fmt.Print("Build interrupted by file change")
 					cancel()
 					ctxInner, cancel = context.WithCancel(ctx)
-				}()
-
-				if running.Load().(bool) {
-					print.Verb("Build interrupted by file change")
-					cancel()
 				}
 
 				atomic.AddUint32(&buildNumber, 1)
