@@ -206,7 +206,7 @@ loop:
 
 			go func() {
 				if running.Load().(bool) {
-					fmt.Print("Build interrupted by file change")
+					print.Verb("Build interrupted by file change")
 					cancel()
 					ctxInner, cancel = context.WithCancel(ctx)
 				}
