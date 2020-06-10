@@ -6,16 +6,16 @@ import (
 
 // BuildConfig represents a configuration for compiling a file
 type BuildConfig struct {
-	Name       string            `json:"name"`                 // name of the configuration
-	Version    CompilerVersion   `json:"version,omitempty"`    // compiler version to use for this build
-	WorkingDir string            `json:"workingDir,omitempty"` // working directory for the -D flag
-	Args       []string          `json:"args,omitempty"`       // list of arguments to pass to the compiler
-	Input      string            `json:"input,omitempty"`      // input .pwn file
-	Output     string            `json:"output,omitempty"`     // output .amx file
-	Includes   []string          `json:"includes,omitempty"`   // list of include files to pass to compiler via -i flags
-	Constants  map[string]string `json:"constants,omitempty"`  // set of constant definitions to pass to the compiler
-	Plugins    [][]string        `json:"plugins,omitempty"`    // set of commands to run before compilation
-	Compiler   CompilerConfig    `json:"compiler,omitempty"`   // a set of configurations for using a compiler
+	Name       string            `json:"name"`                                             // name of the configuration
+	Version    CompilerVersion   `json:"version,omitempty" yaml:"version,omitempty"`       // compiler version to use for this build
+	WorkingDir string            `json:"workingDir,omitempty" yaml:"workingDir,omitempty"` // working directory for the -D flag
+	Args       []string          `json:"args,omitempty" yaml:"args,omitempty"`             // list of arguments to pass to the compiler
+	Input      string            `json:"input,omitempty" yaml:"input,omitempty"`           // input .pwn file
+	Output     string            `json:"output,omitempty" yaml:"output,omitempty"`         // output .amx file
+	Includes   []string          `json:"includes,omitempty" yaml:"includes,omitempty"`     // list of include files to pass to compiler via -i flags
+	Constants  map[string]string `json:"constants,omitempty" yaml:"constants,omitempty"`   // set of constant definitions to pass to the compiler
+	Plugins    [][]string        `json:"plugins,omitempty" yaml:"plugins,omitempty"`       // set of commands to run before compilation
+	Compiler   CompilerConfig    `json:"compiler,omitempty" yaml:"compiler,omitempty"`     // a set of configurations for using a compiler
 }
 
 // CompilerVersion represents a compiler version number
@@ -23,10 +23,10 @@ type CompilerVersion string
 
 // CompilerConfig represents a configuration for a compiler repository
 type CompilerConfig struct {
-	Site    string `json:"site"`    // The site hosting the repo
-	User    string `json:"user"`    // Name of the github user
-	Repo    string `json:"repo"`    // Name of the github repository
-	Version string `json:"version"` // The version of the compiler to use
+	Site    string `json:"site,omitempty" yaml:"site,omitempty"`       // The site hosting the repo
+	User    string `json:"user,omitempty" yaml:"user,omitempty"`       // Name of the github user
+	Repo    string `json:"repo,omitempty" yaml:"repo,omitempty"`       // Name of the github repository
+	Version string `json:"version,omitempty" yaml:"version,omitempty"` // The version of the compiler to use
 }
 
 // GetBuildConfigDefault defines and returns a default compiler configuration
