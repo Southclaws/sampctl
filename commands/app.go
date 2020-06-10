@@ -271,10 +271,6 @@ func Run(args []string, version string) error {
 			}
 		}
 
-		if config.CI != "" {
-			config.Metrics = false
-		}
-
 		return nil
 	}
 	app.After = func(c *cli.Context) error {
