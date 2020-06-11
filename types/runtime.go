@@ -31,8 +31,7 @@ type Runtime struct {
 	Version string  `ignore:"1" json:"version,omitempty"  yaml:"version,omitempty"` // runtime version
 	Mode    RunMode `ignore:"1" json:"mode,omitempty"     yaml:"mode,omitempty"`    // the runtime mode
 
-	// Echo - set automatically
-	Echo *string `default:"Loading configuration..." required:"0" json:"echo,omitempty" yaml:"echo,omitempty"`
+	Echo *string `ignore:"1" json:"echo,omitempty" yaml:"echo,omitempty"`
 
 	// Core properties
 	Gamemodes     []string `cfg:"gamemode" numbered:"1"          json:"gamemodes,omitempty"     yaml:"gamemodes,omitempty"`     //
@@ -250,10 +249,6 @@ func ApplyRuntimeDefaults(rt *Runtime) {
 	}
 	if rt.Mode == "" {
 		rt.Mode = def.Mode
-	}
-	if rt.Echo == nil {
-		rt.Echo = new(string)
-		*rt.Echo = "-"
 	}
 }
 
