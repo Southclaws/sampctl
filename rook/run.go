@@ -18,7 +18,6 @@ import (
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/run"
 	"github.com/Southclaws/sampctl/runtime"
-	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
 
