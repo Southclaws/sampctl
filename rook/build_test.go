@@ -10,8 +10,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Southclaws/sampctl/build"
 	"github.com/Southclaws/sampctl/pawnpackage"
-	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -27,7 +27,7 @@ func TestPackage_Build(t *testing.T) {
 		name         string
 		sourceCode   []byte
 		args         args
-		wantProblems types.BuildProblems
+		wantProblems build.Problems
 		wantErr      bool
 	}{
 		{
@@ -38,7 +38,7 @@ func TestPackage_Build(t *testing.T) {
 					DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "bare"},
 					Entry:          "gamemodes/test.pwn",
 					Output:         "gamemodes/test.amx",
-					Builds: []*types.BuildConfig{
+					Builds: []*build.Config{
 						{Name: "build", Version: "3.10.10"},
 					},
 				},
@@ -55,7 +55,7 @@ func TestPackage_Build(t *testing.T) {
 					DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "stdlib"},
 					Entry:          "gamemodes/test.pwn",
 					Output:         "gamemodes/test.amx",
-					Builds: []*types.BuildConfig{
+					Builds: []*build.Config{
 						{Name: "build", Version: "3.10.10"},
 					},
 				},
