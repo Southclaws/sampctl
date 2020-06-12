@@ -22,7 +22,7 @@ import (
 	"github.com/Southclaws/sampctl/config"
 	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/print"
-	"github.com/Southclaws/sampctl/types"
+	"github.com/Southclaws/sampctl/run"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -324,7 +324,7 @@ func Init(
 	}
 
 	if answers.Travis {
-		pkg.Runtime = &types.Runtime{Mode: "y_testing"}
+		pkg.Runtime = &run.Runtime{Mode: "y_testing"}
 		wg.Add(1)
 		go func() {
 			errInner := getTemplateFile(dir, ".travis.yml", answers)

@@ -15,7 +15,7 @@ import (
 	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/resource"
-	"github.com/Southclaws/sampctl/types"
+	"github.com/Southclaws/sampctl/run"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -24,7 +24,7 @@ import (
 func EnsurePlugins(
 	ctx context.Context,
 	gh *github.Client,
-	cfg *types.Runtime,
+	cfg *run.Runtime,
 	cacheDir string,
 	noCache bool,
 ) (err error) {
@@ -38,8 +38,8 @@ func EnsurePlugins(
 	fileExt := pluginExtForFile(cfg.Platform)
 
 	var (
-		newPlugins = []types.Plugin{}
-		files      []types.Plugin
+		newPlugins = []run.Plugin{}
+		files      []run.Plugin
 	)
 
 	for _, plugin := range cfg.PluginDeps {
@@ -53,11 +53,11 @@ func EnsurePlugins(
 		newPlugins = append(newPlugins, files...)
 	}
 
-	added := make(map[types.Plugin]struct{})
+	added := make(map[run.Plugin]struct{})
 
 	// trim extensions for plugins list, they are added later by GenerateServerCFG if needed
 	for _, plugin := range newPlugins {
-		pluginName := types.Plugin(strings.TrimSuffix(string(plugin), fileExt))
+		pluginName := run.Plugin(strings.TrimSuffix(string(plugin), fileExt))
 		if _, ok := added[pluginName]; ok {
 			continue
 		}
@@ -82,7 +82,7 @@ func EnsureVersionedPlugin(
 	plugins bool,
 	includes bool,
 	noCache bool,
-) (files []types.Plugin, err error) {
+) (files []run.Plugin, err error) {
 	filename, resource, err := EnsureVersionedPluginCached(ctx, meta, platform, version, cacheDir, noCache, gh)
 	if err != nil {
 		return
@@ -146,7 +146,7 @@ func EnsureVersionedPlugin(
 			for _, plugin := range resource.Plugins {
 				print.Verb(meta, "checking resource source", source, "against plugin", plugin)
 				if source == plugin {
-					files = append(files, types.Plugin(filepath.Base(target)))
+					files = append(files, run.Plugin(filepath.Base(target)))
 				}
 			}
 		}
@@ -159,7 +159,7 @@ func EnsureVersionedPlugin(
 			err = errors.Wrapf(err, "failed to copy non-archive file %s to %s", filename, destination)
 			return
 		}
-		files = []types.Plugin{types.Plugin(base)}
+		files = []run.Plugin{run.Plugin(base)}
 	}
 
 	return files, err

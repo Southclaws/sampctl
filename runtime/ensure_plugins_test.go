@@ -10,62 +10,62 @@ import (
 
 	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/resource"
-	"github.com/Southclaws/sampctl/types"
+	"github.com/Southclaws/sampctl/run"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
 
 func TestEnsurePlugins(t *testing.T) {
 	type args struct {
-		cfg types.Runtime
+		cfg run.Runtime
 	}
 	tests := []struct {
 		name        string
 		args        args
 		wantFiles   []string
-		wantPlugins []types.Plugin
+		wantPlugins []run.Plugin
 		wantErr     bool
 	}{
 		{"streamer-linux", args{
-			types.Runtime{
+			run.Runtime{
 				Platform:   "linux",
 				PluginDeps: []versioning.DependencyMeta{{User: "samp-incognito", Repo: "samp-streamer-plugin", Tag: "v2.9.2"}},
-			}}, []string{"plugins/streamer.so"}, []types.Plugin{"streamer"}, false},
+			}}, []string{"plugins/streamer.so"}, []run.Plugin{"streamer"}, false},
 		{"streamer-windows", args{
-			types.Runtime{
+			run.Runtime{
 				Platform:   "windows",
 				PluginDeps: []versioning.DependencyMeta{{User: "samp-incognito", Repo: "samp-streamer-plugin", Tag: "v2.9.2"}},
-			}}, []string{"plugins/streamer.dll"}, []types.Plugin{"streamer"}, false},
+			}}, []string{"plugins/streamer.dll"}, []run.Plugin{"streamer"}, false},
 		{"mysql-linux", args{
-			types.Runtime{
+			run.Runtime{
 				Platform:   "linux",
 				PluginDeps: []versioning.DependencyMeta{{User: "pBlueG", Repo: "SA-MP-MySQL", Tag: "R41-4"}},
-			}}, []string{"plugins/mysql.so"}, []types.Plugin{"mysql"}, false},
+			}}, []string{"plugins/mysql.so"}, []run.Plugin{"mysql"}, false},
 		{"mysql-windows", args{
-			types.Runtime{
+			run.Runtime{
 				Platform:   "windows",
 				PluginDeps: []versioning.DependencyMeta{{User: "pBlueG", Repo: "SA-MP-MySQL", Tag: "R41-4"}},
-			}}, []string{"plugins/mysql.dll"}, []types.Plugin{"mysql"}, false},
+			}}, []string{"plugins/mysql.dll"}, []run.Plugin{"mysql"}, false},
 		{"bitmapper-linux", args{
-			types.Runtime{
+			run.Runtime{
 				Platform:   "linux",
 				PluginDeps: []versioning.DependencyMeta{{User: "Southclaws", Repo: "samp-bitmapper", Tag: "0.2.1"}},
-			}}, []string{"plugins/bitmapper.so"}, []types.Plugin{"bitmapper"}, false},
+			}}, []string{"plugins/bitmapper.so"}, []run.Plugin{"bitmapper"}, false},
 		{"bitmapper-windows", args{
-			types.Runtime{
+			run.Runtime{
 				Platform:   "windows",
 				PluginDeps: []versioning.DependencyMeta{{User: "Southclaws", Repo: "samp-bitmapper", Tag: "0.2.1"}},
-			}}, []string{"plugins/bitmapper.dll"}, []types.Plugin{"bitmapper"}, false},
+			}}, []string{"plugins/bitmapper.dll"}, []run.Plugin{"bitmapper"}, false},
 		{"PawnPlus-linux", args{
-			types.Runtime{
+			run.Runtime{
 				Platform:   "linux",
 				PluginDeps: []versioning.DependencyMeta{{User: "IllidanS4", Repo: "PawnPlus", Tag: "v0.5"}},
-			}}, []string{"plugins/PawnPlus.so"}, []types.Plugin{"PawnPlus"}, false},
+			}}, []string{"plugins/PawnPlus.so"}, []run.Plugin{"PawnPlus"}, false},
 		{"PawnPlus-windows", args{
-			types.Runtime{
+			run.Runtime{
 				Platform:   "windows",
 				PluginDeps: []versioning.DependencyMeta{{User: "IllidanS4", Repo: "PawnPlus", Tag: "v0.5"}},
-			}}, []string{"plugins/PawnPlus.dll"}, []types.Plugin{"PawnPlus"}, false},
+			}}, []string{"plugins/PawnPlus.dll"}, []run.Plugin{"PawnPlus"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -81,7 +81,7 @@ func TestEnsurePlugins(t *testing.T) {
 			assert.NoError(t, err)
 
 			// the first call to EnsurePlugins modifies this list, we don't want duplicates in the next test, so clear it
-			tt.args.cfg.Plugins = []types.Plugin{}
+			tt.args.cfg.Plugins = []run.Plugin{}
 
 			t.Log("Second call to Ensure - from cache")
 			err = EnsurePlugins(context.Background(), gh, &tt.args.cfg, "./tests/cache", false)
@@ -131,8 +131,8 @@ func TestGetPluginRemotePackage(t *testing.T) {
 					Plugins:  []string{"plugins/streamer.dll"},
 				},
 			},
-			Runtime: &types.Runtime{
-				Plugins: []types.Plugin{
+			Runtime: &run.Runtime{
+				Plugins: []run.Plugin{
 					"samp-incognito/samp-streamer-plugin",
 				},
 			},

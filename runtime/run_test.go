@@ -12,7 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Southclaws/sampctl/types"
+	"github.com/Southclaws/sampctl/run"
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -73,7 +73,7 @@ Number of vehicle models: 0
 			}
 
 			if runtime.GOOS == "darwin" {
-				config.Container = &types.ContainerConfig{
+				config.Container = &run.ContainerConfig{
 					MountCache: false,
 				}
 			}

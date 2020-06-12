@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Southclaws/sampctl/types"
+	"github.com/Southclaws/sampctl/run"
 	"github.com/Southclaws/sampctl/versioning"
 )
 
@@ -19,22 +19,22 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 		name    string
 		env     map[string]string
 		args    args
-		genCfg  types.Runtime
-		wantCfg types.Runtime
+		genCfg  run.Runtime
+		wantCfg run.Runtime
 		wantErr bool
 	}{
 		{
 			"minimal",
 			map[string]string{"SAMP_RCON_PASSWORD": "changed"},
 			args{"./tests/from-env"},
-			types.Runtime{
+			run.Runtime{
 				WorkingDir: "./tests/from-env",
 				Version:    "0.3.7",
 				Gamemodes: []string{
 					"rivershell",
 					"baserace",
 				},
-				Plugins: []types.Plugin{
+				Plugins: []run.Plugin{
 					"streamer",
 					"zeex/samp-plugin-crashdetect",
 				},
@@ -45,7 +45,7 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 				Announce:   &[]bool{true}[0],
 				RCON:       &[]bool{true}[0],
 			},
-			types.Runtime{
+			run.Runtime{
 				WorkingDir: "./tests/from-env",
 				Platform:   runtime.GOOS,
 				PluginDeps: []versioning.DependencyMeta{
@@ -53,13 +53,13 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 				},
 				Format:  "json",
 				Version: "0.3.7",
-				Mode:    types.Server,
+				Mode:    run.Server,
 				Echo:    &[]string{"-"}[0],
 				Gamemodes: []string{
 					"rivershell",
 					"baserace",
 				},
-				Plugins: []types.Plugin{
+				Plugins: []run.Plugin{
 					"streamer",
 				},
 				RCONPassword: &[]string{"changed"}[0],
@@ -95,12 +95,12 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 func TestEnsureScripts(t *testing.T) {
 	tests := []struct {
 		name     string
-		config   types.Runtime
+		config   run.Runtime
 		wantErrs bool
 	}{
 		{
 			"minimal",
-			types.Runtime{
+			run.Runtime{
 				WorkingDir: "./tests/validate",
 				Gamemodes: []string{
 					"rivershell",
@@ -117,7 +117,7 @@ func TestEnsureScripts(t *testing.T) {
 		},
 		{
 			"minimal_fail",
-			types.Runtime{
+			run.Runtime{
 				WorkingDir: "./tests/validate",
 				Gamemodes: []string{
 					"rivershell",

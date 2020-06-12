@@ -12,7 +12,7 @@ import (
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/rook"
-	"github.com/Southclaws/sampctl/types"
+	"github.com/Southclaws/sampctl/run"
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -101,8 +101,8 @@ func packageTemplateRun(c *cli.Context) (err error) {
 	pcx.BuildFile = ""
 	pcx.Relative = false
 
-	pcx.Package.Runtime = new(types.Runtime)
-	pcx.Package.Runtime.Mode = types.RunMode(mode)
+	pcx.Package.Runtime = new(run.Runtime)
+	pcx.Package.Runtime.Mode = run.RunMode(mode)
 
 	err = pcx.Run(context.Background(), os.Stdout, os.Stdin)
 	if err != nil {
