@@ -1,4 +1,4 @@
-package types
+package resource
 
 import (
 	"crypto/md5" //nolint
@@ -33,7 +33,7 @@ func (res Resource) Validate() (err error) {
 
 // Path returns a file path for a resource based on a hash of the label
 // nolint
-func (res Resource) Path(pkg Package) (path string) {
+func (res Resource) Path(repo string) (path string) {
 	sum := md5.Sum([]byte(res.Name))
-	return filepath.Join(".resources", fmt.Sprintf("%s-%x", pkg.Repo, sum[:3]))
+	return filepath.Join(".resources", fmt.Sprintf("%s-%x", repo, sum[:3]))
 }

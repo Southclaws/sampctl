@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
+	"github.com/Southclaws/sampctl/resource"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -66,7 +67,7 @@ type Package struct {
 	Runtime      *Runtime                      `json:"runtime,omitempty" yaml:"runtime,omitempty"`                   // runtime configuration
 	Runtimes     []*Runtime                    `json:"runtimes,omitempty" yaml:"runtimes,omitempty"`                 // multiple runtime configurations
 	IncludePath  string                        `json:"include_path,omitempty" yaml:"include_path,omitempty"`         // include path within the repository, so users don't need to specify the path explicitly
-	Resources    []Resource                    `json:"resources,omitempty" yaml:"resources,omitempty"`               // list of additional resources associated with the package
+	Resources    []resource.Resource           `json:"resources,omitempty" yaml:"resources,omitempty"`               // list of additional resources associated with the package
 }
 
 func (pkg Package) String() string {
