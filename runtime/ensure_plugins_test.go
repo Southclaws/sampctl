@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Southclaws/sampctl/resource"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
@@ -113,7 +114,7 @@ func TestGetPluginRemotePackage(t *testing.T) {
 				User: "samp-incognito",
 				Repo: "samp-streamer-plugin",
 			},
-			Resources: []types.Resource{
+			Resources: []resource.Resource{
 				{
 					Name:     "^samp-streamer-plugin-(.*).zip$",
 					Platform: "linux",

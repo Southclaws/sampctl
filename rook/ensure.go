@@ -12,6 +12,7 @@ import (
 	"gopkg.in/eapache/go-resiliency.v1/retrier"
 
 	"github.com/Southclaws/sampctl/print"
+	"github.com/Southclaws/sampctl/resource"
 	"github.com/Southclaws/sampctl/runtime"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
@@ -172,9 +173,9 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 func (pcx PackageContext) extractResourceDependencies(
 	ctx context.Context,
 	pkg types.Package,
-	res types.Resource,
+	res resource.Resource,
 ) (dir string, err error) {
-	dir = filepath.Join(pcx.Package.Vendor, res.Path(pkg))
+	dir = filepath.Join(pcx.Package.Vendor, res.Path(pkg.Repo))
 	print.Verb(pkg, "installing resource-based dependency", res.Name, "to", dir)
 
 	err = os.MkdirAll(dir, 0700)

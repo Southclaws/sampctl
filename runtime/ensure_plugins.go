@@ -13,6 +13,7 @@ import (
 
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
+	"github.com/Southclaws/sampctl/resource"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
@@ -174,7 +175,7 @@ func EnsureVersionedPluginCached(
 	gh *github.Client,
 ) (
 	filename string,
-	resource types.Resource,
+	resource *resource.Resource,
 	err error,
 ) {
 	hit := false
@@ -208,7 +209,7 @@ func PluginFromCache(
 	platform string,
 	version string,
 	cacheDir string,
-) (hit bool, filename string, resource types.Resource, err error) {
+) (hit bool, filename string, resource *resource.Resource, err error) {
 	resourcePath := filepath.Join(cacheDir, GetResourcePath(meta))
 
 	print.Verb("getting plugin resource from cache", meta, resourcePath)
@@ -267,7 +268,7 @@ func PluginFromNet(
 	platform string,
 	version string,
 	cacheDir string,
-) (filename string, resource types.Resource, err error) {
+) (filename string, resource *resource.Resource, err error) {
 	print.Info(meta, "downloading plugin resource for", platform)
 
 	resourcePathOnly := GetResourcePath(meta)
@@ -310,12 +311,12 @@ func PluginFromNet(
 }
 
 // GetResource searches a list of resources for one that matches the given platform
-func GetResource(resources []types.Resource, platform string, version string) (resource types.Resource, err error) {
+func GetResource(resources []resource.Resource, platform string, version string) (*resource.Resource, error) {
 	if version == "" {
 		version = "0.3.7"
 	}
 
-	var tmp *types.Resource
+	var tmp *resource.Resource
 	for _, res := range resources {
 		if res.Version == "" {
 			res.Version = "0.3.7"
@@ -327,17 +328,14 @@ func GetResource(resources []types.Resource, platform string, version string) (r
 		}
 	}
 	if tmp == nil {
-		err = errors.Errorf("plugin does not provide binaries for target platform %s and version %s", platform, version)
-		return
+		return nil, errors.Errorf("plugin does not provide binaries for target platform %s and version %s", platform, version)
 	}
 
-	err = tmp.Validate()
-	if err != nil {
-		err = errors.Wrap(err, "matching resource found but is invalid")
-		return
+	if err := tmp.Validate(); err != nil {
+		return nil, errors.Wrap(err, "matching resource found but is invalid")
 	}
-	resource = *tmp
-	return
+
+	return tmp, nil
 }
 
 // GetResourcePath returns a path where a resource should be stored given the metadata
