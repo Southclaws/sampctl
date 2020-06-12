@@ -13,6 +13,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/build"
 	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/run"
@@ -48,7 +49,7 @@ func (pcx *PackageContext) RunWatch(ctx context.Context) (err error) {
 	var (
 		errorCh          = make(chan error)
 		signals          = make(chan os.Signal, 1)
-		trigger          = make(chan types.BuildProblems)
+		trigger          = make(chan build.Problems)
 		running          atomic.Value
 		ctxInner, cancel = context.WithCancel(ctx)
 	)
@@ -78,7 +79,7 @@ loop:
 		case problems := <-trigger:
 			print.Info("build finished")
 			for _, problem := range problems {
-				if problem.Severity > types.ProblemWarning {
+				if problem.Severity > build.ProblemWarning {
 					continue loop
 				}
 			}
@@ -121,7 +122,7 @@ loop:
 func (pcx *PackageContext) runPrepare(ctx context.Context) (err error) {
 	var (
 		filename = filepath.Join(pcx.Package.LocalPath, pcx.Package.Output)
-		problems types.BuildProblems
+		problems build.Problems
 		canRun   = true
 	)
 	if !util.Exists(filename) || pcx.ForceBuild {
@@ -131,7 +132,7 @@ func (pcx *PackageContext) runPrepare(ctx context.Context) (err error) {
 		}
 
 		for _, problem := range problems {
-			if problem.Severity > types.ProblemWarning {
+			if problem.Severity > build.ProblemWarning {
 				canRun = false
 				break
 			}

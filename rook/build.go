@@ -19,10 +19,10 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/build"
 	"github.com/Southclaws/sampctl/compiler"
 	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/print"
-	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -35,8 +35,8 @@ func (pcx *PackageContext) Build(
 	relative bool,
 	buildFile string,
 ) (
-	problems types.BuildProblems,
-	result types.BuildResult,
+	problems build.Problems,
+	result build.Result,
 	err error,
 ) {
 	config, err := pcx.buildPrepare(ctx, build, ensure, true)
@@ -106,13 +106,13 @@ func (pcx *PackageContext) Build(
 // BuildWatch runs the Build code on file changes
 func (pcx *PackageContext) BuildWatch(
 	ctx context.Context,
-	build string,
+	name string,
 	ensure bool,
 	buildFile string,
 	relative bool,
-	trigger chan types.BuildProblems,
+	trigger chan build.Problems,
 ) (err error) {
-	config, err := pcx.buildPrepare(ctx, build, ensure, true)
+	config, err := pcx.buildPrepare(ctx, name, ensure, true)
 	if err != nil {
 		return
 	}
@@ -166,7 +166,7 @@ func (pcx *PackageContext) BuildWatch(
 	var (
 		running          atomic.Value
 		ctxInner, cancel = context.WithCancel(ctx)
-		problems         []types.BuildProblem
+		problems         []build.Problem
 		lastEvent        time.Time
 	)
 
@@ -263,7 +263,7 @@ func (pcx *PackageContext) buildPrepare(
 	build string,
 	ensure,
 	forceUpdate bool,
-) (config *types.BuildConfig, err error) {
+) (config *build.Config, err error) {
 	config = GetBuildConfig(pcx.Package, build)
 	if config == nil {
 		err = errors.Errorf("no build config named '%s'", build)
@@ -331,8 +331,8 @@ func (pcx *PackageContext) buildPrepare(
 // GetBuildConfig returns a matching build by name from the package build list. If no name is
 // specified, the first build is returned. If the package has no build definitions, a default
 // configuration is returned.
-func GetBuildConfig(pkg pawnpackage.Package, name string) (config *types.BuildConfig) {
-	def := types.GetBuildConfigDefault()
+func GetBuildConfig(pkg pawnpackage.Package, name string) (config *build.Config) {
+	def := build.Default()
 
 	// if there are no builds at all, use default
 	if len(pkg.Builds) == 0 && pkg.Build == nil {

@@ -9,9 +9,9 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/build"
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
-	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -104,7 +104,7 @@ func FromNet(
 func GetCompilerPackage(
 	ctx context.Context,
 	gh *github.Client,
-	config types.BuildConfig,
+	config build.Config,
 	dir string,
 	platform string,
 	cacheDir string,

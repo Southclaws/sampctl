@@ -8,10 +8,10 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/build"
 	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/run"
-	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/versioning"
 )
 
@@ -25,8 +25,8 @@ type PackageContext struct {
 	AllDependencies []versioning.DependencyMeta // flattened list of dependencies
 	AllPlugins      []versioning.DependencyMeta // flattened list of plugin dependencies
 	AllIncludePaths []string                    // any additional include paths specified by resources
-	ActualBuild     types.BuildConfig           // actual build configuration to use for running the package
 	ActualRuntime   run.Runtime                 // actual runtime configuration to use for running the package
+	ActualBuild     build.Config                // actual build configuration to use for running the package
 
 	// Runtime specific fields
 	Runtime     string // the runtime config to use, defaults to `default`

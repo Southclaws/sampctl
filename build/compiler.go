@@ -1,11 +1,11 @@
-package types
+package build
 
 import (
 	"fmt"
 )
 
-// BuildConfig represents a configuration for compiling a file
-type BuildConfig struct {
+// Config represents a configuration for compiling a file
+type Config struct {
 	Name       string            `json:"name" yaml:"name"`                                 // name of the configuration
 	Version    CompilerVersion   `json:"version,omitempty" yaml:"version,omitempty"`       // compiler version to use for this build
 	WorkingDir string            `json:"workingDir,omitempty" yaml:"workingDir,omitempty"` // working directory for the -D flag
@@ -29,9 +29,9 @@ type CompilerConfig struct {
 	Version string `json:"version,omitempty" yaml:"version,omitempty"` // The version of the compiler to use
 }
 
-// GetBuildConfigDefault defines and returns a default compiler configuration
-func GetBuildConfigDefault() *BuildConfig {
-	return &BuildConfig{
+// Default defines and returns a default compiler configuration
+func Default() *Config {
+	return &Config{
 		Args: []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
 		Compiler: CompilerConfig{
 			Site:    "github.com",
@@ -66,10 +66,10 @@ func (ps ProblemSeverity) String() string {
 	return "unknown"
 }
 
-// BuildProblem represents an issue with a line in a file with a severity level, these have a full
+// Problem represents an issue with a line in a file with a severity level, these have a full
 // file path, a line number, a severity level (warnings, errors and fatal errors) and a short
 // description of the problem.
-type BuildProblem struct {
+type Problem struct {
 	File        string
 	Line        int
 	Severity    ProblemSeverity
@@ -77,15 +77,15 @@ type BuildProblem struct {
 }
 
 // String creates a structured representation of a problem, for editor integration
-func (bp BuildProblem) String() string {
+func (bp Problem) String() string {
 	return fmt.Sprintf("%s:%d (%s) %s", bp.File, bp.Line, bp.Severity, bp.Description)
 }
 
-// BuildProblems is a slice of BuildProblem objects with additional methods
-type BuildProblems []BuildProblem
+// Problems is a slice of Problem objects with additional methods
+type Problems []Problem
 
-// Warnings returns a slice of only warnings from a BuildProblems object
-func (bps BuildProblems) Warnings() (warnings []BuildProblem) {
+// Warnings returns a slice of only warnings from a Problems object
+func (bps Problems) Warnings() (warnings []Problem) {
 	for _, b := range bps {
 		if b.Severity == ProblemWarning {
 			warnings = append(warnings, b)
@@ -94,8 +94,8 @@ func (bps BuildProblems) Warnings() (warnings []BuildProblem) {
 	return
 }
 
-// Errors returns a slice of only errors from a BuildProblems object
-func (bps BuildProblems) Errors() (warnings []BuildProblem) {
+// Errors returns a slice of only errors from a Problems object
+func (bps Problems) Errors() (warnings []Problem) {
 	for _, b := range bps {
 		if b.Severity == ProblemError {
 			warnings = append(warnings, b)
@@ -105,7 +105,7 @@ func (bps BuildProblems) Errors() (warnings []BuildProblem) {
 }
 
 // Fatal returns true if the build problems contain any fatal problems
-func (bps BuildProblems) Fatal() (fatal bool) {
+func (bps Problems) Fatal() (fatal bool) {
 	for _, b := range bps {
 		if b.Severity == ProblemFatal {
 			return true
@@ -114,13 +114,13 @@ func (bps BuildProblems) Fatal() (fatal bool) {
 	return false
 }
 
-// IsValid returns true if the BuildProblems only contains warnings, if there are errors it's false
-func (bps BuildProblems) IsValid() bool {
+// IsValid returns true if the Problems only contains warnings, if there are errors it's false
+func (bps Problems) IsValid() bool {
 	return len(bps.Errors()) == 0
 }
 
-// BuildResult represents the final statistics (in bytes) of a successfully built .amx file.
-type BuildResult struct {
+// Result represents the final statistics (in bytes) of a successfully built .amx file.
+type Result struct {
 	Header    int
 	Code      int
 	Data      int
