@@ -9,8 +9,8 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/print"
-	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -34,7 +34,7 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 		visited        = make(map[string]bool)
 		dependencyPath = pcx.Package.LocalPath
 		firstIter      = true
-		currentPackage types.Package
+		currentPackage pawnpackage.Package
 		errInner       error
 	)
 
@@ -72,7 +72,7 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 			pcx.AllDependencies = append(pcx.AllDependencies, currentMeta)
 			print.Verb(prefix, currentMeta, "ensured")
 
-			currentPackage, errInner = types.PackageFromDir(dependencyPath)
+			currentPackage, errInner = pawnpackage.PackageFromDir(dependencyPath)
 			if errInner != nil {
 				print.Verb(prefix, currentMeta, "is not a package:", errInner)
 				return

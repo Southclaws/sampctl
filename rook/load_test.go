@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -18,10 +19,10 @@ func TestPackageFromDir(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		wantPkg types.Package
+		wantPkg pawnpackage.Package
 		wantErr bool
 	}{
-		{"load-json", args{"tests/load-json"}, types.Package{
+		{"load-json", args{"tests/load-json"}, pawnpackage.Package{
 			Parent:         true,
 			LocalPath:      "tests/load-json",
 			Vendor:         "tests/load-json/dependencies",
@@ -42,7 +43,7 @@ func TestPackageFromDir(t *testing.T) {
 				Mode:         types.Server,
 			}},
 			false},
-		{"load-yaml", args{"tests/load-yaml"}, types.Package{
+		{"load-yaml", args{"tests/load-yaml"}, pawnpackage.Package{
 			Parent:         true,
 			LocalPath:      "tests/load-yaml",
 			Vendor:         "tests/load-yaml/dependencies",

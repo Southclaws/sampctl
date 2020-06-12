@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/resource"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
@@ -106,10 +107,10 @@ func TestGetPluginRemotePackage(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		wantPkg types.Package
+		wantPkg pawnpackage.Package
 		wantErr bool
 	}{
-		{"streamer", args{versioning.DependencyMeta{Site: "github.com", User: "samp-incognito", Repo: "samp-streamer-plugin"}}, types.Package{
+		{"streamer", args{versioning.DependencyMeta{Site: "github.com", User: "samp-incognito", Repo: "samp-streamer-plugin"}}, pawnpackage.Package{
 			DependencyMeta: versioning.DependencyMeta{
 				User: "samp-incognito",
 				Repo: "samp-streamer-plugin",
@@ -139,7 +140,7 @@ func TestGetPluginRemotePackage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotPkg, err := types.GetRemotePackage(context.Background(), gh, tt.args.meta)
+			gotPkg, err := pawnpackage.GetRemotePackage(context.Background(), gh, tt.args.meta)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

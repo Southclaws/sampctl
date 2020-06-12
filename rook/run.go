@@ -13,6 +13,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/runtime"
 	"github.com/Southclaws/sampctl/types"
@@ -213,7 +214,7 @@ func (pcx *PackageContext) runPrepare(ctx context.Context) (err error) {
 // GetRuntimeConfig returns a matching runtime config by name from the package
 // runtime list. If no name is specified, the first config is returned. If the
 // package has no configurations, a default configuration is returned.
-func GetRuntimeConfig(pkg types.Package, name string) (config types.Runtime, err error) {
+func GetRuntimeConfig(pkg pawnpackage.Package, name string) (config types.Runtime, err error) {
 	if len(pkg.Runtimes) > 0 {
 		// if the user did not specify a specific runtime config, use the first
 		// otherwise, search for a matching config by name

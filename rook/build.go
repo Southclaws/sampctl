@@ -20,6 +20,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/compiler"
+	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
@@ -294,10 +295,10 @@ func (pcx *PackageContext) buildPrepare(
 		hasIncludeResources := false
 		noPackage := false
 		depDir := filepath.Join(pcx.Package.LocalPath, "dependencies", depMeta.Repo)
-		pkgInner, errInner := types.PackageFromDir(depDir)
+		pkgInner, errInner := pawnpackage.PackageFromDir(depDir)
 		if errInner != nil {
 			print.Verb(depMeta, "error while loading:", errInner, "using cached copy for include path checking")
-			pkgInner, errInner = types.GetCachedPackage(depMeta, pcx.CacheDir)
+			pkgInner, errInner = pawnpackage.GetCachedPackage(depMeta, pcx.CacheDir)
 			if errInner != nil {
 				noPackage = true
 			}
@@ -330,7 +331,7 @@ func (pcx *PackageContext) buildPrepare(
 // GetBuildConfig returns a matching build by name from the package build list. If no name is
 // specified, the first build is returned. If the package has no build definitions, a default
 // configuration is returned.
-func GetBuildConfig(pkg types.Package, name string) (config *types.BuildConfig) {
+func GetBuildConfig(pkg pawnpackage.Package, name string) (config *types.BuildConfig) {
 	def := types.GetBuildConfigDefault()
 
 	// if there are no builds at all, use default

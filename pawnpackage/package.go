@@ -1,4 +1,4 @@
-package types
+package pawnpackage
 
 import (
 	"context"
@@ -15,6 +15,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/Southclaws/sampctl/resource"
+	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -62,10 +63,10 @@ type Package struct {
 	Dependencies []versioning.DependencyString `json:"dependencies,omitempty" yaml:"dependencies,omitempty"`         // list of packages that the package depends on
 	Development  []versioning.DependencyString `json:"dev_dependencies,omitempty" yaml:"dev_dependencies,omitempty"` // list of packages that only the package builds depend on
 	Local        bool                          `json:"local,omitempty" yaml:"local,omitempty"`                       // run package in local dir instead of in a temporary runtime
-	Build        *BuildConfig                  `json:"build,omitempty" yaml:"build,omitempty"`                       // build configuration
-	Builds       []*BuildConfig                `json:"builds,omitempty" yaml:"builds,omitempty"`                     // multiple build configurations
-	Runtime      *Runtime                      `json:"runtime,omitempty" yaml:"runtime,omitempty"`                   // runtime configuration
-	Runtimes     []*Runtime                    `json:"runtimes,omitempty" yaml:"runtimes,omitempty"`                 // multiple runtime configurations
+	Build        *types.BuildConfig            `json:"build,omitempty" yaml:"build,omitempty"`                       // build configuration
+	Builds       []*types.BuildConfig          `json:"builds,omitempty" yaml:"builds,omitempty"`                     // multiple build configurations
+	Runtime      *types.Runtime                `json:"runtime,omitempty" yaml:"runtime,omitempty"`                   // runtime configuration
+	Runtimes     []*types.Runtime              `json:"runtimes,omitempty" yaml:"runtimes,omitempty"`                 // multiple runtime configurations
 	IncludePath  string                        `json:"include_path,omitempty" yaml:"include_path,omitempty"`         // include path within the repository, so users don't need to specify the path explicitly
 	Resources    []resource.Resource           `json:"resources,omitempty" yaml:"resources,omitempty"`               // list of additional resources associated with the package
 }
