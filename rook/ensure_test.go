@@ -11,7 +11,6 @@ import (
 	git "github.com/go-git/go-git/v5"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -24,7 +23,7 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 		wantErr  bool
 	}{
 		{"basic", PackageContext{
-			Package: types.Package{
+			Package: pawnpackage.Package{
 				LocalPath:      util.FullPath("./tests/deps-basic"),
 				DependencyMeta: versioning.DependencyMeta{User: "local", Repo: "local"},
 			},
@@ -90,7 +89,7 @@ func TestPackageContext_EnsurePackage(t *testing.T) {
 				GitHub:   gh,
 				GitAuth:  gitAuth,
 				Platform: "linux",
-				Package: types.Package{
+				Package: pawnpackage.Package{
 					LocalPath:      pcxWorkspace,
 					Vendor:         pcxVendor,
 					DependencyMeta: versioning.DependencyMeta{User: "local", Repo: "local"},

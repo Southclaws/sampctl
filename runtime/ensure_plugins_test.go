@@ -106,10 +106,10 @@ func TestGetPluginRemotePackage(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		wantPkg types.Package
+		wantPkg pawnpackage.Package
 		wantErr bool
 	}{
-		{"streamer", args{versioning.DependencyMeta{Site: "github.com", User: "samp-incognito", Repo: "samp-streamer-plugin"}}, types.Package{
+		{"streamer", args{versioning.DependencyMeta{Site: "github.com", User: "samp-incognito", Repo: "samp-streamer-plugin"}}, pawnpackage.Package{
 			DependencyMeta: versioning.DependencyMeta{
 				User: "samp-incognito",
 				Repo: "samp-streamer-plugin",

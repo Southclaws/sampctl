@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/eapache/go-resiliency.v1/retrier"
 
+	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/resource"
 	"github.com/Southclaws/sampctl/runtime"
@@ -140,10 +141,10 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 	// To install resources (includes from within release archives) we can't use the user's locally
 	// cloned copy of the package that resides in `dependencies/` because that repository may be
 	// checked out to a commit that existed before a `pawn.json` file was added that describes where
-	// resources can be downloaded from. Therefore, we instead instantiate a new types.Package from
+	// resources can be downloaded from. Therefore, we instead instantiate a new pawnpackage.Package from
 	// the cached version of the package because the cached copy is always at the latest version, or
 	// at least guaranteed to be either later or equal to the local dependency version.
-	pkg, err := types.GetCachedPackage(meta, pcx.CacheDir)
+	pkg, err := pawnpackage.GetCachedPackage(meta, pcx.CacheDir)
 	if err != nil {
 		return
 	}
@@ -172,7 +173,7 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 
 func (pcx PackageContext) extractResourceDependencies(
 	ctx context.Context,
-	pkg types.Package,
+	pkg pawnpackage.Package,
 	res resource.Resource,
 ) (dir string, err error) {
 	dir = filepath.Join(pcx.Package.Vendor, res.Path(pkg.Repo))

@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -19,7 +18,7 @@ func TestEnsureDependenciesCached(t *testing.T) {
 		wantErr             bool
 	}{
 		{"basic", PackageContext{
-			Package: types.Package{
+			Package: pawnpackage.Package{
 				Parent:         true,
 				LocalPath:      util.FullPath("./tests/deps-basic"),
 				DependencyMeta: versioning.DependencyMeta{User: "local", Repo: "local"},
@@ -38,7 +37,7 @@ func TestEnsureDependenciesCached(t *testing.T) {
 			false,
 		},
 		{"plugin", PackageContext{
-			Package: types.Package{
+			Package: pawnpackage.Package{
 				Parent:         true,
 				LocalPath:      util.FullPath("./tests/deps-plugin"),
 				DependencyMeta: versioning.DependencyMeta{User: "local", Repo: "local"},

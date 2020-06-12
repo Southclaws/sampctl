@@ -20,6 +20,7 @@ import (
 	"gopkg.in/AlecAivazis/survey.v1"
 
 	"github.com/Southclaws/sampctl/config"
+	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
@@ -204,7 +205,7 @@ func Init(
 		config.DefaultUser = answers.User
 	}
 
-	pkg := types.Package{
+	pkg := pawnpackage.Package{
 		Parent:    true,
 		LocalPath: dir,
 		Format:    answers.Format,

@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/resource"
 	"github.com/Southclaws/sampctl/types"
@@ -214,7 +215,7 @@ func PluginFromCache(
 
 	print.Verb("getting plugin resource from cache", meta, resourcePath)
 
-	pkg, err := types.GetCachedPackage(meta, cacheDir)
+	pkg, err := pawnpackage.GetCachedPackage(meta, cacheDir)
 	if err != nil {
 		print.Verb("cache hit failed while trying to get cached package:", err)
 		err = nil
@@ -280,9 +281,9 @@ func PluginFromNet(
 		return
 	}
 
-	pkg, err := types.GetCachedPackage(meta, cacheDir)
+	pkg, err := pawnpackage.GetCachedPackage(meta, cacheDir)
 	if err != nil {
-		pkg, err = types.GetRemotePackage(ctx, gh, meta)
+		pkg, err = pawnpackage.GetRemotePackage(ctx, gh, meta)
 		if err != nil {
 			err = errors.Wrap(err, "failed to get remote package definition file")
 			return

@@ -8,6 +8,7 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/versioning"
@@ -15,7 +16,7 @@ import (
 
 // PackageContext stores state for a package during its lifecycle.
 type PackageContext struct {
-	Package         types.Package               // the package this context wraps
+	Package         pawnpackage.Package         // the package this context wraps
 	GitHub          *github.Client              // GitHub client for downloading plugins
 	GitAuth         transport.AuthMethod        // Authentication method for git
 	Platform        string                      // the platform this package targets
@@ -58,7 +59,7 @@ func NewPackageContext(
 		Platform: platform,
 		CacheDir: cacheDir,
 	}
-	pcx.Package, err = types.PackageFromDir(dir)
+	pcx.Package, err = pawnpackage.PackageFromDir(dir)
 	if err != nil {
 		err = errors.Wrap(err, "failed to read package definition")
 		return

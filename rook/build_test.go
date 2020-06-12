@@ -17,7 +17,7 @@ import (
 
 func TestPackage_Build(t *testing.T) {
 	type args struct {
-		pkg          types.Package
+		pkg          pawnpackage.Package
 		build        string
 		ensure       bool
 		dependencies []versioning.DependencyMeta
@@ -31,7 +31,7 @@ func TestPackage_Build(t *testing.T) {
 	}{
 		{
 			"bare", []byte(`main(){}`), args{
-				types.Package{
+				pawnpackage.Package{
 					Parent:         true,
 					LocalPath:      util.FullPath("./tests/build-auto-bare"),
 					DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "bare"},
@@ -48,7 +48,7 @@ func TestPackage_Build(t *testing.T) {
 			"stdlib", []byte(`#include <a_samp>
 			main() {print("hi");}`,
 			), args{
-				types.Package{
+				pawnpackage.Package{
 					Parent:         true,
 					LocalPath:      util.FullPath("./tests/build-auto-stdlib"),
 					DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "stdlib"},
@@ -70,7 +70,7 @@ func TestPackage_Build(t *testing.T) {
 			#include <uuid>
 			main() {}`,
 			), args{
-				types.Package{
+				pawnpackage.Package{
 					Parent:         true,
 					LocalPath:      util.FullPath("./tests/build-auto-requests"),
 					DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "requests"},
