@@ -10,13 +10,29 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/Southclaws/sampctl/types"
 	"github.com/pkg/errors"
 )
 
+// Runtimes is a collection of Package objects for sorting
+type Runtimes struct {
+	Aliases  map[string]string `json:"aliases"`
+	Packages []RuntimePackage  `json:"packages"`
+}
+
+// RuntimePackage represents a SA:MP server version, it stores both platform filenames and a checksum
+type RuntimePackage struct {
+	Version       string            `json:"version"`
+	Linux         string            `json:"linux"`
+	Win32         string            `json:"win32"`
+	LinuxChecksum string            `json:"linux_checksum"`
+	Win32Checksum string            `json:"win32_checksum"`
+	LinuxPaths    map[string]string `json:"linux_paths"`
+	Win32Paths    map[string]string `json:"win32_paths"`
+}
+
 // GetRuntimeList gets a list of known runtime packages from the sampctl repo, if the list does not
 // exist locally, it is downloaded and cached for future use.
-func GetRuntimeList(cacheDir string) (runtimes types.Runtimes, err error) {
+func GetRuntimeList(cacheDir string) (runtimes Runtimes, err error) {
 	runtimesFile := filepath.Join(cacheDir, "runtimes.json")
 
 	var update bool
@@ -59,7 +75,7 @@ func UpdateRuntimeList(cacheDir string) (err error) {
 		return errors.Errorf("package list status %s", resp.Status)
 	}
 
-	var runtimes types.Runtimes
+	var runtimes Runtimes
 	err = json.NewDecoder(resp.Body).Decode(&runtimes)
 	if err != nil {
 		return errors.Wrap(err, "failed to decode package list")
