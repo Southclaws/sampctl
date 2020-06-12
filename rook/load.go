@@ -10,6 +10,7 @@ import (
 
 	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/print"
+	"github.com/Southclaws/sampctl/run"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -25,7 +26,7 @@ type PackageContext struct {
 	AllPlugins      []versioning.DependencyMeta // flattened list of plugin dependencies
 	AllIncludePaths []string                    // any additional include paths specified by resources
 	ActualBuild     types.BuildConfig           // actual build configuration to use for running the package
-	ActualRuntime   types.Runtime               // actual runtime configuration to use for running the package
+	ActualRuntime   run.Runtime                 // actual runtime configuration to use for running the package
 
 	// Runtime specific fields
 	Runtime     string // the runtime config to use, defaults to `default`
@@ -99,9 +100,9 @@ func NewPackageContext(
 
 	// if there is no runtime configuration, use the defaults
 	if pcx.Package.Runtime == nil {
-		pcx.Package.Runtime = new(types.Runtime)
+		pcx.Package.Runtime = new(run.Runtime)
 	}
-	types.ApplyRuntimeDefaults(pcx.Package.Runtime)
+	run.ApplyRuntimeDefaults(pcx.Package.Runtime)
 
 	print.Verb(pcx.Package, "building dependency tree and ensuring cached copies")
 	err = pcx.EnsureDependenciesCached()

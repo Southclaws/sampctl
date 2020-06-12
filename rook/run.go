@@ -15,6 +15,7 @@ import (
 
 	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/print"
+	"github.com/Southclaws/sampctl/run"
 	"github.com/Southclaws/sampctl/runtime"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
@@ -152,7 +153,7 @@ func (pcx *PackageContext) runPrepare(ctx context.Context) (err error) {
 	pcx.ActualRuntime.AppVersion = pcx.AppVersion
 	pcx.ActualRuntime.Format = pcx.Package.Format
 	if pcx.Container {
-		pcx.ActualRuntime.Container = &types.ContainerConfig{MountCache: true}
+		pcx.ActualRuntime.Container = &run.ContainerConfig{MountCache: true}
 		pcx.ActualRuntime.Platform = "linux"
 	} else {
 		pcx.ActualRuntime.Platform = pcx.Platform
@@ -214,7 +215,7 @@ func (pcx *PackageContext) runPrepare(ctx context.Context) (err error) {
 // GetRuntimeConfig returns a matching runtime config by name from the package
 // runtime list. If no name is specified, the first config is returned. If the
 // package has no configurations, a default configuration is returned.
-func GetRuntimeConfig(pkg pawnpackage.Package, name string) (config types.Runtime, err error) {
+func GetRuntimeConfig(pkg pawnpackage.Package, name string) (config run.Runtime, err error) {
 	if len(pkg.Runtimes) > 0 {
 		// if the user did not specify a specific runtime config, use the first
 		// otherwise, search for a matching config by name
@@ -241,9 +242,9 @@ func GetRuntimeConfig(pkg pawnpackage.Package, name string) (config types.Runtim
 		config = *pkg.Runtime
 	} else {
 		print.Verb(pkg, "using default config")
-		config = types.Runtime{}
+		config = run.Runtime{}
 	}
-	types.ApplyRuntimeDefaults(&config)
+	run.ApplyRuntimeDefaults(&config)
 
 	return config, nil
 }

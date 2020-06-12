@@ -11,14 +11,14 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/print"
-	"github.com/Southclaws/sampctl/types"
+	"github.com/Southclaws/sampctl/run"
 )
 
 // NewConfigFromEnvironment creates a Config from the given environment which includes a directory
 // which is searched for either `samp.json` or `samp.yaml` and environment variable versions of the
 // config parameters.
-func NewConfigFromEnvironment(dir string) (cfg types.Runtime, err error) {
-	cfg, err = types.RuntimeFromDir(dir)
+func NewConfigFromEnvironment(dir string) (cfg run.Runtime, err error) {
+	cfg, err = run.RuntimeFromDir(dir)
 	if err != nil {
 		return
 	}
@@ -26,7 +26,7 @@ func NewConfigFromEnvironment(dir string) (cfg types.Runtime, err error) {
 	// Environment variables override samp.json
 	LoadEnvironmentVariables(&cfg)
 
-	types.ApplyRuntimeDefaults(&cfg)
+	run.ApplyRuntimeDefaults(&cfg)
 	cfg.ResolveRemotePlugins()
 
 	cfg.Platform = runtime.GOOS
@@ -38,7 +38,7 @@ func NewConfigFromEnvironment(dir string) (cfg types.Runtime, err error) {
 // LoadEnvironmentVariables loads Config fields from environment variables - the variable names are
 // simply the `json` tag names uppercased and prefixed with `SAMP_`
 // nolint:gocyclo
-func LoadEnvironmentVariables(cfg *types.Runtime) {
+func LoadEnvironmentVariables(cfg *run.Runtime) {
 	v := reflect.ValueOf(cfg).Elem()
 	t := v.Type()
 

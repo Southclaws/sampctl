@@ -14,8 +14,8 @@ import (
 	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/resource"
+	"github.com/Southclaws/sampctl/run"
 	"github.com/Southclaws/sampctl/runtime"
-	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -63,7 +63,7 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 		if err != nil {
 			return
 		}
-		types.ApplyRuntimeDefaults(&pcx.ActualRuntime)
+		run.ApplyRuntimeDefaults(&pcx.ActualRuntime)
 		err = runtime.Ensure(ctx, pcx.GitHub, &pcx.ActualRuntime, false)
 		if err != nil {
 			return

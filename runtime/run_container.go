@@ -21,14 +21,14 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/print"
-	sampctltypes "github.com/Southclaws/sampctl/types"
+	"github.com/Southclaws/sampctl/run"
 )
 
 // RunContainer does what Run does but inside a Linux container
 // nolint:gocyclo
 func RunContainer(
 	ctx context.Context,
-	cfg sampctltypes.Runtime,
+	cfg run.Runtime,
 	cacheDir string,
 	passArgs bool,
 	output io.Writer,
