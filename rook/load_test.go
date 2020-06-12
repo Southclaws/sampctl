@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/versioning"
 )
