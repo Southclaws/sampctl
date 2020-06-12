@@ -22,7 +22,7 @@ func FromCache(
 	dir string,
 	platform string,
 	cacheDir string,
-) (compiler types.Compiler, hit bool, err error) {
+) (compiler download.Compiler, hit bool, err error) {
 	compiler, err = GetCompilerPackageInfo(cacheDir, platform)
 	if err != nil {
 		return
@@ -56,7 +56,7 @@ func FromNet(
 	dir string,
 	platform string,
 	cacheDir string,
-) (compiler types.Compiler, err error) {
+) (compiler download.Compiler, err error) {
 	print.Info("Downloading compiler package", meta.Tag)
 
 	compiler, err = GetCompilerPackageInfo(cacheDir, platform)
@@ -108,7 +108,7 @@ func GetCompilerPackage(
 	dir string,
 	platform string,
 	cacheDir string,
-) (compiler types.Compiler, err error) {
+) (compiler download.Compiler, err error) {
 	meta := versioning.DependencyMeta{
 		Site: config.Compiler.Site,
 		User: config.Compiler.User,
@@ -153,7 +153,7 @@ func GetCompilerPackage(
 }
 
 // GetCompilerPackageInfo returns the URL for a specific compiler version
-func GetCompilerPackageInfo(cacheDir, platform string) (compiler types.Compiler, err error) {
+func GetCompilerPackageInfo(cacheDir, platform string) (compiler download.Compiler, err error) {
 	compilers, err := download.GetCompilerList(cacheDir)
 	if err != nil {
 		return
