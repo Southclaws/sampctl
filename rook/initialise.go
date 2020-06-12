@@ -19,6 +19,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/AlecAivazis/survey.v1"
 
+	"github.com/Southclaws/sampctl/config"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
@@ -48,7 +49,7 @@ func Init(
 	ctx context.Context,
 	gh *github.Client,
 	dir string,
-	config *types.Config,
+	config *config.Config,
 	auth transport.AuthMethod,
 	platform,
 	cacheDir string,
