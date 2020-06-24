@@ -1,4 +1,4 @@
-package types
+package pawnpackage
 
 import (
 	"context"
@@ -14,6 +14,9 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
+	"github.com/Southclaws/sampctl/build"
+	"github.com/Southclaws/sampctl/resource"
+	"github.com/Southclaws/sampctl/run"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -61,12 +64,12 @@ type Package struct {
 	Dependencies []versioning.DependencyString `json:"dependencies,omitempty" yaml:"dependencies,omitempty"`         // list of packages that the package depends on
 	Development  []versioning.DependencyString `json:"dev_dependencies,omitempty" yaml:"dev_dependencies,omitempty"` // list of packages that only the package builds depend on
 	Local        bool                          `json:"local,omitempty" yaml:"local,omitempty"`                       // run package in local dir instead of in a temporary runtime
-	Build        *BuildConfig                  `json:"build,omitempty" yaml:"build,omitempty"`                       // build configuration
-	Builds       []*BuildConfig                `json:"builds,omitempty" yaml:"builds,omitempty"`                     // multiple build configurations
-	Runtime      *Runtime                      `json:"runtime,omitempty" yaml:"runtime,omitempty"`                   // runtime configuration
-	Runtimes     []*Runtime                    `json:"runtimes,omitempty" yaml:"runtimes,omitempty"`                 // multiple runtime configurations
+	Runtime      *run.Runtime                  `json:"runtime,omitempty" yaml:"runtime,omitempty"`                   // runtime configuration
+	Runtimes     []*run.Runtime                `json:"runtimes,omitempty" yaml:"runtimes,omitempty"`                 // multiple runtime configurations
+	Build        *build.Config                 `json:"build,omitempty" yaml:"build,omitempty"`                       // build configuration
+	Builds       []*build.Config               `json:"builds,omitempty" yaml:"builds,omitempty"`                     // multiple build configurations
 	IncludePath  string                        `json:"include_path,omitempty" yaml:"include_path,omitempty"`         // include path within the repository, so users don't need to specify the path explicitly
-	Resources    []Resource                    `json:"resources,omitempty" yaml:"resources,omitempty"`               // list of additional resources associated with the package
+	Resources    []resource.Resource           `json:"resources,omitempty" yaml:"resources,omitempty"`               // list of additional resources associated with the package
 }
 
 func (pkg Package) String() string {

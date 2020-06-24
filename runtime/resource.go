@@ -6,9 +6,9 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/Southclaws/sampctl/download"
-	"github.com/Southclaws/sampctl/types"
 	"github.com/pkg/errors"
+
+	"github.com/Southclaws/sampctl/download"
 )
 
 func getServerBinary(cacheDir, version, platform string) (binary string) {
@@ -136,11 +136,11 @@ func MatchesChecksum(src, platform, cacheDir, version string) (ok bool, err erro
 }
 
 // FindPackage returns a server resource package for the given version or nil if it's invalid
-func FindPackage(cacheDir, version string) (runtime types.RuntimePackage, err error) {
+func FindPackage(cacheDir, version string) (runtime download.RuntimePackage, err error) {
 	return findPackageRecursive(cacheDir, version, true)
 }
 
-func findPackageRecursive(cacheDir, version string, aliases bool) (runtime types.RuntimePackage, err error) {
+func findPackageRecursive(cacheDir, version string, aliases bool) (runtime download.RuntimePackage, err error) {
 	packages, err := download.GetRuntimeList(cacheDir)
 	if err != nil {
 		return

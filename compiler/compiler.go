@@ -17,8 +17,8 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/build"
 	"github.com/Southclaws/sampctl/print"
-	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -51,11 +51,11 @@ func CompileSource(
 	errorDir,
 	cacheDir,
 	platform string,
-	config types.BuildConfig,
+	config build.Config,
 	relative bool,
 ) (
-	problems types.BuildProblems,
-	result types.BuildResult,
+	problems build.Problems,
+	result build.Result,
 	err error,
 ) {
 	cmd, err := PrepareCommand(ctx, gh, execDir, cacheDir, platform, config)
@@ -78,7 +78,7 @@ func PrepareCommand(
 	execDir,
 	cacheDir,
 	platform string,
-	config types.BuildConfig,
+	config build.Config,
 ) (cmd *exec.Cmd, err error) {
 	var (
 		input  string
@@ -208,10 +208,10 @@ func CompileWithCommand(
 	workingDir,
 	errorDir string,
 	relative bool,
-) (problems types.BuildProblems, result types.BuildResult, err error) {
+) (problems build.Problems, result build.Result, err error) {
 	var (
 		outputReader, outputWriter = io.Pipe()
-		problemChan                = make(chan types.BuildProblem, 2048)
+		problemChan                = make(chan build.Problem, 2048)
 		resultChan                 = make(chan string, 6)
 	)
 
@@ -272,7 +272,7 @@ func watchCompiler(
 	workingDir string,
 	errorDir string,
 	relative bool,
-	problemChan chan types.BuildProblem,
+	problemChan chan build.Problem,
 	resultChan chan string,
 ) {
 	var err error
@@ -284,7 +284,7 @@ func watchCompiler(
 		if len(groups) == 5 {
 			// output is a warning or error
 
-			problem := types.BuildProblem{}
+			problem := build.Problem{}
 
 			if filepath.IsAbs(groups[1]) {
 				problem.File = groups[1]
@@ -311,11 +311,11 @@ func watchCompiler(
 
 			switch groups[3] {
 			case "warning":
-				problem.Severity = types.ProblemWarning
+				problem.Severity = build.ProblemWarning
 			case "error":
-				problem.Severity = types.ProblemError
+				problem.Severity = build.ProblemError
 			case "fatal error":
-				problem.Severity = types.ProblemFatal
+				problem.Severity = build.ProblemFatal
 			}
 
 			problem.Description = groups[4]
@@ -345,7 +345,7 @@ func watchCompiler(
 }
 
 // RunPlugins executes the plugins for a given build config
-func RunPlugins(ctx context.Context, cfg types.BuildConfig, output io.Writer) (err error) {
+func RunPlugins(ctx context.Context, cfg build.Config, output io.Writer) (err error) {
 	for _, command := range cfg.Plugins {
 		ctxInner, cancel := context.WithCancel(ctx)
 		defer cancel()

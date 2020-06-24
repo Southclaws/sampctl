@@ -11,7 +11,7 @@ import (
 	"gopkg.in/AlecAivazis/survey.v1"
 
 	"github.com/Southclaws/sampctl/print"
-	"github.com/Southclaws/sampctl/types"
+	"github.com/Southclaws/sampctl/run"
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -129,7 +129,7 @@ func InitialiseServer(version, dir, platform string) (err error) {
 		}
 	}
 
-	config := types.Runtime{
+	config := run.Runtime{
 		WorkingDir:    dir,
 		Format:        answers.Format,
 		Hostname:      &answers.Hostname,
@@ -141,7 +141,7 @@ func InitialiseServer(version, dir, platform string) (err error) {
 	}
 
 	for _, pluginName := range answers.Plugins {
-		config.Plugins = append(config.Plugins, types.Plugin(pluginName))
+		config.Plugins = append(config.Plugins, run.Plugin(pluginName))
 	}
 
 	strength := zxcvbn.PasswordStrength(*config.RCONPassword, nil)

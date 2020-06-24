@@ -6,12 +6,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Southclaws/sampctl/types"
+	"github.com/Southclaws/sampctl/run"
 )
 
 func Test_GenerateServerCfg(t *testing.T) {
 	type args struct {
-		cfg *types.Runtime
+		cfg *run.Runtime
 	}
 	tests := []struct {
 		name    string
@@ -21,7 +21,7 @@ func Test_GenerateServerCfg(t *testing.T) {
 	}{
 		{
 			"servercfg-linux",
-			args{&types.Runtime{
+			args{&run.Runtime{
 				Platform:   "linux",
 				WorkingDir: "./tests/generate",
 				Announce:   &[]bool{true}[0],
@@ -37,7 +37,7 @@ func Test_GenerateServerCfg(t *testing.T) {
 				Filterscripts: []string{
 					"admin",
 				},
-				Plugins: []types.Plugin{
+				Plugins: []run.Plugin{
 					"mysql",
 				},
 				RCONPassword: &[]string{"test"}[0],
@@ -86,7 +86,7 @@ output 1
 		},
 		{
 			"servercfg-windows",
-			args{&types.Runtime{
+			args{&run.Runtime{
 				Platform:   "windows",
 				WorkingDir: "./tests/generate",
 				Announce:   &[]bool{true}[0],
@@ -102,7 +102,7 @@ output 1
 				Filterscripts: []string{
 					"admin",
 				},
-				Plugins: []types.Plugin{
+				Plugins: []run.Plugin{
 					"mysql",
 				},
 				RCONPassword: &[]string{"test"}[0],
@@ -151,7 +151,7 @@ output 1
 		},
 		{
 			"servercfg-extra",
-			args{&types.Runtime{
+			args{&run.Runtime{
 				Platform:   "windows",
 				WorkingDir: "./tests/generate",
 				Announce:   &[]bool{true}[0],
@@ -167,7 +167,7 @@ output 1
 				Filterscripts: []string{
 					"admin",
 				},
-				Plugins: []types.Plugin{
+				Plugins: []run.Plugin{
 					"mysql",
 				},
 				RCONPassword: &[]string{"test"}[0],

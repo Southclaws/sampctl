@@ -9,27 +9,27 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Southclaws/sampctl/types"
+	"github.com/Southclaws/sampctl/build"
 	"github.com/Southclaws/sampctl/util"
 )
 
 func TestCompileSource(t *testing.T) {
 	type args struct {
 		cacheDir string
-		config   types.BuildConfig
+		config   build.Config
 		relative bool
 	}
 	tests := []struct {
 		name         string
 		args         args
-		wantProblems types.BuildProblems
-		wantResult   types.BuildResult
+		wantProblems build.Problems
+		wantResult   build.Result
 		wantErr      bool
 		wantOutput   bool
 	}{
 		{"simple-pass", args{
 			util.FullPath("./tests/cache"),
-			types.BuildConfig{
+			build.Config{
 				WorkingDir: "./tests/build-simple-pass",
 				Input:      "./tests/build-simple-pass/script.pwn",
 				Output:     "./tests/build-simple-pass/script.amx",
@@ -37,11 +37,11 @@ func TestCompileSource(t *testing.T) {
 				Version:    "3.10.8",
 			}, false},
 			nil,
-			types.BuildResult{},
+			build.Result{},
 			false, true},
 		{"simple-pass-d3", args{
 			util.FullPath("./tests/cache"),
-			types.BuildConfig{
+			build.Config{
 				WorkingDir: "./tests/build-simple-pass",
 				Input:      "./tests/build-simple-pass/script.pwn",
 				Output:     "./tests/build-simple-pass/script.amx",
@@ -50,7 +50,7 @@ func TestCompileSource(t *testing.T) {
 				Version:    "3.10.8",
 			}, false},
 			nil,
-			types.BuildResult{
+			build.Result{
 				Header:    60,
 				Code:      184,
 				Data:      0,
@@ -61,41 +61,41 @@ func TestCompileSource(t *testing.T) {
 			false, true},
 		{"simple-fail", args{
 			util.FullPath("./tests/cache"),
-			types.BuildConfig{
+			build.Config{
 				WorkingDir: "./tests/build-simple-fail",
 				Input:      "./tests/build-simple-fail/script.pwn",
 				Output:     "./tests/build-simple-fail/script.amx",
 				Includes:   []string{},
 				Version:    "3.10.8",
 			}, false},
-			types.BuildProblems{
-				{File: "script.pwn", Line: 1, Severity: types.ProblemError, Description: `invalid function or declaration`},
-				{File: "script.pwn", Line: 3, Severity: types.ProblemError, Description: `invalid function or declaration`},
-				{File: "script.pwn", Line: 2, Severity: types.ProblemWarning, Description: `symbol is never used: "a"`},
-				{File: "script.pwn", Line: 2, Severity: types.ProblemError, Description: `no entry point (no public functions)`},
+			build.Problems{
+				{File: "script.pwn", Line: 1, Severity: build.ProblemError, Description: `invalid function or declaration`},
+				{File: "script.pwn", Line: 3, Severity: build.ProblemError, Description: `invalid function or declaration`},
+				{File: "script.pwn", Line: 2, Severity: build.ProblemWarning, Description: `symbol is never used: "a"`},
+				{File: "script.pwn", Line: 2, Severity: build.ProblemError, Description: `no entry point (no public functions)`},
 			},
-			types.BuildResult{},
+			build.Result{},
 			false, false},
 		{"simple-fail-rel", args{
 			util.FullPath("./tests/cache"),
-			types.BuildConfig{
+			build.Config{
 				WorkingDir: "./tests/build-simple-fail",
 				Input:      "./tests/build-simple-fail/script.pwn",
 				Output:     "./tests/build-simple-fail/script.amx",
 				Includes:   []string{},
 				Version:    "3.10.8",
 			}, true},
-			types.BuildProblems{
-				{File: "script.pwn", Line: 1, Severity: types.ProblemError, Description: `invalid function or declaration`},
-				{File: "script.pwn", Line: 3, Severity: types.ProblemError, Description: `invalid function or declaration`},
-				{File: "script.pwn", Line: 2, Severity: types.ProblemWarning, Description: `symbol is never used: "a"`},
-				{File: "script.pwn", Line: 2, Severity: types.ProblemError, Description: `no entry point (no public functions)`},
+			build.Problems{
+				{File: "script.pwn", Line: 1, Severity: build.ProblemError, Description: `invalid function or declaration`},
+				{File: "script.pwn", Line: 3, Severity: build.ProblemError, Description: `invalid function or declaration`},
+				{File: "script.pwn", Line: 2, Severity: build.ProblemWarning, Description: `symbol is never used: "a"`},
+				{File: "script.pwn", Line: 2, Severity: build.ProblemError, Description: `no entry point (no public functions)`},
 			},
-			types.BuildResult{},
+			build.Result{},
 			false, false},
 		{"local-include-pass", args{
 			util.FullPath("./tests/cache"),
-			types.BuildConfig{
+			build.Config{
 				WorkingDir: "./tests/build-local-include-pass",
 				Input:      "./tests/build-local-include-pass/script.pwn",
 				Output:     "./tests/build-local-include-pass/script.amx",
@@ -104,7 +104,7 @@ func TestCompileSource(t *testing.T) {
 				Version:    "3.10.8",
 			}, false},
 			nil,
-			types.BuildResult{
+			build.Result{
 				Header:    60,
 				Code:      220,
 				Data:      0,
@@ -115,7 +115,7 @@ func TestCompileSource(t *testing.T) {
 			false, true},
 		{"local-include-warn", args{
 			util.FullPath("./tests/cache"),
-			types.BuildConfig{
+			build.Config{
 				WorkingDir: "./tests/build-local-include-warn",
 				Input:      "./tests/build-local-include-warn/script.pwn",
 				Output:     "./tests/build-local-include-warn/script.amx",
@@ -123,11 +123,11 @@ func TestCompileSource(t *testing.T) {
 				Includes:   []string{},
 				Version:    "3.10.8",
 			}, false},
-			types.BuildProblems{
-				{File: "library.inc", Line: 6, Severity: types.ProblemWarning, Description: `symbol is never used: "b"`},
-				{File: "script.pwn", Line: 5, Severity: types.ProblemWarning, Description: `symbol is never used: "a"`},
+			build.Problems{
+				{File: "library.inc", Line: 6, Severity: build.ProblemWarning, Description: `symbol is never used: "b"`},
+				{File: "script.pwn", Line: 5, Severity: build.ProblemWarning, Description: `symbol is never used: "a"`},
 			},
-			types.BuildResult{
+			build.Result{
 				Header:    60,
 				Code:      276,
 				Data:      0,
@@ -138,7 +138,7 @@ func TestCompileSource(t *testing.T) {
 			false, true},
 		{"fatal", args{
 			util.FullPath("./tests/cache"),
-			types.BuildConfig{
+			build.Config{
 				WorkingDir: "./tests/build-fatal",
 				Input:      "./tests/build-fatal/script.pwn",
 				Output:     "./tests/build-fatal/script.amx",
@@ -146,10 +146,10 @@ func TestCompileSource(t *testing.T) {
 				Includes:   []string{},
 				Version:    "3.10.8",
 			}, false},
-			types.BuildProblems{
-				{File: "script.pwn", Line: 1, Severity: types.ProblemFatal, Description: `cannot read from file: "idonotexist"`},
+			build.Problems{
+				{File: "script.pwn", Line: 1, Severity: build.ProblemFatal, Description: `cannot read from file: "idonotexist"`},
 			},
-			types.BuildResult{},
+			build.Result{},
 			false, false},
 	}
 	for _, tt := range tests {

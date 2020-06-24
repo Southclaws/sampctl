@@ -9,7 +9,6 @@ import (
 
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
-	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -108,7 +107,7 @@ func FromNet(cacheDir, version, dir, platform string) (err error) {
 }
 
 func infoForPlatform(
-	pkg types.RuntimePackage,
+	pkg download.RuntimePackage,
 	platform string,
 ) (
 	location,

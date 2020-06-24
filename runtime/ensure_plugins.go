@@ -12,8 +12,10 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/print"
-	"github.com/Southclaws/sampctl/types"
+	"github.com/Southclaws/sampctl/resource"
+	"github.com/Southclaws/sampctl/run"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -22,7 +24,7 @@ import (
 func EnsurePlugins(
 	ctx context.Context,
 	gh *github.Client,
-	cfg *types.Runtime,
+	cfg *run.Runtime,
 	cacheDir string,
 	noCache bool,
 ) (err error) {
@@ -36,8 +38,8 @@ func EnsurePlugins(
 	fileExt := pluginExtForFile(cfg.Platform)
 
 	var (
-		newPlugins = []types.Plugin{}
-		files      []types.Plugin
+		newPlugins = []run.Plugin{}
+		files      []run.Plugin
 	)
 
 	for _, plugin := range cfg.PluginDeps {
@@ -51,11 +53,11 @@ func EnsurePlugins(
 		newPlugins = append(newPlugins, files...)
 	}
 
-	added := make(map[types.Plugin]struct{})
+	added := make(map[run.Plugin]struct{})
 
 	// trim extensions for plugins list, they are added later by GenerateServerCFG if needed
 	for _, plugin := range newPlugins {
-		pluginName := types.Plugin(strings.TrimSuffix(string(plugin), fileExt))
+		pluginName := run.Plugin(strings.TrimSuffix(string(plugin), fileExt))
 		if _, ok := added[pluginName]; ok {
 			continue
 		}
@@ -80,7 +82,7 @@ func EnsureVersionedPlugin(
 	plugins bool,
 	includes bool,
 	noCache bool,
-) (files []types.Plugin, err error) {
+) (files []run.Plugin, err error) {
 	filename, resource, err := EnsureVersionedPluginCached(ctx, meta, platform, version, cacheDir, noCache, gh)
 	if err != nil {
 		return
@@ -144,7 +146,7 @@ func EnsureVersionedPlugin(
 			for _, plugin := range resource.Plugins {
 				print.Verb(meta, "checking resource source", source, "against plugin", plugin)
 				if source == plugin {
-					files = append(files, types.Plugin(filepath.Base(target)))
+					files = append(files, run.Plugin(filepath.Base(target)))
 				}
 			}
 		}
@@ -157,7 +159,7 @@ func EnsureVersionedPlugin(
 			err = errors.Wrapf(err, "failed to copy non-archive file %s to %s", filename, destination)
 			return
 		}
-		files = []types.Plugin{types.Plugin(base)}
+		files = []run.Plugin{run.Plugin(base)}
 	}
 
 	return files, err
@@ -174,7 +176,7 @@ func EnsureVersionedPluginCached(
 	gh *github.Client,
 ) (
 	filename string,
-	resource types.Resource,
+	resource *resource.Resource,
 	err error,
 ) {
 	hit := false
@@ -208,12 +210,12 @@ func PluginFromCache(
 	platform string,
 	version string,
 	cacheDir string,
-) (hit bool, filename string, resource types.Resource, err error) {
+) (hit bool, filename string, resource *resource.Resource, err error) {
 	resourcePath := filepath.Join(cacheDir, GetResourcePath(meta))
 
 	print.Verb("getting plugin resource from cache", meta, resourcePath)
 
-	pkg, err := types.GetCachedPackage(meta, cacheDir)
+	pkg, err := pawnpackage.GetCachedPackage(meta, cacheDir)
 	if err != nil {
 		print.Verb("cache hit failed while trying to get cached package:", err)
 		err = nil
@@ -267,7 +269,7 @@ func PluginFromNet(
 	platform string,
 	version string,
 	cacheDir string,
-) (filename string, resource types.Resource, err error) {
+) (filename string, resource *resource.Resource, err error) {
 	print.Info(meta, "downloading plugin resource for", platform)
 
 	resourcePathOnly := GetResourcePath(meta)
@@ -279,9 +281,9 @@ func PluginFromNet(
 		return
 	}
 
-	pkg, err := types.GetCachedPackage(meta, cacheDir)
+	pkg, err := pawnpackage.GetCachedPackage(meta, cacheDir)
 	if err != nil {
-		pkg, err = types.GetRemotePackage(ctx, gh, meta)
+		pkg, err = pawnpackage.GetRemotePackage(ctx, gh, meta)
 		if err != nil {
 			err = errors.Wrap(err, "failed to get remote package definition file")
 			return
@@ -310,12 +312,12 @@ func PluginFromNet(
 }
 
 // GetResource searches a list of resources for one that matches the given platform
-func GetResource(resources []types.Resource, platform string, version string) (resource types.Resource, err error) {
+func GetResource(resources []resource.Resource, platform string, version string) (*resource.Resource, error) {
 	if version == "" {
 		version = "0.3.7"
 	}
 
-	var tmp *types.Resource
+	var tmp *resource.Resource
 	for _, res := range resources {
 		if res.Version == "" {
 			res.Version = "0.3.7"
@@ -327,17 +329,14 @@ func GetResource(resources []types.Resource, platform string, version string) (r
 		}
 	}
 	if tmp == nil {
-		err = errors.Errorf("plugin does not provide binaries for target platform %s and version %s", platform, version)
-		return
+		return nil, errors.Errorf("plugin does not provide binaries for target platform %s and version %s", platform, version)
 	}
 
-	err = tmp.Validate()
-	if err != nil {
-		err = errors.Wrap(err, "matching resource found but is invalid")
-		return
+	if err := tmp.Validate(); err != nil {
+		return nil, errors.Wrap(err, "matching resource found but is invalid")
 	}
-	resource = *tmp
-	return
+
+	return tmp, nil
 }
 
 // GetResourcePath returns a path where a resource should be stored given the metadata

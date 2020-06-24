@@ -11,12 +11,12 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/Southclaws/sampctl/types"
+	"github.com/Southclaws/sampctl/pawnpackage"
 )
 
 // GetPackageList gets a list of known packages from the sampctl package service, if the list does
 // not exist locally, it is downloaded and cached for future use.
-func GetPackageList(cacheDir string) (packages []types.Package, err error) {
+func GetPackageList(cacheDir string) (packages []pawnpackage.Package, err error) {
 	packageFile := filepath.Join(cacheDir, "packages.json")
 
 	var update bool
@@ -58,7 +58,7 @@ func UpdatePackageList(cacheDir string) (err error) {
 		return errors.Errorf("package list status %s", resp.Status)
 	}
 
-	var packages []types.Package
+	var packages []pawnpackage.Package
 	err = json.NewDecoder(resp.Body).Decode(&packages)
 	if err != nil {
 		return errors.Wrap(err, "failed to decode package list")

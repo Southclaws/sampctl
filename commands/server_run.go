@@ -9,8 +9,8 @@ import (
 
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
+	"github.com/Southclaws/sampctl/run"
 	"github.com/Southclaws/sampctl/runtime"
-	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -58,7 +58,7 @@ func serverRun(c *cli.Context) error {
 	}
 
 	if container {
-		cfg.Container = &types.ContainerConfig{MountCache: mountCache}
+		cfg.Container = &run.ContainerConfig{MountCache: mountCache}
 		cfg.AppVersion = c.App.Version
 	}
 

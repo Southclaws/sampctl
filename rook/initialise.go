@@ -19,8 +19,10 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/AlecAivazis/survey.v1"
 
+	"github.com/Southclaws/sampctl/config"
+	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/print"
-	"github.com/Southclaws/sampctl/types"
+	"github.com/Southclaws/sampctl/run"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -48,7 +50,7 @@ func Init(
 	ctx context.Context,
 	gh *github.Client,
 	dir string,
-	config *types.Config,
+	config *config.Config,
 	auth transport.AuthMethod,
 	platform,
 	cacheDir string,
@@ -203,7 +205,7 @@ func Init(
 		config.DefaultUser = answers.User
 	}
 
-	pkg := types.Package{
+	pkg := pawnpackage.Package{
 		Parent:    true,
 		LocalPath: dir,
 		Format:    answers.Format,
@@ -322,7 +324,7 @@ func Init(
 	}
 
 	if answers.Travis {
-		pkg.Runtime = &types.Runtime{Mode: "y_testing"}
+		pkg.Runtime = &run.Runtime{Mode: "y_testing"}
 		wg.Add(1)
 		go func() {
 			errInner := getTemplateFile(dir, ".travis.yml", answers)

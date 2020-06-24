@@ -7,7 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Southclaws/sampctl/types"
+	"github.com/Southclaws/sampctl/pawnpackage"
+	"github.com/Southclaws/sampctl/run"
 	"github.com/Southclaws/sampctl/versioning"
 )
 
@@ -18,10 +19,10 @@ func TestPackageFromDir(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		wantPkg types.Package
+		wantPkg pawnpackage.Package
 		wantErr bool
 	}{
-		{"load-json", args{"tests/load-json"}, types.Package{
+		{"load-json", args{"tests/load-json"}, pawnpackage.Package{
 			Parent:         true,
 			LocalPath:      "tests/load-json",
 			Vendor:         "tests/load-json/dependencies",
@@ -33,16 +34,16 @@ func TestPackageFromDir(t *testing.T) {
 				"sampctl/samp-stdlib:0.3.7-R2-2-1",
 				"Southclaws/pawn-errors:1.2.3",
 			},
-			Runtime: &types.Runtime{
+			Runtime: &run.Runtime{
 				Echo:         &[]string{"-"}[0],
 				Version:      "0.3.7",
 				Platform:     runtime.GOOS,
 				RCONPassword: &[]string{"password"}[0],
 				Port:         &[]int{7777}[0],
-				Mode:         types.Server,
+				Mode:         run.Server,
 			}},
 			false},
-		{"load-yaml", args{"tests/load-yaml"}, types.Package{
+		{"load-yaml", args{"tests/load-yaml"}, pawnpackage.Package{
 			Parent:         true,
 			LocalPath:      "tests/load-yaml",
 			Vendor:         "tests/load-yaml/dependencies",
@@ -54,13 +55,13 @@ func TestPackageFromDir(t *testing.T) {
 				"sampctl/samp-stdlib:0.3.7-R2-2-1",
 				"Southclaws/pawn-errors:1.2.3",
 			},
-			Runtime: &types.Runtime{
+			Runtime: &run.Runtime{
 				Echo:         &[]string{"-"}[0],
 				Version:      "0.3.7",
 				Platform:     runtime.GOOS,
 				RCONPassword: &[]string{"password"}[0],
 				Port:         &[]int{7777}[0],
-				Mode:         types.Server,
+				Mode:         run.Server,
 			}},
 			false},
 	}

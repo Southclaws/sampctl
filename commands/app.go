@@ -17,13 +17,13 @@ import (
 	"golang.org/x/oauth2"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Southclaws/sampctl/config"
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
-	"github.com/Southclaws/sampctl/types"
 )
 
 var (
-	config  *types.Config        // global config
+	cfg     *config.Config       // global config
 	gh      *github.Client       // a github client to use for API requests
 	gitAuth transport.AuthMethod // for private dependencies
 )
@@ -245,24 +245,24 @@ func Run(args []string, version string) error {
 			print.SetColoured()
 		}
 
-		config, err = types.LoadOrCreateConfig(cacheDir, verbose)
+		cfg, err = config.LoadOrCreateConfig(cacheDir, verbose)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to load or create sampctl config in %s", cacheDir)
 		}
 
-		if config.GitHubToken == "" {
+		if cfg.GitHubToken == "" {
 			gh = github.NewClient(nil)
 		} else {
 			gh = github.NewClient(
 				oauth2.NewClient(context.Background(),
-					oauth2.StaticTokenSource(&oauth2.Token{AccessToken: config.GitHubToken})),
+					oauth2.StaticTokenSource(&oauth2.Token{AccessToken: cfg.GitHubToken})),
 			)
 		}
 
-		if config.GitUsername != "" && config.GitPassword != "" {
+		if cfg.GitUsername != "" && cfg.GitPassword != "" {
 			gitAuth = &http.BasicAuth{
-				Username: config.GitUsername,
-				Password: config.GitPassword,
+				Username: cfg.GitUsername,
+				Password: cfg.GitPassword,
 			}
 		} else {
 			gitAuth, err = ssh.DefaultAuthBuilder("git")
@@ -300,8 +300,8 @@ func Run(args []string, version string) error {
 		return err
 	}
 
-	if config != nil {
-		err = types.WriteConfig(cacheDir, *config)
+	if cfg != nil {
+		err = config.WriteConfig(cacheDir, *cfg)
 		if err != nil {
 			return errors.Errorf("Failed to write updated configuration file to %s - %v", cacheDir, err)
 		}
