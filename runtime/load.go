@@ -69,7 +69,7 @@ func LoadEnvironmentVariables(cfg *run.Runtime) {
 			// todo: allow filterscripts via env vars
 			print.Warn("cannot set filterscripts via environment variables yet")
 
-		case "[]runtime.Plugin":
+		case "[]run.Plugin":
 			// todo: plugins via env vars
 			print.Warn("cannot set plugins via environment variables yet")
 
