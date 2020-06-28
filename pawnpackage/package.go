@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Southclaws/configor"
 	"github.com/google/go-github/github"
+	"github.com/jinzhu/configor"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
@@ -124,7 +124,7 @@ func PackageFromDir(dir string) (pkg Package, err error) {
 
 	cnfgr := configor.New(&configor.Config{
 		Environment:          "development",
-		EnvironmentPrefix:    "SAMP",
+		ENVPrefix:            "SAMP",
 		ErrorOnUnmatchedKeys: true,
 	})
 

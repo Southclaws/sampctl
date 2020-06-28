@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Southclaws/configor"
 	"github.com/google/uuid"
+	"github.com/jinzhu/configor"
 	"github.com/joho/godotenv"
 	"github.com/kr/pretty"
 
@@ -42,6 +42,7 @@ func LoadOrCreateConfig(cacheDir string, verbose bool) (cfg *Config, err error) 
 	configFiles := []string{
 		filepath.Join(cacheDir, "config.json"),
 		filepath.Join(cacheDir, "config.yaml"),
+		filepath.Join(cacheDir, "config.yml"),
 		filepath.Join(cacheDir, "config.toml"),
 	}
 	configFile := ""
@@ -54,7 +55,7 @@ func LoadOrCreateConfig(cacheDir string, verbose bool) (cfg *Config, err error) 
 
 	if configFile != "" {
 		cnfgr := configor.New(&configor.Config{
-			EnvironmentPrefix:    "SAMPCTL",
+			ENVPrefix:            "SAMPCTL",
 			ErrorOnUnmatchedKeys: true,
 		})
 
