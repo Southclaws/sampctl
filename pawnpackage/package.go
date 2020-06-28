@@ -105,6 +105,7 @@ func PackageFromDir(dir string) (pkg Package, err error) {
 	packageDefinitions := []string{
 		filepath.Join(dir, "pawn.json"),
 		filepath.Join(dir, "pawn.yaml"),
+		filepath.Join(dir, "pawn.yml"),
 		filepath.Join(dir, "pawn.toml"),
 	}
 	packageDefinition := ""
