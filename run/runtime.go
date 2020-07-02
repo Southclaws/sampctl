@@ -126,6 +126,11 @@ func (cfg Runtime) Validate() (err error) {
 		return errors.New("Mode empty")
 	}
 
+	if cfg.Echo == nil {
+		cfg.Echo = new(string)
+		*cfg.Echo = ""
+	}
+
 	return
 }
 
