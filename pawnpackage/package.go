@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Southclaws/configor"
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
+	"github.com/sampctl/configor"
 	"gopkg.in/yaml.v2"
 
 	"github.com/Southclaws/sampctl/build"
