@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Southclaws/configor"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/kr/pretty"
+	"github.com/sampctl/configor"
 
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/util"
