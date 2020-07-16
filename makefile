@@ -1,6 +1,6 @@
 -include .env
 VERSION := $(shell git describe --tags --dirty --always)
-LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.segmentKey=$(SEGMENT_KEY)"
+LDFLAGS := -ldflags "-X main.version=$(VERSION) -X"
 
 
 # -
@@ -44,7 +44,6 @@ dist:
 	# for osx tar fix
 	# https://github.com/goreleaser/goreleaser/issues/409
 	PATH="/usr/local/opt/gnu-tar/libexec/gnubin:$(PATH)" \
-	SEGMENT_KEY=$(SEGMENT_KEY) \
 	GITHUB_TOKEN=$(GITHUB_TOKEN) \
 	goreleaser \
 		--snapshot \

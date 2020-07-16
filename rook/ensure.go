@@ -4,14 +4,18 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"time"
 
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/pkg/errors"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/eapache/go-resiliency.v1/retrier"
 
+	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/print"
+	"github.com/Southclaws/sampctl/resource"
+	"github.com/Southclaws/sampctl/run"
 	"github.com/Southclaws/sampctl/runtime"
-	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -32,12 +36,22 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 	pcx.Package.Vendor = filepath.Join(pcx.Package.LocalPath, "dependencies")
 
 	for _, dependency := range pcx.AllDependencies {
-		errInner := pcx.EnsurePackage(dependency, forceUpdate)
-		if errInner != nil {
-			print.Warn(errors.Wrapf(errInner, "failed to ensure package %s", dependency))
+		r := retrier.New(retrier.ConstantBackoff(1, 100*time.Millisecond), nil)
+		err := r.Run(func() error {
+			print.Verb("attempting to ensure dependency", dependency)
+			errInner := pcx.EnsurePackage(dependency, forceUpdate)
+			if errInner != nil {
+				print.Warn(errors.Wrapf(errInner, "failed to ensure package %s", dependency))
+				return errInner
+			}
+			print.Info(pcx.Package, "successfully ensured dependency files for", dependency)
+			return nil
+		})
+		if err != nil {
+			print.Warn("failed to ensure package", dependency, "after 2 attempts, skipping")
+			err = nil
 			continue
 		}
-		print.Info(pcx.Package, "successfully ensured dependency files for", dependency)
 	}
 
 	if pcx.Package.Local {
@@ -49,7 +63,7 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 		if err != nil {
 			return
 		}
-		types.ApplyRuntimeDefaults(&pcx.ActualRuntime)
+		run.ApplyRuntimeDefaults(&pcx.ActualRuntime)
 		err = runtime.Ensure(ctx, pcx.GitHub, &pcx.ActualRuntime, false)
 		if err != nil {
 			return
@@ -104,7 +118,12 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 		print.Verb(meta, "need to clone new copy from cache")
 		repo, err = pcx.EnsureDependencyFromCache(meta, dependencyPath, false)
 		if err != nil {
-			return errors.Wrap(err, "failed to ensure dependency from cache")
+			errors.Wrap(err, "failed to ensure dependency from cache")
+			errInner := os.RemoveAll(dependencyPath)
+			if errInner != nil {
+				return errors.Wrap(errInner, "failed to remove corrupted dependency repo")
+			}
+			return
 		}
 	}
 
@@ -122,10 +141,10 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 	// To install resources (includes from within release archives) we can't use the user's locally
 	// cloned copy of the package that resides in `dependencies/` because that repository may be
 	// checked out to a commit that existed before a `pawn.json` file was added that describes where
-	// resources can be downloaded from. Therefore, we instead instantiate a new types.Package from
+	// resources can be downloaded from. Therefore, we instead instantiate a new pawnpackage.Package from
 	// the cached version of the package because the cached copy is always at the latest version, or
 	// at least guaranteed to be either later or equal to the local dependency version.
-	pkg, err := types.GetCachedPackage(meta, pcx.CacheDir)
+	pkg, err := pawnpackage.GetCachedPackage(meta, pcx.CacheDir)
 	if err != nil {
 		return
 	}
@@ -154,10 +173,10 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 
 func (pcx PackageContext) extractResourceDependencies(
 	ctx context.Context,
-	pkg types.Package,
-	res types.Resource,
+	pkg pawnpackage.Package,
+	res resource.Resource,
 ) (dir string, err error) {
-	dir = filepath.Join(pcx.Package.Vendor, res.Path(pkg))
+	dir = filepath.Join(pcx.Package.Vendor, res.Path(pkg.Repo))
 	print.Verb(pkg, "installing resource-based dependency", res.Name, "to", dir)
 
 	err = os.MkdirAll(dir, 0700)
@@ -172,6 +191,7 @@ func (pcx PackageContext) extractResourceDependencies(
 		pkg.DependencyMeta,
 		dir,
 		pcx.Platform,
+		res.Version,
 		pcx.CacheDir,
 		false,
 		true,

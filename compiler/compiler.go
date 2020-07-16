@@ -11,15 +11,14 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/build"
 	"github.com/Southclaws/sampctl/print"
-	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -52,15 +51,13 @@ func CompileSource(
 	errorDir,
 	cacheDir,
 	platform string,
-	config types.BuildConfig,
+	config build.Config,
 	relative bool,
 ) (
-	problems types.BuildProblems,
-	result types.BuildResult,
+	problems build.Problems,
+	result build.Result,
 	err error,
 ) {
-	print.Info("Compiling", config.Input, "with compiler version", config.Version)
-
 	cmd, err := PrepareCommand(ctx, gh, execDir, cacheDir, platform, config)
 	if err != nil {
 		return
@@ -81,7 +78,7 @@ func PrepareCommand(
 	execDir,
 	cacheDir,
 	platform string,
-	config types.BuildConfig,
+	config build.Config,
 ) (cmd *exec.Cmd, err error) {
 	var (
 		input  string
@@ -97,14 +94,23 @@ func PrepareCommand(
 		return
 	}
 
+	outputDir := filepath.Dir(output)
+	if !util.Exists(outputDir) {
+		err = os.MkdirAll(outputDir, 0700)
+		if err != nil {
+			err = errors.Wrap(err, "failed to create output directory")
+			return
+		}
+	}
+
 	if config.WorkingDir == "" {
 		config.WorkingDir = filepath.Dir(input)
 	} else {
 		config.WorkingDir = util.FullPath(config.WorkingDir)
 	}
 
-	runtimeDir := filepath.Join(cacheDir, "pawn", string(config.Version))
-	pkg, err := GetCompilerPackage(ctx, gh, config.Version, runtimeDir, platform, cacheDir)
+	runtimeDir := filepath.Join(cacheDir, "pawn", config.Compiler.Version)
+	pkg, err := GetCompilerPackage(ctx, gh, config, runtimeDir, platform, cacheDir)
 	if err != nil {
 		err = errors.Wrap(err, "failed to get compiler package")
 		return
@@ -202,10 +208,10 @@ func CompileWithCommand(
 	workingDir,
 	errorDir string,
 	relative bool,
-) (problems types.BuildProblems, result types.BuildResult, err error) {
+) (problems build.Problems, result build.Result, err error) {
 	var (
 		outputReader, outputWriter = io.Pipe()
-		problemChan                = make(chan types.BuildProblem, 2048)
+		problemChan                = make(chan build.Problem, 2048)
 		resultChan                 = make(chan string, 6)
 	)
 
@@ -228,18 +234,10 @@ func CompileWithCommand(
 	}
 
 	if cmdError != nil {
-		if !strings.HasPrefix(cmdError.Error(), "exit status") {
-			if runtime.GOOS == "linux" {
-				print.Erro("if you're on a 64 bit system, you may need to enable 32 bit binaries")
-				print.Erro("you can do this by allowing i386 packages and installing g++-multilib")
-			}
-			err = errors.Wrap(cmdError, "failed to execute compiler")
-			return
-		} else if cmdError.Error() == "exit status 1" {
+		if cmdError.Error() == "exit status 1" {
 			// compilation failed with errors and warnings
 			err = nil
 		} else {
-			// if cmdError.Error() == "signal: killed" || cmdError.Error() == "context canceled"
 			err = cmdError
 			return
 		}
@@ -274,7 +272,7 @@ func watchCompiler(
 	workingDir string,
 	errorDir string,
 	relative bool,
-	problemChan chan types.BuildProblem,
+	problemChan chan build.Problem,
 	resultChan chan string,
 ) {
 	var err error
@@ -286,7 +284,7 @@ func watchCompiler(
 		if len(groups) == 5 {
 			// output is a warning or error
 
-			problem := types.BuildProblem{}
+			problem := build.Problem{}
 
 			if filepath.IsAbs(groups[1]) {
 				problem.File = groups[1]
@@ -313,11 +311,11 @@ func watchCompiler(
 
 			switch groups[3] {
 			case "warning":
-				problem.Severity = types.ProblemWarning
+				problem.Severity = build.ProblemWarning
 			case "error":
-				problem.Severity = types.ProblemError
+				problem.Severity = build.ProblemError
 			case "fatal error":
-				problem.Severity = types.ProblemFatal
+				problem.Severity = build.ProblemFatal
 			}
 
 			problem.Description = groups[4]
@@ -347,7 +345,7 @@ func watchCompiler(
 }
 
 // RunPlugins executes the plugins for a given build config
-func RunPlugins(ctx context.Context, cfg types.BuildConfig, output io.Writer) (err error) {
+func RunPlugins(ctx context.Context, cfg build.Config, output io.Writer) (err error) {
 	for _, command := range cfg.Plugins {
 		ctxInner, cancel := context.WithCancel(ctx)
 		defer cancel()

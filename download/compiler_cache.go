@@ -10,13 +10,23 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/Southclaws/sampctl/types"
 	"github.com/pkg/errors"
 )
 
+// Compilers is a list of compilers for each platform
+type Compilers map[string]Compiler
+
+// Compiler represents a compiler package for a specific OS
+type Compiler struct {
+	Match  string            `json:"match"`  // the release asset name pattern
+	Method string            `json:"method"` // the extraction method
+	Binary string            `json:"binary"` // execution binary
+	Paths  map[string]string `json:"paths"`  // map of files to their target locations
+}
+
 // GetCompilerList gets a list of known compiler packages from the sampctl repo, if the list does not
 // exist locally, it is downloaded and cached for future use.
-func GetCompilerList(cacheDir string) (compilers types.Compilers, err error) {
+func GetCompilerList(cacheDir string) (compilers Compilers, err error) {
 	runtimesFile := filepath.Join(cacheDir, "compilers.json")
 
 	var update bool
@@ -34,7 +44,8 @@ func GetCompilerList(cacheDir string) (compilers types.Compilers, err error) {
 		fmt.Fprintln(os.Stderr, "updating compiler list...") // nolint:gas
 		err = UpdateCompilerList(cacheDir)
 		if err != nil {
-			return
+			fmt.Fprintln(os.Stderr, errors.Wrap(err, "failed to update compiler list"))
+			err = nil
 		}
 	}
 
@@ -59,7 +70,7 @@ func UpdateCompilerList(cacheDir string) (err error) {
 		return errors.Errorf("package list status %s", resp.Status)
 	}
 
-	var compilers types.Compilers
+	var compilers Compilers
 	err = json.NewDecoder(resp.Body).Decode(&compilers)
 	if err != nil {
 		return errors.Wrap(err, "failed to decode package list")

@@ -1,0 +1,6 @@
+{
+	"gamemodes": [
+		"rivershell"
+	],
+	"rcon_password": "hello"
+}

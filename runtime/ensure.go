@@ -12,7 +12,7 @@ import (
 
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
-	"github.com/Southclaws/sampctl/types"
+	"github.com/Southclaws/sampctl/run"
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -22,7 +22,7 @@ import (
 // - Plugin binaries
 // - Scripts: gamemodes and filterscripts
 // and a `server.cfg` is generated based on the contents of the Config fields.
-func Ensure(ctx context.Context, gh *github.Client, cfg *types.Runtime, noCache bool) (err error) {
+func Ensure(ctx context.Context, gh *github.Client, cfg *run.Runtime, noCache bool) (err error) {
 	if err = cfg.Validate(); err != nil {
 		return
 	}
@@ -60,16 +60,16 @@ func Ensure(ctx context.Context, gh *github.Client, cfg *types.Runtime, noCache 
 }
 
 // EnsureBinaries ensures the dir has all the necessary files to run a server
-func EnsureBinaries(cacheDir string, cfg types.Runtime) (err error) {
+func EnsureBinaries(cacheDir string, cfg run.Runtime) (err error) {
 	missing := false
 
-	if !util.Exists(filepath.Join(cfg.WorkingDir, getNpcBinary(cfg.Platform))) {
+	if !util.Exists(filepath.Join(cfg.WorkingDir, getNpcBinary(cacheDir, cfg.Version, cfg.Platform))) {
 		missing = true
 	}
-	if !util.Exists(filepath.Join(cfg.WorkingDir, getAnnounceBinary(cfg.Platform))) {
+	if !util.Exists(filepath.Join(cfg.WorkingDir, getAnnounceBinary(cacheDir, cfg.Version, cfg.Platform))) {
 		missing = true
 	}
-	if !util.Exists(filepath.Join(cfg.WorkingDir, getServerBinary(cfg.Platform))) {
+	if !util.Exists(filepath.Join(cfg.WorkingDir, getServerBinary(cacheDir, cfg.Version, cfg.Platform))) {
 		missing = true
 	}
 
@@ -84,7 +84,7 @@ func EnsureBinaries(cacheDir string, cfg types.Runtime) (err error) {
 }
 
 // EnsureScripts checks that all the declared scripts are present
-func EnsureScripts(cfg types.Runtime) (err error) {
+func EnsureScripts(cfg run.Runtime) (err error) {
 	errs := []string{}
 
 	gamemodes := filepath.Join(cfg.WorkingDir, "gamemodes")

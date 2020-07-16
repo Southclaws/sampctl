@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -14,12 +15,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/fsnotify/fsnotify"
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/build"
 	"github.com/Southclaws/sampctl/compiler"
+	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/print"
-	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -32,8 +35,8 @@ func (pcx *PackageContext) Build(
 	relative bool,
 	buildFile string,
 ) (
-	problems types.BuildProblems,
-	result types.BuildResult,
+	problems build.Problems,
+	result build.Result,
 	err error,
 ) {
 	config, err := pcx.buildPrepare(ctx, build, ensure, true)
@@ -75,7 +78,7 @@ func (pcx *PackageContext) Build(
 				return
 			}
 		}
-		print.Verb("building", pcx.Package, "with", config.Version)
+		print.Verb("building", pcx.Package, "with", config.Compiler.Version)
 
 		problems, result, err = compiler.CompileWithCommand(
 			command,
@@ -103,13 +106,13 @@ func (pcx *PackageContext) Build(
 // BuildWatch runs the Build code on file changes
 func (pcx *PackageContext) BuildWatch(
 	ctx context.Context,
-	build string,
+	name string,
 	ensure bool,
 	buildFile string,
 	relative bool,
-	trigger chan types.BuildProblems,
+	trigger chan build.Problems,
 ) (err error) {
-	config, err := pcx.buildPrepare(ctx, build, ensure, true)
+	config, err := pcx.buildPrepare(ctx, name, ensure, true)
 	if err != nil {
 		return
 	}
@@ -126,7 +129,13 @@ func (pcx *PackageContext) BuildWatch(
 	if err != nil {
 		return errors.Wrap(err, "failed to create new filesystem watcher")
 	}
-	err = filepath.Walk(pcx.Package.LocalPath, func(path string, info os.FileInfo, err error) error {
+
+	path := path.Dir(pcx.Package.Entry)
+	if path == "" {
+		path = pcx.Package.LocalPath
+	}
+
+	err = filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			print.Warn(err)
 			return nil
@@ -148,7 +157,7 @@ func (pcx *PackageContext) BuildWatch(
 		return errors.Wrap(err, "failed to add paths to filesystem watcher")
 	}
 
-	print.Verb("watching directory for changes", pcx.Package.LocalPath)
+	print.Verb("watching directory for changes", path)
 
 	signals := make(chan os.Signal, 1)
 	errorCh := make(chan error)
@@ -157,15 +166,15 @@ func (pcx *PackageContext) BuildWatch(
 	var (
 		running          atomic.Value
 		ctxInner, cancel = context.WithCancel(ctx)
-		problems         []types.BuildProblem
+		problems         []build.Problem
 		lastEvent        time.Time
 	)
 
-	defer func() {
-		print.Warn("cancelled inner context")
-		cancel()
-	}()
+	defer cancel()
+
 	running.Store(false)
+
+	watcherColour := color.New(color.FgBlack, color.BgGreen).SprintFunc()
 
 	// send a fake first event to trigger an initial build
 	go func() { watcher.Events <- fsnotify.Event{Name: pcx.Package.Entry, Op: fsnotify.Write} }()
@@ -175,7 +184,7 @@ loop:
 		select {
 		case sig := <-signals:
 			fmt.Println("") // insert newline after the ^C
-			print.Info("signal received", sig, "stopping build watcher...")
+			print.Verb("signal received", sig, "stopping build watcher...")
 			break loop
 		case errInner := <-errorCh:
 			print.Erro("Error encountered during build:", errInner)
@@ -198,19 +207,14 @@ loop:
 
 			go func() {
 				if running.Load().(bool) {
-					fmt.Println("watch-build: killing existing compiler process")
+					print.Verb("Build interrupted by file change")
 					cancel()
-					fmt.Println("watch-build: killed existing compiler process")
-					// re-create context and canceler
 					ctxInner, cancel = context.WithCancel(ctx)
-					defer func() {
-						print.Verb("cancelling existing compiler execution context")
-						cancel()
-					}()
 				}
 
 				atomic.AddUint32(&buildNumber, 1)
-				fmt.Println("watch-build: starting compilation", buildNumber)
+				fmt.Printf("%s found modified file: %s\n", watcherColour("WATCHER:"), event.Name)
+				fmt.Printf("%s compiling %s with compiler version %s [%d]\n", watcherColour("WATCHER:"), config.Input, config.Compiler.Version, buildNumber)
 
 				running.Store(true)
 				problems, _, err = compiler.CompileSource(
@@ -227,13 +231,13 @@ loop:
 
 				if err != nil {
 					if err.Error() == "signal: killed" || err.Error() == "context canceled" {
-						print.Erro("non-fatal error occurred:", err)
+						print.Verb("non-fatal error occurred:", err)
 						return
 					}
 
 					errorCh <- errors.Wrapf(err, "failed to compile package, run: %d", buildNumber)
 				}
-				fmt.Println("watch-build: finished", buildNumber)
+				fmt.Printf("%s finished building: %s [%d]\n", watcherColour("WATCHER:"), event.Name, buildNumber)
 
 				if trigger != nil {
 					trigger <- problems
@@ -249,7 +253,7 @@ loop:
 		}
 	}
 
-	print.Info("finished running build watcher")
+	fmt.Printf("%s finished watching all builds\n", watcherColour("WATCHER:"))
 
 	return err
 }
@@ -259,7 +263,7 @@ func (pcx *PackageContext) buildPrepare(
 	build string,
 	ensure,
 	forceUpdate bool,
-) (config *types.BuildConfig, err error) {
+) (config *build.Config, err error) {
 	config = GetBuildConfig(pcx.Package, build)
 	if config == nil {
 		err = errors.Errorf("no build config named '%s'", build)
@@ -291,10 +295,10 @@ func (pcx *PackageContext) buildPrepare(
 		hasIncludeResources := false
 		noPackage := false
 		depDir := filepath.Join(pcx.Package.LocalPath, "dependencies", depMeta.Repo)
-		pkgInner, errInner := types.PackageFromDir(depDir)
+		pkgInner, errInner := pawnpackage.PackageFromDir(depDir)
 		if errInner != nil {
 			print.Verb(depMeta, "error while loading:", errInner, "using cached copy for include path checking")
-			pkgInner, errInner = types.GetCachedPackage(depMeta, pcx.CacheDir)
+			pkgInner, errInner = pawnpackage.GetCachedPackage(depMeta, pcx.CacheDir)
 			if errInner != nil {
 				noPackage = true
 			}
@@ -327,8 +331,8 @@ func (pcx *PackageContext) buildPrepare(
 // GetBuildConfig returns a matching build by name from the package build list. If no name is
 // specified, the first build is returned. If the package has no build definitions, a default
 // configuration is returned.
-func GetBuildConfig(pkg types.Package, name string) (config *types.BuildConfig) {
-	def := types.GetBuildConfigDefault()
+func GetBuildConfig(pkg pawnpackage.Package, name string) (config *build.Config) {
+	def := build.Default()
 
 	// if there are no builds at all, use default
 	if len(pkg.Builds) == 0 && pkg.Build == nil {
@@ -357,9 +361,14 @@ func GetBuildConfig(pkg types.Package, name string) (config *types.BuildConfig) 
 		return def
 	}
 
-	if config.Version == "" {
-		config.Version = def.Version
+	if config.Version != "" {
+		config.Compiler.Version = string(config.Version)
 	}
+
+	if config.Compiler.Version == "" {
+		config.Compiler.Version = def.Compiler.Version
+	}
+
 	if len(config.Args) == 0 {
 		config.Args = def.Args
 	}

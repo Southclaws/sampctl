@@ -13,14 +13,16 @@ import (
 	"text/template"
 
 	"github.com/fatih/color"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 	"gopkg.in/AlecAivazis/survey.v1"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
+	"github.com/Southclaws/sampctl/config"
+	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/print"
-	"github.com/Southclaws/sampctl/types"
+	"github.com/Southclaws/sampctl/run"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
@@ -31,6 +33,7 @@ type Answers struct {
 	User          string
 	Repo          string
 	RepoEscaped   string
+	PackageType   string
 	GitIgnore     bool
 	Readme        bool
 	Editor        string
@@ -47,7 +50,7 @@ func Init(
 	ctx context.Context,
 	gh *github.Client,
 	dir string,
-	config *types.Config,
+	config *config.Config,
 	auth transport.AuthMethod,
 	platform,
 	cacheDir string,
@@ -122,6 +125,14 @@ func Init(
 			Validate: validateRepo,
 		},
 		{
+			Name: "PackageType",
+			Prompt: &survey.Select{
+				Message: "Package Type - Are you writing a gamemode or a reusable library?",
+				Default: "gamemode",
+				Options: []string{"gamemode", "library"},
+			},
+		},
+		{
 			Name:   "GitIgnore",
 			Prompt: &survey.Confirm{Message: "Add a .gitignore and .gitattributes files?", Default: true},
 		},
@@ -194,7 +205,7 @@ func Init(
 		config.DefaultUser = answers.User
 	}
 
-	pkg := types.Package{
+	pkg := pawnpackage.Package{
 		Parent:    true,
 		LocalPath: dir,
 		Format:    answers.Format,
@@ -234,6 +245,12 @@ func Init(
 		}
 		pkg.Entry = "test.pwn"
 		pkg.Output = "test.amx"
+	}
+
+	if answers.PackageType == "gamemode" {
+		pkg.Local = true
+	} else {
+		pkg.Local = false
 	}
 
 	wg := sync.WaitGroup{}
@@ -307,7 +324,7 @@ func Init(
 	}
 
 	if answers.Travis {
-		pkg.Runtime = &types.Runtime{Mode: "y_testing"}
+		pkg.Runtime = &run.Runtime{Mode: "y_testing"}
 		wg.Add(1)
 		go func() {
 			errInner := getTemplateFile(dir, ".travis.yml", answers)

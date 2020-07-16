@@ -3,19 +3,21 @@ package rook
 import (
 	"path/filepath"
 
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
+	"github.com/Southclaws/sampctl/build"
+	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/print"
-	"github.com/Southclaws/sampctl/types"
+	"github.com/Southclaws/sampctl/run"
 	"github.com/Southclaws/sampctl/versioning"
 )
 
 // PackageContext stores state for a package during its lifecycle.
 type PackageContext struct {
-	Package         types.Package               // the package this context wraps
+	Package         pawnpackage.Package         // the package this context wraps
 	GitHub          *github.Client              // GitHub client for downloading plugins
 	GitAuth         transport.AuthMethod        // Authentication method for git
 	Platform        string                      // the platform this package targets
@@ -23,8 +25,8 @@ type PackageContext struct {
 	AllDependencies []versioning.DependencyMeta // flattened list of dependencies
 	AllPlugins      []versioning.DependencyMeta // flattened list of plugin dependencies
 	AllIncludePaths []string                    // any additional include paths specified by resources
-	ActualBuild     types.BuildConfig           // actual build configuration to use for running the package
-	ActualRuntime   types.Runtime               // actual runtime configuration to use for running the package
+	ActualRuntime   run.Runtime                 // actual runtime configuration to use for running the package
+	ActualBuild     build.Config                // actual build configuration to use for running the package
 
 	// Runtime specific fields
 	Runtime     string // the runtime config to use, defaults to `default`
@@ -58,7 +60,7 @@ func NewPackageContext(
 		Platform: platform,
 		CacheDir: cacheDir,
 	}
-	pcx.Package, err = types.PackageFromDir(dir)
+	pcx.Package, err = pawnpackage.PackageFromDir(dir)
 	if err != nil {
 		err = errors.Wrap(err, "failed to read package definition")
 		return
@@ -98,9 +100,9 @@ func NewPackageContext(
 
 	// if there is no runtime configuration, use the defaults
 	if pcx.Package.Runtime == nil {
-		pcx.Package.Runtime = new(types.Runtime)
+		pcx.Package.Runtime = new(run.Runtime)
 	}
-	types.ApplyRuntimeDefaults(pcx.Package.Runtime)
+	run.ApplyRuntimeDefaults(pcx.Package.Runtime)
 
 	print.Verb(pcx.Package, "building dependency tree and ensuring cached copies")
 	err = pcx.EnsureDependenciesCached()

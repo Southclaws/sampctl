@@ -17,7 +17,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/print"
-	"github.com/Southclaws/sampctl/types"
+	"github.com/Southclaws/sampctl/run"
 )
 
 var (
@@ -34,7 +34,7 @@ type testResults struct {
 // Run handles the actual running of the server process - it collects log output too
 func Run(
 	ctx context.Context,
-	cfg types.Runtime,
+	cfg run.Runtime,
 	cacheDir string,
 	passArgs,
 	recover bool,
@@ -45,18 +45,18 @@ func Run(
 		return RunContainer(ctx, cfg, cacheDir, passArgs, output, input)
 	}
 
-	binary := "./" + getServerBinary(cfg.Platform)
+	binary := "./" + getServerBinary(cacheDir, cfg.Version, cfg.Platform)
 	fullPath := filepath.Join(cfg.WorkingDir, binary)
 	print.Verb("starting", binary, "in", cfg.WorkingDir)
 
-	return run(ctx, fullPath, cfg.Mode, recover, output, input)
+	return dorun(ctx, fullPath, cfg.Mode, recover, output, input)
 }
 
 // nolint:gocyclo
-func run(
+func dorun(
 	ctx context.Context,
 	binary string,
-	runType types.RunMode,
+	runType run.RunMode,
 	recover bool,
 	output io.Writer,
 	input io.Reader,
@@ -81,7 +81,7 @@ func run(
 	}()
 
 	switch runType {
-	case types.MainOnly:
+	case run.MainOnly:
 		go func() {
 			preamble := true
 			preambleSpace := false
@@ -109,7 +109,7 @@ func run(
 				}
 			}
 		}()
-	case types.YTesting:
+	case run.YTesting:
 		go func() {
 			preamble := true
 			preambleSpace := false
@@ -146,7 +146,7 @@ func run(
 			}
 		}()
 	default:
-		runType = types.Server // set default for later use
+		runType = run.Server // set default for later use
 		go func() {
 			scanner := bufio.NewScanner(outputReader)
 			for scanner.Scan() {
@@ -180,7 +180,7 @@ func run(
 				print.Verb("child exec thread finished, error:", errInline)
 			}
 
-			if runType == types.Server && recover {
+			if runType == run.Server && recover {
 				runTime := time.Since(startTime)
 
 				if runTime < time.Minute {

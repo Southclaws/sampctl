@@ -9,7 +9,6 @@ import (
 
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
-	"github.com/Southclaws/sampctl/types"
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -55,7 +54,7 @@ func FromCache(cacheDir, version, dir, platform string) (hit bool, err error) {
 		}
 	}
 
-	hit, err = download.FromCache(cacheDir, filename, dir, method, paths)
+	hit, err = download.FromCache(cacheDir, filename, dir, method, paths, platform)
 	if !hit || err != nil {
 		return
 	}
@@ -92,10 +91,10 @@ func FromNet(cacheDir, version, dir, platform string) (err error) {
 
 	ok, err := MatchesChecksum(fullPath, platform, cacheDir, version)
 	if err != nil {
-		os.Remove(fullPath);
+		os.Remove(fullPath)
 		return errors.Wrap(err, "failed to match checksum")
 	} else if !ok {
-		os.Remove(fullPath);
+		os.Remove(fullPath)
 		return errors.Errorf("server binary does not match checksum for version %s", version)
 	}
 
@@ -108,7 +107,7 @@ func FromNet(cacheDir, version, dir, platform string) (err error) {
 }
 
 func infoForPlatform(
-	pkg types.RuntimePackage,
+	pkg download.RuntimePackage,
 	platform string,
 ) (
 	location,
