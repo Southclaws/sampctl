@@ -16,18 +16,19 @@ builds:
       - CGO_ENABLED=0
     ldflags:
       - "-s -w -X main.version={{.Version}} -X"
-archive:
-  format: tar.gz
-  name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
-  files:
-    - licence*
-    - LICENCE*
-    - license*
-    - LICENSE*
-    - readme*
-    - README*
-    - changelog*
-    - CHANGELOG*
+archives:
+  -
+    format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    files:
+      - licence*
+      - LICENCE*
+      - license*
+      - LICENSE*
+      - readme*
+      - README*
+      - changelog*
+      - CHANGELOG*
 snapshot:
   name_template: SNAPSHOT-{{ .Commit }}
 checksum:
@@ -35,28 +36,31 @@ checksum:
 dockers:
   - goos: linux
     goarch: "386"
-    binary: sampctl
+    binaries: 
+      - sampctl
     dockerfile: Dockerfile
     image_templates:
       - "southclaws/sampctl:{{ .Tag }}"
       - "southclaws/sampctl:v{{ .Major }}"
       - "southclaws/sampctl:v{{ .Major }}.{{ .Minor }}"
       - "southclaws/sampctl:latest"
-nfpm:
-  vendor: Southclaws
-  homepage: https://github.com/Southclaws/sampctl
-  maintainer: Southclaws <hello@southcla.ws>
-  description: The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
-  license: GPLv3
-  formats:
-    - deb
-    - rpm
-brew:
-  github:
-    owner: Southclaws
-    name: homebrew-sampctl
-  homepage: https://github.com/Southclaws/sampctl
-  description: The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
+nfpms:
+  -
+    vendor: Southclaws
+    homepage: https://github.com/Southclaws/sampctl
+    maintainer: Southclaws <hello@southcla.ws>
+    description: The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
+    license: GPLv3
+    formats:
+      - deb
+      - rpm
+brews:
+  -
+    tap:
+      owner: Southclaws
+      name: homebrew-sampctl
+    homepage: https://github.com/Southclaws/sampctl
+    description: The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
 scoop:
   bucket:
     owner: Southclaws
