@@ -346,14 +346,21 @@ func GetBuildConfig(pkg pawnpackage.Package, name string) (config *build.Config)
 		if pkg.Build != nil {
 			config = pkg.Build
 		} else {
-			mergo.Merge(pkg.Build, pkg.Builds[0])
 			config = pkg.Builds[0]
+
+			if pkg.Build != nil {
+				mergo.Merge(&config, pkg.Builds[0])
+			}
 		}
 	} else {
 		for _, cfg := range pkg.Builds {
 			if cfg.Name == name {
-				mergo.Merge(cfg, pkg.Build)
 				config = cfg
+
+				if pkg.Build != nil {
+					mergo.Merge(config, pkg.Build)
+				}
+
 				break
 			}
 		}
@@ -361,6 +368,7 @@ func GetBuildConfig(pkg pawnpackage.Package, name string) (config *build.Config)
 
 	if config == nil {
 		if pkg.Build != nil {
+			print.Warn("Build doesn't exist, defaulting to main build")
 			config = pkg.Build
 		} else {
 			print.Warn("No build config called:", name, "using default")

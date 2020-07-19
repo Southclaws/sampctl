@@ -221,17 +221,25 @@ func GetRuntimeConfig(pkg pawnpackage.Package, name string) (config run.Runtime,
 		// if the user did not specify a specific runtime config, use the first
 		// otherwise, search for a matching config by name
 		if name == "" {
-			mergo.Merge(pkg.Runtimes[0], pkg.Runtime)
 			config = *pkg.Runtimes[0]
+
+			if pkg.Runtime != nil {
+				mergo.Merge(&config, pkg.Runtime)
+			}
+
 			print.Verb(pkg, "searching", name, "in 'runtimes' list")
 		} else {
 			print.Verb(pkg, "using first config from 'runtimes' list")
 			found := false
 			for _, cfg := range pkg.Runtimes {
 				if cfg.Name == name {
-					mergo.Merge(cfg, pkg.Runtime)
 					config = *cfg
 					found = true
+
+					if pkg.Runtime != nil {
+						mergo.Merge(&config, pkg.Runtime)
+					}
+
 					break
 				}
 			}
