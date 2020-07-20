@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"syscall"
 
+	"github.com/imdario/mergo"
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/build"
@@ -221,6 +222,11 @@ func GetRuntimeConfig(pkg pawnpackage.Package, name string) (config run.Runtime,
 		// otherwise, search for a matching config by name
 		if name == "" {
 			config = *pkg.Runtimes[0]
+
+			if pkg.Runtime != nil {
+				mergo.Merge(&config, pkg.Runtime)
+			}
+
 			print.Verb(pkg, "searching", name, "in 'runtimes' list")
 		} else {
 			print.Verb(pkg, "using first config from 'runtimes' list")
@@ -229,6 +235,11 @@ func GetRuntimeConfig(pkg pawnpackage.Package, name string) (config run.Runtime,
 				if cfg.Name == name {
 					config = *cfg
 					found = true
+
+					if pkg.Runtime != nil {
+						mergo.Merge(&config, pkg.Runtime)
+					}
+
 					break
 				}
 			}
