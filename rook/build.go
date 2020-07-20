@@ -17,6 +17,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/fsnotify/fsnotify"
+	"github.com/imdario/mergo"
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/build"
@@ -346,19 +347,33 @@ func GetBuildConfig(pkg pawnpackage.Package, name string) (config *build.Config)
 			config = pkg.Build
 		} else {
 			config = pkg.Builds[0]
+
+			if pkg.Build != nil {
+				mergo.Merge(&config, pkg.Builds[0])
+			}
 		}
 	} else {
 		for _, cfg := range pkg.Builds {
 			if cfg.Name == name {
 				config = cfg
+
+				if pkg.Build != nil {
+					mergo.Merge(config, pkg.Build)
+				}
+
 				break
 			}
 		}
 	}
 
 	if config == nil {
-		print.Warn("No build config called:", name, "using default")
-		return def
+		if pkg.Build != nil {
+			print.Warn("Build doesn't exist, defaulting to main build")
+			config = pkg.Build
+		} else {
+			print.Warn("No build config called:", name, "using default")
+			config = def
+		}
 	}
 
 	if config.Version != "" {

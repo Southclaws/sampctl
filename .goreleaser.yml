@@ -15,7 +15,7 @@ builds:
     env:
       - CGO_ENABLED=0
     ldflags:
-      - "-s -w -X main.version={{.Version}} -X"
+      - "-s -w -X main.version={{ .Version }}"
 archives:
   -
     format: tar.gz
