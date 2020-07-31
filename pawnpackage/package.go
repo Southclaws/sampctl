@@ -15,6 +15,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/Southclaws/sampctl/build"
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/resource"
 	"github.com/Southclaws/sampctl/run"
 	"github.com/Southclaws/sampctl/util"
@@ -118,7 +119,8 @@ func PackageFromDir(dir string) (pkg Package, err error) {
 	}
 
 	if packageDefinition == "" {
-		err = errors.New("no package definition file (pawn.{json|yaml|toml})")
+		print.Verb("no package definition file (pawn.{json|yaml|toml})")
+		err = nil
 		return
 	}
 
