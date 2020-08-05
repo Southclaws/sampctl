@@ -319,13 +319,11 @@ func GetResource(resources []resource.Resource, platform string, version string)
 
 	var tmp *resource.Resource
 	for _, res := range resources {
-		if res.Version == "" {
-			res.Version = "0.3.7"
-		}
-
-		if res.Platform == platform && res.Version == version {
-			tmp = &res
-			break
+		if res.Platform == platform {
+			if res.Version == "" || res.Version == version {
+				tmp = &res
+				break
+			}
 		}
 	}
 	if tmp == nil {
