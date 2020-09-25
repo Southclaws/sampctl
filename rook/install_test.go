@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Southclaws/sampctl/pkgcontext"
 	"github.com/Southclaws/sampctl/versioning"
 )
 
@@ -47,7 +48,7 @@ func Test_PackageInstall(t *testing.T) {
 
 			ioutil.WriteFile(filepath.Join(dir, "pawn.json"), tt.pkg, 0755) // nolint
 
-			pcx1, err := NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, "./tests/cache", "")
+			pcx1, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, "./tests/cache", "")
 			if err != nil {
 				t.Error(err)
 			}
@@ -59,7 +60,7 @@ func Test_PackageInstall(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			pcx2, err := NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, "./tests/cache", "")
+			pcx2, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, "./tests/cache", "")
 			if err != nil {
 				t.Error(err)
 			}

@@ -1,20 +1,50 @@
-package rook
+package pawnpackage_test
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 
+	"github.com/google/go-github/github"
+	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/oauth2"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
 	"github.com/Southclaws/sampctl/build"
 	"github.com/Southclaws/sampctl/pawnpackage"
+	"github.com/Southclaws/sampctl/pkgcontext"
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/util"
 	"github.com/Southclaws/sampctl/versioning"
 )
+
+var gh *github.Client
+var gitAuth transport.AuthMethod
+
+func TestMain(m *testing.M) {
+	godotenv.Load("../.env", "../../.env")
+
+	token := os.Getenv("FULL_ACCESS_GITHUB_TOKEN")
+	if len(token) == 0 {
+		fmt.Println("No token in `FULL_ACCESS_GITHUB_TOKEN`, skipping tests.")
+		return
+	}
+	gh = github.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})))
+
+	err := os.MkdirAll("./tests/cache", 0700)
+	if err != nil {
+		panic(err)
+	}
+
+	print.SetVerbose()
+
+	os.Exit(m.Run())
+}
 
 func TestPackage_Build(t *testing.T) {
 	type args struct {
@@ -101,7 +131,7 @@ func TestPackage_Build(t *testing.T) {
 			panic(err)
 		}
 
-		pcx := PackageContext{
+		pcx := pkgcontext.PackageContext{
 			CacheDir:        "./tests/cache",
 			GitHub:          gh,
 			GitAuth:         gitAuth,
