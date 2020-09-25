@@ -1,4 +1,4 @@
-package rook
+package pkgcontext
 
 import (
 	"context"
@@ -11,11 +11,9 @@ import (
 	"sync/atomic"
 	"syscall"
 
-	"github.com/imdario/mergo"
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/build"
-	"github.com/Southclaws/sampctl/pawnpackage"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/run"
 	"github.com/Southclaws/sampctl/runtime"
@@ -144,7 +142,7 @@ func (pcx *PackageContext) RunPrepare(ctx context.Context) (err error) {
 	}
 
 	print.Verb("getting runtime config")
-	pcx.ActualRuntime, err = GetRuntimeConfig(pcx.Package, pcx.Runtime)
+	pcx.ActualRuntime, err = pcx.Package.GetRuntimeConfig(pcx.Runtime)
 	if err != nil {
 		return
 	}
@@ -211,51 +209,4 @@ func (pcx *PackageContext) RunPrepare(ctx context.Context) (err error) {
 	}
 
 	return nil
-}
-
-// GetRuntimeConfig returns a matching runtime config by name from the package
-// runtime list. If no name is specified, the first config is returned. If the
-// package has no configurations, a default configuration is returned.
-func GetRuntimeConfig(pkg pawnpackage.Package, name string) (config run.Runtime, err error) {
-	if len(pkg.Runtimes) > 0 {
-		// if the user did not specify a specific runtime config, use the first
-		// otherwise, search for a matching config by name
-		if name == "" {
-			config = *pkg.Runtimes[0]
-
-			if pkg.Runtime != nil {
-				mergo.Merge(&config, pkg.Runtime)
-			}
-
-			print.Verb(pkg, "searching", name, "in 'runtimes' list")
-		} else {
-			print.Verb(pkg, "using first config from 'runtimes' list")
-			found := false
-			for _, cfg := range pkg.Runtimes {
-				if cfg.Name == name {
-					config = *cfg
-					found = true
-
-					if pkg.Runtime != nil {
-						mergo.Merge(&config, pkg.Runtime)
-					}
-
-					break
-				}
-			}
-			if !found {
-				err = errors.Errorf("no runtime config '%s'", name)
-				return
-			}
-		}
-	} else if pkg.Runtime != nil {
-		print.Verb(pkg, "using config from 'runtime' field")
-		config = *pkg.Runtime
-	} else {
-		print.Verb(pkg, "using default config")
-		config = run.Runtime{}
-	}
-	run.ApplyRuntimeDefaults(&config)
-
-	return config, nil
 }
