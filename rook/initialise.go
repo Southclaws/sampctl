@@ -21,6 +21,7 @@ import (
 
 	"github.com/Southclaws/sampctl/config"
 	"github.com/Southclaws/sampctl/pawnpackage"
+	"github.com/Southclaws/sampctl/pkgcontext"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/run"
 	"github.com/Southclaws/sampctl/util"
@@ -342,7 +343,7 @@ func Init(
 
 	wg.Wait()
 
-	pcx, err := NewPackageContext(gh, auth, true, dir, platform, cacheDir, "")
+	pcx, err := pkgcontext.NewPackageContext(gh, auth, true, dir, platform, cacheDir, "")
 	if err != nil {
 		return
 	}
