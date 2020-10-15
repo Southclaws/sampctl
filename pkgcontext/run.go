@@ -117,6 +117,8 @@ loop:
 	return err
 }
 
+// RunPrepare prepares the context directory for executing the server. It
+// generates a server.cfg and ensures plugins.
 func (pcx *PackageContext) RunPrepare(ctx context.Context) (err error) {
 	var (
 		filename = filepath.Join(pcx.Package.LocalPath, pcx.Package.Output)
