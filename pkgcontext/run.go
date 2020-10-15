@@ -23,7 +23,7 @@ import (
 // Run will create a temporary server runtime and run the package output AMX as a gamemode using the
 // runtime configuration in the package info.
 func (pcx *PackageContext) Run(ctx context.Context, output io.Writer, input io.Reader) (err error) {
-	err = pcx.runPrepare(ctx)
+	err = pcx.RunPrepare(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to prepare package for running")
 	}
@@ -38,7 +38,7 @@ func (pcx *PackageContext) Run(ctx context.Context, output io.Writer, input io.R
 
 // RunWatch runs the Run code on file changes
 func (pcx *PackageContext) RunWatch(ctx context.Context) (err error) {
-	err = pcx.runPrepare(ctx)
+	err = pcx.RunPrepare(ctx)
 	if err != nil {
 		err = errors.Wrap(err, "failed to prepare")
 		return
@@ -117,7 +117,9 @@ loop:
 	return err
 }
 
-func (pcx *PackageContext) runPrepare(ctx context.Context) (err error) {
+// RunPrepare prepares the context directory for executing the server. It
+// generates a server.cfg and ensures plugins.
+func (pcx *PackageContext) RunPrepare(ctx context.Context) (err error) {
 	var (
 		filename = filepath.Join(pcx.Package.LocalPath, pcx.Package.Output)
 		problems build.Problems
