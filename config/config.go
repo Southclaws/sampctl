@@ -55,7 +55,7 @@ func LoadOrCreateConfig(cacheDir string, verbose bool) (cfg *Config, err error) 
 	if configFile != "" {
 		cnfgr := configor.New(&configor.Config{
 			EnvironmentPrefix:    "SAMPCTL",
-			ErrorOnUnmatchedKeys: true,
+			ErrorOnUnmatchedKeys: false,
 		})
 
 		err = cnfgr.Load(cfg, configFile)
