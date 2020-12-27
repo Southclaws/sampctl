@@ -9,11 +9,11 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/google/go-github/github"
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/oauth2"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
 	"github.com/Southclaws/sampctl/build"
 	"github.com/Southclaws/sampctl/pawnpackage"
