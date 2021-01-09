@@ -8,6 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FULL_ACCESS_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ACTIONS_ALLOW_UNSECURE_COMMANDS: "true"
     steps:
       - uses: actions/setup-go@v2-beta
         with:
