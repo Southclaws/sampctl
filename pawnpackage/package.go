@@ -120,7 +120,7 @@ func PackageFromDir(dir string) (pkg Package, err error) {
 	}
 
 	if packageDefinition == "" {
-		err = errors.New("no package definition file (pawn.{json|yaml|toml})")
+		print.Verb("no package definition file (pawn.{json|yaml|toml})")
 		return
 	}
 
