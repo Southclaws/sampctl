@@ -264,7 +264,7 @@ func Init(
 		}
 		pkg.Entry = "test.pwn"
 		pkg.Output = "gamemodes/test.amx"
-	}	
+	}
 
 	if answers.PackageType == "gamemode" {
 		pkg.Local = true
