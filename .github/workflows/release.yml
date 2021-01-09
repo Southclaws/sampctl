@@ -11,6 +11,9 @@ jobs:
   release:
     name: release
     runs-on: ubuntu-latest
+    env:
+      GORELEASER_GITHUB_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
+      ACTIONS_ALLOW_UNSECURE_COMMANDS: "true"
     steps:
       -
         name: Checkout
