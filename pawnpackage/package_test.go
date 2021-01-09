@@ -91,8 +91,8 @@ func TestPackage_Build(t *testing.T) {
 				},
 				"build", true,
 				[]versioning.DependencyMeta{
-					{Site: "github.com", User: "sampctl", Repo: "samp-stdlib"},
-					{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
+					{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
+					{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib"},
 				},
 			}, nil, false,
 		},
@@ -110,8 +110,8 @@ func TestPackage_Build(t *testing.T) {
 				},
 				"build", true,
 				[]versioning.DependencyMeta{
-					{Site: "github.com", User: "sampctl", Repo: "samp-stdlib"},
-					{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
+					{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
+					{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib"},
 					{Site: "github.com", User: "Southclaws", Repo: "pawn-uuid"},
 				},
 			}, nil, false,
