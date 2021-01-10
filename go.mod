@@ -21,12 +21,14 @@ require (
 	github.com/hinshun/vt10x v0.0.0-20180809195222-d55458df857c // indirect
 	github.com/imdario/mergo v0.3.10
 	github.com/joho/godotenv v1.3.0
+	github.com/kirsle/configdir v0.0.0-20170128060238-e45d2f54772f
 	github.com/kr/pretty v0.2.0
 	github.com/kr/pty v1.1.8
 	github.com/michaelbironneau/garbler v0.0.0-20180525195632-2018e2dc9c11
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/nbutton23/zxcvbn-go v0.0.0-20180912185939-ae427f1e4c1d
 	github.com/opencontainers/go-digest v1.0.0 // indirect
+	github.com/otiai10/copy v1.4.2
 	github.com/pkg/errors v0.9.1
 	github.com/sampctl/configor v0.0.0-20200702165352-24e52bc67e97
 	github.com/stretchr/testify v1.5.1
