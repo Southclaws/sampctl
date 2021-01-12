@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path"
 	"path/filepath"
@@ -67,17 +66,13 @@ func (pcx *PackageContext) Build(
 	if dry {
 		fmt.Println(strings.Join(command.Env, " "), strings.Join(command.Args, " "))
 	} else {
-		for _, plugin := range config.Plugins {
-			print.Verb("running pre-build plugin", plugin)
-			pluginCmd := exec.Command(plugin[0], plugin[1:]...)
-			pluginCmd.Stdout = os.Stdout
-			pluginCmd.Stderr = os.Stdout
-			err = pluginCmd.Run()
-			if err != nil {
-				print.Erro("Failed to execute pre-build plugin:", plugin[0], err)
-				return
-			}
+		print.Verb("running pre-build commands")
+		err = compiler.RunPreBuildCommands(ctx, *config, os.Stdout)
+		if err != nil {
+			print.Erro("Failed to execute pre-build command: ", err)
+			return
 		}
+
 		print.Verb("building", pcx.Package, "with", config.Compiler.Version)
 
 		problems, result, err = compiler.CompileWithCommand(
@@ -97,6 +92,13 @@ func (pcx *PackageContext) Build(
 			if err2 != nil {
 				print.Erro("Failed to write buildfile:", err2)
 			}
+		}
+
+		print.Verb("running post-build commands")
+		err = compiler.RunPostBuildCommands(ctx, *config, os.Stdout)
+		if err != nil {
+			print.Erro("Failed to execute post-build command: ", err)
+			return
 		}
 	}
 

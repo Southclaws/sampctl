@@ -6,16 +6,18 @@ import (
 
 // Config represents a configuration for compiling a file
 type Config struct {
-	Name       string            `json:"name" yaml:"name"`                                 // name of the configuration
-	Version    CompilerVersion   `json:"version,omitempty" yaml:"version,omitempty"`       // compiler version to use for this build
-	WorkingDir string            `json:"workingDir,omitempty" yaml:"workingDir,omitempty"` // working directory for the -D flag
-	Args       []string          `json:"args,omitempty" yaml:"args,omitempty"`             // list of arguments to pass to the compiler
-	Input      string            `json:"input,omitempty" yaml:"input,omitempty"`           // input .pwn file
-	Output     string            `json:"output,omitempty" yaml:"output,omitempty"`         // output .amx file
-	Includes   []string          `json:"includes,omitempty" yaml:"includes,omitempty"`     // list of include files to pass to compiler via -i flags
-	Constants  map[string]string `json:"constants,omitempty" yaml:"constants,omitempty"`   // set of constant definitions to pass to the compiler
-	Plugins    [][]string        `json:"plugins,omitempty" yaml:"plugins,omitempty"`       // set of commands to run before compilation
-	Compiler   CompilerConfig    `json:"compiler,omitempty" yaml:"compiler,omitempty"`     // a set of configurations for using a compiler
+	Name              string            `json:"name" yaml:"name"`                                 // name of the configuration
+	Version           CompilerVersion   `json:"version,omitempty" yaml:"version,omitempty"`       // compiler version to use for this build
+	WorkingDir        string            `json:"workingDir,omitempty" yaml:"workingDir,omitempty"` // working directory for the -D flag
+	Args              []string          `json:"args,omitempty" yaml:"args,omitempty"`             // list of arguments to pass to the compiler
+	Input             string            `json:"input,omitempty" yaml:"input,omitempty"`           // input .pwn file
+	Output            string            `json:"output,omitempty" yaml:"output,omitempty"`         // output .amx file
+	Includes          []string          `json:"includes,omitempty" yaml:"includes,omitempty"`     // list of include files to pass to compiler via -i flags
+	Constants         map[string]string `json:"constants,omitempty" yaml:"constants,omitempty"`   // set of constant definitions to pass to the compiler
+	Plugins           [][]string        `json:"plugins,omitempty" yaml:"plugins,omitempty"`       // set of commands to run before compilation
+	Compiler          CompilerConfig    `json:"compiler,omitempty" yaml:"compiler,omitempty"`     // a set of configurations for using a compiler
+	PreBuildCommands  [][]string        `json:"prebuild,omitempty" yaml:"prebuild,omitempty"`     // allows the execution of commands before a build is ran
+	PostBuildCommands [][]string        `json:"postbuild,omitempty" yaml:"postbuild,omitempty"`   // allows the execution of commands after a build is ran
 }
 
 // CompilerVersion represents a compiler version number
