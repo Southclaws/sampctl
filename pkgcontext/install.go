@@ -2,7 +2,9 @@ package pkgcontext
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/print"
@@ -18,9 +20,22 @@ func (pcx *PackageContext) Install(
 	exists := false
 
 	for _, target := range targets {
-		_, err = target.Explode()
+		var meta versioning.DependencyMeta
+		meta, err = target.Explode()
 		if err != nil {
 			return errors.Wrapf(err, "failed to parse %s as a dependency string", target)
+		}
+
+		if meta.Tag == "" {
+			var options github.ListOptions
+			tags, _, err := pcx.GitHub.Repositories.ListTags(ctx, meta.User, meta.Repo, &options)
+			if err != nil {
+				return errors.Wrapf(err, "failed to get repository tags for dependency %s", target)
+			}
+
+			if len(tags) != 0 {
+				target = versioning.DependencyString(fmt.Sprintf("%s:%s", target, *tags[0].Name))
+			}
 		}
 
 		for _, dep := range pcx.Package.GetAllDependencies() {
