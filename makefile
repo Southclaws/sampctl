@@ -1,6 +1,6 @@
 -include .env
 VERSION := $(shell git describe --tags --dirty --always)
-LDFLAGS := -ldflags "-X main.version=$(VERSION) -X"
+LDFLAGS := -ldflags "-X main.version=$(VERSION)"
 
 
 # -
