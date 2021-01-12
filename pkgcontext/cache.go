@@ -197,7 +197,8 @@ func (pcx PackageContext) ensureRepoExists(
 	repo, err = git.PlainOpen(to)
 	if err != nil {
 		print.Verb("no repo at", to, "-", err, "cloning new copy")
-		if util.Exists(to) {
+
+		if _, err = os.Stat(to); !os.IsNotExist(err) {
 			print.Verb("removing existing folder", to)
 			err = os.RemoveAll(to)
 			if err != nil {
