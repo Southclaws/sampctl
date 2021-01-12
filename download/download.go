@@ -12,7 +12,9 @@ import (
 	"regexp"
 
 	"github.com/google/go-github/github"
+	"github.com/kirsle/configdir"
 	"github.com/mitchellh/go-homedir"
+	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/print"
@@ -46,17 +48,31 @@ func ExtractFuncFromName(name string) ExtractFunc {
 
 // GetCacheDir returns the full path to the user's cache directory, creating it if it doesn't exist
 func GetCacheDir() (cacheDir string, err error) {
+	cacheDir = configdir.LocalConfig("sampctl")
+	err = configdir.MakePath(cacheDir)
+	if err != nil {
+		err = errors.Wrap(err, "Failed to create config path")
+		return
+	}
+
 	home, err := homedir.Dir()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get home directory")
 	}
 
-	cacheDir = filepath.Join(home, ".samp")
+	// Attempt to check if the old cache directory exists and if it does
+	// move it to the new cache directory
+	oldCacheDir := filepath.Join(home, ".samp")
+	if _, err := os.Stat(oldCacheDir); !os.IsNotExist(err) {
+		err = copy.Copy(oldCacheDir, cacheDir)
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to copy old cache directory to new cache directory")
+		}
 
-	err = os.MkdirAll(cacheDir, 0700)
-	if err != nil {
-		err = errors.Wrapf(err, "Failed to create cache directory %s", cacheDir)
-		return
+		err = os.RemoveAll(oldCacheDir)
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to remove all the contents of the old cache directory")
+		}
 	}
 
 	return

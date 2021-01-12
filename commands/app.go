@@ -31,7 +31,7 @@ var (
 func Run(args []string, version string) error {
 	cacheDir, err := download.GetCacheDir()
 	if err != nil {
-		return errors.Errorf("Failed to retrieve cache directory path (attempted <user folder>/.samp) %v", err)
+		return errors.Errorf("Failed to retrieve cache directory path: %v", err)
 	}
 
 	app := cli.NewApp()
