@@ -13,7 +13,7 @@ import (
 	"github.com/imdario/mergo"
 	"github.com/pkg/errors"
 	"github.com/sampctl/configor"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 
 	"github.com/Southclaws/sampctl/build"
 	"github.com/Southclaws/sampctl/print"
