@@ -63,14 +63,14 @@ func CompileSource(
 		return
 	}
 
-	err = RunPreBuildCommands(context.Background(), config, os.Stdout)
+	err = RunPreBuildCommands(ctx, config, os.Stdout)
 	if err != nil {
 		return
 	}
 
 	problems, result, err = CompileWithCommand(cmd, config.WorkingDir, errorDir, relative)
 
-	err = RunPostBuildCommands(context.Background(), config, os.Stdout)
+	err = RunPostBuildCommands(ctx, config, os.Stdout)
 	if err != nil {
 		return
 	}
