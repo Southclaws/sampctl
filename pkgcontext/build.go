@@ -280,6 +280,8 @@ func (pcx *PackageContext) buildPrepare(
 		config.Output = filepath.Join(pcx.Package.LocalPath, pcx.Package.Output)
 	}
 
+	config.Includes = []string{pcx.Package.LocalPath}
+
 	if ensure {
 		err = pcx.EnsureDependencies(ctx, forceUpdate)
 		if err != nil {
