@@ -29,13 +29,13 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 				DependencyMeta: versioning.DependencyMeta{User: "local", Repo: "local"},
 			},
 			AllDependencies: []versioning.DependencyMeta{
-				{Site: "github.com", User: "sampctl", Repo: "samp-stdlib"},
-				{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
+				{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
+				{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib"},
 			},
 		},
 			[]versioning.DependencyMeta{
-				{Site: "github.com", User: "sampctl", Repo: "samp-stdlib"},
-				{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
+				{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
+				{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib"},
 			},
 			false},
 	}
@@ -72,9 +72,9 @@ func TestPackageContext_EnsurePackage(t *testing.T) {
 		wantResources []string
 		wantErr       bool
 	}{
-		{"commit", args{versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib", Commit: "7a13c662e619a478b0e8d1d6d113e3aa41cb6d37"}, false},
+		{"commit", args{versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib", Commit: "7a13c662e619a478b0e8d1d6d113e3aa41cb6d37"}, false},
 			"7a13c662e619a478b0e8d1d6d113e3aa41cb6d37", nil, false},
-		{"tag", args{versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "samp-stdlib", Tag: "0.3z-R4"}, false},
+		{"tag", args{versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib", Tag: "0.3z-R4"}, false},
 			"de2ed6d59f0304dab726588afd3b6f6df77ca87d", nil, false},
 		{"branch", args{versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-errors", Branch: "v2"}, false},
 			"", nil, false},
