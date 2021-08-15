@@ -41,7 +41,7 @@ func packageEnsure(c *cli.Context) error {
 	dir := util.FullPath(c.String("dir"))
 	forceUpdate := c.Bool("update")
 
-	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "")
+	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "", false)
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}

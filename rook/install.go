@@ -45,7 +45,7 @@ func Get(
 	}
 
 	print.Verb("ensuring cloned package", meta, "to", dir)
-	pcx, err := pkgcontext.NewPackageContext(gh, auth, true, dir, platform, cacheDir, "")
+	pcx, err := pkgcontext.NewPackageContext(gh, auth, true, dir, platform, cacheDir, "", false)
 	if err != nil {
 		return errors.Wrap(err, "failed to read cloned repository as Pawn package")
 	}

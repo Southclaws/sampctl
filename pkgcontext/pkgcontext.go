@@ -53,6 +53,7 @@ func NewPackageContext(
 	platform string,
 	cacheDir string,
 	vendor string,
+	init bool,
 ) (pcx *PackageContext, err error) {
 	pcx = &PackageContext{
 		GitHub:   gh,
@@ -68,7 +69,12 @@ func NewPackageContext(
 
 	pcx.Package.Parent = parent
 	pcx.Package.LocalPath = dir
-	pcx.Package.Tag = getPackageTag(dir)
+
+	if !init {
+		pcx.Package.Tag = getPackageTag(dir)
+	} else {
+		pcx.Package.Tag = ""
+	}
 
 	print.Verb(pcx.Package, "read package from directory", dir)
 
@@ -85,17 +91,19 @@ func NewPackageContext(
 
 	// user and repo are not mandatory but are recommended, warn the user if this is their own
 	// package (parent == true) but ignore for dependencies (parent == false)
-	if pcx.Package.User == "" {
-		if parent {
-			print.Warn(pcx.Package, "Package Definition File does specify a value for `user`.")
+	if !init {
+		if pcx.Package.User == "" {
+			if parent {
+				print.Warn(pcx.Package, "Package Definition File does specify a value for `user`.")
+			}
+			pcx.Package.User = "<none>"
 		}
-		pcx.Package.User = "<none>"
-	}
-	if pcx.Package.Repo == "" {
-		if parent {
-			print.Warn(pcx.Package, "Package Definition File does specify a value for `repo`.")
+		if pcx.Package.Repo == "" {
+			if parent {
+				print.Warn(pcx.Package, "Package Definition File does specify a value for `repo`.")
+			}
+			pcx.Package.Repo = "<local>"
 		}
-		pcx.Package.Repo = "<local>"
 	}
 
 	// if there is no runtime configuration, use the defaults

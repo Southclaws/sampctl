@@ -361,7 +361,7 @@ func Init(
 
 	wg.Wait()
 
-	pcx, err := pkgcontext.NewPackageContext(gh, auth, true, dir, platform, cacheDir, "")
+	pcx, err := pkgcontext.NewPackageContext(gh, auth, true, dir, platform, cacheDir, "", true)
 	if err != nil {
 		return
 	}

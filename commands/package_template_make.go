@@ -47,7 +47,7 @@ func packageTemplateMake(c *cli.Context) (err error) {
 	}
 	name := c.Args().First()
 
-	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "")
+	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "", false)
 	if err != nil {
 		return
 	}

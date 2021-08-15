@@ -67,7 +67,7 @@ func TestPackageFromDir(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotPcx, err := NewPackageContext(gh, gitAuth, true, tt.args.dir, runtime.GOOS, "./tests/cache", "")
+			gotPcx, err := NewPackageContext(gh, gitAuth, true, tt.args.dir, runtime.GOOS, "./tests/cache", "", false)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

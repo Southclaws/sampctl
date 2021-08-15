@@ -63,7 +63,7 @@ func packageBuild(c *cli.Context) error {
 		return errors.Wrap(err, "failed to get or create cache directory")
 	}
 
-	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "")
+	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "", false)
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
@@ -115,7 +115,7 @@ func packageBuildBash(c *cli.Context) {
 		fmt.Fprintln(os.Stderr, err)
 	}
 
-	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, cacheDir, "")
+	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, cacheDir, "", false)
 	if err != nil {
 		return
 	}
