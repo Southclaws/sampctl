@@ -23,7 +23,7 @@ require (
 	github.com/joho/godotenv v1.3.0
 	github.com/kirsle/configdir v0.0.0-20170128060238-e45d2f54772f
 	github.com/kr/pretty v0.2.0
-	github.com/kr/pty v1.1.8
+	github.com/creack/pty v1.1.14
 	github.com/michaelbironneau/garbler v0.0.0-20180525195632-2018e2dc9c11
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/nbutton23/zxcvbn-go v0.0.0-20180912185939-ae427f1e4c1d
