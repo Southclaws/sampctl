@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/Southclaws/sampctl/print"
-	"github.com/kr/pty"
+	"github.com/creack/pty"
 	"github.com/pkg/errors"
 )
 
