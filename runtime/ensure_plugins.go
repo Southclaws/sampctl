@@ -28,12 +28,6 @@ func EnsurePlugins(
 	cacheDir string,
 	noCache bool,
 ) (err error) {
-	pluginsDir := util.FullPath(filepath.Join(cfg.WorkingDir, "plugins"))
-
-	err = os.MkdirAll(pluginsDir, 0700)
-	if err != nil {
-		return errors.Wrap(err, "failed to create runtime plugins directory")
-	}
 
 	fileExt := pluginExtForFile(cfg.Platform)
 
@@ -65,6 +59,14 @@ func EnsurePlugins(
 		print.Verb("adding plugin by local filename", pluginName)
 		cfg.Plugins = append(cfg.Plugins, pluginName)
 		added[pluginName] = struct{}{}
+	}
+
+	if len(added) != 0 {
+		pluginsDir := util.FullPath(filepath.Join(cfg.WorkingDir, "plugins"))
+		err = os.MkdirAll(pluginsDir, 0700)
+		if err != nil {
+			return errors.Wrap(err, "failed to create runtime plugins directory")
+		}		
 	}
 
 	return err

@@ -3,7 +3,6 @@ package runtime
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -98,8 +97,6 @@ func EnsureScripts(cfg run.Runtime) (err error) {
 				))
 			}
 		}
-	} else {
-		err = os.MkdirAll(gamemodes, 0700)
 	}
 
 	filterscripts := filepath.Join(cfg.WorkingDir, "filterscripts")
@@ -113,13 +110,6 @@ func EnsureScripts(cfg run.Runtime) (err error) {
 				))
 			}
 		}
-	} else {
-		err = os.MkdirAll(filterscripts, 0700)
-	}
-
-	scriptfiles := filepath.Join(cfg.WorkingDir, "scriptfiles")
-	if !util.Exists(scriptfiles) {
-		err = os.MkdirAll(scriptfiles, 0700)
 	}
 
 	if len(errs) > 0 {
