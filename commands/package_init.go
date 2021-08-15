@@ -35,7 +35,7 @@ func packageInit(c *cli.Context) error {
 	}
 
 	_, err = pkgcontext.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "")
-	if err == nil {
+	if err != nil {
 		return errors.New("Directory already appears to be a package")
 	}
 
