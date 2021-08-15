@@ -107,7 +107,6 @@ func PackageFromDir(dir string) (pkg Package, err error) {
 	packageDefinitions := []string{
 		filepath.Join(dir, "pawn.json"),
 		filepath.Join(dir, "pawn.yaml"),
-		filepath.Join(dir, "pawn.toml"),
 	}
 	packageDefinition := ""
 	packageDefinitionFormat := ""
@@ -120,7 +119,7 @@ func PackageFromDir(dir string) (pkg Package, err error) {
 	}
 
 	if packageDefinition == "" {
-		print.Verb("no package definition file (pawn.{json|yaml|toml})")
+		print.Verb("no package definition file (pawn.{json|yaml})")
 		return
 	}
 
@@ -171,9 +170,6 @@ func (pkg Package) WriteDefinition() (err error) {
 		if err != nil {
 			return errors.Wrap(err, "failed to write pawn.yaml")
 		}
-	case "toml":
-		// TODO: Toml writer
-		err = errors.New("toml output not supported")
 	default:
 		err = errors.New("package has no format associated with it")
 	}
