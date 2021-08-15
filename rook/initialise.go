@@ -354,6 +354,9 @@ func Init(
 		}()
 	}
 
+	// add a default tag
+	pkg.Tag = "0.0.1"
+
 	err = pkg.WriteDefinition()
 	if err != nil {
 		print.Erro(err)
