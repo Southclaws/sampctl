@@ -220,7 +220,7 @@ func Init(
 		ext := filepath.Ext(answers.Entry)
 		nameOnly := strings.TrimSuffix(answers.Entry, ext)
 		pkg.Entry = nameOnly + ".pwn"
-		pkg.Output = nameOnly + ".amx"
+		pkg.Output = "gamemodes/" + nameOnly + ".amx"
 
 		if ext != "" && ext != ".pwn" {
 			print.Warn("Entry point is not a .pwn file - it's advised to use a .pwn file as the compiled script.")
@@ -263,7 +263,7 @@ func Init(
 			}
 		}
 		pkg.Entry = "test.pwn"
-		pkg.Output = "test.amx"
+		pkg.Output = "gamemodes/test.amx"
 	}	
 
 	if answers.PackageType == "gamemode" {
