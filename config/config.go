@@ -42,7 +42,6 @@ func LoadOrCreateConfig(cacheDir string, verbose bool) (cfg *Config, err error) 
 	configFiles := []string{
 		filepath.Join(cacheDir, "config.json"),
 		filepath.Join(cacheDir, "config.yaml"),
-		filepath.Join(cacheDir, "config.toml"),
 	}
 	configFile := ""
 	for _, file := range configFiles {
