@@ -30,14 +30,14 @@ func Test_PackageInstall(t *testing.T) {
 			"repo": "install-test",
 			"entry": "gamemodes/test.pwn",
 			"output": "gamemodes/test.amx",
-			"dependencies": ["sampctl/samp-stdlib"]
+			"dependencies": ["pawn-lang/samp-stdlib"]
 		}`), args{[]versioning.DependencyString{"thecodeah/pawn-humanize:v1.1.1"}, false}, false},
 		{"dev", []byte(`{
 			"user": "Southclaws",
 			"repo": "install-test",
 			"entry": "gamemodes/test.pwn",
 			"output": "gamemodes/test.amx",
-			"dependencies": ["sampctl/samp-stdlib"]
+			"dependencies": ["pawn-lang/samp-stdlib"]
 		}`), args{[]versioning.DependencyString{"thecodeah/pawn-humanize:v1.1.1"}, true}, false},
 	}
 	for _, tt := range tests {

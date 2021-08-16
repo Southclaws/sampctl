@@ -31,7 +31,7 @@ func TestPackageFromDir(t *testing.T) {
 			Entry:          "gamemodes/test.pwn",
 			Output:         "gamemodes/test.amx",
 			Dependencies: []versioning.DependencyString{
-				"sampctl/samp-stdlib:0.3.7-R2-2-1",
+				"pawn-lang/samp-stdlib:0.3.7-R2-2-1",
 				"Southclaws/pawn-errors:1.2.3",
 			},
 			Runtime: &run.Runtime{
@@ -52,7 +52,7 @@ func TestPackageFromDir(t *testing.T) {
 			Entry:          "gamemodes/test.pwn",
 			Output:         "gamemodes/test.amx",
 			Dependencies: []versioning.DependencyString{
-				"sampctl/samp-stdlib:0.3.7-R2-2-1",
+				"pawn-lang/samp-stdlib:0.3.7-R2-2-1",
 				"Southclaws/pawn-errors:1.2.3",
 			},
 			Runtime: &run.Runtime{
