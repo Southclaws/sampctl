@@ -155,7 +155,15 @@ func EnsureVersionedPlugin(
 	} else {
 		print.Verb(meta, "plugin resource is a single file")
 		base := filepath.Base(filename)
-		destination := filepath.Join(dir, "plugins", base)
+		finalDir := filepath.Join(dir, "plugins")
+		destination := filepath.Join(finalDir, base)
+		
+		err = os.MkdirAll(finalDir, 0700)
+		if err != nil {
+			err = errors.Wrapf(err, "failed to create path for plugin resource %s to %s", filename, destination)
+			return
+		}
+
 		err = util.CopyFile(filename, destination)
 		if err != nil {
 			err = errors.Wrapf(err, "failed to copy non-archive file %s to %s", filename, destination)
@@ -214,7 +222,6 @@ func PluginFromCache(
 	cacheDir string,
 ) (hit bool, filename string, resource *resource.Resource, err error) {
 	resourcePath := filepath.Join(cacheDir, GetResourcePath(meta))
-
 	print.Verb("getting plugin resource from cache", meta, resourcePath)
 
 	pkg, err := pawnpackage.GetCachedPackage(meta, cacheDir)
@@ -222,6 +229,9 @@ func PluginFromCache(
 		print.Verb("cache hit failed while trying to get cached package:", err)
 		err = nil
 		hit = false
+		return
+	}
+	if pkg.Format == "" {
 		return
 	}
 
@@ -275,7 +285,7 @@ func PluginFromNet(
 	print.Info(meta, "downloading plugin resource for", platform)
 
 	resourcePathOnly := GetResourcePath(meta)
-	resourcePath := filepath.Join(cacheDir, resourcePathOnly)
+	resourcePath := filepath.Join(cacheDir, resourcePathOnly)	
 
 	err = os.MkdirAll(resourcePath, 0700)
 	if err != nil {
@@ -283,14 +293,11 @@ func PluginFromNet(
 		return
 	}
 
-	pkg, err := pawnpackage.GetCachedPackage(meta, cacheDir)
+	pkg, err := pawnpackage.GetRemotePackage(ctx, gh, meta)
 	if err != nil {
-		pkg, err = pawnpackage.GetRemotePackage(ctx, gh, meta)
-		if err != nil {
-			err = errors.Wrap(err, "failed to get remote package definition file")
-			return
-		}
-	}
+		err = errors.Wrap(err, "failed to get remote package definition file")
+		return
+	}	
 
 	resource, err = GetResource(pkg.Resources, platform, version)
 	if err != nil {
@@ -317,20 +324,32 @@ func PluginFromNet(
 func GetResource(resources []resource.Resource, platform string, version string) (*resource.Resource, error) {
 	if version == "" {
 		version = "0.3.7"
-	}
+	}	
 
+	found := false
 	var tmp *resource.Resource
 	for _, res := range resources {
 		if res.Platform == platform {
-			if res.Version == "" || res.Version == version {
+			if res.Version == version {
 				tmp = &res
+				found = true
 				break
 			}
 		}
 	}
-	if tmp == nil {
-		return nil, errors.Errorf("plugin does not provide binaries for target platform %s and version %s", platform, version)
+	if !found {
+		for _, res := range resources {
+			if res.Platform == platform && res.Version == "" {
+				print.Verb("no resource matching version: ", version, ", falling back to the first resource matching platform: ", platform)
+				tmp = &res
+				found = true
+				break;
+			} 
+		}
 	}
+	if !found {
+		return nil, errors.Errorf("plugin does not provide binaries for target platform %s and/or version %s", platform, version)						
+	}	
 
 	if err := tmp.Validate(); err != nil {
 		return nil, errors.Wrap(err, "matching resource found but is invalid")
