@@ -18,20 +18,20 @@ If that sentence meant nothing to you, don't worry! You'll probably find use in
 sampctl if you do anything related to the Pawn language. Below are some
 explanations of what the terms in bold above mean.
 
-* **command-line development tool**: Whether you're a seasoned developer or just
+- **command-line development tool**: Whether you're a seasoned developer or just
   a beginner, mastering the command-line on Windows and Unix systems is
   absolutely necessary to speed up your workflow, take advantage of tools (like
   this one) and just generally improve your knowledge of computing. If you've
   never opened Cmd, PowerShell (Windows) or Terminal (Mac) then
   [read this guide](https://www.learnenough.com/command-line-tutorial).
-* **Pawn scripts**: This includes gamemodes, filterscripts and libraries
+- **Pawn scripts**: This includes gamemodes, filterscripts and libraries
   (includes). sampctl introduces the concept of **packages** to the SA:MP and
   Pawn world to make everyone's life easier.
-* **package manager**: This allows you to easily use and share packages, no more
+- **package manager**: This allows you to easily use and share packages, no more
   downloading outdated `.inc` files from solidfiles...
-* **build tool**: Easily experiment with new versions of the compiler with a
+- **build tool**: Easily experiment with new versions of the compiler with a
   simpler setup and automatic download feature.
-* **configuration manager**: server.cfg files can get messy and unmanageable,
+- **configuration manager**: server.cfg files can get messy and unmanageable,
   sampctl can generate this file automatically from a much cleaner looking JSON
   or YAML equivalent.
 
@@ -92,9 +92,9 @@ you need them.
 
 Installation is simple and fast on all platforms so why not give sampctl a try?
 
-* [Linux (Debian/Ubuntu)](https://github.com/Southclaws/sampctl/wiki/Linux)
-* [Windows](https://github.com/Southclaws/sampctl/wiki/Windows)
-* [Mac](https://github.com/Southclaws/sampctl/wiki/Mac)
+- [Linux (Debian/Ubuntu)](https://github.com/Southclaws/sampctl/wiki/Linux)
+- [Windows](https://github.com/Southclaws/sampctl/wiki/Windows)
+- [Mac](https://github.com/Southclaws/sampctl/wiki/Mac)
 
 ## Usage
 
@@ -136,7 +136,7 @@ in your project directory with `sampctl package init` and use
 {
   "entry": "test.pwn",
   "output": "test.amx",
-  "dependencies": ["sampctl/samp-stdlib", "Southclaws/formatex"]
+  "dependencies": ["pawn-lang/samp-stdlib", "Southclaws/formatex"]
 }
 ```
 
@@ -173,12 +173,12 @@ My favourite vehicle is: 'Landstalker'!
 
 You get the compiler output and the server output without ever needing to:
 
-* visit sa-mp.com/download.php
-* unzip a server package
-* worry about Windows or Linux differences
-* set up the Pawn compiler with your favourite editor
-* make sure the Pawn compiler is reading the correct includes
-* download the formatex include
+- visit sa-mp.com/download.php
+- unzip a server package
+- worry about Windows or Linux differences
+- set up the Pawn compiler with your favourite editor
+- make sure the Pawn compiler is reading the correct includes
+- download the formatex include
 
 [See documentation for more info.](https://github.com/Southclaws/sampctl/wiki/Packages)
 

@@ -327,7 +327,7 @@ func Init(
 	}
 
 	if answers.StdLib {
-		pkg.Dependencies = append(pkg.Dependencies, versioning.DependencyString("sampctl/samp-stdlib"))
+		pkg.Dependencies = append(pkg.Dependencies, versioning.DependencyString("pawn-lang/samp-stdlib"))
 	}
 
 	if answers.Scan {
