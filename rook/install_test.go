@@ -44,9 +44,9 @@ func Test_PackageInstall(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := filepath.Join("./tests/install", tt.name)
 			os.RemoveAll(dir)
-			os.MkdirAll(dir, 0755)
+			os.MkdirAll(dir, 0700)
 
-			ioutil.WriteFile(filepath.Join(dir, "pawn.json"), tt.pkg, 0755) // nolint
+			ioutil.WriteFile(filepath.Join(dir, "pawn.json"), tt.pkg, 0700) // nolint
 
 			pcx1, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, "./tests/cache", "", false)
 			if err != nil {

@@ -121,12 +121,12 @@ func TestPackage_Build(t *testing.T) {
 		pcxWorkspace := util.FullPath("./tests/build-auto-" + tt.name)
 		pcxVendor := filepath.Join(pcxWorkspace, "dependencies")
 
-		err := os.MkdirAll(filepath.Join(pcxWorkspace, "gamemodes"), 0755)
+		err := os.MkdirAll(filepath.Join(pcxWorkspace, "gamemodes"), 0700)
 		if err != nil {
 			panic(err)
 		}
 
-		err = ioutil.WriteFile(filepath.Join(pcxWorkspace, tt.args.pkg.Entry), tt.sourceCode, 0755)
+		err = ioutil.WriteFile(filepath.Join(pcxWorkspace, tt.args.pkg.Entry), tt.sourceCode, 0700)
 		if err != nil {
 			panic(err)
 		}

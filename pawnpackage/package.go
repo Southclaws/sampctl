@@ -156,7 +156,7 @@ func (pkg Package) WriteDefinition() (err error) {
 		if err != nil {
 			return errors.Wrap(err, "failed to encode package metadata")
 		}
-		err = ioutil.WriteFile(filepath.Join(pkg.LocalPath, "pawn.json"), contents, 0755)
+		err = ioutil.WriteFile(filepath.Join(pkg.LocalPath, "pawn.json"), contents, 0700)
 		if err != nil {
 			return errors.Wrap(err, "failed to write pawn.json")
 		}
@@ -166,7 +166,7 @@ func (pkg Package) WriteDefinition() (err error) {
 		if err != nil {
 			return errors.Wrap(err, "failed to encode package metadata")
 		}
-		err = ioutil.WriteFile(filepath.Join(pkg.LocalPath, "pawn.yaml"), contents, 0755)
+		err = ioutil.WriteFile(filepath.Join(pkg.LocalPath, "pawn.yaml"), contents, 0700)
 		if err != nil {
 			return errors.Wrap(err, "failed to write pawn.yaml")
 		}
