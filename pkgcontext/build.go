@@ -83,6 +83,7 @@ func (pcx *PackageContext) Build(
 		)
 		if err != nil {
 			err = errors.Wrap(err, "failed to compile package entry")
+			return
 		}
 
 		atomic.AddUint32(&buildNumber, 1)
