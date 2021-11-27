@@ -34,7 +34,7 @@ func RunContainer(
 	output io.Writer,
 	input io.Reader,
 ) (err error) {
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts()
 	if err != nil {
 		return
 	}
@@ -106,6 +106,7 @@ func RunContainer(
 		containerConfig,
 		hostConfig,
 		netConfig,
+		nil,
 		containerName)
 	if err != nil {
 		if client.IsErrNotFound(err) {
@@ -130,6 +131,7 @@ func RunContainer(
 				containerConfig,
 				hostConfig,
 				netConfig,
+				nil,
 				containerName)
 			if errInner != nil {
 				return errors.Wrap(errInner, "failed to create container")
@@ -155,14 +157,14 @@ func RunContainer(
 	}()
 
 	go func() {
-		n, errInner := cli.ContainerWait(context.Background(), cnt.ID)
-		if errInner != nil {
-			if errInner.Error() == "context deadline exceeded" {
-				errInner = nil
-			}
+		wait, errInner := cli.ContainerWait(context.Background(), cnt.ID, container.WaitConditionNotRunning)
+
+		select {
+		case <-wait:
+		case err := <-errInner:
+			print.Erro("container exited:", err)
+			finished <- err
 		}
-		print.Erro("container exited:", n, errInner)
-		finished <- errInner
 	}()
 
 	// Get logs and wait for exit
