@@ -7,6 +7,7 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/Microsoft/go-winio v0.4.14 // indirect
 	github.com/Netflix/go-expect v0.0.0-20200312175327-da48e75238e2 // indirect
+	github.com/creack/pty v1.1.14
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/docker v1.13.1
 	github.com/docker/go-connections v0.4.0
@@ -23,7 +24,6 @@ require (
 	github.com/joho/godotenv v1.3.0
 	github.com/kirsle/configdir v0.0.0-20170128060238-e45d2f54772f
 	github.com/kr/pretty v0.2.0
-	github.com/creack/pty v1.1.14
 	github.com/michaelbironneau/garbler v0.0.0-20180525195632-2018e2dc9c11
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/nbutton23/zxcvbn-go v0.0.0-20180912185939-ae427f1e4c1d
@@ -39,4 +39,5 @@ require (
 	gopkg.in/urfave/cli.v1 v1.20.0
 	gopkg.in/yaml.v2 v2.3.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
+	rs3.io/go/mserr v0.0.0-20210411213048-aeb5e66a187f // indirect
 )

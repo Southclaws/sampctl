@@ -11,11 +11,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
+	"rs3.io/go/mserr/ntstatus"
 
 	"github.com/Southclaws/sampctl/build"
 	"github.com/Southclaws/sampctl/print"
@@ -251,6 +253,16 @@ func CompileWithCommand(
 			err = nil
 		} else {
 			err = cmdError
+			if runtime.GOOS == "windows" && strings.Contains(cmdError.Error(), "exit status") {
+				statusCodeStr := strings.Split(cmdError.Error(), " ")[2]
+				statusCodeInt, innerError := strconv.Atoi(statusCodeStr)
+				if innerError != nil {
+					return
+				}
+
+				statusCode := ntstatus.NTStatus(statusCodeInt)
+				err = errors.Errorf("exit status %s\n%s", statusCode.String(), statusCode.Error())
+			}
 			return
 		}
 	}
