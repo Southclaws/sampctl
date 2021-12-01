@@ -71,13 +71,16 @@ func CompileSource(
 	}
 
 	problems, result, err = CompileWithCommand(cmd, config.WorkingDir, errorDir, relative)
+	if err != nil {
+		return
+	}
 
 	err = RunPostBuildCommands(ctx, config, os.Stdout)
 	if err != nil {
 		return
 	}
 
-	return problems, result, err
+	return problems, result, nil
 }
 
 // PrepareCommand prepares a build command for compiling the given input script
@@ -364,8 +367,6 @@ func watchCompiler(
 	// close output channels once scanner is closed
 	close(problemChan)
 	close(resultChan)
-
-	return
 }
 
 // RunPostBuildCommands executes commands after a build is ran for a certain build config
