@@ -8,8 +8,8 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/pkgcontext"
 	"github.com/Southclaws/sampctl/print"
-	"github.com/Southclaws/sampctl/rook"
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -41,12 +41,12 @@ func packageEnsure(c *cli.Context) error {
 	dir := util.FullPath(c.String("dir"))
 	forceUpdate := c.Bool("update")
 
-	pcx, err := rook.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "")
+	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "", false)
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
-	pcx.ActualRuntime, err = rook.GetRuntimeConfig(pcx.Package, runtimeName)
+	pcx.ActualRuntime, err = pcx.Package.GetRuntimeConfig(runtimeName)
 	if err != nil {
 		return err
 	}

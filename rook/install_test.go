@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Southclaws/sampctl/pkgcontext"
 	"github.com/Southclaws/sampctl/versioning"
 )
 
@@ -29,25 +30,25 @@ func Test_PackageInstall(t *testing.T) {
 			"repo": "install-test",
 			"entry": "gamemodes/test.pwn",
 			"output": "gamemodes/test.amx",
-			"dependencies": ["sampctl/samp-stdlib"]
+			"dependencies": ["pawn-lang/samp-stdlib"]
 		}`), args{[]versioning.DependencyString{"thecodeah/pawn-humanize:v1.1.1"}, false}, false},
 		{"dev", []byte(`{
 			"user": "Southclaws",
 			"repo": "install-test",
 			"entry": "gamemodes/test.pwn",
 			"output": "gamemodes/test.amx",
-			"dependencies": ["sampctl/samp-stdlib"]
+			"dependencies": ["pawn-lang/samp-stdlib"]
 		}`), args{[]versioning.DependencyString{"thecodeah/pawn-humanize:v1.1.1"}, true}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := filepath.Join("./tests/install", tt.name)
 			os.RemoveAll(dir)
-			os.MkdirAll(dir, 0755)
+			os.MkdirAll(dir, 0700)
 
-			ioutil.WriteFile(filepath.Join(dir, "pawn.json"), tt.pkg, 0755) // nolint
+			ioutil.WriteFile(filepath.Join(dir, "pawn.json"), tt.pkg, 0700) // nolint
 
-			pcx1, err := NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, "./tests/cache", "")
+			pcx1, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, "./tests/cache", "", false)
 			if err != nil {
 				t.Error(err)
 			}
@@ -59,7 +60,7 @@ func Test_PackageInstall(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			pcx2, err := NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, "./tests/cache", "")
+			pcx2, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, "./tests/cache", "", false)
 			if err != nil {
 				t.Error(err)
 			}

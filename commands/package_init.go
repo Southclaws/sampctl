@@ -7,6 +7,7 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/pkgcontext"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/rook"
 	"github.com/Southclaws/sampctl/util"
@@ -33,8 +34,8 @@ func packageInit(c *cli.Context) error {
 		return err
 	}
 
-	_, err = rook.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "")
-	if err == nil {
+	_, err = pkgcontext.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "", true)
+	if err != nil {
 		return errors.New("Directory already appears to be a package")
 	}
 

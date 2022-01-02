@@ -9,8 +9,8 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/pkgcontext"
 	"github.com/Southclaws/sampctl/print"
-	"github.com/Southclaws/sampctl/rook"
 	"github.com/Southclaws/sampctl/util"
 )
 
@@ -44,7 +44,7 @@ func packageTemplateBuild(c *cli.Context) (err error) {
 		return errors.Errorf("no such file or directory: %s", filename)
 	}
 
-	pcx, err := rook.NewPackageContext(gh, gitAuth, true, templatePath, platform(c), cacheDir, "")
+	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, templatePath, platform(c), cacheDir, "", false)
 	if err != nil {
 		return errors.Wrap(err, "template package is invalid")
 	}

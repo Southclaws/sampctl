@@ -171,7 +171,7 @@ func Unzip(src, dst string, paths map[string]string) (files map[string]string, e
 		} else {
 			targetDir := filepath.Dir(target)
 			if !util.Exists(targetDir) {
-				err = os.MkdirAll(targetDir, os.ModePerm)
+				err = os.MkdirAll(targetDir, 0700)
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to create target dir for file")
 				}

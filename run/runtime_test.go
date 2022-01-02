@@ -239,8 +239,8 @@ func TestRuntimeToYAML(t *testing.T) {
 				RCON:         &[]bool{true}[0],
 			},
 			[]byte(`gamemodes:
-- rivershell
-- baserace
+    - rivershell
+    - baserace
 rcon_password: test
 port: 8080
 hostname: Test

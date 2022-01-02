@@ -1,4 +1,4 @@
-package rook
+package pkgcontext
 
 import (
 	"os"
@@ -24,7 +24,7 @@ func TestEnsureDependenciesCached(t *testing.T) {
 				LocalPath:      util.FullPath("./tests/deps-basic"),
 				DependencyMeta: versioning.DependencyMeta{User: "local", Repo: "local"},
 				Dependencies: []versioning.DependencyString{
-					"sampctl/samp-stdlib",
+					"pawn-lang/samp-stdlib",
 				},
 			},
 			Platform: "linux",
@@ -32,8 +32,8 @@ func TestEnsureDependenciesCached(t *testing.T) {
 			GitAuth:  gitAuth,
 		},
 			[]versioning.DependencyMeta{
-				{Site: "github.com", User: "sampctl", Repo: "samp-stdlib"},
-				{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
+				{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
+				{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib"},
 			},
 			false,
 		},
@@ -43,7 +43,7 @@ func TestEnsureDependenciesCached(t *testing.T) {
 				LocalPath:      util.FullPath("./tests/deps-plugin"),
 				DependencyMeta: versioning.DependencyMeta{User: "local", Repo: "local"},
 				Dependencies: []versioning.DependencyString{
-					"sampctl/samp-stdlib",
+					"pawn-lang/samp-stdlib",
 					"Southclaws/pawn-requests",
 				},
 			},
@@ -52,8 +52,8 @@ func TestEnsureDependenciesCached(t *testing.T) {
 			GitAuth:  gitAuth,
 		},
 			[]versioning.DependencyMeta{
-				{Site: "github.com", User: "sampctl", Repo: "samp-stdlib"},
-				{Site: "github.com", User: "sampctl", Repo: "pawn-stdlib"},
+				{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
+				{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib"},
 				{Site: "github.com", User: "Southclaws", Repo: "pawn-requests"},
 			},
 			false,
@@ -62,7 +62,7 @@ func TestEnsureDependenciesCached(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			os.RemoveAll(tt.pcx.Package.LocalPath)
-			os.MkdirAll(tt.pcx.Package.LocalPath, 0755) //nolint
+			os.MkdirAll(tt.pcx.Package.LocalPath, 0700) //nolint
 
 			tt.pcx.GitHub = gh
 			tt.pcx.GitAuth = gitAuth

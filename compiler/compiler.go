@@ -11,11 +11,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
+	"rs3.io/go/mserr/ntstatus"
 
 	"github.com/Southclaws/sampctl/build"
 	"github.com/Southclaws/sampctl/print"
@@ -63,12 +65,22 @@ func CompileSource(
 		return
 	}
 
-	err = RunPlugins(context.Background(), config, os.Stdout) // todo: context propagation
+	err = RunPreBuildCommands(ctx, config, os.Stdout)
 	if err != nil {
 		return
 	}
 
-	return CompileWithCommand(cmd, config.WorkingDir, errorDir, relative)
+	problems, result, err = CompileWithCommand(cmd, config.WorkingDir, errorDir, relative)
+	if err != nil {
+		return
+	}
+
+	err = RunPostBuildCommands(ctx, config, os.Stdout)
+	if err != nil {
+		return
+	}
+
+	return problems, result, nil
 }
 
 // PrepareCommand prepares a build command for compiling the given input script
@@ -92,6 +104,11 @@ func PrepareCommand(
 	if !util.Exists(input) {
 		err = errors.Errorf("no such file '%s'", input)
 		return
+	}
+
+	if len(config.Plugins) != 0 {
+		print.Warn("The use of `plugins` in the build configuration has been disabled and will be removed in the future")
+		print.Warn("Please instead use `prebuild` or `postbuild`")
 	}
 
 	outputDir := filepath.Dir(output)
@@ -239,6 +256,16 @@ func CompileWithCommand(
 			err = nil
 		} else {
 			err = cmdError
+			if runtime.GOOS == "windows" && strings.Contains(cmdError.Error(), "exit status") {
+				statusCodeStr := strings.Split(cmdError.Error(), " ")[2]
+				statusCodeInt, innerError := strconv.Atoi(statusCodeStr)
+				if innerError != nil {
+					return
+				}
+
+				statusCode := ntstatus.NTStatus(statusCodeInt)
+				err = errors.Errorf("exit status %s\n%s", statusCode.String(), statusCode.Error())
+			}
 			return
 		}
 	}
@@ -340,18 +367,38 @@ func watchCompiler(
 	// close output channels once scanner is closed
 	close(problemChan)
 	close(resultChan)
-
-	return
 }
 
-// RunPlugins executes the plugins for a given build config
-func RunPlugins(ctx context.Context, cfg build.Config, output io.Writer) (err error) {
-	for _, command := range cfg.Plugins {
+// RunPostBuildCommands executes commands after a build is ran for a certain build config
+func RunPostBuildCommands(ctx context.Context, cfg build.Config, output io.Writer) (err error) {
+	for _, command := range cfg.PostBuildCommands {
+		print.Verb("running post-build commands", command)
 		ctxInner, cancel := context.WithCancel(ctx)
 		defer cancel()
 
 		cmd := exec.CommandContext(ctxInner, command[0], command[1:]...) //nolint:gas
 		cmd.Stdout = output
+		cmd.Stderr = output
+
+		err = cmd.Run()
+		if err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+// RunPreBuildCommands executes commands before a build is ran for a certain build config
+func RunPreBuildCommands(ctx context.Context, cfg build.Config, output io.Writer) (err error) {
+	for _, command := range cfg.PreBuildCommands {
+		print.Verb("running pre-build commands", command)
+		ctxInner, cancel := context.WithCancel(ctx)
+		defer cancel()
+
+		cmd := exec.CommandContext(ctxInner, command[0], command[1:]...) //nolint:gas
+		cmd.Stdout = output
+		cmd.Stderr = output
 
 		err = cmd.Run()
 		if err != nil {

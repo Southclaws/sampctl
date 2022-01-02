@@ -10,11 +10,13 @@ import (
 	"strings"
 
 	"github.com/google/go-github/github"
+	"github.com/imdario/mergo"
 	"github.com/pkg/errors"
 	"github.com/sampctl/configor"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 
 	"github.com/Southclaws/sampctl/build"
+	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/resource"
 	"github.com/Southclaws/sampctl/run"
 	"github.com/Southclaws/sampctl/util"
@@ -105,7 +107,6 @@ func PackageFromDir(dir string) (pkg Package, err error) {
 	packageDefinitions := []string{
 		filepath.Join(dir, "pawn.json"),
 		filepath.Join(dir, "pawn.yaml"),
-		filepath.Join(dir, "pawn.toml"),
 	}
 	packageDefinition := ""
 	packageDefinitionFormat := ""
@@ -118,7 +119,7 @@ func PackageFromDir(dir string) (pkg Package, err error) {
 	}
 
 	if packageDefinition == "" {
-		err = errors.New("no package definition file (pawn.{json|yaml|toml})")
+		print.Verb("no package definition file (pawn.{json|yaml})")
 		return
 	}
 
@@ -155,7 +156,7 @@ func (pkg Package) WriteDefinition() (err error) {
 		if err != nil {
 			return errors.Wrap(err, "failed to encode package metadata")
 		}
-		err = ioutil.WriteFile(filepath.Join(pkg.LocalPath, "pawn.json"), contents, 0755)
+		err = ioutil.WriteFile(filepath.Join(pkg.LocalPath, "pawn.json"), contents, 0700)
 		if err != nil {
 			return errors.Wrap(err, "failed to write pawn.json")
 		}
@@ -165,13 +166,10 @@ func (pkg Package) WriteDefinition() (err error) {
 		if err != nil {
 			return errors.Wrap(err, "failed to encode package metadata")
 		}
-		err = ioutil.WriteFile(filepath.Join(pkg.LocalPath, "pawn.yaml"), contents, 0755)
+		err = ioutil.WriteFile(filepath.Join(pkg.LocalPath, "pawn.yaml"), contents, 0700)
 		if err != nil {
 			return errors.Wrap(err, "failed to write pawn.yaml")
 		}
-	case "toml":
-		// TODO: Toml writer
-		err = errors.New("toml output not supported")
 	default:
 		err = errors.New("package has no format associated with it")
 	}
@@ -283,4 +281,113 @@ func packageFromYAMLResponse(resp *http.Response, meta versioning.DependencyMeta
 		return
 	}
 	return
+}
+
+// GetBuildConfig returns a matching build by name from the package build list. If no name is
+// specified, the first build is returned. If the package has no build definitions, a default
+// configuration is returned.
+func (pkg Package) GetBuildConfig(name string) (config *build.Config) {
+	def := build.Default()
+
+	// if there are no builds at all, use default
+	if len(pkg.Builds) == 0 && pkg.Build == nil {
+		return def
+	}
+
+	// if the user did not specify a specific build config, use the first
+	// otherwise, search for a matching config by name
+	if name == "" {
+		if pkg.Build != nil {
+			config = pkg.Build
+		} else {
+			config = pkg.Builds[0]
+
+			if pkg.Build != nil {
+				mergo.Merge(&config, pkg.Builds[0])
+			}
+		}
+	} else {
+		for _, cfg := range pkg.Builds {
+			if cfg.Name == name {
+				config = cfg
+
+				if pkg.Build != nil {
+					mergo.Merge(config, pkg.Build)
+				}
+
+				break
+			}
+		}
+	}
+
+	if config == nil {
+		if pkg.Build != nil {
+			print.Warn("Build doesn't exist, defaulting to main build")
+			config = pkg.Build
+		} else {
+			print.Warn("No build config called:", name, "using default")
+			config = def
+		}
+	}
+
+	if config.Version != "" {
+		config.Compiler.Version = string(config.Version)
+	}
+
+	if config.Compiler.Version == "" {
+		config.Compiler.Version = def.Compiler.Version
+	}
+
+	if len(config.Args) == 0 {
+		config.Args = def.Args
+	}
+
+	return config
+}
+
+// GetRuntimeConfig returns a matching runtime config by name from the package
+// runtime list. If no name is specified, the first config is returned. If the
+// package has no configurations, a default configuration is returned.
+func (pkg Package) GetRuntimeConfig(name string) (config run.Runtime, err error) {
+	if len(pkg.Runtimes) > 0 {
+		// if the user did not specify a specific runtime config, use the first
+		// otherwise, search for a matching config by name
+		if name == "" {
+			config = *pkg.Runtimes[0]
+
+			if pkg.Runtime != nil {
+				mergo.Merge(&config, pkg.Runtime)
+			}
+
+			print.Verb(pkg, "searching", name, "in 'runtimes' list")
+		} else {
+			print.Verb(pkg, "using first config from 'runtimes' list")
+			found := false
+			for _, cfg := range pkg.Runtimes {
+				if cfg.Name == name {
+					config = *cfg
+					found = true
+
+					if pkg.Runtime != nil {
+						mergo.Merge(&config, pkg.Runtime)
+					}
+
+					break
+				}
+			}
+			if !found {
+				err = errors.Errorf("no runtime config '%s'", name)
+				return
+			}
+		}
+	} else if pkg.Runtime != nil {
+		print.Verb(pkg, "using config from 'runtime' field")
+		config = *pkg.Runtime
+	} else {
+		print.Verb(pkg, "using default config")
+		config = run.Runtime{}
+	}
+	run.ApplyRuntimeDefaults(&config)
+
+	return config, nil
 }

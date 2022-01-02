@@ -1,11 +1,10 @@
-package rook
+package pkgcontext
 
 import (
 	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path"
 	"path/filepath"
@@ -17,7 +16,6 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/fsnotify/fsnotify"
-	"github.com/imdario/mergo"
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/build"
@@ -68,17 +66,13 @@ func (pcx *PackageContext) Build(
 	if dry {
 		fmt.Println(strings.Join(command.Env, " "), strings.Join(command.Args, " "))
 	} else {
-		for _, plugin := range config.Plugins {
-			print.Verb("running pre-build plugin", plugin)
-			pluginCmd := exec.Command(plugin[0], plugin[1:]...)
-			pluginCmd.Stdout = os.Stdout
-			pluginCmd.Stderr = os.Stdout
-			err = pluginCmd.Run()
-			if err != nil {
-				print.Erro("Failed to execute pre-build plugin:", plugin[0], err)
-				return
-			}
+		print.Verb("running pre-build commands")
+		err = compiler.RunPreBuildCommands(ctx, *config, os.Stdout)
+		if err != nil {
+			print.Erro("Failed to execute pre-build command: ", err)
+			return
 		}
+
 		print.Verb("building", pcx.Package, "with", config.Compiler.Version)
 
 		problems, result, err = compiler.CompileWithCommand(
@@ -89,15 +83,23 @@ func (pcx *PackageContext) Build(
 		)
 		if err != nil {
 			err = errors.Wrap(err, "failed to compile package entry")
+			return
 		}
 
 		atomic.AddUint32(&buildNumber, 1)
 
 		if buildFile != "" {
-			err2 := ioutil.WriteFile(buildFile, []byte(fmt.Sprint(buildNumber)), 0755)
+			err2 := ioutil.WriteFile(buildFile, []byte(fmt.Sprint(buildNumber)), 0700)
 			if err2 != nil {
 				print.Erro("Failed to write buildfile:", err2)
 			}
+		}
+
+		print.Verb("running post-build commands")
+		err = compiler.RunPostBuildCommands(ctx, *config, os.Stdout)
+		if err != nil {
+			print.Erro("Failed to execute post-build command: ", err)
+			return
 		}
 	}
 
@@ -245,7 +247,7 @@ loop:
 				}
 
 				if buildFile != "" {
-					err2 := ioutil.WriteFile(buildFile, []byte(fmt.Sprint(buildNumber)), 0755)
+					err2 := ioutil.WriteFile(buildFile, []byte(fmt.Sprint(buildNumber)), 0700)
 					if err2 != nil {
 						print.Erro("Failed to write buildfile:", err2)
 					}
@@ -265,7 +267,7 @@ func (pcx *PackageContext) buildPrepare(
 	ensure,
 	forceUpdate bool,
 ) (config *build.Config, err error) {
-	config = GetBuildConfig(pcx.Package, build)
+	config = pcx.Package.GetBuildConfig(build)
 	if config == nil {
 		err = errors.Errorf("no build config named '%s'", build)
 		return
@@ -280,6 +282,8 @@ func (pcx *PackageContext) buildPrepare(
 	if config.Output == "" {
 		config.Output = filepath.Join(pcx.Package.LocalPath, pcx.Package.Output)
 	}
+
+	config.Includes = append(config.Includes, pcx.Package.LocalPath)
 
 	if ensure {
 		err = pcx.EnsureDependencies(ctx, forceUpdate)
@@ -329,68 +333,6 @@ func (pcx *PackageContext) buildPrepare(
 	return config, err
 }
 
-// GetBuildConfig returns a matching build by name from the package build list. If no name is
-// specified, the first build is returned. If the package has no build definitions, a default
-// configuration is returned.
-func GetBuildConfig(pkg pawnpackage.Package, name string) (config *build.Config) {
-	def := build.Default()
-
-	// if there are no builds at all, use default
-	if len(pkg.Builds) == 0 && pkg.Build == nil {
-		return def
-	}
-
-	// if the user did not specify a specific build config, use the first
-	// otherwise, search for a matching config by name
-	if name == "" {
-		if pkg.Build != nil {
-			config = pkg.Build
-		} else {
-			config = pkg.Builds[0]
-
-			if pkg.Build != nil {
-				mergo.Merge(&config, pkg.Builds[0])
-			}
-		}
-	} else {
-		for _, cfg := range pkg.Builds {
-			if cfg.Name == name {
-				config = cfg
-
-				if pkg.Build != nil {
-					mergo.Merge(config, pkg.Build)
-				}
-
-				break
-			}
-		}
-	}
-
-	if config == nil {
-		if pkg.Build != nil {
-			print.Warn("Build doesn't exist, defaulting to main build")
-			config = pkg.Build
-		} else {
-			print.Warn("No build config called:", name, "using default")
-			config = def
-		}
-	}
-
-	if config.Version != "" {
-		config.Compiler.Version = string(config.Version)
-	}
-
-	if config.Compiler.Version == "" {
-		config.Compiler.Version = def.Compiler.Version
-	}
-
-	if len(config.Args) == 0 {
-		config.Args = def.Args
-	}
-
-	return config
-}
-
 func readInt(file string) (n uint32, err error) {
 	var contents []byte
 	if util.Exists(file) {
@@ -411,7 +353,7 @@ func readInt(file string) (n uint32, err error) {
 		}
 		n = uint32(result)
 	} else {
-		err = ioutil.WriteFile(file, []byte("0"), 0755)
+		err = ioutil.WriteFile(file, []byte("0"), 0700)
 		n = 0
 	}
 	return
