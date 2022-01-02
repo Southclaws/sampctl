@@ -36,8 +36,7 @@ checksum:
 dockers:
   - goos: linux
     goarch: "386"
-    binaries: 
-      - sampctl
+    ids: ['sampctl']
     dockerfile: Dockerfile
     image_templates:
       - "southclaws/sampctl:{{ .Tag }}"
