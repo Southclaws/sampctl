@@ -220,12 +220,12 @@ func Init(
 		nameWithPath := strings.TrimSuffix(answers.Entry, ext)
 		nameOnly := filepath.Base(nameWithPath)
 
-		pkg.Entry = nameWithPath + ".pwn"
+		pkg.Entry = filepath.Join(nameWithPath, "pwn")
 
 		if answers.PackageType == "filterscript" {
-			pkg.Output = "filterscript/" + nameOnly + ".amx"
+			pkg.Output = filepath.Join("filterscripts/", nameOnly, ".amx")
 		} else {
-			pkg.Output = "gamemodes/" + nameOnly + ".amx"
+			pkg.Output = filepath.Join("gamemodes/", nameOnly, ".amx")
 		}
 
 		if ext != "" && ext != ".pwn" {
