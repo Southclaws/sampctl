@@ -218,15 +218,15 @@ func Init(
 
 	if answers.Entry != "" {
 		ext := filepath.Ext(answers.Entry)
-		nameWithPath := strings.TrimSuffix(answers.Entry, ext)
-		nameOnly := filepath.Base(nameWithPath)
+		pathName := strings.TrimSuffix(answers.Entry, ext)
+		nameOnly := filepath.Base(pathName)
 
-		pkg.Entry = filepath.Join(nameWithPath, "pwn")
+		pkg.Entry = pathName + ".pwn"
 
 		if answers.PackageType == "filterscript" {
-			pkg.Output = filepath.Join(dir, "filterscripts/", nameOnly, ".amx")
+			pkg.Output = filepath.Join(dir, "filterscripts/", nameOnly+".amx")
 		} else {
-			pkg.Output = filepath.Join(dir, "gamemodes/", nameOnly, ".amx")
+			pkg.Output = filepath.Join(dir, "gamemodes/", nameOnly+".amx")
 		}
 
 		if ext != "" && ext != ".pwn" {
@@ -235,7 +235,13 @@ func Init(
 			print.Warn("it's good to make a separate .pwn file that #includes the .inc file of your library.")
 		}
 
-		file := filepath.Join(dir, answers.Entry)
+		file := filepath.Join(dir, pkg.Entry)
+
+		if answers.PackageType == "filterscript" {
+			file = filepath.Join(dir, pkg.Entry)
+		} else if answers.PackageType == "gamemode" {
+			file = filepath.Join(dir, pkg.Entry)
+		}
 
 		if !util.Exists(file) {
 			if err := generateEntryCode(file, answers.PackageType); err != nil {
@@ -246,13 +252,26 @@ func Init(
 		if answers.EntryGenerate {
 			file := filepath.Join(dir, "test.pwn")
 
+			if answers.PackageType == "filterscript" {
+				file = filepath.Join(dir, "filterscript/test.pwn")
+			} else if answers.PackageType == "gamemode" {
+				file = filepath.Join(dir, "gamemodes/test.pwn")
+			}
+
 			if !util.Exists(file) {
 				if err := generateEntryCode(file, answers.PackageType); err != nil {
 					color.Red("failed to write generated tests.pwn file: %v", err)
 				}
 			}
 		}
-		pkg.Entry = "test.pwn"
+
+		if answers.PackageType == "filterscript" {
+			pkg.Entry = filepath.Join(dir, "filterscript/test.pwn")
+		} else if answers.PackageType == "gamemode" {
+			pkg.Entry = filepath.Join(dir, "gamemodes/test.pwn")
+		} else {
+			pkg.Entry = filepath.Join(dir, "test.pwn")
+		}
 
 		if answers.PackageType == "filterscript" {
 			pkg.Output = filepath.Join(dir, "filtercript/test.amx")
