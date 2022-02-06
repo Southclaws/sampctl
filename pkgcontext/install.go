@@ -26,7 +26,7 @@ func (pcx *PackageContext) Install(
 			return errors.Wrapf(err, "failed to parse %s as a dependency string", target)
 		}
 
-		if meta.Tag == "" {
+		if meta.Commit == "" && meta.Branch == "" && meta.Tag == "" {
 			var options github.ListOptions
 			tags, _, err := pcx.GitHub.Repositories.ListTags(ctx, meta.User, meta.Repo, &options)
 			if err != nil {
