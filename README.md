@@ -215,7 +215,7 @@ directory.
 
 # `sampctl`
 
-1.8.39 - Southclaws <hello@southcla.ws>
+1.10.0 - Southclaws <hello@southcla.ws>
 
 The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
 
