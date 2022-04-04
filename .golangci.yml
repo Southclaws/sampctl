@@ -1,0 +1,24 @@
+run:
+  tests: false
+
+  go: "1.18"
+
+  issues-exit-code: 0
+
+severity:
+  default-severity: warn
+
+linters:
+  fast: true
+  enable:
+    - gci
+  presets:
+    - bugs
+
+linters-settings:
+  gci:
+    local-prefixes: github.com/Southclaws/sampctl
+    sections:
+      - standard
+      - default
+      - prefix(github.com/Southclaws/sampctl)
