@@ -164,8 +164,9 @@ func ReleaseAssetByPattern(
 	}
 
 	for _, a := range release.Assets {
+		rel := a
 		if matcher.MatchString(*a.Name) {
-			asset = &a
+			asset = &rel
 			break
 		}
 		assets = append(assets, *a.Name)

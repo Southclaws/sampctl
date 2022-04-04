@@ -6,10 +6,11 @@ import (
 	"net/http"
 	"path/filepath"
 
-	"github.com/Southclaws/sampctl/download"
-	"github.com/Southclaws/sampctl/print"
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
+
+	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/print"
 )
 
 func autoComplete(c *cli.Context) (err error) {

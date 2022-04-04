@@ -328,7 +328,8 @@ func GetResource(resources []resource.Resource, platform string, version string)
 
 	found := false
 	var tmp *resource.Resource
-	for _, res := range resources {
+	for _, resource := range resources {
+		res := resource
 		if res.Platform == platform {
 			if res.Version == version {
 				tmp = &res
@@ -338,7 +339,8 @@ func GetResource(resources []resource.Resource, platform string, version string)
 		}
 	}
 	if !found {
-		for _, res := range resources {
+		for _, resource := range resources {
+			res := resource
 			if res.Platform == platform && res.Version == "" {
 				print.Verb("no resource matching version: ", version, ", falling back to the first resource matching platform: ", platform)
 				tmp = &res
