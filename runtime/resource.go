@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/print"
 )
 
 func getServerBinary(cacheDir, version, platform string) (binary string) {
@@ -108,6 +109,8 @@ func getAnnounceBinary(cacheDir, version, platform string) (binary string) {
 // MatchesChecksum checks if the file at the given path src is the correct file for the specified
 // runtime package via MD5 sum
 func MatchesChecksum(src, platform, cacheDir, version string) (ok bool, err error) {
+	print.Verb("attempting to match checksum from source", src, "on platform", platform, "with the cache located at", cacheDir, "and with version", version)
+
 	pkg, err := FindPackage(cacheDir, version)
 	if err != nil {
 		return
@@ -127,7 +130,8 @@ func MatchesChecksum(src, platform, cacheDir, version string) (ok bool, err erro
 	default:
 		return false, errors.New("platform not supported")
 	}
-	hasher := md5.New() // nolint:gas
+
+	hasher := md5.New()
 	_, err = hasher.Write(contents)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to write to md5 hasher")
