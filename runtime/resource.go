@@ -1,7 +1,7 @@
 package runtime
 
 import (
-	"crypto/md5" //nolint:gas
+	"crypto/md5"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"

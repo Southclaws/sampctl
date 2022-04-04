@@ -36,19 +36,20 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 	pcx.Package.Vendor = filepath.Join(pcx.Package.LocalPath, "dependencies")
 
 	for _, dependency := range pcx.AllDependencies {
+		dep := dependency
 		r := retrier.New(retrier.ConstantBackoff(1, 100*time.Millisecond), nil)
 		err := r.Run(func() error {
-			print.Verb("attempting to ensure dependency", dependency)
-			errInner := pcx.EnsurePackage(dependency, forceUpdate)
+			print.Verb("attempting to ensure dependency", dep)
+			errInner := pcx.EnsurePackage(dep, forceUpdate)
 			if errInner != nil {
-				print.Warn(errors.Wrapf(errInner, "failed to ensure package %s", dependency))
+				print.Warn(errors.Wrapf(errInner, "failed to ensure package %s", dep))
 				return errInner
 			}
-			print.Info(pcx.Package, "successfully ensured dependency files for", dependency)
+			print.Info(pcx.Package, "successfully ensured dependency files for", dep)
 			return nil
 		})
 		if err != nil {
-			print.Warn("failed to ensure package", dependency, "after 2 attempts, skipping")
+			print.Warn("failed to ensure package", dep, "after 2 attempts, skipping")
 			continue
 		}
 	}
