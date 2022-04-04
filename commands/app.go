@@ -42,7 +42,7 @@ func Run(args []string, version string) error {
 			Email: "hello@southcla.ws",
 		},
 		{
-			Name: "JustMichael",
+			Name:  "JustMichael",
 			Email: "michael@sag.gs",
 		},
 	}
@@ -79,14 +79,14 @@ func Run(args []string, version string) error {
 			Description: "Helper tool to bootstrap a new package or turn an existing project into a package.",
 			Action:      packageInit,
 			Flags:       append(globalFlags, packageInitFlags...),
-		},		
+		},
 		{
 			Name:        "ensure",
 			Usage:       "sampctl ensure",
 			Description: "Ensures dependencies are up to date based on the `dependencies` field in `pawn.json`/`pawn.yaml`.",
 			Action:      packageEnsure,
 			Flags:       append(globalFlags, packageEnsureFlags...),
-		},		
+		},
 		{
 			Name:         "install",
 			Usage:        "sampctl install [package definition]",
@@ -94,21 +94,21 @@ func Run(args []string, version string) error {
 			Action:       packageInstall,
 			Flags:        append(globalFlags, packageInstallFlags...),
 			BashComplete: packageInstallBash,
-		},		
+		},
 		{
 			Name:        "uninstall",
 			Usage:       "sampctl uninstall [package definition]",
 			Description: "Uninstalls package by removing it from the `dependencies` field in `pawn.json`/`pawn.yaml` and deletes the contents.",
 			Action:      packageUninstall,
 			Flags:       append(globalFlags, packageUninstallFlags...),
-		},		
+		},
 		{
 			Name:        "release",
 			Usage:       "sampctl release",
 			Description: "Creates a release version and tags the repository with the next version number, creates a GitHub release with archived package files.",
 			Action:      packageRelease,
 			Flags:       append(globalFlags, packageReleaseFlags...),
-		},		
+		},
 		{
 			Name:         "get",
 			Usage:        "sampctl get [package definition] (target path)",
@@ -116,7 +116,7 @@ func Run(args []string, version string) error {
 			Action:       packageGet,
 			Flags:        append(globalFlags, packageGetFlags...),
 			BashComplete: packageGetBash,
-		},		
+		},
 		{
 			Name:         "build",
 			Usage:        "sampctl build [build name]",
@@ -124,14 +124,14 @@ func Run(args []string, version string) error {
 			Action:       packageBuild,
 			Flags:        append(globalFlags, packageBuildFlags...),
 			BashComplete: packageBuildBash,
-		},		
+		},
 		{
 			Name:        "run",
 			Usage:       "sampctl run",
 			Description: "Compiles and runs a package defined by a `pawn.json`/`pawn.yaml` file.",
 			Action:      packageRun,
 			Flags:       append(globalFlags, packageRunFlags...),
-		},		
+		},
 		{
 			Name:        "template",
 			Usage:       "sampctl template <subcommand>",
@@ -242,11 +242,13 @@ func Run(args []string, version string) error {
 		// that are even numbers. 12:56:44 will work, 12:57:44 will not, etc...
 		// this is done because the GitHub API has rate limits and we don't want to use all our requests
 		// up on version checks when package management is more important.
-		if !c.GlobalIsSet("generate-bash-completion") &&
-			!c.GlobalIsSet("bare") &&
-			time.Now().Minute()%2 == 0 &&
-			time.Now().Second()%2 == 0 {
-			CheckForUpdates(app.Version)
+		if !*cfg.HideVersionUpdateMessage {
+			if !c.GlobalIsSet("generate-bash-completion") &&
+				!c.GlobalIsSet("bare") &&
+				time.Now().Minute()%2 == 0 &&
+				time.Now().Second()%2 == 0 {
+				CheckForUpdates(app.Version)
+			}
 		}
 		return nil
 	}
