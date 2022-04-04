@@ -137,7 +137,7 @@ func MatchesChecksum(src, platform, cacheDir, version string) (ok bool, err erro
 	}
 
 	checksum := md5.Sum([]byte(contents))
-	fmt.Printf("has: %s, wants: %s ", checksum, want)
+	fmt.Printf("has: %x, wants: %s", checksum, want)
 
 	return hex.EncodeToString(checksum[:]) == want, nil
 }
