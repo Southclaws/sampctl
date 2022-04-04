@@ -3,6 +3,7 @@ package runtime
 import (
 	"crypto/md5" //nolint:gas
 	"encoding/hex"
+	"fmt"
 	"io/ioutil"
 	"strings"
 
@@ -131,6 +132,8 @@ func MatchesChecksum(src, platform, cacheDir, version string) (ok bool, err erro
 	if err != nil {
 		return false, errors.Wrap(err, "failed to write to md5 hasher")
 	}
+
+	fmt.Printf("has: %s, wants: %s ", hex.EncodeToString(hasher.Sum(nil)), want)
 
 	return hex.EncodeToString(hasher.Sum(nil)) == want, nil
 }
