@@ -98,7 +98,10 @@ func FromCache(cacheDir, filename, dir string, method ExtractFunc, paths map[str
 	if platform == "linux" || platform == "darwin" {
 		print.Verb("setting permissions for binaries")
 		for _, file := range files {
-			os.Chmod(file, 0700)
+			err = os.Chmod(file, 0700)
+			if err != nil {
+				return
+			}
 		}
 	}
 

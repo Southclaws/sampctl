@@ -1,6 +1,6 @@
 gamemodes:
-    - rivershell
-    - baserace
+  - rivershell
+  - baserace
 rcon_password: test
 port: 8080
 hostname: Test

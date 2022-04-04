@@ -43,8 +43,8 @@ func Test_PackageInstall(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := filepath.Join("./tests/install", tt.name)
-			os.RemoveAll(dir)
-			os.MkdirAll(dir, 0700)
+			_ = os.RemoveAll(dir)
+			_ = os.MkdirAll(dir, 0700)
 
 			ioutil.WriteFile(filepath.Join(dir, "pawn.json"), tt.pkg, 0700) // nolint
 
