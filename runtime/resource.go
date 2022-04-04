@@ -133,13 +133,8 @@ func MatchesChecksum(src, platform, cacheDir, version string) (ok bool, err erro
 		return false, errors.New("platform not supported")
 	}
 
-	hasher := md5.New()
-	if err != nil {
-		return false, errors.Wrap(err, "failed to write to md5 hasher")
-	}
 	checksum := md5.Sum([]byte(contents))
-
-	fmt.Printf("has: %s, wants: %s ", hex.EncodeToString(hasher.Sum(nil)), want)
+	fmt.Printf("has: %s, wants: %s ", checksum, want)
 
 	return hex.EncodeToString(checksum[:]) == want, nil
 }
