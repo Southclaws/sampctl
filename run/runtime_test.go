@@ -47,8 +47,8 @@ func TestRuntimeFromDir(t *testing.T) {
 			dir := tt.args.dir
 			tt.wantCfg.WorkingDir = dir
 
-			tt.wantCfg.ToJSON()
-			tt.wantCfg.ToYAML()
+			_ = tt.wantCfg.ToJSON()
+			_ = tt.wantCfg.ToYAML()
 
 			gotCfg, err := RuntimeFromDir(tt.args.dir)
 			if tt.wantErr {
@@ -95,7 +95,7 @@ func TestRuntimeFromJSON(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := filepath.Dir(tt.args.file)
 			tt.wantCfg.WorkingDir = dir
-			tt.wantCfg.ToJSON()
+			_ = tt.wantCfg.ToJSON()
 
 			gotCfg, err := RuntimeFromJSON(tt.args.file)
 			if (err != nil) != tt.wantErr {
@@ -146,7 +146,7 @@ func TestRuntimeFromYAML(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := filepath.Dir(tt.args.file)
 			tt.wantCfg.WorkingDir = dir
-			tt.wantCfg.ToYAML()
+			_ = tt.wantCfg.ToYAML()
 
 			gotCfg, err := RuntimeFromYAML(tt.args.file)
 			if tt.wantErr {

@@ -1,8 +1,8 @@
 {
-    "entry": "gamemodes/test.pwn",
-    "output": "gamemodes/test.amx",
-    "dependencies": [
-        "pawn-lang/samp-stdlib:0.3.7-R2-2-1",
-        "Southclaws/pawn-errors:1.2.3"
-    ]
+  "entry": "gamemodes/test.pwn",
+  "output": "gamemodes/test.amx",
+  "dependencies": [
+    "pawn-lang/samp-stdlib:0.3.7-R2-2-1",
+    "Southclaws/pawn-errors:1.2.3"
+  ]
 }

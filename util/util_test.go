@@ -8,7 +8,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	os.MkdirAll("./tests", 0700)
+	_ = os.MkdirAll("./tests", 0700)
 
 	f, _ := os.Create("./tests/file")
 	f.Close() // nolint

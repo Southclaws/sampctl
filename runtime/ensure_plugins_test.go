@@ -70,7 +70,7 @@ func TestEnsurePlugins(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.args.cfg.WorkingDir = filepath.Join("./tests/ensure", tt.name)
-			os.MkdirAll(tt.args.cfg.WorkingDir, 0700)
+			_ = os.MkdirAll(tt.args.cfg.WorkingDir, 0700)
 
 			t.Log("First call to Ensure - from internet")
 			err := EnsurePlugins(context.Background(), gh, &tt.args.cfg, "./tests/cache", true)

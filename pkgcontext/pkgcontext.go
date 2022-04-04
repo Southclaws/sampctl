@@ -127,7 +127,12 @@ func getPackageTag(dir string) (tag string) {
 	repo, err := git.PlainOpen(dir)
 	if err != nil {
 		// repo may be intentionally not a git repo, so only print verbosely
-		print.Verb("failed to open repo as git repository:", err)
+		if errors.Is(err, git.ErrRepositoryNotExists) {
+			print.Verb("failed to open repo:", dir, "is not a git repo")
+			return
+		}
+		print.Erro("failed to open repo (", dir, "):", err)
+		return
 	} else {
 		vtag, errInner := versioning.GetRepoCurrentVersionedTag(repo)
 		if errInner != nil {
