@@ -121,6 +121,8 @@ func MatchesChecksum(src, platform, cacheDir, version string) (ok bool, err erro
 		return false, errors.Wrap(err, "failed to read downloaded server package")
 	}
 
+	print.Verb("checksum for linux/mac", pkg.LinuxChecksum, "and for windows", pkg.Win32Checksum)
+
 	want := ""
 	switch platform {
 	case "windows":
@@ -132,14 +134,14 @@ func MatchesChecksum(src, platform, cacheDir, version string) (ok bool, err erro
 	}
 
 	hasher := md5.New()
-	_, err = hasher.Write(contents)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to write to md5 hasher")
 	}
+	checksum := md5.Sum([]byte(contents))
 
 	fmt.Printf("has: %s, wants: %s ", hex.EncodeToString(hasher.Sum(nil)), want)
 
-	return hex.EncodeToString(hasher.Sum(nil)) == want, nil
+	return hex.EncodeToString(checksum[:]) == want, nil
 }
 
 // FindPackage returns a server resource package for the given version or nil if it's invalid
