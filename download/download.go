@@ -5,11 +5,13 @@ package download
 import (
 	"context"
 	"io/ioutil"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/google/go-github/github"
 	"github.com/kirsle/configdir"
@@ -127,6 +129,15 @@ func FromNet(location, cacheDir, filename string) (result string, err error) {
 	if err != nil {
 		err = errors.Wrap(err, "failed to read download contents")
 		return
+	}
+
+	t, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	if err != nil {
+		return result, err
+	}
+
+	if !strings.HasPrefix(t, "application") {
+		return result, errors.Errorf("content has unexpected content type %s", t)
 	}
 
 	result = filepath.Join(cacheDir, filename)
