@@ -121,7 +121,7 @@ func MatchesChecksum(src, platform, cacheDir, version string) (ok bool, err erro
 		return false, errors.Wrap(err, "failed to read downloaded server package")
 	}
 	if len(contents) == 0 {
-		return false, errors.Errorf("%s is empty", src)
+		return false, errors.Errorf("server package contents located at '%s' is empty", src)
 	}
 
 	print.Verb("checksum for linux/mac", pkg.LinuxChecksum, "and for windows", pkg.Win32Checksum)
@@ -137,7 +137,7 @@ func MatchesChecksum(src, platform, cacheDir, version string) (ok bool, err erro
 	}
 
 	checksum := md5.Sum([]byte(contents))
-	fmt.Printf("has: %x, wants: %s", checksum, want)
+	fmt.Printf("server package has checksum '%x' and wants checksum '%s'\n", checksum, want)
 
 	return hex.EncodeToString(checksum[:]) == want, nil
 }
