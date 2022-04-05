@@ -125,6 +125,10 @@ func FromNet(location, cacheDir, filename string) (result string, err error) {
 		}
 	}()
 
+	if resp.StatusCode != http.StatusOK {
+		return result, errors.Errorf("unexpected status code given", resp.StatusCode)
+	}
+
 	content, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		err = errors.Wrap(err, "failed to read download contents")
