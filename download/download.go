@@ -126,7 +126,7 @@ func FromNet(location, cacheDir, filename string) (result string, err error) {
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return result, errors.Errorf("unexpected status code given", resp.StatusCode)
+		return result, errors.Errorf("unexpected status code given %d", resp.StatusCode)
 	}
 
 	content, err := ioutil.ReadAll(resp.Body)
