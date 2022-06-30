@@ -86,9 +86,10 @@ func Init(
 			return
 		}
 
-		if ext == ".pwn" {
+		switch ext {
+		case ".pwn":
 			pwnFiles = append(pwnFiles, rel)
-		} else if ext == ".inc" {
+		case ".inc":
 			incFiles = append(incFiles, rel)
 		}
 
