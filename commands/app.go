@@ -117,6 +117,13 @@ func Run(args []string, version string) error {
 			Flags:       append(globalFlags, packageReleaseFlags...),
 		},
 		{
+			Name:        "config",
+			Usage:       "configure config options",
+			Description: "Allows configuring the field values for the config",
+			Action:      packageConfig,
+			Flags:       append(globalFlags, packageConfigFlags...),
+		},
+		{
 			Name:         "get",
 			Usage:        "sampctl get [package definition] (target path)",
 			Description:  "Clones a GitHub package to either a directory named after the repo or, if the cwd is empty, the cwd and then ensures the package.",
