@@ -13,6 +13,7 @@ require (
 	github.com/google/go-github v0.0.0-20180819205025-d7732128a00e
 	github.com/google/uuid v1.3.0
 	github.com/imdario/mergo v0.3.12
+	github.com/jedib0t/go-pretty/v6 v6.3.3
 	github.com/joho/godotenv v1.4.0
 	github.com/kirsle/configdir v0.0.0-20170128060238-e45d2f54772f
 	github.com/kr/pretty v0.3.0
@@ -22,12 +23,12 @@ require (
 	github.com/otiai10/copy v1.7.0
 	github.com/pkg/errors v0.9.1
 	github.com/sampctl/configor v0.0.0-20200702165352-24e52bc67e97
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.7.4
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 	gopkg.in/AlecAivazis/survey.v1 v1.8.8
 	gopkg.in/eapache/go-resiliency.v1 v1.2.0
 	gopkg.in/urfave/cli.v1 v1.20.0
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
+	gopkg.in/yaml.v3 v3.0.1
 	rs3.io/go/mserr v0.0.0-20210411213048-aeb5e66a187f
 )
 
@@ -56,12 +57,14 @@ require (
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
+	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
 	github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/rogpeppe/go-internal v1.6.1 // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
