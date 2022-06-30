@@ -14,10 +14,7 @@ import (
 
 // GetServerPackage checks if a cached package is available and if not, downloads it to dir
 func GetServerPackage(version, dir, platform string) (err error) {
-	cacheDir, err := download.GetCacheDir()
-	if err != nil {
-		return errors.Wrap(err, "failed to get or create cache directory")
-	}
+	cacheDir := download.GetCacheDir()
 
 	hit, err := FromCache(cacheDir, version, dir, platform)
 	if err != nil {

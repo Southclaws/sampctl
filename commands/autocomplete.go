@@ -37,11 +37,7 @@ func autoComplete(c *cli.Context) (err error) {
 		return
 	}
 
-	cacheDir, err := download.GetCacheDir()
-	if err != nil {
-		print.Erro("Failed to retrieve cache directory path (attempted <user folder>/.samp) ", err)
-		return
-	}
+	cacheDir := download.GetCacheDir()
 
 	completionFile := filepath.Join(cacheDir, "autocomplete")
 

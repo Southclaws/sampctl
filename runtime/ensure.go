@@ -26,10 +26,7 @@ func Ensure(ctx context.Context, gh *github.Client, cfg *run.Runtime, noCache bo
 		return
 	}
 
-	cacheDir, err := download.GetCacheDir()
-	if err != nil {
-		return
-	}
+	cacheDir := download.GetCacheDir()
 
 	print.Verb("ensuring server binaries")
 	err = EnsureBinaries(cacheDir, *cfg)
