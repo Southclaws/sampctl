@@ -28,13 +28,9 @@ func packageInit(c *cli.Context) error {
 
 	dir := util.FullPath(c.String("dir"))
 
-	cacheDir, err := download.GetCacheDir()
-	if err != nil {
-		print.Erro("Failed to retrieve cache directory path (attempted <user folder>/.samp) ")
-		return err
-	}
+	cacheDir := download.GetCacheDir()
 
-	_, err = pkgcontext.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "", true)
+	_, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "", true)
 	if err != nil {
 		return errors.New("Directory already appears to be a package")
 	}

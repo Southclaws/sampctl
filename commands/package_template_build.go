@@ -28,10 +28,8 @@ func packageTemplateBuild(c *cli.Context) (err error) {
 		return nil
 	}
 
-	cacheDir, err := download.GetCacheDir()
-	if err != nil {
-		return
-	}
+	cacheDir := download.GetCacheDir()
+
 	template := c.Args().Get(0)
 	filename := c.Args().Get(1)
 

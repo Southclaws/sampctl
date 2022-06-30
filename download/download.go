@@ -49,17 +49,16 @@ func ExtractFuncFromName(name string) ExtractFunc {
 }
 
 // GetCacheDir returns the full path to the user's cache directory, creating it if it doesn't exist
-func GetCacheDir() (cacheDir string, err error) {
+func GetCacheDir() (cacheDir string) {
 	cacheDir = configdir.LocalConfig("sampctl")
-	err = configdir.MakePath(cacheDir)
-	if err != nil {
-		err = errors.Wrap(err, "Failed to create config path")
-		return
-	}
+	return
+}
 
+// Migrate old config to new path
+func MigrateOldConfig(cacheDir string) error {
 	home, err := homedir.Dir()
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get home directory")
+		return errors.Wrap(err, "failed to get home directory")
 	}
 
 	// Attempt to check if the old cache directory exists and if it does
@@ -68,16 +67,16 @@ func GetCacheDir() (cacheDir string, err error) {
 	if _, err := os.Stat(oldCacheDir); !os.IsNotExist(err) {
 		err = copy.Copy(oldCacheDir, cacheDir)
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to copy old cache directory to new cache directory")
+			return errors.Wrap(err, "Failed to copy old cache directory to new cache directory")
 		}
 
 		err = os.RemoveAll(oldCacheDir)
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to remove all the contents of the old cache directory")
+			return errors.Wrap(err, "Failed to remove all the contents of the old cache directory")
 		}
 	}
 
-	return
+	return nil
 }
 
 // FromCache first checks if a file is cached, then

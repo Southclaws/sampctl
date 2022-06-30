@@ -3,7 +3,6 @@ package commands
 import (
 	"context"
 	"fmt"
-	"os"
 	"runtime"
 
 	"github.com/pkg/errors"
@@ -58,10 +57,7 @@ func packageBuild(c *cli.Context) error {
 
 	build := c.Args().Get(0)
 
-	cacheDir, err := download.GetCacheDir()
-	if err != nil {
-		return errors.Wrap(err, "failed to get or create cache directory")
-	}
+	cacheDir := download.GetCacheDir()
 
 	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "", false)
 	if err != nil {
@@ -110,10 +106,7 @@ func packageBuild(c *cli.Context) error {
 func packageBuildBash(c *cli.Context) {
 	dir := util.FullPath(c.String("dir"))
 
-	cacheDir, err := download.GetCacheDir()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-	}
+	cacheDir := download.GetCacheDir()
 
 	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, cacheDir, "", false)
 	if err != nil {

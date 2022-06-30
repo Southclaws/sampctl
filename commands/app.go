@@ -13,6 +13,7 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/joho/godotenv"
 	_ "github.com/joho/godotenv/autoload"
+	"github.com/kirsle/configdir"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 	"gopkg.in/urfave/cli.v1"
@@ -29,9 +30,15 @@ var (
 )
 
 func Run(args []string, version string) error {
-	cacheDir, err := download.GetCacheDir()
+	cacheDir := download.GetCacheDir()
+	err := configdir.MakePath(cacheDir)
 	if err != nil {
-		return errors.Errorf("Failed to retrieve cache directory path: %v", err)
+		return errors.Errorf("Failed to create config path", err)
+	}
+
+	err = download.MigrateOldConfig(cacheDir)
+	if err != nil {
+		return errors.Errorf("failed to migrate old config directory to new config directory", err)
 	}
 
 	app := cli.NewApp()
