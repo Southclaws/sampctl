@@ -33,12 +33,12 @@ func Run(args []string, version string) error {
 	cacheDir := download.GetCacheDir()
 	err := configdir.MakePath(cacheDir)
 	if err != nil {
-		return errors.Errorf("Failed to create config path", err)
+		return errors.Wrap(err, "Failed to create config path")
 	}
 
 	err = download.MigrateOldConfig(cacheDir)
 	if err != nil {
-		return errors.Errorf("failed to migrate old config directory to new config directory", err)
+		return errors.Wrap(err, "failed to migrate old config directory to new config directory")
 	}
 
 	app := cli.NewApp()
