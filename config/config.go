@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/kr/pretty"
 	"github.com/sampctl/configor"
@@ -19,15 +18,12 @@ import (
 // Config represents a local configuration for sampctl
 // nolint:lll
 type Config struct {
-	UserID                   string `json:"user_id"                env:"__do_not_set__"`                                     // Anonymous user ID for metrics
 	DefaultUser              string `json:"default_user"           env:"SAMPCTL_DEFAULT_USER"`                               // the default username for `package init`
 	GitHubToken              string `json:"github_token,omitempty" env:"SAMPCTL_GITHUB_TOKEN"`                               // GitHub API token for extended API rate limit
 	GitUsername              string `json:"git_username,omitempty" env:"SAMPCTL_GIT_USERNAME"`                               // Git username for private repositories
 	GitPassword              string `json:"git_password,omitempty" env:"SAMPCTL_GIT_PASSWORD"`                               // Git password for private repositories
 	HideVersionUpdateMessage *bool  `json:"hide_version_update_message,omitempty" env:"SAMPCTL_HIDE_VERSION_UPDATE_MESSAGE"` // Hides the version update message reminder
-
-	CI      string `json:"-" yaml:"-"             env:"CI"`             // So sampctl can detect if it's running inside GitLab CI/CD or TravisCI
-	NewUser bool   `json:"-" yaml:"-"             env:"__do_not_set__"` // (only used internally) whether or not it's the first-run
+	CI                       string `json:"-" yaml:"-"             env:"CI"`                                                 // So sampctl can detect if it's running inside GitLab CI/CD or TravisCI
 }
 
 // LoadOrCreateConfig reads a config file from the given cache directory
@@ -64,11 +60,6 @@ func LoadOrCreateConfig(cacheDir string, verbose bool) (cfg *Config, err error) 
 			return nil, err
 		}
 
-		if cfg.UserID == "" {
-			cfg.UserID = uuid.New().String()
-			cfg.NewUser = true
-		}
-
 		if cfg.HideVersionUpdateMessage == nil {
 			value := false
 			cfg.HideVersionUpdateMessage = &value
@@ -87,9 +78,6 @@ func LoadOrCreateConfig(cacheDir string, verbose bool) (cfg *Config, err error) 
 		} else {
 			username = u.Username
 		}
-
-		cfg.UserID = uuid.New().String()
-		cfg.NewUser = true
 
 		value := false
 		cfg.HideVersionUpdateMessage = &value
