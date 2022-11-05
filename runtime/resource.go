@@ -3,7 +3,6 @@ package runtime
 import (
 	"crypto/md5"
 	"encoding/hex"
-	"fmt"
 	"io/ioutil"
 	"strings"
 
@@ -137,7 +136,6 @@ func MatchesChecksum(src, platform, cacheDir, version string) (ok bool, err erro
 	}
 
 	checksum := md5.Sum([]byte(contents))
-	fmt.Printf("server package has checksum '%x' and wants checksum '%s'\n", checksum, want)
 
 	return hex.EncodeToString(checksum[:]) == want, nil
 }
