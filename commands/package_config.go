@@ -5,13 +5,13 @@ import (
 	"reflect"
 	"strconv"
 
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/pkg/errors"
+	"gopkg.in/urfave/cli.v1"
+
 	"github.com/Southclaws/sampctl/config"
 	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
-	"github.com/jedib0t/go-pretty/v6/table"
-
-	"github.com/pkg/errors"
-	"gopkg.in/urfave/cli.v1"
 )
 
 var packageConfigFlags = []cli.Flag{
@@ -59,7 +59,7 @@ func packageConfig(c *cli.Context) error {
 		{
 			f.SetString(value)
 		}
-	case reflect.Pointer:
+	case reflect.UnsafePointer:
 		{
 			fieldType := reflect.Indirect(f)
 			switch fieldType.Kind() {
@@ -98,7 +98,7 @@ func displayConfig(v reflect.Value) {
 					{fieldType.Name, v},
 				})
 			}
-		case reflect.Pointer:
+		case reflect.UnsafePointer:
 			{
 				pField := reflect.Indirect(field)
 				switch pField.Kind() {
