@@ -14,10 +14,10 @@ release:
     FROM goreleaser/goreleaser:v1.12.3
     WORKDIR /app
     COPY . .
-    RUN goreleaser release --rm-dist --skip-publish
+    RUN --secret GITHUB_TOKEN goreleaser release --rm-dist --skip-publish
 
 release-push:
     FROM goreleaser/goreleaser:v1.12.3
     WORKDIR /app
     COPY . .
-    RUN goreleaser release --rm-dist
+    RUN --secret GITHUB_TOKEN goreleaser release --rm-dist

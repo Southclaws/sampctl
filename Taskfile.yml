@@ -81,8 +81,8 @@ tasks:
 
   earthly:release:
     cmds:
-      - earthly --secret FULL_ACCESS_GITHUB_TOKEN +release
+      - earthly --secret GITHUB_TOKEN=$FULL_ACCESS_GITHUB_TOKEN +release
 
   earthly:release-push:
     cmds:
-      - earthly --secret FULL_ACCESS_GITHUB_TOKEN +release-push
+      - earthly --secret GITHUB_TOKEN=$FULL_ACCESS_GITHUB_TOKEN +release-push
