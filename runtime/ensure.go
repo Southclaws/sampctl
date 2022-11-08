@@ -57,26 +57,12 @@ func Ensure(ctx context.Context, gh *github.Client, cfg *run.Runtime, noCache bo
 
 // EnsureBinaries ensures the dir has all the necessary files to run a server
 func EnsureBinaries(cacheDir string, cfg run.Runtime) (err error) {
-	missing := false
-
-	if !util.Exists(filepath.Join(cfg.WorkingDir, getNpcBinary(cacheDir, cfg.Version, cfg.Platform))) {
-		missing = true
-	}
-	if !util.Exists(filepath.Join(cfg.WorkingDir, getAnnounceBinary(cacheDir, cfg.Version, cfg.Platform))) {
-		missing = true
-	}
-	if !util.Exists(filepath.Join(cfg.WorkingDir, getServerBinary(cacheDir, cfg.Version, cfg.Platform))) {
-		missing = true
+	err = GetServerPackage(cfg.Version, cfg.WorkingDir, cfg.Platform)
+	if err != nil {
+		return errors.Wrap(err, "failed to get runtime package")
 	}
 
-	if missing {
-		err = GetServerPackage(cfg.Version, cfg.WorkingDir, cfg.Platform)
-		if err != nil {
-			return errors.Wrap(err, "failed to get runtime package")
-		}
-	}
-
-	return
+	return nil
 }
 
 // EnsureScripts checks that all the declared scripts are present
