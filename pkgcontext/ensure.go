@@ -118,14 +118,14 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 		print.Verb(meta, "need to clone new copy from cache")
 		repo, err = pcx.EnsureDependencyFromCache(meta, dependencyPath, false)
 		if err != nil {
-			errInner := errors.Wrap(err, "failed to ensure dependency from cache")
-			if errInner != nil {
-				return
-			}
-
-			errInner = os.RemoveAll(dependencyPath)
+			errInner := os.RemoveAll(dependencyPath)
 			if errInner != nil {
 				return errors.Wrap(errInner, "failed to remove corrupted dependency repo")
+			}
+
+			errInner = errors.Wrap(err, "failed to ensure dependency from cache")
+			if errInner != nil {
+				return errInner
 			}
 			return
 		}
