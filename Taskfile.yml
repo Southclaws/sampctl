@@ -74,3 +74,15 @@ tasks:
   env:centos:
     cmds:
       - docker run -it -v{{.PATH}}:/sampctl centos
+
+  earthly:test:
+    cmds:
+      - earthly --secret FULL_ACCESS_GITHUB_TOKEN +test
+
+  earthly:release:
+    cmds:
+      - earthly --secret FULL_ACCESS_GITHUB_TOKEN +release
+
+  earthly:release-push:
+    cmds:
+      - earthly --secret FULL_ACCESS_GITHUB_TOKEN +release-push
