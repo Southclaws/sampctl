@@ -25,4 +25,4 @@ jobs:
       - name: Earthly version
         run: earthly --version
       - name: Run build
-        run: earthly --ci --secrets FULL_ACCESS_GITHUB_TOKEN +test
+        run: earthly --ci --secret FULL_ACCESS_GITHUB_TOKEN +test
