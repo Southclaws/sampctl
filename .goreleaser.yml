@@ -38,10 +38,10 @@ dockers:
     ids: ['sampctl']
     dockerfile: Dockerfile
     image_templates:
-      - "southclaws/sampctl:{{ .Tag }}"
-      - "southclaws/sampctl:v{{ .Major }}"
-      - "southclaws/sampctl:v{{ .Major }}.{{ .Minor }}"
-      - "southclaws/sampctl:latest"
+      - "gcr.io/southclaws/sampctl:{{ .Tag }}"
+      - "gcr.io/southclaws/sampctl:v{{ .Major }}"
+      - "gcr.io/southclaws/sampctl:v{{ .Major }}.{{ .Minor }}"
+      - "gcr.io/southclaws/sampctl:latest"
 nfpms:
   - vendor: Southclaws
     homepage: https://github.com/Southclaws/sampctl
