@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+
+	"github.com/Southclaws/sampctl/util"
 )
 
 // Runtimes is a collection of Package objects for sorting
@@ -86,11 +88,29 @@ func UpdateRuntimeList(cacheDir string) (err error) {
 		return errors.Wrap(err, "failed to encode runtimes list")
 	}
 
-	runtimesFile := filepath.Join(cacheDir, "runtimes.json")
-	err = ioutil.WriteFile(runtimesFile, contents, 0700)
+	err = WriteRuntimeCacheFile(cacheDir, contents)
 	if err != nil {
-		return errors.Wrap(err, "failed to write package list to file")
+		return err
 	}
 
 	return
+}
+
+func WriteRuntimeCacheFile(cacheDir string, data []byte) error {
+	var err error
+	if !util.Exists(cacheDir) {
+		err = os.MkdirAll(cacheDir, 0700)
+		if err != nil {
+			err = errors.Wrap(err, "failed to create path to cache directory")
+			return err
+		}
+	}
+
+	runtimesFile := filepath.Join(cacheDir, "runtimes.json")
+	err = ioutil.WriteFile(runtimesFile, data, 0700)
+	if err != nil {
+		return errors.Wrap(err, "failed to write runtime list to file")
+	}
+
+	return nil
 }

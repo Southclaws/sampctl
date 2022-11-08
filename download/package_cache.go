@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/pawnpackage"
+	"github.com/Southclaws/sampctl/util"
 )
 
 // GetPackageList gets a list of known packages from the sampctl package service, if the list does
@@ -69,11 +70,29 @@ func UpdatePackageList(cacheDir string) (err error) {
 		return errors.Wrap(err, "failed to encode packages list")
 	}
 
-	packageFile := filepath.Join(cacheDir, "packages.json")
-	err = ioutil.WriteFile(packageFile, contents, 0700)
+	err = WritePackageCacheFile(cacheDir, contents)
+	if err != nil {
+		return err
+	}
+
+	return
+}
+
+func WritePackageCacheFile(cacheDir string, data []byte) error {
+	var err error
+	if !util.Exists(cacheDir) {
+		err = os.MkdirAll(cacheDir, 0700)
+		if err != nil {
+			err = errors.Wrap(err, "failed to create path to cache directory")
+			return err
+		}
+	}
+
+	runtimesFile := filepath.Join(cacheDir, "compilers.json")
+	err = ioutil.WriteFile(runtimesFile, data, 0700)
 	if err != nil {
 		return errors.Wrap(err, "failed to write package list to file")
 	}
 
-	return
+	return nil
 }

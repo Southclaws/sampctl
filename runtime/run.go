@@ -48,15 +48,6 @@ func Run(
 	binary := "./" + getServerBinary(cacheDir, cfg.Version, cfg.Platform)
 	fullPath := filepath.Join(cfg.WorkingDir, binary)
 
-	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
-		return errors.Errorf("runtime binary does not exist at this location: %s", fullPath)
-	}
-
-	err = os.Chmod(fullPath, 0777)
-	if err != nil {
-		return err
-	}
-
 	print.Verb("starting", binary, "in", cfg.WorkingDir)
 
 	return dorun(ctx, fullPath, cfg.Mode, recover, output, input)
