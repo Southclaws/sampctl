@@ -31,6 +31,13 @@ type testResults struct {
 	Fails int
 }
 
+// termination is an internal instruction for communicating successful or failed runs.
+// It contains an error and a boolean to indicate whether or not to terminate the process.
+type termination struct {
+	err  error
+	exit bool
+}
+
 // Run handles the actual running of the server process - it collects log output too
 func Run(
 	ctx context.Context,
@@ -62,13 +69,6 @@ func dorun(
 	output io.Writer,
 	input io.Reader,
 ) (err error) {
-	// termination is an internal instruction for communicating successful or failed runs.
-	// It contains an error and a boolean to indicate whether or not to terminate the process.
-	type termination struct {
-		err  error
-		exit bool
-	}
-
 	outputReader, outputWriter := io.Pipe()
 	streamChan := make(chan string)    // channel for lines of output text
 	errChan := make(chan termination)  // channel for sending runtime errors to watchdog
@@ -81,6 +81,128 @@ func dorun(
 		}
 	}()
 
+	readBinaryOutput(
+		runType,
+		outputReader,
+		errChan,
+		streamChan,
+	)
+
+	print.Verb("running with mode", runType)
+
+	var cmd *exec.Cmd
+	go func () {
+		cmd = runBinary(
+			ctx,
+			binary,
+			runType,
+			recover,
+			outputWriter,
+			input,
+			errChan,
+		)
+	}()
+
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	var term termination
+loop:
+	for {
+		select {
+		case line := <-streamChan:
+			fmt.Fprintln(output, line)
+
+		case s := <-sigChan:
+			term.err = errors.Errorf("received signal: %v", s)
+			break loop
+
+		case term = <-errChan:
+			break loop
+		}
+	}
+	print.Verb("finished server execution with:", term)
+
+	err = errors.Wrap(term.err, "received runtime error")
+
+	if term.exit {
+		if cmd.Process != nil {
+			killErr := cmd.Process.Kill()
+			if killErr != nil {
+				print.Erro("Failed to kill", killErr)
+			}
+			print.Verb("sent a SIGINT to child process")
+		} else {
+			print.Verb("not attempting to kill server: cmd.Process is nil")
+		}
+	}
+
+	print.Verb("finished run() with", err)
+
+	return err
+}
+
+func runBinary(
+	ctx context.Context,
+	binary string,
+	runType run.RunMode,
+	recover bool,
+	outputWriter io.Writer,
+	input io.Reader,
+	errChan chan termination,
+) (cmd *exec.Cmd) {
+	var (
+		startTime          time.Time     // time of most recent start/restart
+		exponentialBackoff = time.Second // exponential backoff cooldown
+	)
+	for {
+		cmd = exec.CommandContext(ctx, binary) //nolint:gas
+		cmd.Dir = filepath.Dir(binary)
+
+		startTime = time.Now()
+		errInline := platformRun(cmd, outputWriter, input)
+		if errInline != nil {
+			errChan <- termination{errors.Wrap(errInline, "failed to start server"), false}
+		}
+
+		if cmd.Process != nil {
+			print.Verb("child exec thread finished, pid:", cmd.Process.Pid, "error:", errInline)
+		} else {
+			print.Verb("child exec thread finished, error:", errInline)
+		}
+
+		if runType == run.Server && recover {
+			runTime := time.Since(startTime)
+
+			if runTime < time.Minute {
+				exponentialBackoff *= 2
+				print.Verb("doubling backoff time", exponentialBackoff)
+			} else {
+				exponentialBackoff = time.Second
+				print.Verb("initial backoff", exponentialBackoff)
+			}
+
+			if exponentialBackoff < time.Second*15 {
+				print.Warn("crash loop backoff for", exponentialBackoff, "reason:", errInline)
+				time.Sleep(exponentialBackoff)
+				continue
+			}
+			errChan <- termination{errors.Errorf("too many crashloops, last error: %v", errInline), false}
+		} else {
+			errChan <- termination{}
+		}
+
+		break
+	}
+
+	return
+}
+
+func readBinaryOutput(
+	runType run.RunMode,
+	outputReader *io.PipeReader,
+	errChan chan termination,
+	streamChan chan string,
+) {
 	switch runType {
 	case run.MainOnly:
 		go func() {
@@ -156,92 +278,6 @@ func dorun(
 			}
 		}()
 	}
-
-	print.Verb("running with mode", runType)
-
-	var cmd *exec.Cmd
-	go func() {
-		var (
-			startTime          time.Time     // time of most recent start/restart
-			exponentialBackoff = time.Second // exponential backoff cooldown
-		)
-		for {
-			cmd = exec.CommandContext(ctx, binary) //nolint:gas
-			cmd.Dir = filepath.Dir(binary)
-
-			startTime = time.Now()
-			errInline := platformRun(cmd, outputWriter, input)
-			if errInline != nil {
-				errChan <- termination{errors.Wrap(errInline, "failed to start server"), false}
-			}
-
-			if cmd.Process != nil {
-				print.Verb("child exec thread finished, pid:", cmd.Process.Pid, "error:", errInline)
-			} else {
-				print.Verb("child exec thread finished, error:", errInline)
-			}
-
-			if runType == run.Server && recover {
-				runTime := time.Since(startTime)
-
-				if runTime < time.Minute {
-					exponentialBackoff *= 2
-					print.Verb("doubling backoff time", exponentialBackoff)
-				} else {
-					exponentialBackoff = time.Second
-					print.Verb("initial backoff", exponentialBackoff)
-				}
-
-				if exponentialBackoff < time.Second*15 {
-					print.Warn("crash loop backoff for", exponentialBackoff, "reason:", errInline)
-					time.Sleep(exponentialBackoff)
-					continue
-				}
-				errChan <- termination{errors.Errorf("too many crashloops, last error: %v", errInline), false}
-			} else {
-				errChan <- termination{}
-			}
-
-			break
-		}
-	}()
-
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-
-	var term termination
-loop:
-	for {
-		select {
-		case line := <-streamChan:
-			fmt.Fprintln(output, line)
-
-		case s := <-sigChan:
-			term.err = errors.Errorf("received signal: %v", s)
-			break loop
-
-		case term = <-errChan:
-			break loop
-		}
-	}
-	print.Verb("finished server execution with:", term)
-
-	err = errors.Wrap(term.err, "received runtime error")
-
-	if term.exit {
-		if cmd.Process != nil {
-			killErr := cmd.Process.Kill()
-			if killErr != nil {
-				print.Erro("Failed to kill", killErr)
-			}
-			print.Verb("sent a SIGINT to child process")
-		} else {
-			print.Verb("not attempting to kill server: cmd.Process is nil")
-		}
-	}
-
-	print.Verb("finished run() with", err)
-
-	return err
 }
 
 func testResultsFromLine(line string) (results testResults) {
