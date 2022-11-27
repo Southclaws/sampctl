@@ -32,7 +32,7 @@ func platformRun(cmd *exec.Cmd, w io.Writer, r io.Reader) (err error) {
 				return innerError
 			}
 			statusCode := ntstatus.NTStatus(uint32(statusCodeInt))
-			err = errors.Errorf("exit status %s\n", statusCode.String())
+			err = errors.Errorf("exit status %s", statusCode.String())
 		}
 	}
 
