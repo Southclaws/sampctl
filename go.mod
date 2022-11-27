@@ -36,6 +36,7 @@ require (
 	github.com/Microsoft/go-winio v0.6.0 // indirect
 	github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20221026131551-cf6655e29de4 // indirect
+	github.com/UserExistsError/conpty v0.1.0 // indirect
 	github.com/acomagu/bufpipe v1.0.3 // indirect
 	github.com/cloudflare/circl v1.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect

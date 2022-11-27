@@ -6,34 +6,56 @@ package runtime
 import (
 	"io"
 	"os/exec"
-	"strconv"
-	"strings"
+	"sync"
 
+	"github.com/UserExistsError/conpty"
 	"github.com/pkg/errors"
-	"rs3.io/go/mserr/ntstatus"
+
+	"github.com/Southclaws/sampctl/print"
 )
 
 func platformRun(cmd *exec.Cmd, w io.Writer, r io.Reader) (err error) {
-	cmd.Stderr = w
-	cmd.Stdout = w
-	cmd.Stdin = r
-	err = cmd.Run()
-	// process kill on windows: "exit status 1"
+	cpty, err := conpty.Start(cmd.Path)
 	if err != nil {
-		if err.Error() == "exit status 1" {
-			err = nil
-			return
-		}
+		return errors.Wrap(err, "failed to start pty")
+	}
+	if cpty == nil {
+		return errors.New("failed to create new pty, cpty is null")
+	}
 
-		if strings.Contains(err.Error(), "exit status") {
-			statusCodeStr := strings.Split(err.Error(), " ")[2]
-			statusCodeInt, innerError := strconv.ParseInt(statusCodeStr, 0, 64)
-			if innerError != nil {
-				return innerError
-			}
-			statusCode := ntstatus.NTStatus(uint32(statusCodeInt))
-			err = errors.Errorf("exit status %s", statusCode.String())
+	defer func() {
+		errDefer := cpty.Close()
+		if errDefer != nil {
+			panic(errDefer)
 		}
+	}()
+
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+
+	rdErrCh := make(chan error, 1)
+	wrErrCh := make(chan error, 1)
+
+	go func() {
+		_, errInner := io.Copy(cpty, r)
+		rdErrCh <- errInner
+		wg.Done()
+	}()
+	go func() {
+		_, errInner := io.Copy(w, cpty)
+		wrErrCh <- errInner
+		wg.Done()
+	}()
+
+	wg.Wait()
+
+	errRead := <-rdErrCh
+	if errRead != nil {
+		print.Verb("read error", errRead)
+	}
+	errWrite := <-wrErrCh
+	if errWrite != nil {
+		print.Verb("write error", errWrite)
 	}
 
 	return
