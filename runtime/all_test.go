@@ -17,7 +17,7 @@ import (
 var gh *github.Client
 
 func TestMain(m *testing.M) {
-	godotenv.Load("../.env", "../../.env")
+	_ = godotenv.Load("../.env", "../../.env")
 
 	token := os.Getenv("FULL_ACCESS_GITHUB_TOKEN")
 	if len(token) == 0 {
@@ -46,9 +46,9 @@ func TestMain(m *testing.M) {
 }
 
 func fakeServerDir(path string) {
-	os.MkdirAll(filepath.Join(path, "gamemodes"), 0700)
-	os.MkdirAll(filepath.Join(path, "filterscripts"), 0700)
-	os.MkdirAll(filepath.Join(path, "plugins"), 0700)
+	_ = os.MkdirAll(filepath.Join(path, "gamemodes"), 0700)
+	_ = os.MkdirAll(filepath.Join(path, "filterscripts"), 0700)
+	_ = os.MkdirAll(filepath.Join(path, "plugins"), 0700)
 	f, _ := os.Create(filepath.Join(path, "gamemodes", "rivershell.amx"))
 	f.Close() // nolint
 	f, _ = os.Create(filepath.Join(path, "filterscripts", "admin.amx"))

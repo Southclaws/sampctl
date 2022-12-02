@@ -37,11 +37,7 @@ func packageUninstall(c *cli.Context) error {
 		return nil
 	}
 
-	cacheDir, err := download.GetCacheDir()
-	if err != nil {
-		print.Erro("Failed to retrieve cache directory path (attempted <user folder>/.samp) ")
-		return err
-	}
+	cacheDir := download.GetCacheDir()
 
 	deps := []versioning.DependencyString{}
 	for _, dep := range c.Args() {

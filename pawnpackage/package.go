@@ -303,7 +303,7 @@ func (pkg Package) GetBuildConfig(name string) (config *build.Config) {
 			config = pkg.Builds[0]
 
 			if pkg.Build != nil {
-				mergo.Merge(&config, pkg.Builds[0])
+				_ = mergo.Merge(&config, pkg.Builds[0])
 			}
 		}
 	} else {
@@ -312,7 +312,7 @@ func (pkg Package) GetBuildConfig(name string) (config *build.Config) {
 				config = cfg
 
 				if pkg.Build != nil {
-					mergo.Merge(config, pkg.Build)
+					_ = mergo.Merge(config, pkg.Build)
 				}
 
 				break
@@ -356,7 +356,7 @@ func (pkg Package) GetRuntimeConfig(name string) (config run.Runtime, err error)
 			config = *pkg.Runtimes[0]
 
 			if pkg.Runtime != nil {
-				mergo.Merge(&config, pkg.Runtime)
+				_ = mergo.Merge(&config, pkg.Runtime)
 			}
 
 			print.Verb(pkg, "searching", name, "in 'runtimes' list")
@@ -369,7 +369,7 @@ func (pkg Package) GetRuntimeConfig(name string) (config run.Runtime, err error)
 					found = true
 
 					if pkg.Runtime != nil {
-						mergo.Merge(&config, pkg.Runtime)
+						_ = mergo.Merge(&config, pkg.Runtime)
 					}
 
 					break

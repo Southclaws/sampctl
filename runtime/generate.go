@@ -32,7 +32,10 @@ func GenerateServerCfg(cfg *run.Runtime) (err error) {
 
 	// make some minor changes to the cfg before using it
 	adjustForOS(cfg.WorkingDir, cfg.Platform, cfg)
-	file.WriteString(echoMessage + "\n")
+	_, err = file.WriteString(echoMessage + "\n")
+	if err != nil {
+		return err
+	}
 
 	v := reflect.ValueOf(*cfg)
 	t := reflect.TypeOf(*cfg)

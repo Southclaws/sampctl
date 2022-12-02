@@ -1,7 +1,7 @@
 package runtime
 
 import (
-	"crypto/md5" //nolint:gas
+	"crypto/md5"
 	"encoding/hex"
 	"io/ioutil"
 	"strings"
@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/print"
 )
 
 func getServerBinary(cacheDir, version, platform string) (binary string) {
@@ -107,6 +108,8 @@ func getAnnounceBinary(cacheDir, version, platform string) (binary string) {
 // MatchesChecksum checks if the file at the given path src is the correct file for the specified
 // runtime package via MD5 sum
 func MatchesChecksum(src, platform, cacheDir, version string) (ok bool, err error) {
+	print.Verb("attempting to match checksum from source", src, "on platform", platform, "with the cache located at", cacheDir, "and with version", version)
+
 	pkg, err := FindPackage(cacheDir, version)
 	if err != nil {
 		return
@@ -116,6 +119,11 @@ func MatchesChecksum(src, platform, cacheDir, version string) (ok bool, err erro
 	if err != nil {
 		return false, errors.Wrap(err, "failed to read downloaded server package")
 	}
+	if len(contents) == 0 {
+		return false, errors.Errorf("server package contents located at '%s' is empty", src)
+	}
+
+	print.Verb("checksum for linux/mac", pkg.LinuxChecksum, "and for windows", pkg.Win32Checksum)
 
 	want := ""
 	switch platform {
@@ -126,13 +134,10 @@ func MatchesChecksum(src, platform, cacheDir, version string) (ok bool, err erro
 	default:
 		return false, errors.New("platform not supported")
 	}
-	hasher := md5.New() // nolint:gas
-	_, err = hasher.Write(contents)
-	if err != nil {
-		return false, errors.Wrap(err, "failed to write to md5 hasher")
-	}
 
-	return hex.EncodeToString(hasher.Sum(nil)) == want, nil
+	checksum := md5.Sum([]byte(contents))
+
+	return hex.EncodeToString(checksum[:]) == want, nil
 }
 
 // FindPackage returns a server resource package for the given version or nil if it's invalid

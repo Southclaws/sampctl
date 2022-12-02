@@ -14,10 +14,7 @@ import (
 
 // GetServerPackage checks if a cached package is available and if not, downloads it to dir
 func GetServerPackage(version, dir, platform string) (err error) {
-	cacheDir, err := download.GetCacheDir()
-	if err != nil {
-		return errors.Wrap(err, "failed to get or create cache directory")
-	}
+	cacheDir := download.GetCacheDir()
 
 	hit, err := FromCache(cacheDir, version, dir, platform)
 	if err != nil {
@@ -91,10 +88,16 @@ func FromNet(cacheDir, version, dir, platform string) (err error) {
 
 	ok, err := MatchesChecksum(fullPath, platform, cacheDir, version)
 	if err != nil {
-		os.Remove(fullPath)
+		innerError := os.Remove(fullPath)
+		if innerError != nil {
+			return errors.Errorf("failed to remove path for: %s", fullPath)
+		}
 		return errors.Wrap(err, "failed to match checksum")
 	} else if !ok {
-		os.Remove(fullPath)
+		innerError := os.Remove(fullPath)
+		if innerError != nil {
+			return errors.Errorf("failed to remove path for: %s", fullPath)
+		}
 		return errors.Errorf("server binary does not match checksum for version %s", version)
 	}
 

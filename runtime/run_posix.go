@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package runtime
@@ -7,9 +8,10 @@ import (
 	"os/exec"
 	"sync"
 
-	"github.com/Southclaws/sampctl/print"
 	"github.com/creack/pty"
 	"github.com/pkg/errors"
+
+	"github.com/Southclaws/sampctl/print"
 )
 
 func platformRun(cmd *exec.Cmd, w io.Writer, r io.Reader) (err error) {

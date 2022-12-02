@@ -11,8 +11,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Southclaws/sampctl/util"
 	"github.com/pkg/errors"
+
+	"github.com/Southclaws/sampctl/util"
 )
 
 // Untar takes a destination path and a reader; a tar reader loops over the tarfile

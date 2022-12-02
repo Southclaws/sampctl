@@ -12,27 +12,21 @@ jobs:
     name: release
     runs-on: ubuntu-latest
     env:
-      GORELEASER_GITHUB_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
-      ACTIONS_ALLOW_UNSECURE_COMMANDS: "true"
+      FORCE_COLOR: 1
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.17.3
-      - name: Logging into docker
-        uses: azure/docker-login@v1
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v2
-        with:
-          version: latest
-          args: release --rm-dist
-        env:
-          GITHUB_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
-          GORELEASER_GITHUB_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
+      - uses: actions/checkout@v3
+      - name: Put back the git branch into git (Earthly uses it for tagging)
+        run: |
+          branch=""
+          if [ -n "$GITHUB_HEAD_REF" ]; then
+            branch="$GITHUB_HEAD_REF"
+          else
+            branch="${GITHUB_REF##*/}"
+          fi
+          git checkout -b "$branch" || true
+      - name: Download latest earthly
+        run: "sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.6.29/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly'"
+      - name: Earthly version
+        run: earthly --version
+      - name: Run build
+        run: earthly --ci --secret GITHUB_TOKEN +release-push

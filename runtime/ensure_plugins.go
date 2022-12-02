@@ -66,7 +66,7 @@ func EnsurePlugins(
 		err = os.MkdirAll(pluginsDir, 0700)
 		if err != nil {
 			return errors.Wrap(err, "failed to create runtime plugins directory")
-		}		
+		}
 	}
 
 	return err
@@ -157,7 +157,7 @@ func EnsureVersionedPlugin(
 		base := filepath.Base(filename)
 		finalDir := filepath.Join(dir, "plugins")
 		destination := filepath.Join(finalDir, base)
-		
+
 		err = os.MkdirAll(finalDir, 0700)
 		if err != nil {
 			err = errors.Wrapf(err, "failed to create path for plugin resource %s to %s", filename, destination)
@@ -285,7 +285,7 @@ func PluginFromNet(
 	print.Info(meta, "downloading plugin resource for", platform)
 
 	resourcePathOnly := GetResourcePath(meta)
-	resourcePath := filepath.Join(cacheDir, resourcePathOnly)	
+	resourcePath := filepath.Join(cacheDir, resourcePathOnly)
 
 	err = os.MkdirAll(resourcePath, 0700)
 	if err != nil {
@@ -297,7 +297,7 @@ func PluginFromNet(
 	if err != nil {
 		err = errors.Wrap(err, "failed to get remote package definition file")
 		return
-	}	
+	}
 
 	resource, err = GetResource(pkg.Resources, platform, version)
 	if err != nil {
@@ -324,11 +324,12 @@ func PluginFromNet(
 func GetResource(resources []resource.Resource, platform string, version string) (*resource.Resource, error) {
 	if version == "" {
 		version = "0.3.7"
-	}	
+	}
 
 	found := false
 	var tmp *resource.Resource
-	for _, res := range resources {
+	for _, resource := range resources {
+		res := resource
 		if res.Platform == platform {
 			if res.Version == version {
 				tmp = &res
@@ -338,18 +339,19 @@ func GetResource(resources []resource.Resource, platform string, version string)
 		}
 	}
 	if !found {
-		for _, res := range resources {
+		for _, resource := range resources {
+			res := resource
 			if res.Platform == platform && res.Version == "" {
 				print.Verb("no resource matching version: ", version, ", falling back to the first resource matching platform: ", platform)
 				tmp = &res
 				found = true
-				break;
-			} 
+				break
+			}
 		}
 	}
 	if !found {
-		return nil, errors.Errorf("plugin does not provide binaries for target platform %s and/or version %s", platform, version)						
-	}	
+		return nil, errors.Errorf("plugin does not provide binaries for target platform %s and/or version %s", platform, version)
+	}
 
 	if err := tmp.Validate(); err != nil {
 		return nil, errors.Wrap(err, "matching resource found but is invalid")

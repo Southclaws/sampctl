@@ -13,6 +13,7 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/joho/godotenv"
 	_ "github.com/joho/godotenv/autoload"
+	"github.com/kirsle/configdir"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 	"gopkg.in/urfave/cli.v1"
@@ -29,9 +30,15 @@ var (
 )
 
 func Run(args []string, version string) error {
-	cacheDir, err := download.GetCacheDir()
+	cacheDir := download.GetCacheDir()
+	err := configdir.MakePath(cacheDir)
 	if err != nil {
-		return errors.Errorf("Failed to retrieve cache directory path: %v", err)
+		return errors.Wrap(err, "Failed to create config path")
+	}
+
+	err = download.MigrateOldConfig(cacheDir)
+	if err != nil {
+		return errors.Wrap(err, "failed to migrate old config directory to new config directory")
 	}
 
 	app := cli.NewApp()
@@ -40,6 +47,10 @@ func Run(args []string, version string) error {
 		{
 			Name:  "Southclaws",
 			Email: "hello@southcla.ws",
+		},
+		{
+			Name:  "JustMichael",
+			Email: "michael@sag.gs",
 		},
 	}
 	app.Name = "sampctl"
@@ -70,98 +81,96 @@ func Run(args []string, version string) error {
 	//nolint:lll
 	app.Commands = []cli.Command{
 		{
-			Name:        "package",
-			Aliases:     []string{"p"},
-			Usage:       "sampctl package <subcommand>",
-			Description: "For managing Pawn packages such as gamemodes and libraries.",
+			Name:        "init",
+			Usage:       "sampctl init",
+			Description: "Helper tool to bootstrap a new package or turn an existing project into a package.",
+			Action:      packageInit,
+			Flags:       append(globalFlags, packageInitFlags...),
+		},
+		{
+			Name:        "ensure",
+			Usage:       "sampctl ensure",
+			Description: "Ensures dependencies are up to date based on the `dependencies` field in `pawn.json`/`pawn.yaml`.",
+			Action:      packageEnsure,
+			Flags:       append(globalFlags, packageEnsureFlags...),
+		},
+		{
+			Name:         "install",
+			Usage:        "sampctl install [package definition]",
+			Description:  "Installs a new package by adding it to the `dependencies` field in `pawn.json`/`pawn.yaml` and downloads the contents.",
+			Action:       packageInstall,
+			Flags:        append(globalFlags, packageInstallFlags...),
+			BashComplete: packageInstallBash,
+		},
+		{
+			Name:        "uninstall",
+			Usage:       "sampctl uninstall [package definition]",
+			Description: "Uninstalls package by removing it from the `dependencies` field in `pawn.json`/`pawn.yaml` and deletes the contents.",
+			Action:      packageUninstall,
+			Flags:       append(globalFlags, packageUninstallFlags...),
+		},
+		{
+			Name:        "release",
+			Usage:       "sampctl release",
+			Description: "Creates a release version and tags the repository with the next version number, creates a GitHub release with archived package files.",
+			Action:      packageRelease,
+			Flags:       append(globalFlags, packageReleaseFlags...),
+		},
+		{
+			Name:        "config",
+			Usage:       "configure config options",
+			Description: "Allows configuring the field values for the config",
+			Action:      packageConfig,
+			Flags:       append(globalFlags, packageConfigFlags...),
+		},
+		{
+			Name:         "get",
+			Usage:        "sampctl get [package definition] (target path)",
+			Description:  "Clones a GitHub package to either a directory named after the repo or, if the cwd is empty, the cwd and then ensures the package.",
+			Action:       packageGet,
+			Flags:        append(globalFlags, packageGetFlags...),
+			BashComplete: packageGetBash,
+		},
+		{
+			Name:         "build",
+			Usage:        "sampctl build [build name]",
+			Description:  "Builds a package defined by a `pawn.json`/`pawn.yaml` file.",
+			Action:       packageBuild,
+			Flags:        append(globalFlags, packageBuildFlags...),
+			BashComplete: packageBuildBash,
+		},
+		{
+			Name:        "run",
+			Usage:       "sampctl run",
+			Description: "Compiles and runs a package defined by a `pawn.json`/`pawn.yaml` file.",
+			Action:      packageRun,
+			Flags:       append(globalFlags, packageRunFlags...),
+		},
+		{
+			Name:        "template",
+			Usage:       "sampctl template <subcommand>",
+			Description: "Provides commands for package templates",
 			Subcommands: []cli.Command{
 				{
-					Name:        "init",
-					Usage:       "sampctl package init",
-					Description: "Helper tool to bootstrap a new package or turn an existing project into a package.",
-					Action:      packageInit,
-					Flags:       append(globalFlags, packageInitFlags...),
+					Name:        "make",
+					Usage:       "sampctl template make [name]",
+					Description: "Creates a template package from the current directory if it is a package.",
+					Action:      packageTemplateMake,
+					Flags:       append(globalFlags, packageTemplateMakeFlags...),
 				},
 				{
-					Name:        "ensure",
-					Usage:       "sampctl package ensure",
-					Description: "Ensures dependencies are up to date based on the `dependencies` field in `pawn.json`/`pawn.yaml`.",
-					Action:      packageEnsure,
-					Flags:       append(globalFlags, packageEnsureFlags...),
-				},
-				{
-					Name:         "install",
-					Usage:        "sampctl package install [package definition]",
-					Description:  "Installs a new package by adding it to the `dependencies` field in `pawn.json`/`pawn.yaml` and downloads the contents.",
-					Action:       packageInstall,
-					Flags:        append(globalFlags, packageInstallFlags...),
-					BashComplete: packageInstallBash,
-				},
-				{
-					Name:        "uninstall",
-					Usage:       "sampctl package uninstall [package definition]",
-					Description: "Uninstalls package by removing it from the `dependencies` field in `pawn.json`/`pawn.yaml` and deletes the contents.",
-					Action:      packageUninstall,
-					Flags:       append(globalFlags, packageUninstallFlags...),
-					// BashComplete: packageUninstallBash,
-				},
-				{
-					Name:        "release",
-					Usage:       "sampctl package release",
-					Description: "Creates a release version and tags the repository with the next version number, creates a GitHub release with archived package files.",
-					Action:      packageRelease,
-					Flags:       append(globalFlags, packageReleaseFlags...),
-				},
-				{
-					Name:         "get",
-					Usage:        "sampctl package get [package definition] (target path)",
-					Description:  "Clones a GitHub package to either a directory named after the repo or, if the cwd is empty, the cwd and then ensures the package.",
-					Action:       packageGet,
-					Flags:        append(globalFlags, packageGetFlags...),
-					BashComplete: packageGetBash,
-				},
-				{
-					Name:         "build",
-					Usage:        "sampctl package build [build name]",
-					Description:  "Builds a package defined by a `pawn.json`/`pawn.yaml` file.",
-					Action:       packageBuild,
-					Flags:        append(globalFlags, packageBuildFlags...),
-					BashComplete: packageBuildBash,
+					Name:        "build",
+					Usage:       "sampctl template build [template] [filename]",
+					Description: "Builds the specified file in the context of the given template.",
+					Action:      packageTemplateBuild,
+					Flags:       append(globalFlags, packageTemplateBuildFlags...),
 				},
 				{
 					Name:        "run",
-					Usage:       "sampctl package run",
-					Description: "Compiles and runs a package defined by a `pawn.json`/`pawn.yaml` file.",
-					Action:      packageRun,
-					Flags:       append(globalFlags, packageRunFlags...),
-				},
-				{
-					Name:        "template",
-					Usage:       "sampctl package template <subcommand>",
-					Description: "Provides commands for package templates",
-					Subcommands: []cli.Command{
-						{
-							Name:        "make",
-							Usage:       "sampctl package template make [name]",
-							Description: "Creates a template package from the current directory if it is a package.",
-							Action:      packageTemplateMake,
-							Flags:       append(globalFlags, packageTemplateMakeFlags...),
-						},
-						{
-							Name:        "build",
-							Usage:       "sampctl package template build [template] [filename]",
-							Description: "Builds the specified file in the context of the given template.",
-							Action:      packageTemplateBuild,
-							Flags:       append(globalFlags, packageTemplateBuildFlags...),
-						},
-						{
-							Name:        "run",
-							Usage:       "sampctl package template run [template] [filename]",
-							Description: "Builds and runs the specified file in the context of the given template.",
-							Action:      packageTemplateRun,
-							Flags:       append(globalFlags, packageTemplateRunFlags...),
-						},
-					},
+					Usage:       "sampctl template run [template] [filename]",
+					Description: "Builds and runs the specified file in the context of the given template.",
+					Action:      packageTemplateRun,
+					Flags:       append(globalFlags, packageTemplateRunFlags...),
 				},
 			},
 		},
@@ -247,11 +256,13 @@ func Run(args []string, version string) error {
 		// that are even numbers. 12:56:44 will work, 12:57:44 will not, etc...
 		// this is done because the GitHub API has rate limits and we don't want to use all our requests
 		// up on version checks when package management is more important.
-		if !c.GlobalIsSet("generate-bash-completion") &&
-			!c.GlobalIsSet("bare") &&
-			time.Now().Minute()%2 == 0 &&
-			time.Now().Second()%2 == 0 {
-			CheckForUpdates(app.Version)
+		if !*cfg.HideVersionUpdateMessage {
+			if !c.GlobalIsSet("generate-bash-completion") &&
+				!c.GlobalIsSet("bare") &&
+				time.Now().Minute()%2 == 0 &&
+				time.Now().Second()%2 == 0 {
+				CheckForUpdates(app.Version)
+			}
 		}
 		return nil
 	}

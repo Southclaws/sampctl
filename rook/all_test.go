@@ -18,7 +18,7 @@ var gh *github.Client
 var gitAuth transport.AuthMethod
 
 func TestMain(m *testing.M) {
-	godotenv.Load("../.env", "../../.env")
+	_ = godotenv.Load("../.env", "../../.env")
 
 	token := os.Getenv("FULL_ACCESS_GITHUB_TOKEN")
 	if len(token) == 0 {

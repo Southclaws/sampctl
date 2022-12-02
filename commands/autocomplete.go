@@ -6,10 +6,11 @@ import (
 	"net/http"
 	"path/filepath"
 
-	"github.com/Southclaws/sampctl/download"
-	"github.com/Southclaws/sampctl/print"
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
+
+	"github.com/Southclaws/sampctl/download"
+	"github.com/Southclaws/sampctl/print"
 )
 
 func autoComplete(c *cli.Context) (err error) {
@@ -36,11 +37,7 @@ func autoComplete(c *cli.Context) (err error) {
 		return
 	}
 
-	cacheDir, err := download.GetCacheDir()
-	if err != nil {
-		print.Erro("Failed to retrieve cache directory path (attempted <user folder>/.samp) ", err)
-		return
-	}
+	cacheDir := download.GetCacheDir()
 
 	completionFile := filepath.Join(cacheDir, "autocomplete")
 

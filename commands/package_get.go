@@ -27,11 +27,7 @@ func packageGet(c *cli.Context) error {
 		return nil
 	}
 
-	cacheDir, err := download.GetCacheDir()
-	if err != nil {
-		print.Erro("Failed to retrieve cache directory path (attempted <user folder>/.samp) ")
-		return err
-	}
+	cacheDir := download.GetCacheDir()
 
 	dep, err := versioning.DependencyString(c.Args().First()).Explode()
 	if err != nil {
@@ -54,11 +50,7 @@ func packageGet(c *cli.Context) error {
 }
 
 func packageGetBash(c *cli.Context) {
-	cacheDir, err := download.GetCacheDir()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to retrieve cache directory path (attempted <user folder>/.samp) ", err)
-		return
-	}
+	cacheDir := download.GetCacheDir()
 
 	packages, err := download.GetPackageList(cacheDir)
 	if err != nil {

@@ -41,10 +41,7 @@ func packageTemplateMake(c *cli.Context) (err error) {
 		return nil
 	}
 
-	cacheDir, err := download.GetCacheDir()
-	if err != nil {
-		return
-	}
+	cacheDir := download.GetCacheDir()
 	name := c.Args().First()
 
 	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "", false)

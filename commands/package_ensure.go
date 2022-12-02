@@ -32,11 +32,7 @@ func packageEnsure(c *cli.Context) error {
 
 	runtimeName := c.Args().Get(0)
 
-	cacheDir, err := download.GetCacheDir()
-	if err != nil {
-		print.Erro("Failed to retrieve cache directory path (attempted <user folder>/.samp) ")
-		return err
-	}
+	cacheDir := download.GetCacheDir()
 
 	dir := util.FullPath(c.String("dir"))
 	forceUpdate := c.Bool("update")

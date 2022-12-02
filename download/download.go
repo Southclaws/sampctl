@@ -5,11 +5,13 @@ package download
 import (
 	"context"
 	"io/ioutil"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/google/go-github/github"
 	"github.com/kirsle/configdir"
@@ -47,17 +49,16 @@ func ExtractFuncFromName(name string) ExtractFunc {
 }
 
 // GetCacheDir returns the full path to the user's cache directory, creating it if it doesn't exist
-func GetCacheDir() (cacheDir string, err error) {
+func GetCacheDir() (cacheDir string) {
 	cacheDir = configdir.LocalConfig("sampctl")
-	err = configdir.MakePath(cacheDir)
-	if err != nil {
-		err = errors.Wrap(err, "Failed to create config path")
-		return
-	}
+	return
+}
 
+// Migrate old config to new path
+func MigrateOldConfig(cacheDir string) error {
 	home, err := homedir.Dir()
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get home directory")
+		return errors.Wrap(err, "failed to get home directory")
 	}
 
 	// Attempt to check if the old cache directory exists and if it does
@@ -66,16 +67,16 @@ func GetCacheDir() (cacheDir string, err error) {
 	if _, err := os.Stat(oldCacheDir); !os.IsNotExist(err) {
 		err = copy.Copy(oldCacheDir, cacheDir)
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to copy old cache directory to new cache directory")
+			return errors.Wrap(err, "Failed to copy old cache directory to new cache directory")
 		}
 
 		err = os.RemoveAll(oldCacheDir)
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to remove all the contents of the old cache directory")
+			return errors.Wrap(err, "Failed to remove all the contents of the old cache directory")
 		}
 	}
 
-	return
+	return nil
 }
 
 // FromCache first checks if a file is cached, then
@@ -98,7 +99,10 @@ func FromCache(cacheDir, filename, dir string, method ExtractFunc, paths map[str
 	if platform == "linux" || platform == "darwin" {
 		print.Verb("setting permissions for binaries")
 		for _, file := range files {
-			os.Chmod(file, 0700)
+			err = os.Chmod(file, 0700)
+			if err != nil {
+				return
+			}
 		}
 	}
 
@@ -107,6 +111,8 @@ func FromCache(cacheDir, filename, dir string, method ExtractFunc, paths map[str
 
 // FromNet downloads the server package by filename from the specified location to the cache dir
 func FromNet(location, cacheDir, filename string) (result string, err error) {
+	print.Verb("attempting to download package from", location, "with the destination of", cacheDir, "with the name of", filename)
+
 	resp, err := http.Get(location)
 	if err != nil {
 		err = errors.Wrapf(err, "failed to download package from %s", location)
@@ -118,10 +124,23 @@ func FromNet(location, cacheDir, filename string) (result string, err error) {
 		}
 	}()
 
+	if resp.StatusCode != http.StatusOK {
+		return result, errors.Errorf("unexpected status code given %d", resp.StatusCode)
+	}
+
 	content, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		err = errors.Wrap(err, "failed to read download contents")
 		return
+	}
+
+	t, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	if err != nil {
+		return result, err
+	}
+
+	if !strings.HasPrefix(t, "application") {
+		return result, errors.Errorf("content has unexpected content type %s", t)
 	}
 
 	result = filepath.Join(cacheDir, filename)
@@ -161,8 +180,9 @@ func ReleaseAssetByPattern(
 	}
 
 	for _, a := range release.Assets {
+		rel := a
 		if matcher.MatchString(*a.Name) {
-			asset = &a
+			asset = &rel
 			break
 		}
 		assets = append(assets, *a.Name)

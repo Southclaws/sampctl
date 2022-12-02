@@ -258,7 +258,7 @@ func CompileWithCommand(
 			err = cmdError
 			if runtime.GOOS == "windows" && strings.Contains(cmdError.Error(), "exit status") {
 				statusCodeStr := strings.Split(cmdError.Error(), " ")[2]
-				statusCodeInt, innerError := strconv.Atoi(statusCodeStr)
+				statusCodeInt, innerError := strconv.ParseInt(statusCodeStr, 0, 64)
 				if innerError != nil {
 					return
 				}

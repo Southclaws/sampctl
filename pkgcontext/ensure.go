@@ -36,20 +36,20 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 	pcx.Package.Vendor = filepath.Join(pcx.Package.LocalPath, "dependencies")
 
 	for _, dependency := range pcx.AllDependencies {
+		dep := dependency
 		r := retrier.New(retrier.ConstantBackoff(1, 100*time.Millisecond), nil)
 		err := r.Run(func() error {
-			print.Verb("attempting to ensure dependency", dependency)
-			errInner := pcx.EnsurePackage(dependency, forceUpdate)
+			print.Verb("attempting to ensure dependency", dep)
+			errInner := pcx.EnsurePackage(dep, forceUpdate)
 			if errInner != nil {
-				print.Warn(errors.Wrapf(errInner, "failed to ensure package %s", dependency))
+				print.Warn(errors.Wrapf(errInner, "failed to ensure package %s", dep))
 				return errInner
 			}
-			print.Info(pcx.Package, "successfully ensured dependency files for", dependency)
+			print.Info(pcx.Package, "successfully ensured dependency files for", dep)
 			return nil
 		})
 		if err != nil {
-			print.Warn("failed to ensure package", dependency, "after 2 attempts, skipping")
-			err = nil
+			print.Warn("failed to ensure package", dep, "after 2 attempts, skipping")
 			continue
 		}
 	}
@@ -87,7 +87,7 @@ func (pcx *PackageContext) GatherPlugins() (pluginDeps []versioning.DependencyMe
 // EnsurePackage will make sure a vendor directory contains the specified package.
 // If the package is not present, it will clone it at the correct version tag, sha1 or HEAD
 // If the package is present, it will ensure the directory contains the correct version
-func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUpdate bool) (err error) {
+func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUpdate bool) error {
 	var (
 		dependencyPath = filepath.Join(pcx.Package.Vendor, meta.Repo)
 		needToClone    = false // do we need to clone a new repo?
@@ -118,12 +118,16 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 		print.Verb(meta, "need to clone new copy from cache")
 		repo, err = pcx.EnsureDependencyFromCache(meta, dependencyPath, false)
 		if err != nil {
-			errors.Wrap(err, "failed to ensure dependency from cache")
 			errInner := os.RemoveAll(dependencyPath)
 			if errInner != nil {
 				return errors.Wrap(errInner, "failed to remove corrupted dependency repo")
 			}
-			return
+
+			errInner = errors.Wrap(err, "failed to ensure dependency from cache")
+			if errInner != nil {
+				return errInner
+			}
+			return nil
 		}
 	}
 
@@ -146,7 +150,7 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 	// at least guaranteed to be either later or equal to the local dependency version.
 	pkg, err := pawnpackage.GetCachedPackage(meta, pcx.CacheDir)
 	if err != nil {
-		return
+		return err
 	}
 
 	// But the cached copy will have the latest tag assigned to it, so before ensuring it, apply the
@@ -162,7 +166,7 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 		if len(resource.Includes) > 0 {
 			includePath, err = pcx.extractResourceDependencies(context.Background(), pkg, resource)
 			if err != nil {
-				return
+				return err
 			}
 			pcx.AllIncludePaths = append(pcx.AllIncludePaths, includePath)
 		}
