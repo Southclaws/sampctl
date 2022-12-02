@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -221,7 +222,13 @@ func Init(
 		ext := filepath.Ext(answers.Entry)
 		nameOnly := strings.TrimSuffix(answers.Entry, ext)
 		pkg.Entry = nameOnly + ".pwn"
-		pkg.Output = "gamemodes/" + nameOnly + ".amx"
+
+		name := path.Base(nameOnly)
+		if name == "/" {
+			name = "test"
+		}
+
+		pkg.Output = "gamemodes/" + name + ".amx"
 
 		if ext != "" && ext != ".pwn" {
 			print.Warn("Entry point is not a .pwn file - it's advised to use a .pwn file as the compiled script.")
