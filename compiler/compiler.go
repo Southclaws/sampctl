@@ -27,7 +27,7 @@ import (
 //nolint:lll
 var (
 	// matches warnings or errors
-	matchCompilerProblem = regexp.MustCompile(`^(.*?)\(([0-9]*)[- 0-9]*\) \: (fatal error|error|warning) [0-9]*\: (.*)$`)
+	matchCompilerProblem = regexp.MustCompile(`^(.*?)\(([0-9]*)[- 0-9]*\) \: (fatal error|error|user warning|warning)\s?[0-9]*\: (.*)$`)
 
 	// Header size:             60 bytes
 	matchHeader = regexp.MustCompile(`^Header size:\s*([0-9]+) bytes$`)
@@ -270,24 +270,35 @@ func CompileWithCommand(
 		}
 	}
 
-	for problem := range problemChan {
-		fmt.Println(problem)
-		problems = append(problems, problem)
-	}
+	for {
+		select {
+		case p, ok := <-problemChan:
+			if !ok {
+				problemChan = nil
+			} else {
+				fmt.Println(p.String())
+				problems = append(problems, p)
+			}
+		case line, ok := <-resultChan:
+			if g := matchHeader.FindStringSubmatch(line); len(g) == 2 {
+				result.Header, _ = strconv.Atoi(g[1])
+			} else if g := matchCode.FindStringSubmatch(line); len(g) == 2 {
+				result.Code, _ = strconv.Atoi(g[1])
+			} else if g := matchData.FindStringSubmatch(line); len(g) == 2 {
+				result.Data, _ = strconv.Atoi(g[1])
+			} else if g := matchStack.FindStringSubmatch(line); len(g) == 3 {
+				result.StackHeap, _ = strconv.Atoi(g[1])
+				result.Estimate, _ = strconv.Atoi(g[2])
+			} else if g := matchTotal.FindStringSubmatch(line); len(g) == 2 {
+				result.Total, _ = strconv.Atoi(g[1])
+			}
+			if !ok {
+				resultChan = nil
+			}
+		}
 
-	//nolint:errcheck
-	for line := range resultChan {
-		if g := matchHeader.FindStringSubmatch(line); len(g) == 2 {
-			result.Header, _ = strconv.Atoi(g[1])
-		} else if g := matchCode.FindStringSubmatch(line); len(g) == 2 {
-			result.Code, _ = strconv.Atoi(g[1])
-		} else if g := matchData.FindStringSubmatch(line); len(g) == 2 {
-			result.Data, _ = strconv.Atoi(g[1])
-		} else if g := matchStack.FindStringSubmatch(line); len(g) == 3 {
-			result.StackHeap, _ = strconv.Atoi(g[1])
-			result.Estimate, _ = strconv.Atoi(g[2])
-		} else if g := matchTotal.FindStringSubmatch(line); len(g) == 2 {
-			result.Total, _ = strconv.Atoi(g[1])
+		if problemChan == nil && resultChan == nil {
+			break
 		}
 	}
 
@@ -299,8 +310,8 @@ func watchCompiler(
 	workingDir string,
 	errorDir string,
 	relative bool,
-	problemChan chan build.Problem,
-	resultChan chan string,
+	problemChan chan<- build.Problem,
+	resultChan chan<- string,
 ) {
 	var err error
 	scanner := bufio.NewScanner(outputReader)
@@ -310,7 +321,6 @@ func watchCompiler(
 
 		if len(groups) == 5 {
 			// output is a warning or error
-
 			problem := build.Problem{}
 
 			if filepath.IsAbs(groups[1]) {
@@ -320,7 +330,7 @@ func watchCompiler(
 			}
 
 			if string(filepath.Separator) != `\` {
-				problem.File = strings.Replace(problem.File, "\\", "/", -1)
+				problem.File = strings.ReplaceAll(problem.File, "\\", "/")
 			}
 			problem.File = filepath.Clean(problem.File)
 			if relative {
@@ -337,6 +347,7 @@ func watchCompiler(
 			}
 
 			switch groups[3] {
+			case "user warning":
 			case "warning":
 				problem.Severity = build.ProblemWarning
 			case "error":
@@ -346,7 +357,6 @@ func watchCompiler(
 			}
 
 			problem.Description = groups[4]
-
 			problemChan <- problem
 		} else {
 			// output is pre-roll or post-roll
