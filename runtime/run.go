@@ -58,8 +58,6 @@ func Run(
 
 	print.Verb("starting", binary, "in", cfg.WorkingDir)
 
-	fmt.Println("rootLink: ", *cfg.RootLink)
-
 	linkErr := createSpecialLink(cfg)
 	if linkErr != nil {
 		print.Verb("failed to create special link: ", linkErr)
