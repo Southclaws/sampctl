@@ -12,9 +12,18 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/print"
+	"github.com/Southclaws/sampctl/sys/osversion"
 )
 
 func platformRun(cmd *exec.Cmd, w io.Writer, r io.Reader) (err error) {
+	version := osversion.Get()
+	if version.Build >= osversion.V1809 {
+		return usePty(cmd, w, r)
+	}
+	return useTty(cmd, w, r)
+}
+
+func usePty(cmd *exec.Cmd, w io.Writer, r io.Reader) (err error) {
 	cpty, err := conpty.Start(cmd.Path)
 	if err != nil {
 		return errors.Wrap(err, "failed to start pty")
@@ -58,5 +67,17 @@ func platformRun(cmd *exec.Cmd, w io.Writer, r io.Reader) (err error) {
 		print.Verb("write error", errWrite)
 	}
 
+	return
+}
+
+func useTty(cmd *exec.Cmd, w io.Writer, r io.Reader) (err error) {
+	cmd.Stderr = w
+	cmd.Stdout = w
+	cmd.Stdin = r
+	err = cmd.Run()
+	// process kill on windows: "exit status 1"
+	if err != nil && err.Error() == "exit status 1" {
+		err = nil
+	}
 	return
 }

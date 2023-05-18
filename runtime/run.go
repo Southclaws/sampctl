@@ -91,7 +91,7 @@ func dorun(
 	print.Verb("running with mode", runType)
 
 	var cmd *exec.Cmd
-	go func () {
+	go func() {
 		cmd = runBinary(
 			ctx,
 			binary,
