@@ -26,6 +26,8 @@ type Runtime struct {
 	PluginDeps []versioning.DependencyMeta `ignore:"1" json:"-" yaml:"-"` // an internal list of remote plugins to download
 	Format     string                      `ignore:"1" json:"-" yaml:"-"` // format stores the original format of the package definition file, either `json` or `yaml`
 
+	RootLink bool `ignore:"1" default:"true" json:"rootLink,omitempty" yaml:"rootLink,omitempty"` // toggles creating a symlink to the root directory. https://github.com/Southclaws/sampctl/issues/248
+
 	// Only used to configure sampctl, not used in server.cfg generation
 	Name    string  `ignore:"1" json:"name,omitempty"     yaml:"name,omitempty"`    // configuration name
 	Version string  `ignore:"1" json:"version,omitempty"  yaml:"version,omitempty"` // runtime version

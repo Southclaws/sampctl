@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -56,6 +57,14 @@ func Run(
 	fullPath := filepath.Join(cfg.WorkingDir, binary)
 
 	print.Verb("starting", binary, "in", cfg.WorkingDir)
+
+	if cfg.RootLink {
+		print.Verb("root link is enabled, so going ahead with creating the special link to root")
+		linkErr := createSpecialLink(cfg.WorkingDir)
+		if linkErr != nil {
+			print.Verb("failed to create special link: ", linkErr)
+		}
+	}
 
 	return dorun(ctx, fullPath, cfg.Mode, recover, output, input)
 }
@@ -278,6 +287,39 @@ func readBinaryOutput(
 			}
 		}()
 	}
+}
+
+func createSpecialLink(root string) error {
+	// Create a symlink from scriptfiles to the root
+	scriptfilesPath := path.Join(root, "scriptfiles")
+	if _, err := os.Stat(scriptfilesPath); err != nil {
+		print.Verb("scriptfiles folder doesn't exist and is needed for 'DANGEROUS_SERVER_ROOT' symlink")
+		os.MkdirAll(scriptfilesPath, 0755)
+	}
+
+	specialLink := path.Join(scriptfilesPath, "DANGEROUS_SERVER_ROOT")
+	sfi, err := os.Lstat(specialLink)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			print.Verb("no 'DANGEROUS_SERVER_ROOT' symlink found, so creating it")
+			err = os.Symlink(root, specialLink)
+			if err != nil {
+				return err
+			}
+		}
+		return err
+	}
+
+	if sfi.Mode()&os.ModeSymlink == 0 {
+		print.Verb("file 'DANGEROUS_SERVER_ROOT' found, but it's not a symlink. Destroying and recreating it")
+		os.Remove(specialLink)
+		err = os.Symlink(root, specialLink)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func testResultsFromLine(line string) (results testResults) {
