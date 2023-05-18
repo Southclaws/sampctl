@@ -264,7 +264,7 @@ func CompileWithCommand(
 				}
 
 				statusCode := ntstatus.NTStatus(statusCodeInt)
-				err = errors.Errorf("exit status %s\n%s", statusCode.String(), statusCode.Error())
+				err = errors.Errorf("exit status %s", statusCode.String())
 			}
 			return
 		}
