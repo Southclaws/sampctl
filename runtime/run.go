@@ -306,24 +306,20 @@ func createSpecialLink(cfg run.Runtime) error {
 
 	// Create a symlink from scriptfiles to the root
 	if _, err := os.Stat(scriptfilesPath); err != nil {
-		if rootLink {
-			print.Verb("scriptfiles folder doesn't exist and is needed for 'DANGEROUS_SERVER_ROOT' symlink")
-			err = os.MkdirAll(scriptfilesPath, 0755)
-			if err != nil {
-				return err
-			}
+		print.Verb("scriptfiles folder doesn't exist and is needed for 'DANGEROUS_SERVER_ROOT' symlink")
+		err = os.MkdirAll(scriptfilesPath, 0755)
+		if err != nil {
+			return err
 		}
 	}
 
 	sfi, err := os.Lstat(specialLink)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			if rootLink {
-				print.Verb("no 'DANGEROUS_SERVER_ROOT' symlink found, so creating it")
-				err = os.Symlink(cfg.WorkingDir, specialLink)
-				if err != nil {
-					return err
-				}
+			print.Verb("no 'DANGEROUS_SERVER_ROOT' symlink found, so creating it")
+			err = os.Symlink(cfg.WorkingDir, specialLink)
+			if err != nil {
+				return err
 			}
 		}
 		return err
