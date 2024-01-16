@@ -1,0 +1,37 @@
+{
+    "name": "sampctl-dev",
+    "dockerComposeFile": [
+        "docker-compose.yml"
+    ],
+    "service": "vscode",
+    "runServices": [
+        "vscode"
+    ],
+    "shutdownAction": "stopCompose",
+    "postCreateCommand": "~/.ssh.sh",
+    "workspaceFolder": "/workspace",
+    // "overrideCommand": "",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "IBM.output-colorizer",
+                "eamodio.gitlens",
+                "mhutchie.git-graph",
+                "davidanson.vscode-markdownlint",
+                "shardulm94.trailing-spaces",
+                "alefragnani.Bookmarks",
+                "Gruntfuggly.todo-tree",
+                "mohsen1.prettify-json",
+                "quicktype.quicktype",
+                "spikespaz.vscode-smoothtype",
+                "stkb.rewrap",
+                "vscode-icons-team.vscode-icons",
+                "github.copilot"
+            ],
+            "settings": {
+                // General settings
+                "files.eol": "\n"
+            }
+        }
+    }
+}
