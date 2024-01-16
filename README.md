@@ -221,17 +221,17 @@ The Swiss Army Knife of SA:MP - vital tools for any server owner or library main
 
 ## Commands (6)
 
-### `sampctl server`
+### `sampctl`
 
-Usage: `sampctl server <subcommand>`
+Usage: `sampctl <subcommand>`
 
 For managing servers and runtime configurations.
 
 #### Subcommands (4)
 
-### `sampctl server init`
+### `sampctl init`
 
-Usage: `sampctl server init`
+Usage: `sampctl init`
 
 Bootstrap a new SA:MP server and generates a `samp.json`/`samp.yaml` configuration based on user input. If `gamemodes`, `filterscripts` or `plugins` directories are present, you will be prompted to select relevant files.
 
@@ -243,9 +243,9 @@ Bootstrap a new SA:MP server and generates a `samp.json`/`samp.yaml` configurati
 - `--version value`: the SA:MP server version to use (default: "0.3.7")
 - `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
 
-### `sampctl server download`
+### `sampctl download`
 
-Usage: `sampctl server download`
+Usage: `sampctl download`
 
 Downloads the files necessary to run a SA:MP server to the current directory (unless `--dir` specified). Will download the latest stable (non RC) server version unless `--version` is specified.
 
@@ -257,9 +257,9 @@ Downloads the files necessary to run a SA:MP server to the current directory (un
 - `--version value`: the SA:MP server version to use (default: "0.3.7")
 - `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
 
-### `sampctl server ensure`
+### `sampctl ensure`
 
-Usage: `sampctl server ensure`
+Usage: `sampctl ensure`
 
 Ensures the server environment is representative of the configuration specified in `samp.json`/`samp.yaml` - downloads server binaries and plugin files if necessary and generates a `server.cfg` file.
 
@@ -271,9 +271,9 @@ Ensures the server environment is representative of the configuration specified 
 - `--dir value`: working directory for the server - by default, uses the current directory (default: ".")
 - `--noCache --forceEnsure`: forces download of plugins if --forceEnsure is set
 
-### `sampctl server run`
+### `sampctl run`
 
-Usage: `sampctl server run`
+Usage: `sampctl run`
 
 Generates a `server.cfg` file based on the configuration inside `samp.json`/`samp.yaml` then executes the server process and automatically restarts it on crashes.
 
