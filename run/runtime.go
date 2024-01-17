@@ -27,10 +27,10 @@ type Runtime struct {
 	Format     string                      `ignore:"1" json:"-" yaml:"-"` // format stores the original format of the package definition file, either `json` or `yaml`
 
 	// Only used to configure sampctl, not used in server.cfg generation
-	Name     string  `ignore:"1" json:"name,omitempty"     yaml:"name,omitempty"`     // configuration name
-	Version  string  `ignore:"1" json:"version,omitempty"  yaml:"version,omitempty"`  // runtime version
-	Mode     RunMode `ignore:"1" json:"mode,omitempty"     yaml:"mode,omitempty"`     // the runtime mode
-	RootLink *bool   `ignore:"1" json:"rootLink,omitempty" yaml:"rootLink,omitempty"` // toggles creating a symlink to the root directory. https://github.com/Southclaws/sampctl/issues/248
+	Name     string  `ignore:"1" json:"name,omitempty"     yaml:"name,omitempty"`                    // configuration name
+	Version  string  `ignore:"1" json:"version,omitempty"  yaml:"version,omitempty"`                 // runtime version
+	Mode     RunMode `ignore:"1" json:"mode,omitempty"     yaml:"mode,omitempty"`                    // the runtime mode
+	RootLink bool    `ignore:"1" default:"true" json:"rootLink,omitempty" yaml:"rootLink,omitempty"` // toggles creating a symlink to the root directory. https://github.com/Southclaws/sampctl/issues/248
 
 	Echo *string `ignore:"1" json:"echo,omitempty" yaml:"echo,omitempty"`
 
@@ -130,10 +130,6 @@ func (cfg Runtime) Validate() (err error) {
 	if cfg.Echo == nil {
 		cfg.Echo = new(string)
 		*cfg.Echo = ""
-	}
-
-	if cfg.RootLink == nil {
-		*cfg.RootLink = true
 	}
 
 	return

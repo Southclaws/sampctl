@@ -287,7 +287,7 @@ func readBinaryOutput(
 }
 
 func createSpecialLink(cfg run.Runtime) error {
-	rootLink := *cfg.RootLink
+	rootLink := cfg.RootLink
 	scriptfilesPath := path.Join(cfg.WorkingDir, "scriptfiles")
 	specialLink := path.Join(scriptfilesPath, "DANGEROUS_SERVER_ROOT")
 
