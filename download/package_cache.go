@@ -3,7 +3,6 @@ package download
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -39,7 +38,7 @@ func GetPackageList(cacheDir string) (packages []pawnpackage.Package, err error)
 		}
 	}
 
-	contents, err := ioutil.ReadFile(packageFile)
+	contents, err := os.ReadFile(packageFile)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read package cache file")
 	}
@@ -89,7 +88,7 @@ func WritePackageCacheFile(cacheDir string, data []byte) error {
 	}
 
 	runtimesFile := filepath.Join(cacheDir, "compilers.json")
-	err = ioutil.WriteFile(runtimesFile, data, 0700)
+	err = os.WriteFile(runtimesFile, data, 0700)
 	if err != nil {
 		return errors.Wrap(err, "failed to write package list to file")
 	}

@@ -4,7 +4,6 @@ package download
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -51,7 +50,7 @@ func GetCompilerList(cacheDir string) (compilers Compilers, err error) {
 		}
 	}
 
-	contents, err := ioutil.ReadFile(runtimesFile)
+	contents, err := os.ReadFile(runtimesFile)
 	if err != nil {
 		err = errors.Wrap(err, "failed to read package cache file")
 		return
@@ -102,7 +101,7 @@ func WriteCompilerCacheFile(cacheDir string, data []byte) error {
 	}
 
 	runtimesFile := filepath.Join(cacheDir, "compilers.json")
-	err = ioutil.WriteFile(runtimesFile, data, 0700)
+	err = os.WriteFile(runtimesFile, data, 0700)
 	if err != nil {
 		return errors.Wrap(err, "failed to write compilers list to file")
 	}

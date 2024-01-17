@@ -4,7 +4,6 @@ package download
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -56,7 +55,7 @@ func GetRuntimeList(cacheDir string) (runtimes Runtimes, err error) {
 		}
 	}
 
-	contents, err := ioutil.ReadFile(runtimesFile)
+	contents, err := os.ReadFile(runtimesFile)
 	if err != nil {
 		err = errors.Wrap(err, "failed to read package cache file")
 		return
@@ -107,7 +106,7 @@ func WriteRuntimeCacheFile(cacheDir string, data []byte) error {
 	}
 
 	runtimesFile := filepath.Join(cacheDir, "runtimes.json")
-	err = ioutil.WriteFile(runtimesFile, data, 0700)
+	err = os.WriteFile(runtimesFile, data, 0700)
 	if err != nil {
 		return errors.Wrap(err, "failed to write runtime list to file")
 	}

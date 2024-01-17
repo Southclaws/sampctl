@@ -4,7 +4,7 @@ package download
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"mime"
 	"net/http"
 	"net/url"
@@ -128,7 +128,7 @@ func FromNet(location, cacheDir, filename string) (result string, err error) {
 		return result, errors.Errorf("unexpected status code given %d", resp.StatusCode)
 	}
 
-	content, err := ioutil.ReadAll(resp.Body)
+	content, err := io.ReadAll(resp.Body)
 	if err != nil {
 		err = errors.Wrap(err, "failed to read download contents")
 		return
@@ -145,7 +145,7 @@ func FromNet(location, cacheDir, filename string) (result string, err error) {
 
 	result = filepath.Join(cacheDir, filename)
 
-	err = ioutil.WriteFile(result, content, 0655)
+	err = os.WriteFile(result, content, 0655)
 	if err != nil {
 		err = errors.Wrap(err, "failed to write package to cache")
 		return

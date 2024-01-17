@@ -3,7 +3,6 @@ package pkgcontext
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"path"
@@ -89,7 +88,7 @@ func (pcx *PackageContext) Build(
 		atomic.AddUint32(&buildNumber, 1)
 
 		if buildFile != "" {
-			err2 := ioutil.WriteFile(buildFile, []byte(fmt.Sprint(buildNumber)), 0700)
+			err2 := os.WriteFile(buildFile, []byte(fmt.Sprint(buildNumber)), 0700)
 			if err2 != nil {
 				print.Erro("Failed to write buildfile:", err2)
 			}
@@ -247,7 +246,7 @@ loop:
 				}
 
 				if buildFile != "" {
-					err2 := ioutil.WriteFile(buildFile, []byte(fmt.Sprint(buildNumber)), 0700)
+					err2 := os.WriteFile(buildFile, []byte(fmt.Sprint(buildNumber)), 0700)
 					if err2 != nil {
 						print.Erro("Failed to write buildfile:", err2)
 					}
@@ -336,7 +335,7 @@ func (pcx *PackageContext) buildPrepare(
 func readInt(file string) (n uint32, err error) {
 	var contents []byte
 	if util.Exists(file) {
-		contents, err = ioutil.ReadFile(file)
+		contents, err = os.ReadFile(file)
 		if err != nil {
 			err = errors.Wrap(err, "failed to read buildfile")
 			return
@@ -353,7 +352,7 @@ func readInt(file string) (n uint32, err error) {
 		}
 		n = uint32(result)
 	} else {
-		err = ioutil.WriteFile(file, []byte("0"), 0700)
+		err = os.WriteFile(file, []byte("0"), 0700)
 		n = 0
 	}
 	return
