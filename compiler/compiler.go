@@ -6,9 +6,10 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -20,6 +21,7 @@ import (
 	"rs3.io/go/mserr/ntstatus"
 
 	"github.com/Southclaws/sampctl/build"
+	"github.com/Southclaws/sampctl/download"
 	"github.com/Southclaws/sampctl/print"
 	"github.com/Southclaws/sampctl/util"
 )
@@ -126,11 +128,39 @@ func PrepareCommand(
 		config.WorkingDir = util.FullPath(config.WorkingDir)
 	}
 
+	var pkg download.Compiler
 	runtimeDir := filepath.Join(cacheDir, "pawn", config.Compiler.Version)
-	pkg, err := GetCompilerPackage(ctx, gh, config, runtimeDir, platform, cacheDir)
-	if err != nil {
-		err = errors.Wrap(err, "failed to get compiler package")
-		return
+	if config.Compiler.Path == "" {
+		pkg, err = GetCompilerPackage(ctx, gh, config, runtimeDir, platform, cacheDir)
+		if err != nil {
+			err = errors.Wrap(err, "failed to get compiler package")
+			return
+		}
+	} else {
+		print.Verb("using custom path for compiler", config.Compiler.Path)
+		pathStat, error := os.Stat(config.Compiler.Path)
+		if error != nil {
+			err = errors.Wrap(error, "compiler path is not valid")
+			return
+		}
+		if !pathStat.IsDir() {
+			err = errors.New("compiler path is not a valid directory")
+			return
+		}
+
+		compilerPath := ""
+		if runtime.GOOS == "windows" {
+			compilerPath = path.Join(config.Compiler.Path, "pawncc.exe")
+		} else {
+			compilerPath = path.Join(config.Compiler.Path, "pawncc")
+		}
+
+		pkg = download.Compiler{
+			Match:  "",
+			Method: "",
+			Binary: compilerPath,
+			Paths:  map[string]string{},
+		}
 	}
 
 	args := []string{
@@ -146,7 +176,7 @@ func PrepareCommand(
 
 	var (
 		fullPath string
-		contents []os.FileInfo
+		contents []fs.DirEntry
 	)
 	for _, inc := range config.Includes {
 		if filepath.IsAbs(inc) {
@@ -164,7 +194,7 @@ func PrepareCommand(
 		print.Verb("using include path", fullPath)
 		args = append(args, "-i"+fullPath)
 
-		contents, err = ioutil.ReadDir(fullPath)
+		contents, err = os.ReadDir(fullPath)
 		if err != nil {
 			err = errors.Wrapf(err, "failed to list dependency include path: %s", inc)
 			return

@@ -29,6 +29,7 @@ type CompilerConfig struct {
 	User    string `json:"user,omitempty" yaml:"user,omitempty"`       // Name of the github user
 	Repo    string `json:"repo,omitempty" yaml:"repo,omitempty"`       // Name of the github repository
 	Version string `json:"version,omitempty" yaml:"version,omitempty"` // The version of the compiler to use
+	Path    string `json:"path,omitempty" yaml:"path,omitempty"` 	   // The path to the compiler (overrides the above)
 }
 
 // Default defines and returns a default compiler configuration
@@ -40,6 +41,7 @@ func Default() *Config {
 			User:    "pawn-lang",
 			Repo:    "compiler",
 			Version: "3.10.10",
+			Path:    "",
 		},
 	}
 }
