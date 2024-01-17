@@ -154,6 +154,20 @@ func PrepareCommand(
 		} else {
 			compilerPath = path.Join(config.Compiler.Path, "pawncc")
 		}
+		if compilerPath == "" {
+			err = errors.New("compiler path is empty due to unknown os")
+			return
+		}
+
+		compilerPathStat, error := os.Stat(compilerPath)
+		if error != nil {
+			err = errors.Wrap(error, "compiler path is not invalid")
+			return
+		}
+		if !compilerPathStat.Mode().IsRegular() {
+			err = errors.New("compiler path does not contain a valid pawn compiler executable")
+			return
+		}
 
 		pkg = download.Compiler{
 			Match:  "",
