@@ -188,11 +188,12 @@ func getPlugins(dir, platform string) (result []string) {
 	}
 
 	var ext string
-	if platform == "windows" {
+	switch platform {
+	case "windows":
 		ext = ".dll"
-	} else if platform == "linux" || platform == "darwin" {
+	case "linux", "darwin":
 		ext = ".so"
-	} else {
+	default:
 		panic(errors.Errorf("unsupported OS %s", platform))
 	}
 

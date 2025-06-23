@@ -119,15 +119,16 @@ func infoForPlatform(
 	paths map[string]string,
 	err error,
 ) {
-	if platform == "windows" {
+	switch platform {
+	case "windows":
 		location = pkg.Win32
 		method = download.Unzip
 		paths = pkg.Win32Paths
-	} else if platform == "linux" || platform == "darwin" {
+	case "linux", "darwin":
 		location = pkg.Linux
 		method = download.Untar
 		paths = pkg.LinuxPaths
-	} else {
+	default:
 		err = errors.Errorf("unsupported OS %s", platform)
 		return
 	}

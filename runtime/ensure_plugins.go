@@ -98,11 +98,12 @@ func EnsureVersionedPlugin(
 			ext    = filepath.Ext(filename)
 			method download.ExtractFunc
 		)
-		if ext == ".zip" {
+		switch ext {
+		case ".zip":
 			method = download.Unzip
-		} else if ext == ".gz" {
+		case ".gz":
 			method = download.Untar
-		} else {
+		default:
 			err = errors.Errorf("unsupported archive format: %s", filename)
 			return
 		}
