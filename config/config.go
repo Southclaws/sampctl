@@ -2,7 +2,7 @@ package config
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"os/user"
 	"path/filepath"
 	"strings"
@@ -87,7 +87,7 @@ func LoadOrCreateConfig(cacheDir string, verbose bool) (cfg *Config, err error) 
 		if err != nil {
 			return
 		}
-		err = ioutil.WriteFile(configFiles[0], contents, 0666)
+		err = os.WriteFile(configFiles[0], contents, 0666)
 		if err != nil {
 			return
 		}
@@ -103,7 +103,7 @@ func WriteConfig(cacheDir string, cfg Config) (err error) {
 	if err != nil {
 		return
 	}
-	err = ioutil.WriteFile(configFile, contents, 0666)
+	err = os.WriteFile(configFile, contents, 0666)
 	if err != nil {
 		return
 	}
