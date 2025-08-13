@@ -11,8 +11,8 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
+	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 )
 
 // Ensure will make sure a Config's dir is representative of the held configuration.

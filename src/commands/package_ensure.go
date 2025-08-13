@@ -8,9 +8,9 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
-	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
+	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
 var packageEnsureFlags = []cli.Flag{
@@ -30,30 +30,22 @@ func packageEnsure(c *cli.Context) error {
 		print.SetVerbose()
 	}
 
-	runtimeName := c.Args().Get(0)
-
 	cacheDir := download.GetCacheDir()
-
 	dir := util.FullPath(c.String("dir"))
 	forceUpdate := c.Bool("update")
 
-	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "", false)
+	pcx, err := pkgcontext.NewPackageContext(
+		gh, nil, true, dir, platform(c), cacheDir, "", false)
 	if err != nil {
-		return errors.Wrap(err, "failed to interpret directory as Pawn package")
+		return errors.Wrap(err, "failed to create package context")
 	}
-
-	pcx.ActualRuntime, err = pcx.Package.GetRuntimeConfig(runtimeName)
-	if err != nil {
-		return err
-	}
-	pcx.ActualRuntime.Platform = pcx.Platform
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
 	defer cancel()
 
 	err = pcx.EnsureDependencies(ctx, forceUpdate)
 	if err != nil {
-		return errors.Wrap(err, "failed to ensure")
+		return errors.Wrap(err, "failed to ensure dependencies")
 	}
 
 	print.Info("ensured dependencies for package")

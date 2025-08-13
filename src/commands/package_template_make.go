@@ -11,9 +11,10 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
-	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
+	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
+	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
 var packageTemplateMakeFlags = []cli.Flag{
@@ -33,7 +34,6 @@ func packageTemplateMake(c *cli.Context) (err error) {
 		print.SetVerbose()
 	}
 
-	dir := util.FullPath(c.String("dir"))
 	forceUpdate := c.Bool("update")
 
 	if len(c.Args()) != 1 {
@@ -43,11 +43,6 @@ func packageTemplateMake(c *cli.Context) (err error) {
 
 	cacheDir := download.GetCacheDir()
 	name := c.Args().First()
-
-	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "", false)
-	if err != nil {
-		return
-	}
 
 	templatePath := filepath.Join(cacheDir, "templates", name)
 	if util.Exists(templatePath) {
@@ -59,15 +54,22 @@ func packageTemplateMake(c *cli.Context) (err error) {
 		return errors.Wrapf(err, "failed to create template directory at '%s'", templatePath)
 	}
 
-	pcx.Package.LocalPath = templatePath
-	pcx.Package.Vendor = filepath.Join(templatePath, "dependencies")
-	pcx.Package.Repo = name
-	pcx.Package.Entry = "tmpl.pwn"
-	pcx.Package.Output = "tmpl.amx"
+	pkg := pawnpackage.Package{
+		LocalPath: templatePath,
+		Entry:     "tmpl.pwn",
+		Output:    "tmpl.amx",
+	}
+	pkg.Repo = name
 
-	err = pcx.Package.WriteDefinition()
+	err = pkg.WriteDefinition()
 	if err != nil {
 		return errors.Wrap(err, "failed to write package template definition file")
+	}
+
+	pcx, err := pkgcontext.NewPackageContext(
+		gh, nil, true, templatePath, platform(c), cacheDir, "", false)
+	if err != nil {
+		return errors.Wrap(err, "failed to create package context")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
