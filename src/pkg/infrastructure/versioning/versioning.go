@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -22,9 +23,32 @@ type DependencyMeta struct {
 	Branch string `json:"branch,omitempty" yaml:"branch,omitempty"` // Target branch
 	Commit string `json:"commit,omitempty" yaml:"commit,omitempty"` // Target commit sha
 	SSH    string `json:"ssh,omitempty" yaml:"ssh,omitempty"`       // SSH user (usually 'git')
+	
+	// URL-like dependency fields
+	Scheme string `json:"scheme,omitempty" yaml:"scheme,omitempty"`     // URL scheme (plugin://, includes://, filterscript://)
+	Local  string `json:"local,omitempty" yaml:"local_path,omitempty"`  // Local path for local schemes
 }
 
 func (dm DependencyMeta) String() string {
+	if dm.Scheme != "" {
+		if dm.Local != "" {
+			// Local scheme: scheme://local/path
+			return fmt.Sprintf("%s://local/%s", dm.Scheme, dm.Local)
+		}
+		// Remote scheme: scheme://user/repo[:tag]
+		if dm.User != "" && dm.Repo != "" {
+			result := fmt.Sprintf("%s://%s/%s", dm.Scheme, dm.User, dm.Repo)
+			if dm.Tag != "" {
+				result += ":" + dm.Tag
+			} else if dm.Branch != "" {
+				result += "@" + dm.Branch
+			} else if dm.Commit != "" {
+				result += "#" + dm.Commit
+			}
+			return result
+		}
+	}
+	
 	var site string
 	if dm.Site != "" {
 		site = dm.Site + "/"
@@ -53,6 +77,30 @@ func (dm DependencyMeta) CachePath(cacheDir string) (path string) {
 
 // Validate checks for errors in a DependencyMeta object
 func (dm DependencyMeta) Validate() (err error) {
+	// Handle URL-like schemes
+	if dm.Scheme != "" {
+		switch dm.Scheme {
+		case "plugin", "includes", "filterscript":
+			if dm.Local != "" {
+				// Local schemes only need Local path
+				if dm.Local == "" {
+					return errors.New("dependency meta with local scheme missing local path")
+				}
+				return nil
+			}
+			// Remote schemes need User and Repo
+			if dm.User == "" {
+				return errors.New("dependency meta with remote scheme missing user")
+			}
+			if dm.Repo == "" {
+				return errors.New("dependency meta with remote scheme missing repo")
+			}
+			return nil
+		default:
+			return errors.Errorf("unsupported dependency scheme: %s", dm.Scheme)
+		}
+	}
+	
 	if dm.User == "" {
 		return errors.New("dependency meta missing user")
 	}
@@ -68,6 +116,8 @@ var (
 	MatchGitSSH = regexp.MustCompile(`^([a-zA-Z][a-zA-Z0-9_]+)\@((?:[a-zA-Z][a-zA-Z0-9\-]*\.)*[a-zA-Z][a-zA-Z0-9\-]*)\:((?:[A-Za-z0-9_\-\.]+\/?)*)$`)
 	// MatchDependencyString matches a dependency string such as 'Username/Repository:tag', 'Username/Repository@branch', 'Username/Repository#commit'
 	MatchDependencyString = regexp.MustCompile(`^\/?([a-zA-Z0-9-]+)\/([a-zA-Z0-9-._]+)(?:\/)?([a-zA-Z0-9-_$\[\]{}().,\/]*)?((?:@)|(?:\:)|(?:#))?(.+)?$`)
+	// MatchURLScheme matches URL-like dependency strings such as 'plugin://plugins/name', 'includes://legacy', 'filterscript://user/repo:tag'
+	MatchURLScheme = regexp.MustCompile(`^(plugin|includes|filterscript):\/\/(.+)$`)
 )
 
 // Explode splits a dependency string into its component parts and returns a meta object
@@ -93,7 +143,17 @@ var (
 //   http://github.com/user/repo/includes:1.2.3
 //   github.com/user/repo/includes:1.2.3
 //   user/repo/includes:1.2.3
+//
+// New URL-like scheme examples:
+//   plugin://plugins/name (local plugin)
+//   includes://legacy (local include directory)
+//   filterscript://user/repo:tag (remote filterscript)
 func (d DependencyString) Explode() (dep DependencyMeta, err error) {
+	// First, check for URL-like schemes
+	if MatchURLScheme.MatchString(string(d)) {
+		return explodeURLScheme(string(d))
+	}
+	
 	u, err := url.Parse(string(d))
 	if err == nil {
 
@@ -146,6 +206,43 @@ func attemptGitSSH(d string) (username, host, path string, success bool) {
 	return captures[1], captures[2], captures[3], true
 }
 
+func explodeURLScheme(d string) (dep DependencyMeta, err error) {
+	if !MatchURLScheme.MatchString(d) {
+		err = errors.New("URL scheme string does not match pattern")
+		return
+	}
+
+	captures := MatchURLScheme.FindStringSubmatch(d)
+	if len(captures) != 3 {
+		err = errors.New("URL scheme pattern match count != 3")
+		return
+	}
+
+	dep.Scheme = captures[1]
+	pathPart := captures[2]
+
+	// Check if it's a local path by looking for "local/" prefix
+	if strings.HasPrefix(pathPart, "local/") {
+		// Local schemes like plugin://local/plugins/name or includes://local/legacy
+		dep.Local = strings.TrimPrefix(pathPart, "local/")
+	} else {
+		// Remote schemes like filterscript://user/repo:tag
+		// Parse as if it's a user/repo with optional version
+		remoteDep, err := explodePath(pathPart)
+		if err != nil {
+			return dep, err
+		}
+		dep.User = remoteDep.User
+		dep.Repo = remoteDep.Repo
+		dep.Path = remoteDep.Path
+		dep.Tag = remoteDep.Tag
+		dep.Branch = remoteDep.Branch
+		dep.Commit = remoteDep.Commit
+	}
+
+	return dep, nil
+}
+
 func explodePath(d string) (dep DependencyMeta, err error) {
 	if !MatchDependencyString.MatchString(d) {
 		err = errors.New("dependency string does not match pattern")
@@ -176,6 +273,9 @@ func explodePath(d string) (dep DependencyMeta, err error) {
 		default:
 			err = errors.New("version must be a branch (@) or a tag (:)")
 		}
+	} else if len(captures[5]) > 0 {
+		// If there's text in the version part but no valid version specifier, it's invalid
+		err = errors.New("invalid version specifier")
 	}
 	return dep, err
 }
@@ -187,4 +287,34 @@ func (dm DependencyMeta) URL() string {
 	}
 
 	return fmt.Sprintf("https://%s/%s/%s", dm.Site, dm.User, dm.Repo)
+}
+
+// IsURLScheme returns true if this dependency uses a URL-like scheme
+func (dm DependencyMeta) IsURLScheme() bool {
+	return dm.Scheme != ""
+}
+
+// IsLocalScheme returns true if this dependency represents a local resource
+func (dm DependencyMeta) IsLocalScheme() bool {
+	return dm.Scheme != "" && dm.Local != ""
+}
+
+// IsRemoteScheme returns true if this dependency represents a remote resource with a scheme
+func (dm DependencyMeta) IsRemoteScheme() bool {
+	return dm.Scheme != "" && dm.Local == "" && dm.User != "" && dm.Repo != ""
+}
+
+// IsPlugin returns true if this dependency represents a plugin
+func (dm DependencyMeta) IsPlugin() bool {
+	return dm.Scheme == "plugin"
+}
+
+// IsIncludes returns true if this dependency represents an includes directory
+func (dm DependencyMeta) IsIncludes() bool {
+	return dm.Scheme == "includes"
+}
+
+// IsFilterscript returns true if this dependency represents a filterscript
+func (dm DependencyMeta) IsFilterscript() bool {
+	return dm.Scheme == "filterscript"
 }

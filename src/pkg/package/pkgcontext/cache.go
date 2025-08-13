@@ -9,10 +9,10 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/pkg/errors"
 
-	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
+	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
 
 // EnsureDependenciesCached will recursively visit a parent package dependencies
@@ -138,10 +138,20 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 				continue
 			}
 
-			if _, ok := visited[subPackageDepMeta.Repo]; !ok {
-				recurse(subPackageDepMeta)
+			// Handle URL-like schemes during caching phase
+			if subPackageDepMeta.IsURLScheme() {
+				errInner = pcx.handleURLSchemeCaching(subPackageDepMeta, prefix)
+				if errInner != nil {
+					print.Verb(prefix, "failed to handle URL scheme dependency:", subPackageDepMeta, errInner)
+					continue
+				}
 			} else {
-				print.Verb(prefix, "already visited", subPackageDepMeta)
+				// Regular dependency handling
+				if _, ok := visited[subPackageDepMeta.Repo]; !ok {
+					recurse(subPackageDepMeta)
+				} else {
+					print.Verb(prefix, "already visited", subPackageDepMeta)
+				}
 			}
 		}
 		verboseDepth--
@@ -152,6 +162,83 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 		return errors.New("Failed to clone the repo")
 	}
 
+	return nil
+}
+
+// handleURLSchemeCaching handles URL scheme dependencies during the caching phase
+func (pcx *PackageContext) handleURLSchemeCaching(meta versioning.DependencyMeta, prefix string) error {
+	switch meta.Scheme {
+	case "plugin":
+		if meta.IsLocalScheme() {
+			pluginMeta := versioning.DependencyMeta{
+				Scheme: "plugin",
+				Local:  meta.Local,
+				User:   "local",
+				Repo:   filepath.Base(meta.Local),
+			}
+			pcx.AllPlugins = append(pcx.AllPlugins, pluginMeta)
+			print.Verb(prefix, "added local plugin:", meta.Local)
+		} else {
+			remoteMeta := versioning.DependencyMeta{
+				Site:   meta.Site,
+				User:   meta.User,
+				Repo:   meta.Repo,
+				Tag:    meta.Tag,
+				Branch: meta.Branch,
+				Commit: meta.Commit,
+				Path:   meta.Path,
+			}
+			pcx.AllDependencies = append(pcx.AllDependencies, remoteMeta)
+			pcx.AllPlugins = append(pcx.AllPlugins, remoteMeta)
+			print.Verb(prefix, "added remote plugin dependency:", remoteMeta)
+		}
+		
+	case "includes":
+		if meta.IsLocalScheme() {
+			includesPath := filepath.Join(pcx.Package.LocalPath, meta.Local)
+			pcx.AllIncludePaths = append(pcx.AllIncludePaths, includesPath)
+			print.Verb(prefix, "added local includes path:", includesPath)
+		} else {
+			remoteMeta := versioning.DependencyMeta{
+				Site:   meta.Site,
+				User:   meta.User,
+				Repo:   meta.Repo,
+				Tag:    meta.Tag,
+				Branch: meta.Branch,
+				Commit: meta.Commit,
+				Path:   meta.Path,
+			}
+			pcx.AllDependencies = append(pcx.AllDependencies, remoteMeta)
+			
+			includesPath := filepath.Join(pcx.Package.Vendor, remoteMeta.Repo)
+			if remoteMeta.Path != "" {
+				includesPath = filepath.Join(includesPath, remoteMeta.Path)
+			}
+			pcx.AllIncludePaths = append(pcx.AllIncludePaths, includesPath)
+			print.Verb(prefix, "added remote includes dependency:", remoteMeta)
+		}
+		
+	case "filterscript":
+		if meta.IsLocalScheme() {
+			print.Verb(prefix, "added local filterscript:", meta.Local)
+		} else {
+			remoteMeta := versioning.DependencyMeta{
+				Site:   meta.Site,
+				User:   meta.User,
+				Repo:   meta.Repo,
+				Tag:    meta.Tag,
+				Branch: meta.Branch,
+				Commit: meta.Commit,
+				Path:   meta.Path,
+			}
+			pcx.AllDependencies = append(pcx.AllDependencies, remoteMeta)
+			print.Verb(prefix, "added remote filterscript dependency:", remoteMeta)
+		}
+		
+	default:
+		return errors.Errorf("unsupported URL scheme: %s", meta.Scheme)
+	}
+	
 	return nil
 }
 

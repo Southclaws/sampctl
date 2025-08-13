@@ -5,7 +5,7 @@
 	],
 	"plugins": [
 		"streamer",
-		"zeex/samp-plugin-crashdetect"
+		"AmyrAhmady/samp-plugin-crashdetect"
 	],
 	"rcon_password": "test",
 	"port": 8080,

@@ -32,7 +32,7 @@ var IncludesToDependencies = map[string]versioning.DependencyString{
 	`weapon-config`: "oscar-broman/samp-weapon-config",
 	`md-sort`:       "oscar-broman/md-sort",
 	`logger`:        "Southclaws/samp-logger",
-	`crashdetect`:   "zeex/samp-plugin-crashdetect",
+	`crashdetect`:   "AmyrAhmady/samp-plugin-crashdetect",
 }
 
 // FindIncludes checks a list of files and scans the contents searching for includes with known dependency strings

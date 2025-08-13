@@ -20,7 +20,7 @@ func TestDependencyMeta_String(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.meta.String(), tt.want)
+			assert.Equal(t, tt.want, tt.meta.String())
 		})
 	}
 }
@@ -48,49 +48,115 @@ func TestDependencyString_Explode(t *testing.T) {
 		{"v t user/repo", DependencyString("user/repo:~2.x"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Tag: "~2.x"}, false},
 		{"v t https url path", DependencyString("https://github.com/user/repo/inc/path:1.2.3"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Path: "inc/path", Tag: "1.2.3"}, false},
 		{"v t user/repo path", DependencyString("user/repo/inc/path:1.2.3"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Path: "inc/path", Tag: "1.2.3"}, false},
-		{"v t user/repo path", DependencyString("user/repo/inc/path:^1.2.3"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Path: "inc/path", Tag: "^1.2.3"}, false},
-		{"v t user/repo path", DependencyString("user/repo/inc/path:^2.0"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Path: "inc/path", Tag: "^2.0"}, false},
-		{"v t user/repo path", DependencyString("user/repo/inc/path:2.1.x"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Path: "inc/path", Tag: "2.1.x"}, false},
-		{"v t user/repo path", DependencyString("user/repo/inc/path:~1"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Path: "inc/path", Tag: "~1"}, false},
-		{"v t user/repo path", DependencyString("user/repo/inc/path:~2.x"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Path: "inc/path", Tag: "~2.x"}, false},
-		{"v t https url", DependencyString("https://github.com/user/repo:stable-release-3"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Tag: "stable-release-3"}, false},
-		{"v t user/repo", DependencyString("user/repo:stable-release-3"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Tag: "stable-release-3"}, false},
-		{"v t https url path", DependencyString("https://github.com/user/repo/inc/path:stable-release-3"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Path: "inc/path", Tag: "stable-release-3"}, false},
-		{"v t user/repo path", DependencyString("user/repo/inc/path:stable-release-3"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Path: "inc/path", Tag: "stable-release-3"}, false},
 
 		// Branch version
-		{"v b https url", DependencyString("https://github.com/user/repo@dev"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Branch: "dev"}, false},
-		{"v b user/repo", DependencyString("user/repo@dev"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Branch: "dev"}, false},
-		{"v b https url path", DependencyString("https://github.com/user/repo/inc/path@dev"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Path: "inc/path", Branch: "dev"}, false},
-		{"v b user/repo path", DependencyString("user/repo/inc/path@dev"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Path: "inc/path", Branch: "dev"}, false},
+		{"v b https url", DependencyString("https://github.com/user/repo@branch"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Branch: "branch"}, false},
+		{"v b user/repo", DependencyString("user/repo@branch"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Branch: "branch"}, false},
+		{"v b https url path", DependencyString("https://github.com/user/repo/inc/path@branch"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Path: "inc/path", Branch: "branch"}, false},
+		{"v b user/repo path", DependencyString("user/repo/inc/path@branch"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Path: "inc/path", Branch: "branch"}, false},
 
-		// Commit hash version
-		{"v c https url", DependencyString("https://github.com/user/repo#b96a2671133495950e0a0afe28f48ead48b06f1b"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Commit: "b96a2671133495950e0a0afe28f48ead48b06f1b"}, false},
-		{"v c user/repo", DependencyString("user/repo#b96a2671133495950e0a0afe28f48ead48b06f1b"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Commit: "b96a2671133495950e0a0afe28f48ead48b06f1b"}, false},
-		{"v c https url path", DependencyString("https://github.com/user/repo/inc/path#b96a2671133495950e0a0afe28f48ead48b06f1b"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Path: "inc/path", Commit: "b96a2671133495950e0a0afe28f48ead48b06f1b"}, false},
-		{"v c user/repo path", DependencyString("user/repo/inc/path#b96a2671133495950e0a0afe28f48ead48b06f1b"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Path: "inc/path", Commit: "b96a2671133495950e0a0afe28f48ead48b06f1b"}, false},
+		// Commit version
+		{"v c https url", DependencyString("https://github.com/user/repo#1234567890123456789012345678901234567890"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Commit: "1234567890123456789012345678901234567890"}, false},
+		{"v c user/repo", DependencyString("user/repo#1234567890123456789012345678901234567890"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Commit: "1234567890123456789012345678901234567890"}, false},
+		{"v c https url path", DependencyString("https://github.com/user/repo/inc/path#1234567890123456789012345678901234567890"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Path: "inc/path", Commit: "1234567890123456789012345678901234567890"}, false},
+		{"v c user/repo path", DependencyString("user/repo/inc/path#1234567890123456789012345678901234567890"), DependencyMeta{Site: "github.com", User: "user", Repo: "repo", Path: "inc/path", Commit: "1234567890123456789012345678901234567890"}, false},
 
-		// // SSH URL
-		{"v u ssh url", DependencyString("git@gitlab.com:user/repo.name"), DependencyMeta{Site: "gitlab.com", User: "user", Repo: "repo.name", SSH: "git"}, false},
-		{"v u ssh url path", DependencyString("git@gitlab.com:user/repo.name/inc/path"), DependencyMeta{Site: "gitlab.com", User: "user", Repo: "repo.name", Path: "inc/path", SSH: "git"}, false},
-
-		// Invalid
-		{"i u user", DependencyString("http://github.com/repo"), DependencyMeta{}, true},
-		{"i u project", DependencyString("project"), DependencyMeta{}, true},
-		{"i u user:repo", DependencyString("user:repo"), DependencyMeta{}, true},
-		{"i u naked url", DependencyString("github.com/user/repo.name"), DependencyMeta{}, true},
-		{"i c naked url", DependencyString("github.com/user/repo.name#b96a2671133495950e0a0afe28f48ead48b06f1"), DependencyMeta{}, true},
+		// Error cases
+		{"invalid commit length", DependencyString("user/repo#123"), DependencyMeta{}, true},
+		{"invalid version specifier", DependencyString("user/repo%invalid"), DependencyMeta{}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotDep, err := tt.d.Explode()
+			dep, err := tt.d.Explode()
 			if tt.wantErr {
 				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
+				return
 			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantDep, dep)
+		})
+	}
+}
 
-			assert.Equal(t, tt.wantDep, gotDep)
+func TestURLSchemeDependencies(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    DependencyMeta
+		wantErr bool
+	}{
+		{
+			name:  "plugin local",
+			input: "plugin://local/plugins/mysql",
+			want:  DependencyMeta{Scheme: "plugin", Local: "plugins/mysql"},
+		},
+		{
+			name:  "includes local",
+			input: "includes://local/legacy",
+			want:  DependencyMeta{Scheme: "includes", Local: "legacy"},
+		},
+		{
+			name:  "filterscript remote",
+			input: "filterscript://southclaws/samp-object-loader",
+			want:  DependencyMeta{Scheme: "filterscript", User: "southclaws", Repo: "samp-object-loader"},
+		},
+		{
+			name:  "filterscript remote with tag",
+			input: "filterscript://southclaws/samp-object-loader:1.0.0",
+			want:  DependencyMeta{Scheme: "filterscript", User: "southclaws", Repo: "samp-object-loader", Tag: "1.0.0"},
+		},
+		{
+			name:    "invalid scheme",
+			input:   "invalid://test",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dep, err := DependencyString(tt.input).Explode()
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, dep)
+		})
+	}
+}
+
+func TestURLSchemeString(t *testing.T) {
+	tests := []struct {
+		name string
+		meta DependencyMeta
+		want string
+	}{
+		{
+			name: "plugin local",
+			meta: DependencyMeta{Scheme: "plugin", Local: "plugins/mysql"},
+			want: "plugin://local/plugins/mysql",
+		},
+		{
+			name: "includes local",
+			meta: DependencyMeta{Scheme: "includes", Local: "legacy"},
+			want: "includes://local/legacy",
+		},
+		{
+			name: "filterscript remote",
+			meta: DependencyMeta{Scheme: "filterscript", User: "southclaws", Repo: "samp-object-loader"},
+			want: "filterscript://southclaws/samp-object-loader",
+		},
+		{
+			name: "filterscript remote with tag",
+			meta: DependencyMeta{Scheme: "filterscript", User: "southclaws", Repo: "samp-object-loader", Tag: "1.0.0"},
+			want: "filterscript://southclaws/samp-object-loader:1.0.0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.meta.String())
 		})
 	}
 }

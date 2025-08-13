@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
+	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 )
 
 func TestNewConfigFromEnvironment(t *testing.T) {
@@ -36,7 +36,7 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 				},
 				Plugins: []run.Plugin{
 					"streamer",
-					"zeex/samp-plugin-crashdetect",
+					"AmyrAhmady/samp-plugin-crashdetect",
 				},
 				Port:       &[]int{8080}[0],
 				Hostname:   &[]string{"Test"}[0],
@@ -49,7 +49,7 @@ func TestNewConfigFromEnvironment(t *testing.T) {
 				WorkingDir: "./tests/from-env",
 				Platform:   runtime.GOOS,
 				PluginDeps: []versioning.DependencyMeta{
-					{Site: "github.com", User: "zeex", Repo: "samp-plugin-crashdetect"},
+					{Site: "github.com", User: "AmyrAhmady", Repo: "samp-plugin-crashdetect"},
 				},
 				Format:  "json",
 				Version: "0.3.7",

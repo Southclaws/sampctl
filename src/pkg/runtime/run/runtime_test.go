@@ -31,7 +31,7 @@ func TestRuntimeFromDir(t *testing.T) {
 			},
 			Plugins: []Plugin{
 				"streamer",
-				"zeex/samp-plugin-crashdetect",
+				"AmyrAhmady/samp-plugin-crashdetect",
 			},
 			RCONPassword: &[]string{"test"}[0],
 			Port:         &[]int{8080}[0],
