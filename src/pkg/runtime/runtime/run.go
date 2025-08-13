@@ -24,7 +24,7 @@ import (
 var (
 	matchPreamble = regexp.MustCompile(`Loaded [0-9]{1,2} filterscripts\.`)
 	matchMainEnd  = regexp.MustCompile(`Number of vehicle models\: [0-9]*`)
-	matchTestEnd  = regexp.MustCompile(`\*\*\* Tests: (\d+), Fails: (\d+)`)
+	matchTestEnd  = regexp.MustCompile(`\*\*\* Test(?:s|): (\d+),(?: Check(?:s|): \d+,|) Fail(?:s|): (\d+)`)
 )
 
 type testResults struct {
