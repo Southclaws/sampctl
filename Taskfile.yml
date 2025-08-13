@@ -14,17 +14,17 @@ tasks:
   # Build static version of sampctl
   static:
     cmds:
-      - CGO_ENABLED=0 GOOS=linux go build -a {{.LDFLAGS}} -o sampctl .
+      - CGO_ENABLED=0 GOOS=linux go build -a {{.LDFLAGS}} -o sampctl ./src
 
   # Build a fast non static version
   fast:
     cmds:
-      - go build {{.LDFLAGS}} -o sampctl
+      - go build {{.LDFLAGS}} -o sampctl ./src
 
   # Install sampctl into the go bin folder
   install:
     cmds:
-      - go install {{.LDFLAGS}}
+      - go install {{.LDFLAGS}} ./src
 
   # Remove sampctl binary
   clean:
@@ -34,7 +34,7 @@ tasks:
   # Run go test against source code
   test:
     cmds:
-      - go test --race -v ./...
+      - go test --race -v ./src/...
 
   # Releasing sampctl via goreleaser
   # for osx tar fix
@@ -52,7 +52,7 @@ tasks:
   docs:
     deps: ["fast"]
     cmds:
-      - ./docgen.sh
+      - ./scripts/docgen.sh
 
   # Building the sampctl docker image
   docker:build:
