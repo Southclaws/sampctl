@@ -24,7 +24,7 @@ src:
 test:
     FROM +src
     
-    RUN go test -race -v -timeout=10m ./src/...
+    RUN --secret FULL_ACCESS_GITHUB_TOKEN go test -race -v -timeout=10m ./src/...
 
 build:
     FROM +src
