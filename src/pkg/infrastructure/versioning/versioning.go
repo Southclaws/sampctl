@@ -10,6 +10,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+var (
+	// loadedOverrides caches the dependency overrides loaded from configuration
+	loadedOverrides map[string]string
+)
+
 // DependencyString represents a git repository via various patterns
 type DependencyString string
 
@@ -23,10 +28,10 @@ type DependencyMeta struct {
 	Branch string `json:"branch,omitempty" yaml:"branch,omitempty"` // Target branch
 	Commit string `json:"commit,omitempty" yaml:"commit,omitempty"` // Target commit sha
 	SSH    string `json:"ssh,omitempty" yaml:"ssh,omitempty"`       // SSH user (usually 'git')
-	
+
 	// URL-like dependency fields
-	Scheme string `json:"scheme,omitempty" yaml:"scheme,omitempty"`     // URL scheme (plugin://, includes://, filterscript://)
-	Local  string `json:"local,omitempty" yaml:"local_path,omitempty"`  // Local path for local schemes
+	Scheme string `json:"scheme,omitempty" yaml:"scheme,omitempty"`    // URL scheme (plugin://, includes://, filterscript://)
+	Local  string `json:"local,omitempty" yaml:"local_path,omitempty"` // Local path for local schemes
 }
 
 func (dm DependencyMeta) String() string {
@@ -48,7 +53,7 @@ func (dm DependencyMeta) String() string {
 			return result
 		}
 	}
-	
+
 	var site string
 	if dm.Site != "" {
 		site = dm.Site + "/"
@@ -100,7 +105,7 @@ func (dm DependencyMeta) Validate() (err error) {
 			return errors.Errorf("unsupported dependency scheme: %s", dm.Scheme)
 		}
 	}
-	
+
 	if dm.User == "" {
 		return errors.New("dependency meta missing user")
 	}
@@ -108,6 +113,81 @@ func (dm DependencyMeta) Validate() (err error) {
 		return errors.New("dependency meta missing repo")
 	}
 	return
+}
+
+// DependencyOverrides maps original dependency strings to replacement dependency strings
+// This allows handling cases where repositories have been deleted/moved
+var DependencyOverrides = map[string]string{
+	"github.com/Zeex/samp-plugin-crashdetect": "github.com/AmyrAhmady/samp-plugin-crashdetect",
+	"Zeex/samp-plugin-crashdetect":            "AmyrAhmady/samp-plugin-crashdetect",
+}
+
+// ApplyDependencyOverrides checks if a dependency string should be replaced with an override
+// and returns the override if one exists, otherwise returns the original string
+func ApplyDependencyOverrides(depStr string) string {
+	if loadedOverrides == nil {
+		loadedOverrides = LoadDependencyOverrides("")
+	}
+
+	// Normalize the dependency string by removing common prefixes
+	normalized := strings.TrimPrefix(depStr, "https://")
+	normalized = strings.TrimPrefix(normalized, "http://")
+
+	// Check for exact match first
+	if override, exists := loadedOverrides[depStr]; exists {
+		return override
+	}
+
+	// Check for normalized match (without protocol)
+	if override, exists := loadedOverrides[normalized]; exists {
+		return override
+	}
+
+	// For dependency strings with version specifiers, extract the base and version parts
+	var baseDep, versionPart string
+	for _, sep := range []string{":", "@", "#"} {
+		if idx := strings.Index(depStr, sep); idx != -1 {
+			baseDep = depStr[:idx]
+			versionPart = depStr[idx:]
+			break
+		}
+	}
+
+	// If we found a version part, check if the base dependency has an override
+	if baseDep != "" && versionPart != "" {
+		if override, exists := loadedOverrides[baseDep]; exists {
+			return override + versionPart
+		}
+
+		// Also check normalized base dependency
+		normalizedBase := strings.TrimPrefix(baseDep, "https://")
+		normalizedBase = strings.TrimPrefix(normalizedBase, "http://")
+		if override, exists := loadedOverrides[normalizedBase]; exists {
+			return override + versionPart
+		}
+	}
+
+	// Check for partial matches (user/repo format)
+	for original, replacement := range loadedOverrides {
+		// Extract user/repo from original pattern
+		if strings.Contains(original, "/") {
+			parts := strings.Split(original, "/")
+			if len(parts) >= 2 {
+				userRepo := parts[len(parts)-2] + "/" + parts[len(parts)-1]
+				if strings.Contains(depStr, userRepo) {
+					// Replace the user/repo part in the dependency string
+					return strings.Replace(depStr, userRepo, strings.TrimPrefix(replacement, "github.com/"), 1)
+				}
+			}
+		}
+	}
+
+	return depStr
+}
+
+// ResetDependencyOverrides resets the loaded overrides cache (mainly for testing)
+func ResetDependencyOverrides() {
+	loadedOverrides = nil
 }
 
 //nolint:lll
@@ -125,36 +205,47 @@ var (
 // versioning string which is either a semantic version number or a SHA1 hash.
 //
 // Examples of valid dependency strings ignoring versioning:
-//   https://github.com/user/repo
-//   http://github.com/user/repo
-//   github.com/user/repo
-//   user/repo
+//
+//	https://github.com/user/repo
+//	http://github.com/user/repo
+//	github.com/user/repo
+//	user/repo
 //
 // And, examples of valid dependency strings with the user/repo:version example followed by a
 // description of what the constraint means.
 // (More info: https://github.com/Masterminds/semver#basic-comparisons)
-//   user/repo:1.2.3 (force version 1.2.3)
-//   user/repo:1.2.x (allow any 1.2 build)
-//   user/repo:2.x (allow any version 2 minor)
+//
+//	user/repo:1.2.3 (force version 1.2.3)
+//	user/repo:1.2.x (allow any 1.2 build)
+//	user/repo:2.x (allow any version 2 minor)
 //
 // And finally, examples of dependency strings with additional paths for when include files exist in
 // a subdirectory of the repository.
-//   https://github.com/user/repo/includes:1.2.3
-//   http://github.com/user/repo/includes:1.2.3
-//   github.com/user/repo/includes:1.2.3
-//   user/repo/includes:1.2.3
+//
+//	https://github.com/user/repo/includes:1.2.3
+//	http://github.com/user/repo/includes:1.2.3
+//	github.com/user/repo/includes:1.2.3
+//	user/repo/includes:1.2.3
 //
 // New URL-like scheme examples:
-//   plugin://plugins/name (local plugin)
-//   includes://legacy (local include directory)
-//   filterscript://user/repo:tag (remote filterscript)
+//
+//	plugin://plugins/name (local plugin)
+//	includes://legacy (local include directory)
+//	filterscript://user/repo:tag (remote filterscript)
 func (d DependencyString) Explode() (dep DependencyMeta, err error) {
+	// Apply dependency overrides before parsing
+	originalStr := string(d)
+	overriddenStr := ApplyDependencyOverrides(originalStr)
+
+	// Use the overridden string for parsing
+	depStr := DependencyString(overriddenStr)
+
 	// First, check for URL-like schemes
-	if MatchURLScheme.MatchString(string(d)) {
-		return explodeURLScheme(string(d))
+	if MatchURLScheme.MatchString(string(depStr)) {
+		return explodeURLScheme(string(depStr))
 	}
-	
-	u, err := url.Parse(string(d))
+
+	u, err := url.Parse(string(depStr))
 	if err == nil {
 
 		path := u.Path
@@ -166,13 +257,13 @@ func (d DependencyString) Explode() (dep DependencyMeta, err error) {
 		dep, err = explodePath(path)
 		dep.Site = u.Host
 	} else {
-		user, host, path, success := attemptGitSSH(string(d))
+		user, host, path, success := attemptGitSSH(string(depStr))
 		if success {
 			dep, err = explodePath(path)
 			dep.Site = host
 			dep.SSH = user
 		} else {
-			dep, err = explodePath(string(d))
+			dep, err = explodePath(string(depStr))
 		}
 	}
 

@@ -1,6 +1,8 @@
 package versioning
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -159,4 +161,72 @@ func TestURLSchemeString(t *testing.T) {
 			assert.Equal(t, tt.want, tt.meta.String())
 		})
 	}
+}
+
+func TestLoadRemoteOverrides(t *testing.T) {
+	// Clear any existing cache before testing
+	err := ClearRemoteOverridesCache()
+	assert.NoError(t, err)
+
+	// Test loading remote overrides (should gracefully handle failure)
+	overrides := loadRemoteOverrides()
+	
+	// Since the remote file doesn't exist yet, it should return empty map
+	assert.NotNil(t, overrides)
+	
+	// Test that the function doesn't panic and returns a valid map
+	assert.IsType(t, map[string]string{}, overrides)
+}
+
+func TestLoadDependencyOverridesWithRemote(t *testing.T) {
+	// Clear any existing cache before testing
+	err := ClearRemoteOverridesCache()
+	assert.NoError(t, err)
+
+	// Create a temporary config file
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test-overrides.json")
+	
+	localOverrides := map[string]string{
+		"local/override": "local/replacement",
+	}
+	
+	err = SaveDependencyOverrides(localOverrides, configPath)
+	assert.NoError(t, err)
+
+	// Load overrides (should include built-in, remote attempts, and local)
+	overrides := LoadDependencyOverrides(configPath)
+	
+	// Should contain built-in overrides
+	assert.Equal(t, "AmyrAhmady/samp-plugin-crashdetect", overrides["Zeex/samp-plugin-crashdetect"])
+	
+	// Should contain local overrides (they have highest precedence)
+	assert.Equal(t, "local/replacement", overrides["local/override"])
+}
+
+func TestClearRemoteOverridesCache(t *testing.T) {
+	// Test clearing cache when it doesn't exist (should not error)
+	err := ClearRemoteOverridesCache()
+	assert.NoError(t, err)
+
+	// Create a dummy cache file
+	cachePath := DefaultDependencyOverridesCachePath()
+	dir := filepath.Dir(cachePath)
+	err = os.MkdirAll(dir, 0755)
+	assert.NoError(t, err)
+	
+	err = os.WriteFile(cachePath, []byte(`{"overrides":{}}`), 0644)
+	assert.NoError(t, err)
+	
+	// Verify file exists
+	_, err = os.Stat(cachePath)
+	assert.NoError(t, err)
+	
+	// Clear cache
+	err = ClearRemoteOverridesCache()
+	assert.NoError(t, err)
+	
+	// Verify file is gone
+	_, err = os.Stat(cachePath)
+	assert.True(t, os.IsNotExist(err))
 }
