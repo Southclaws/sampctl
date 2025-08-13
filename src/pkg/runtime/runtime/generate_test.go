@@ -9,7 +9,7 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 )
 
-func Test_GenerateServerCfg(t *testing.T) {
+func Test_GenerateConfig_SAMP(t *testing.T) {
 	type args struct {
 		cfg *run.Runtime
 	}
@@ -223,8 +223,8 @@ something_else 100
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := GenerateServerCfg(tt.args.cfg); (err != nil) != tt.wantErr {
-				t.Errorf("Config.GenerateServerCfg() error = %v, wantErr %v", err, tt.wantErr)
+			if err := GenerateConfig(tt.args.cfg); (err != nil) != tt.wantErr {
+				t.Errorf("Config.GenerateConfig() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			raw, _ := ioutil.ReadFile("./tests/generate/server.cfg")

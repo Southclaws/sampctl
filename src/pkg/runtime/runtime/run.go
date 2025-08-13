@@ -58,6 +58,12 @@ func Run(
 
 	print.Verb("starting", binary, "in", cfg.WorkingDir)
 
+	if cfg.IsOpenMP() {
+		print.Verb("detected open.mp runtime")
+	} else {
+		print.Verb("detected sa-mp runtime")
+	}
+
 	linkErr := createSpecialLink(cfg)
 	if linkErr != nil {
 		print.Verb("failed to create special link: ", linkErr)

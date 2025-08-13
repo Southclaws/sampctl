@@ -25,6 +25,11 @@ var ErrNotRemotePackage = errors.New("remote repository does not declare a packa
 
 // EnsureDependencies traverses package dependencies and ensures they are up to date
 func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate bool) (err error) {
+	return pcx.EnsureDependenciesWithRuntime(ctx, forceUpdate, true)
+}
+
+// EnsureDependenciesWithRuntime traverses package dependencies and ensures they are up to date,
+func (pcx *PackageContext) EnsureDependenciesWithRuntime(ctx context.Context, forceUpdate bool, setupRuntime bool) (err error) {
 	if pcx.Package.LocalPath == "" {
 		return errors.New("package does not represent a locally stored package")
 	}
@@ -54,7 +59,7 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 		}
 	}
 
-	if pcx.Package.Local {
+	if pcx.Package.Local && setupRuntime {
 		print.Verb(pcx.Package, "package is local, ensuring binaries too")
 		pcx.ActualRuntime.WorkingDir = pcx.Package.LocalPath
 		pcx.ActualRuntime.Format = pcx.Package.Format
@@ -202,19 +207,19 @@ func (pcx *PackageContext) ensurePluginDependency(meta versioning.DependencyMeta
 		if !util.Exists(pluginPath) {
 			return errors.Errorf("local plugin path does not exist: %s", pluginPath)
 		}
-		
+
 		pluginMeta := versioning.DependencyMeta{
 			Scheme: "plugin",
 			Local:  meta.Local,
 			User:   "local",
 			Repo:   filepath.Base(meta.Local),
 		}
-		
+
 		pcx.AllPlugins = append(pcx.AllPlugins, pluginMeta)
 		print.Verb(meta, "added local plugin dependency:", pluginPath)
 		return nil
 	}
-	
+
 	// Remote plugin: plugin://user/repo or plugin://user/repo:tag
 	// Treat as a regular dependency but mark it as a plugin
 	remoteMeta := versioning.DependencyMeta{
@@ -226,12 +231,12 @@ func (pcx *PackageContext) ensurePluginDependency(meta versioning.DependencyMeta
 		Commit: meta.Commit,
 		Path:   meta.Path,
 	}
-	
+
 	err := pcx.ensureRegularPackage(remoteMeta, false)
 	if err != nil {
 		return err
 	}
-	
+
 	pcx.AllPlugins = append(pcx.AllPlugins, remoteMeta)
 	print.Verb(meta, "added remote plugin dependency:", remoteMeta)
 	return nil
@@ -245,12 +250,12 @@ func (pcx *PackageContext) ensureIncludesDependency(meta versioning.DependencyMe
 		if !util.Exists(includesPath) {
 			return errors.Errorf("local includes path does not exist: %s", includesPath)
 		}
-		
+
 		pcx.AllIncludePaths = append(pcx.AllIncludePaths, includesPath)
 		print.Verb(meta, "added local includes path:", includesPath)
 		return nil
 	}
-	
+
 	// Remote includes: includes://user/repo or includes://user/repo:tag
 	// Ensure the dependency and add its path to includes
 	remoteMeta := versioning.DependencyMeta{
@@ -262,12 +267,12 @@ func (pcx *PackageContext) ensureIncludesDependency(meta versioning.DependencyMe
 		Commit: meta.Commit,
 		Path:   meta.Path,
 	}
-	
+
 	err := pcx.ensureRegularPackage(remoteMeta, false)
 	if err != nil {
 		return err
 	}
-	
+
 	includesPath := filepath.Join(pcx.Package.Vendor, remoteMeta.Repo)
 	if remoteMeta.Path != "" {
 		includesPath = filepath.Join(includesPath, remoteMeta.Path)
@@ -285,11 +290,11 @@ func (pcx *PackageContext) ensureFilterscriptDependency(meta versioning.Dependen
 		if !util.Exists(filterscriptPath) {
 			return errors.Errorf("local filterscript path does not exist: %s", filterscriptPath)
 		}
-		
+
 		print.Verb(meta, "added local filterscript dependency:", filterscriptPath)
 		return nil
 	}
-	
+
 	// Remote filterscript: filterscript://user/repo or filterscript://user/repo:tag
 	// Treat as a regular dependency
 	remoteMeta := versioning.DependencyMeta{
@@ -301,12 +306,12 @@ func (pcx *PackageContext) ensureFilterscriptDependency(meta versioning.Dependen
 		Commit: meta.Commit,
 		Path:   meta.Path,
 	}
-	
+
 	err := pcx.ensureRegularPackage(remoteMeta, false)
 	if err != nil {
 		return err
 	}
-	
+
 	print.Verb(meta, "added filterscript dependency:", remoteMeta)
 	return nil
 }

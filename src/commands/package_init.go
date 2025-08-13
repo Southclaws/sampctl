@@ -7,10 +7,10 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
-	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/package/rook"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
+	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
+	"github.com/Southclaws/sampctl/src/pkg/package/rook"
 )
 
 var packageInitFlags = []cli.Flag{
@@ -18,6 +18,11 @@ var packageInitFlags = []cli.Flag{
 		Name:  "dir",
 		Value: ".",
 		Usage: "working directory for the project - by default, uses the current directory",
+	},
+	cli.StringFlag{
+		Name:  "runtime",
+		Value: "samp",
+		Usage: "default target runtime for the project: 'samp' for SA-MP or 'openmp' for Open.MP",
 	},
 }
 
@@ -27,6 +32,12 @@ func packageInit(c *cli.Context) error {
 	}
 
 	dir := util.FullPath(c.String("dir"))
+	runtime := c.String("runtime")
+
+	if runtime != "samp" && runtime != "openmp" {
+		print.Warn("Invalid runtime option provided, defaulting to 'samp'.")
+		runtime = "samp"
+	}
 
 	cacheDir := download.GetCacheDir()
 
@@ -35,7 +46,7 @@ func packageInit(c *cli.Context) error {
 		return errors.New("Directory already appears to be a package")
 	}
 
-	err = rook.Init(context.Background(), gh, dir, cfg, gitAuth, platform(c), cacheDir)
+	err = rook.Init(context.Background(), gh, dir, cfg, gitAuth, platform(c), cacheDir, runtime)
 
 	return err
 }

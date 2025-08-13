@@ -11,17 +11,22 @@ import (
 	"gopkg.in/AlecAivazis/survey.v1"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
+	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 )
 
 // InitialiseServer creates a samp.json by asking the user a series of questions
 // nolint:gocyclo
 func InitialiseServer(version, dir, platform string) (err error) {
+	pluginDirName := "plugins"
+	if run.DetectRuntimeType(version) == run.RuntimeTypeOpenMP {
+		pluginDirName = "components"
+	}
+
 	var (
 		gamemodesDir      = filepath.Join(dir, "gamemodes")
 		filterscriptsDir  = filepath.Join(dir, "filterscripts")
-		pluginsDir        = filepath.Join(dir, "plugins")
+		pluginsDir        = filepath.Join(dir, pluginDirName)
 		gamemodesList     []string
 		filterscriptsList []string
 		pluginsList       []string

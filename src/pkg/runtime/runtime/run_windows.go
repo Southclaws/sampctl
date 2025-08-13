@@ -7,6 +7,7 @@ import (
 	"io"
 	"os/exec"
 	"sync"
+	"syscall"
 
 	"github.com/UserExistsError/conpty"
 	"github.com/pkg/errors"
@@ -80,4 +81,10 @@ func useTty(cmd *exec.Cmd, w io.Writer, r io.Reader) (err error) {
 		err = nil
 	}
 	return
+}
+
+func getRuntimeSysProcAttr() *syscall.SysProcAttr {
+	return &syscall.SysProcAttr{
+		CreationFlags: 0x00000200, // CREATE_NEW_PROCESS_GROUP
+	}
 }

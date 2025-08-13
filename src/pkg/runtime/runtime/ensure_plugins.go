@@ -12,13 +12,37 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
-	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/resource"
-	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
+	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
+	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
+	"github.com/Southclaws/sampctl/src/resource"
 )
+
+// getPluginDirectory returns the appropriate plugin directory based on runtime type
+func getPluginDirectory(cfg *run.Runtime) string {
+	if cfg.IsOpenMP() {
+		return "components"
+	}
+	return "plugins"
+}
+
+// getPluginDirectoryForResource returns the appropriate plugin directory based on resource version
+func getPluginDirectoryForResource(resourceVersion string) string {
+	// Check if the resource version indicates it's for Open.MP
+	lowerVersion := strings.ToLower(resourceVersion)
+	if strings.Contains(lowerVersion, "openmp") || strings.Contains(lowerVersion, "open.mp") {
+		return "components"
+	}
+	// Default to plugins for SA-MP compatibility
+	return "plugins"
+}
+
+// getPluginPath returns the full path to the plugin directory
+func getPluginPath(cfg *run.Runtime) string {
+	return filepath.Join(cfg.WorkingDir, getPluginDirectory(cfg))
+}
 
 // EnsurePlugins validates and downloads plugin binary files
 func EnsurePlugins(
@@ -39,17 +63,13 @@ func EnsurePlugins(
 	for _, plugin := range cfg.PluginDeps {
 		files, err = EnsureVersionedPlugin(ctx, gh, plugin, cfg.WorkingDir, cfg.Platform, cfg.Version, cacheDir, true, false, noCache)
 		if err != nil {
-			print.Warn("failed to ensure plugin", plugin, err)
-			err = nil
-			continue
+			return
 		}
-		print.Verb("adding dependency", plugin, "files", files, "to plugins list")
 		newPlugins = append(newPlugins, files...)
 	}
 
 	added := make(map[run.Plugin]struct{})
 
-	// trim extensions for plugins list, they are added later by GenerateServerCFG if needed
 	for _, plugin := range newPlugins {
 		pluginName := run.Plugin(strings.TrimSuffix(string(plugin), fileExt))
 		if _, ok := added[pluginName]; ok {
@@ -66,6 +86,12 @@ func EnsurePlugins(
 		err = os.MkdirAll(pluginsDir, 0700)
 		if err != nil {
 			return errors.Wrap(err, "failed to create runtime plugins directory")
+		}
+
+		componentsDir := util.FullPath(filepath.Join(cfg.WorkingDir, "components"))
+		err = os.MkdirAll(componentsDir, 0700)
+		if err != nil {
+			return errors.Wrap(err, "failed to create runtime components directory")
 		}
 	}
 
@@ -113,8 +139,10 @@ func EnsureVersionedPlugin(
 		// get plugins
 		if plugins {
 			for _, plugin := range resource.Plugins {
-				print.Verb(meta, "marking plugin path", plugin, "for extraction to ./plugins/")
-				paths[plugin] = "plugins/"
+				// Determine plugin directory based on resource version
+				pluginDir := getPluginDirectoryForResource(resource.Version) + "/"
+				print.Verb(meta, "marking plugin path", plugin, "for extraction to ./"+pluginDir)
+				paths[plugin] = pluginDir
 			}
 		}
 
@@ -156,7 +184,8 @@ func EnsureVersionedPlugin(
 	} else {
 		print.Verb(meta, "plugin resource is a single file")
 		base := filepath.Base(filename)
-		finalDir := filepath.Join(dir, "plugins")
+		pluginDir := getPluginDirectoryForResource(resource.Version)
+		finalDir := filepath.Join(dir, pluginDir)
 		destination := filepath.Join(finalDir, base)
 
 		err = os.MkdirAll(finalDir, 0700)

@@ -20,7 +20,6 @@ import (
 // - Server binaries (server, announce, npc)
 // - Plugin binaries
 // - Scripts: gamemodes and filterscripts
-// and a `server.cfg` is generated based on the contents of the Config fields.
 func Ensure(ctx context.Context, gh *github.Client, cfg *run.Runtime, noCache bool) (err error) {
 	if err = cfg.Validate(); err != nil {
 		return
@@ -46,10 +45,10 @@ func Ensure(ctx context.Context, gh *github.Client, cfg *run.Runtime, noCache bo
 		return errors.Wrap(err, "failed to ensure scripts")
 	}
 
-	print.Verb("generating legacy server configuration file")
-	err = GenerateServerCfg(cfg)
+	print.Verb("generating server configuration file")
+	err = GenerateConfig(cfg)
 	if err != nil {
-		return errors.Wrap(err, "failed to generate server.cfg")
+		return errors.Wrap(err, "failed to generate server configuration")
 	}
 
 	return nil

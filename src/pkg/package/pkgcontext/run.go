@@ -15,9 +15,9 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/build/build"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 	"github.com/Southclaws/sampctl/src/pkg/runtime/runtime"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 )
 
 // Run will create a temporary server runtime and run the package output AMX as a gamemode using the
@@ -117,8 +117,7 @@ loop:
 	return err
 }
 
-// RunPrepare prepares the context directory for executing the server. It
-// generates a server.cfg and ensures plugins.
+// RunPrepare prepares the context directory for executing the server.
 func (pcx *PackageContext) RunPrepare(ctx context.Context) (err error) {
 	var (
 		filename = filepath.Join(pcx.Package.LocalPath, pcx.Package.Output)

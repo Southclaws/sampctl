@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -26,11 +27,11 @@ type Runtime struct {
 	PluginDeps []versioning.DependencyMeta `ignore:"1" json:"-" yaml:"-"` // an internal list of remote plugins to download
 	Format     string                      `ignore:"1" json:"-" yaml:"-"` // format stores the original format of the package definition file, either `json` or `yaml`
 
-	// Only used to configure sampctl, not used in server.cfg generation
-	Name     string  `ignore:"1" json:"name,omitempty"     yaml:"name,omitempty"`                    // configuration name
-	Version  string  `ignore:"1" json:"version,omitempty"  yaml:"version,omitempty"`                 // runtime version
-	Mode     RunMode `ignore:"1" json:"mode,omitempty"     yaml:"mode,omitempty"`                    // the runtime mode
-	RootLink bool    `ignore:"1" default:"true" json:"rootLink,omitempty" yaml:"rootLink,omitempty"` // toggles creating a symlink to the root directory. https://github.com/Southclaws/sampctl/issues/248
+	Name        string      `ignore:"1" json:"name,omitempty"     yaml:"name,omitempty"`                    // configuration name
+	Version     string      `ignore:"1" json:"version,omitempty"  yaml:"version,omitempty"`                 // runtime version
+	Mode        RunMode     `ignore:"1" json:"mode,omitempty"     yaml:"mode,omitempty"`                    // the runtime mode
+	RuntimeType RuntimeType `ignore:"1" json:"runtime_type,omitempty" yaml:"runtime_type,omitempty"`        // the runtime type (samp, openmp), auto-detected if not specified
+	RootLink    bool        `ignore:"1" default:"true" json:"rootLink,omitempty" yaml:"rootLink,omitempty"` // toggles creating a symlink to the root directory. https://github.com/Southclaws/sampctl/issues/248
 
 	Echo *string `ignore:"1" json:"echo,omitempty" yaml:"echo,omitempty"`
 
@@ -102,6 +103,18 @@ const (
 	YTesting RunMode = "y_testing"
 )
 
+// RuntimeType represents the type of runtime being used
+type RuntimeType string
+
+const (
+	// RuntimeTypeAuto automatically detects the runtime type based on version string
+	RuntimeTypeAuto RuntimeType = ""
+	// RuntimeTypeSAMP is the traditional SA-MP server runtime
+	RuntimeTypeSAMP RuntimeType = "samp"
+	// RuntimeTypeOpenMP is the open.mp server runtime
+	RuntimeTypeOpenMP RuntimeType = "openmp"
+)
+
 // Plugin represents either a plugin name or a dependency-string description of where to get it
 type Plugin string
 
@@ -133,6 +146,30 @@ func (cfg Runtime) Validate() (err error) {
 	}
 
 	return
+}
+
+// GetEffectiveRuntimeType returns the effective runtime type, auto-detecting if not explicitly set
+func (cfg Runtime) GetEffectiveRuntimeType() RuntimeType {
+	if cfg.RuntimeType != RuntimeTypeAuto {
+		return cfg.RuntimeType
+	}
+
+	return DetectRuntimeType(cfg.Version)
+}
+
+// DetectRuntimeType detects the runtime type based on a version string
+func DetectRuntimeType(version string) RuntimeType {
+	lowerVersion := strings.ToLower(version)
+
+	if strings.Contains(lowerVersion, "openmp") || strings.Contains(lowerVersion, "open.mp") {
+		return RuntimeTypeOpenMP
+	}
+
+	return RuntimeTypeSAMP
+}
+
+func (cfg Runtime) IsOpenMP() bool {
+	return cfg.GetEffectiveRuntimeType() == RuntimeTypeOpenMP
 }
 
 // RuntimeFromDir creates a config from a directory by searching for a JSON or YAML file to

@@ -7,6 +7,7 @@ import (
 	"io"
 	"os/exec"
 	"sync"
+	"syscall"
 
 	"github.com/creack/pty"
 	"github.com/pkg/errors"
@@ -17,7 +18,8 @@ import (
 func platformRun(cmd *exec.Cmd, w io.Writer, r io.Reader) (err error) {
 	ptmx, err := pty.Start(cmd)
 	if err != nil {
-		return errors.Wrap(err, "failed to start pty")
+		print.Verb("PTY allocation failed, falling back to regular execution:", err)
+		return platformRunFallback(cmd, w, r)
 	}
 	if ptmx == nil {
 		return errors.New("failed to create new pty, ptmx is null")
@@ -59,4 +61,25 @@ func platformRun(cmd *exec.Cmd, w io.Writer, r io.Reader) (err error) {
 	}
 
 	return nil
+}
+
+func platformRunFallback(cmd *exec.Cmd, w io.Writer, r io.Reader) error {
+	cmd.SysProcAttr = getRuntimeSysProcAttr()
+	cmd.Stdout = w
+	cmd.Stderr = w
+	cmd.Stdin = r
+
+	err := cmd.Start()
+	if err != nil {
+		return errors.Wrap(err, "failed to start command")
+	}
+
+	return cmd.Wait()
+}
+
+func getRuntimeSysProcAttr() *syscall.SysProcAttr {
+	return &syscall.SysProcAttr{
+		Setpgid:   true,
+		Pdeathsig: syscall.SIGTERM,
+	}
 }

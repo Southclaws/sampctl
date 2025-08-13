@@ -82,8 +82,8 @@ func Run(args []string, version string) error {
 	app.Commands = []cli.Command{
 		{
 			Name:        "init",
-			Usage:       "sampctl init",
-			Description: "Helper tool to bootstrap a new package or turn an existing project into a package.",
+			Usage:       "sampctl init [--runtime samp|openmp]",
+			Description: "Initialises a new samp or open.mp project.",
 			Action:      packageInit,
 			Flags:       append(globalFlags, packageInitFlags...),
 		},
