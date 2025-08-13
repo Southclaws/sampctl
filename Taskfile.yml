@@ -83,14 +83,53 @@ tasks:
     cmds:
       - earthly +build
 
+  earthly:build-windows:
+    cmds:
+      - earthly +build-windows
+
+  earthly:build-all:
+    cmds:
+      - earthly +build-all
+
   earthly:all:
     cmds:
       - earthly +all
 
   earthly:release:
     cmds:
-      - earthly --secret GITHUB_TOKEN=$FULL_ACCESS_GITHUB_TOKEN +release
+      - earthly +release
 
-  earthly:release-push:
+  earthly:release-windows:
     cmds:
-      - earthly --secret GITHUB_TOKEN=$FULL_ACCESS_GITHUB_TOKEN +release-push
+      - earthly +release-windows
+
+  earthly:release-all:
+    cmds:
+      - earthly +release-all
+
+  ci:build:
+    desc: "Build sampctl binaries for both Linux and Windows"
+    cmds:
+      - earthly +release-all
+
+  ci:build-linux:
+    desc: "Build sampctl binary for Linux only"
+    cmds:
+      - earthly +release
+
+  ci:build-windows:
+    desc: "Build sampctl binary for Windows only"
+    cmds:
+      - earthly +release-windows
+
+  ci:test:
+    desc: "Run tests with token"
+    deps: ["ci:build"]
+    cmds:
+      - earthly --secret FULL_ACCESS_GITHUB_TOKEN +test
+
+  ci:full:
+    desc: "Run full CI workflow: build then test"
+    cmds:
+      - task: ci:build
+      - task: ci:test
