@@ -77,7 +77,15 @@ tasks:
 
   earthly:test:
     cmds:
-      - earthly --secret FULL_ACCESS_GITHUB_TOKEN +test
+      - earthly +test
+
+  earthly:build:
+    cmds:
+      - earthly +build
+
+  earthly:all:
+    cmds:
+      - earthly +all
 
   earthly:release:
     cmds:

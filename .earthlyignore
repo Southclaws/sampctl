@@ -1,1 +1,41 @@
+# Environment files
 *.env
+.env.local
+
+# Build artifacts
+sampctl
+*.exe
+
+# Test artifacts
+test_project/
+
+# Development files
+.git/
+.vscode/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# Dependencies (will be downloaded via go mod)
+dependencies/
+
+# Documentation build
+docs/build/
+
+# Docker files
+Dockerfile
+
+# Cache directories
+.cache/
+node_modules/
+
+# IDE files
+.idea/
+*.swp
+*.swo
