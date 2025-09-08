@@ -9,7 +9,6 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
@@ -25,7 +24,7 @@ func Ensure(ctx context.Context, gh *github.Client, cfg *run.Runtime, noCache bo
 		return
 	}
 
-	cacheDir := download.GetCacheDir()
+	cacheDir := util.GetConfigDir()
 
 	print.Verb("ensuring server binaries")
 	err = EnsureBinaries(cacheDir, *cfg)

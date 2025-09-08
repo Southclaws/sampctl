@@ -12,7 +12,6 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
@@ -139,7 +138,7 @@ func (m *DefaultResourceManager) EnsureAll(ctx context.Context, resources []Reso
 
 // CleanCache removes unused cached resources
 func (m *DefaultResourceManager) CleanCache() error {
-	cacheDir := download.GetCacheDir()
+	cacheDir := util.GetConfigDir()
 
 	// Walk through all resource type directories in cache
 	resourceTypes := []ResourceType{

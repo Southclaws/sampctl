@@ -14,7 +14,6 @@ import (
 	"strings"
 
 	"github.com/google/go-github/github"
-	"github.com/kirsle/configdir"
 	"github.com/mitchellh/go-homedir"
 	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
@@ -46,12 +45,6 @@ func ExtractFuncFromName(name string) ExtractFunc {
 	default:
 		return nil
 	}
-}
-
-// GetCacheDir returns the full path to the user's cache directory, creating it if it doesn't exist
-func GetCacheDir() (cacheDir string) {
-	cacheDir = configdir.LocalConfig("sampctl")
-	return
 }
 
 // Migrate old config to new path

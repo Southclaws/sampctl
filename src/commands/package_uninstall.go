@@ -4,11 +4,10 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
-	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
+	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
 var packageUninstallFlags = []cli.Flag{
@@ -37,7 +36,7 @@ func packageUninstall(c *cli.Context) error {
 		return nil
 	}
 
-	cacheDir := download.GetCacheDir()
+	cacheDir := util.GetConfigDir()
 
 	deps := []versioning.DependencyString{}
 	for _, dep := range c.Args() {

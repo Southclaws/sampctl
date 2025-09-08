@@ -6,7 +6,6 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
@@ -39,7 +38,7 @@ func packageInit(c *cli.Context) error {
 		runtime = "samp"
 	}
 
-	cacheDir := download.GetCacheDir()
+	cacheDir := util.GetConfigDir()
 
 	_, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "", true)
 	if err != nil {

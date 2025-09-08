@@ -8,10 +8,9 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
-	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
+	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
 var packageBuildFlags = []cli.Flag{
@@ -57,7 +56,7 @@ func packageBuild(c *cli.Context) error {
 
 	build := c.Args().Get(0)
 
-	cacheDir := download.GetCacheDir()
+	cacheDir := util.GetConfigDir()
 
 	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "", false)
 	if err != nil {
@@ -106,7 +105,7 @@ func packageBuild(c *cli.Context) error {
 func packageBuildBash(c *cli.Context) {
 	dir := util.FullPath(c.String("dir"))
 
-	cacheDir := download.GetCacheDir()
+	cacheDir := util.GetConfigDir()
 
 	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, cacheDir, "", false)
 	if err != nil {

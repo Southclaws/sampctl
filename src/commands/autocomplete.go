@@ -9,8 +9,8 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 )
 
 func autoComplete(c *cli.Context) (err error) {
@@ -37,7 +37,7 @@ func autoComplete(c *cli.Context) (err error) {
 		return
 	}
 
-	cacheDir := download.GetCacheDir()
+	cacheDir := util.GetConfigDir()
 
 	completionFile := filepath.Join(cacheDir, "autocomplete")
 

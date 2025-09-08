@@ -10,8 +10,8 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/src/config"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 )
 
 var packageConfigFlags = []cli.Flag{
@@ -75,7 +75,7 @@ func packageConfig(c *cli.Context) error {
 		}
 	}
 
-	config.WriteConfig(download.GetCacheDir(), *cnf)
+	config.WriteConfig(util.GetConfigDir(), *cnf)
 	print.Info("successfully set config field", field, "to", value)
 
 	return nil

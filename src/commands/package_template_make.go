@@ -10,7 +10,6 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
@@ -41,7 +40,7 @@ func packageTemplateMake(c *cli.Context) (err error) {
 		return nil
 	}
 
-	cacheDir := download.GetCacheDir()
+	cacheDir := util.GetConfigDir()
 	name := c.Args().First()
 
 	templatePath := filepath.Join(cacheDir, "templates", name)

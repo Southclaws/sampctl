@@ -8,10 +8,9 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
-	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
+	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
 var packageTemplateBuildFlags = []cli.Flag{
@@ -28,7 +27,7 @@ func packageTemplateBuild(c *cli.Context) (err error) {
 		return nil
 	}
 
-	cacheDir := download.GetCacheDir()
+	cacheDir := util.GetConfigDir()
 
 	template := c.Args().Get(0)
 	filename := c.Args().Get(1)

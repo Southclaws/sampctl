@@ -7,7 +7,6 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
@@ -30,7 +29,7 @@ func packageEnsure(c *cli.Context) error {
 		print.SetVerbose()
 	}
 
-	cacheDir := download.GetCacheDir()
+	cacheDir := util.GetConfigDir()
 	dir := util.FullPath(c.String("dir"))
 	forceUpdate := c.Bool("update")
 

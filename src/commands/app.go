@@ -21,6 +21,7 @@ import (
 	"github.com/Southclaws/sampctl/src/config"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 )
 
 var (
@@ -30,7 +31,7 @@ var (
 )
 
 func Run(args []string, version string) error {
-	cacheDir := download.GetCacheDir()
+	cacheDir := util.GetConfigDir()
 	err := configdir.MakePath(cacheDir)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create config path")

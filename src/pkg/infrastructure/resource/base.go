@@ -16,13 +16,13 @@ import (
 
 // BaseResource provides common functionality for all resource types
 type BaseResource struct {
-	identifier    string
-	version       string
-	resourceType  ResourceType
-	cacheDir      string
-	downloadURL   string
-	localPath     string
-	cacheTTL      time.Duration
+	identifier   string
+	version      string
+	resourceType ResourceType
+	cacheDir     string
+	downloadURL  string
+	localPath    string
+	cacheTTL     time.Duration
 }
 
 // NewBaseResource creates a new BaseResource
@@ -31,7 +31,7 @@ func NewBaseResource(identifier, version string, resourceType ResourceType) *Bas
 		identifier:   identifier,
 		version:      version,
 		resourceType: resourceType,
-		cacheDir:     download.GetCacheDir(),
+		cacheDir:     util.GetConfigDir(),
 		cacheTTL:     time.Hour * 24 * 7, // Default 1 week cache
 	}
 }
@@ -54,22 +54,22 @@ func (br *BaseResource) Identifier() string {
 // Cached checks if the resource is cached and returns the path if present
 func (br *BaseResource) Cached(version string) (bool, string) {
 	cachePath := br.getCachePath(version)
-	
+
 	// Check if cached file/directory exists
 	if !util.Exists(cachePath) {
 		return false, ""
 	}
-	
+
 	// Check if cache is still valid (not expired)
 	info, err := os.Stat(cachePath)
 	if err != nil {
 		return false, ""
 	}
-	
+
 	if time.Since(info.ModTime()) > br.cacheTTL {
 		return false, ""
 	}
-	
+
 	return true, cachePath
 }
 
@@ -77,7 +77,7 @@ func (br *BaseResource) Cached(version string) (bool, string) {
 func (br *BaseResource) getCachePath(version string) string {
 	// Create a hash of the identifier + version for unique cache paths
 	sum := md5.Sum([]byte(br.identifier + ":" + version))
-	
+
 	return filepath.Join(
 		br.cacheDir,
 		string(br.resourceType),
@@ -134,9 +134,9 @@ func (br *BaseResource) EnsureFromLocal(ctx context.Context, version, targetPath
 	if br.localPath == "" {
 		return errors.New("no local path specified for resource")
 	}
-	
+
 	cachePath := br.getCachePath(version)
-	
+
 	// Check if already cached
 	if cached, path := br.Cached(version); cached {
 		// Copy from cache to target if different
@@ -145,24 +145,24 @@ func (br *BaseResource) EnsureFromLocal(ctx context.Context, version, targetPath
 		}
 		return nil
 	}
-	
+
 	// Ensure cache directory exists
 	if err := br.ensureCacheDir(cachePath); err != nil {
 		return errors.Wrap(err, "failed to create cache directory")
 	}
-	
+
 	// Copy local file to cache
 	if err := util.CopyFile(br.localPath, cachePath); err != nil {
 		return errors.Wrap(err, "failed to copy local file to cache")
 	}
-	
+
 	// Copy to target path if specified
 	if targetPath != "" && targetPath != cachePath {
 		if err := util.CopyFile(cachePath, targetPath); err != nil {
 			return errors.Wrap(err, "failed to copy to target path")
 		}
 	}
-	
+
 	return nil
 }
 
@@ -171,9 +171,9 @@ func (br *BaseResource) EnsureFromURL(ctx context.Context, version, targetPath s
 	if br.downloadURL == "" {
 		return errors.New("no download URL specified for resource")
 	}
-	
+
 	cachePath := br.getCachePath(version)
-	
+
 	// Check if already cached
 	if cached, path := br.Cached(version); cached {
 		// Copy from cache to target if different
@@ -182,25 +182,25 @@ func (br *BaseResource) EnsureFromURL(ctx context.Context, version, targetPath s
 		}
 		return nil
 	}
-	
+
 	// Ensure cache directory exists
 	if err := br.ensureCacheDir(cachePath); err != nil {
 		return errors.Wrap(err, "failed to create cache directory")
 	}
-	
+
 	// Download to cache
 	filename := filepath.Base(cachePath)
 	_, err := download.FromNet(br.downloadURL, filepath.Dir(cachePath), filename)
 	if err != nil {
 		return errors.Wrap(err, "failed to download resource")
 	}
-	
+
 	// Copy to target path if specified
 	if targetPath != "" && targetPath != cachePath {
 		if err := util.CopyFile(cachePath, targetPath); err != nil {
 			return errors.Wrap(err, "failed to copy to target path")
 		}
 	}
-	
+
 	return nil
 }
