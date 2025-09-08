@@ -148,6 +148,20 @@ func Run(args []string, version string) error {
 			Flags:       append(globalFlags, packageRunFlags...),
 		},
 		{
+			Name:        "compiler",
+			Usage:       "sampctl compiler",
+			Description: "Provides commands for managing compiler configurations",
+			Subcommands: []cli.Command{
+				{
+					Name:        "list",
+					Usage:       "sampctl compiler list",
+					Description: "Lists available compiler presets and their configurations.",
+					Action:      compilerList,
+					Flags:       append(globalFlags, compilerFlags...),
+				},
+			},
+		},
+		{
 			Name:        "template",
 			Usage:       "sampctl template <subcommand>",
 			Description: "Provides commands for package templates",

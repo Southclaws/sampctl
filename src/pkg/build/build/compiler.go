@@ -30,6 +30,39 @@ type CompilerConfig struct {
 	Repo    string `json:"repo,omitempty" yaml:"repo,omitempty"`       // Name of the github repository
 	Version string `json:"version,omitempty" yaml:"version,omitempty"` // The version of the compiler to use
 	Path    string `json:"path,omitempty" yaml:"path,omitempty"`       // The path to the compiler (overrides the above)
+	Preset  string `json:"preset,omitempty" yaml:"preset,omitempty"`   // Predefined compiler preset (pawn-lang, openmp, etc.)
+}
+
+// CompilerPreset represents a predefined compiler configuration
+type CompilerPreset struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Site        string `json:"site"`
+	User        string `json:"user"`
+	Repo        string `json:"repo"`
+	Version     string `json:"version"`
+}
+
+// GetPredefinedCompilers returns a map of predefined compiler configurations
+func GetPredefinedCompilers() map[string]CompilerPreset {
+	return map[string]CompilerPreset{
+		"openmp": {
+			Name:        "openmp",
+			Description: "Open.MP modified Pawn compiler with improvements",
+			Site:        "github.com",
+			User:        "openmultiplayer",
+			Repo:        "compiler",
+			Version:     "3.10.11",
+		},
+		"samp": {
+			Name:        "samp",
+			Description: "Default compiler for SA-MP (Community Compiler)",
+			Site:        "github.com",
+			User:        "pawn-lang",
+			Repo:        "compiler",
+			Version:     "3.10.10",
+		},
+	}
 }
 
 // Default defines and returns a default compiler configuration
@@ -37,13 +70,50 @@ func Default() *Config {
 	return &Config{
 		Args: []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
 		Compiler: CompilerConfig{
-			Site:    "github.com",
-			User:    "pawn-lang",
-			Repo:    "compiler",
-			Version: "3.10.10",
-			Path:    "",
+			Preset: "samp",
 		},
 	}
+}
+
+// ResolveCompilerConfig resolves the final compiler configuration by applying presets
+func (cc *CompilerConfig) ResolveCompilerConfig() CompilerConfig {
+	resolved := *cc
+
+	// If a preset is specified, apply it first
+	if cc.Preset != "" {
+		presets := GetPredefinedCompilers()
+		if preset, exists := presets[cc.Preset]; exists {
+			// Apply preset values only if they're not already set
+			if resolved.Site == "" {
+				resolved.Site = preset.Site
+			}
+			if resolved.User == "" {
+				resolved.User = preset.User
+			}
+			if resolved.Repo == "" {
+				resolved.Repo = preset.Repo
+			}
+			if resolved.Version == "" {
+				resolved.Version = preset.Version
+			}
+		}
+	}
+
+	// Apply default values if still empty
+	if resolved.Site == "" {
+		resolved.Site = "github.com"
+	}
+	if resolved.User == "" {
+		resolved.User = "pawn-lang"
+	}
+	if resolved.Repo == "" {
+		resolved.Repo = "compiler"
+	}
+	if resolved.Version == "" {
+		resolved.Version = "3.10.10"
+	}
+
+	return resolved
 }
 
 // Result represents the final statistics (in bytes) of a successfully built .amx file.

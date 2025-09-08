@@ -109,11 +109,12 @@ func GetCompilerPackage(
 	platform string,
 	cacheDir string,
 ) (compiler download.Compiler, err error) {
+	resolved := config.Compiler.ResolveCompilerConfig()
 	meta := versioning.DependencyMeta{
-		Site: config.Compiler.Site,
-		User: config.Compiler.User,
-		Repo: config.Compiler.Repo,
-		Tag:  config.Compiler.Version,
+		Site: resolved.Site,
+		User: resolved.User,
+		Repo: resolved.Repo,
+		Tag:  resolved.Version,
 	}
 
 	if meta.Tag == "" {
@@ -136,7 +137,7 @@ func GetCompilerPackage(
 
 	compiler, hit, err := FromCache(meta, dir, platform, cacheDir)
 	if err != nil {
-		err = errors.Wrapf(err, "failed to get package %s from cache", config.Compiler.Version)
+		err = errors.Wrapf(err, "failed to get package %s from cache", resolved.Version)
 		return
 	}
 	if hit {
@@ -145,7 +146,7 @@ func GetCompilerPackage(
 
 	compiler, err = FromNet(ctx, gh, meta, dir, platform, cacheDir)
 	if err != nil {
-		err = errors.Wrapf(err, "failed to get package %s from net", config.Compiler.Version)
+		err = errors.Wrapf(err, "failed to get package %s from net", resolved.Version)
 		return
 	}
 
