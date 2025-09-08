@@ -192,7 +192,7 @@ func (pcx *PackageContext) handleURLSchemeCaching(meta versioning.DependencyMeta
 			pcx.AllPlugins = append(pcx.AllPlugins, remoteMeta)
 			print.Verb(prefix, "added remote plugin dependency:", remoteMeta)
 		}
-		
+
 	case "includes":
 		if meta.IsLocalScheme() {
 			includesPath := filepath.Join(pcx.Package.LocalPath, meta.Local)
@@ -209,7 +209,7 @@ func (pcx *PackageContext) handleURLSchemeCaching(meta versioning.DependencyMeta
 				Path:   meta.Path,
 			}
 			pcx.AllDependencies = append(pcx.AllDependencies, remoteMeta)
-			
+
 			includesPath := filepath.Join(pcx.Package.Vendor, remoteMeta.Repo)
 			if remoteMeta.Path != "" {
 				includesPath = filepath.Join(includesPath, remoteMeta.Path)
@@ -217,7 +217,7 @@ func (pcx *PackageContext) handleURLSchemeCaching(meta versioning.DependencyMeta
 			pcx.AllIncludePaths = append(pcx.AllIncludePaths, includesPath)
 			print.Verb(prefix, "added remote includes dependency:", remoteMeta)
 		}
-		
+
 	case "filterscript":
 		if meta.IsLocalScheme() {
 			print.Verb(prefix, "added local filterscript:", meta.Local)
@@ -234,11 +234,11 @@ func (pcx *PackageContext) handleURLSchemeCaching(meta versioning.DependencyMeta
 			pcx.AllDependencies = append(pcx.AllDependencies, remoteMeta)
 			print.Verb(prefix, "added remote filterscript dependency:", remoteMeta)
 		}
-		
+
 	default:
 		return errors.Errorf("unsupported URL scheme: %s", meta.Scheme)
 	}
-	
+
 	return nil
 }
 
@@ -262,7 +262,7 @@ func (pcx PackageContext) EnsureDependencyFromCache(
 		}
 	}
 
-	repo, err = pcx.ensureRepoExists(from, path, meta.Branch, meta.SSH != "", forceUpdate)
+	repo, err = pcx.ensureRepoExistsWithMeta(meta, from, path, meta.Branch, meta.SSH != "", forceUpdate)
 	return
 }
 
@@ -271,7 +271,7 @@ func (pcx PackageContext) EnsureDependencyCached(
 	meta versioning.DependencyMeta,
 	forceUpdate bool,
 ) (repo *git.Repository, err error) {
-	return pcx.ensureRepoExists(meta.URL(), meta.CachePath(pcx.CacheDir), meta.Branch, meta.SSH != "", forceUpdate)
+	return pcx.ensureRepoExistsWithMeta(meta, meta.URL(), meta.CachePath(pcx.CacheDir), meta.Branch, meta.SSH != "", forceUpdate)
 }
 
 func (pcx PackageContext) ensureRepoExists(
@@ -342,4 +342,21 @@ func (pcx PackageContext) ensureRepoExists(
 	}
 
 	return repo, nil
+}
+
+// ensureRepoExistsWithMeta wraps ensureRepoExists and provides improved error handling
+func (pcx PackageContext) ensureRepoExistsWithMeta(
+	meta versioning.DependencyMeta,
+	from,
+	to,
+	branch string,
+	ssh,
+	forceUpdate bool,
+) (repo *git.Repository, err error) {
+	repo, err = pcx.ensureRepoExists(from, to, branch, ssh, forceUpdate)
+	if err != nil {
+		// Apply improved error handling
+		err = WrapGitError(err, meta)
+	}
+	return repo, err
 }
