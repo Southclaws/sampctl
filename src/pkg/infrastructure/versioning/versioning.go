@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 )
 
 var (
@@ -185,6 +187,21 @@ func ApplyDependencyOverrides(depStr string) string {
 	return depStr
 }
 
+// ApplyDependencyOverridesWithLogging applies dependency overrides and logs when an override occurs
+// Returns the overridden dependency string and whether an override was applied
+func ApplyDependencyOverridesWithLogging(depStr string) (string, bool) {
+	overriddenStr := ApplyDependencyOverrides(depStr)
+	
+	if overriddenStr != depStr {
+		// An override was applied, log it
+		print.Info(fmt.Sprintf("dependency '%s' was overridden by '%s'", depStr, overriddenStr))
+		print.Verb(fmt.Sprintf("dependency override applied for '%s' -> '%s' (original repository may no longer exist, be deprecated, or have security issues)", depStr, overriddenStr))
+		return overriddenStr, true
+	}
+	
+	return depStr, false
+}
+
 // ResetDependencyOverrides resets the loaded overrides cache (mainly for testing)
 func ResetDependencyOverrides() {
 	loadedOverrides = nil
@@ -235,7 +252,7 @@ var (
 func (d DependencyString) Explode() (dep DependencyMeta, err error) {
 	// Apply dependency overrides before parsing
 	originalStr := string(d)
-	overriddenStr := ApplyDependencyOverrides(originalStr)
+	overriddenStr, _ := ApplyDependencyOverridesWithLogging(originalStr)
 
 	// Use the overridden string for parsing
 	depStr := DependencyString(overriddenStr)
