@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 )
 
 // DependencyOverrideConfig represents the structure of a dependency override configuration file
@@ -17,27 +19,19 @@ type DependencyOverrideConfig struct {
 
 const (
 	// RemoteOverridesURL is the URL to fetch dependency overrides from
-	RemoteOverridesURL = "https://raw.githubusercontent.com/sampctl/plugins/main/dependency-overrides.json"
+	RemoteOverridesURL = "https://raw.githubusercontent.com/sampctl/plugins/refs/heads/master/dependency-overrides.json"
 	// CacheValidityDuration is how long the cached overrides are valid
 	CacheValidityDuration = 24 * time.Hour
 )
 
 // DefaultDependencyOverridesPath returns the default path for the dependency overrides configuration file
 func DefaultDependencyOverridesPath() string {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	return filepath.Join(homeDir, ".sampctl", "dependency-overrides.json")
+	return filepath.Join(util.GetConfigDir(), "dependency-overrides.json")
 }
 
 // DefaultDependencyOverridesCachePath returns the default path for the cached remote dependency overrides
 func DefaultDependencyOverridesCachePath() string {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	return filepath.Join(homeDir, ".sampctl", "remote-dependency-overrides.json")
+	return filepath.Join(util.GetConfigDir(), "remote-dependency-overrides.json")
 }
 
 // isCacheValid checks if the cached file exists and is within the validity period
@@ -87,7 +81,7 @@ func downloadRemoteOverrides(url, cachePath string) error {
 // loadRemoteOverrides loads dependency overrides from the remote URL with caching
 func loadRemoteOverrides() map[string]string {
 	cachePath := DefaultDependencyOverridesCachePath()
-	
+
 	// Check if cache is valid
 	if !isCacheValid(cachePath) {
 		// Try to download fresh overrides
@@ -96,18 +90,18 @@ func loadRemoteOverrides() map[string]string {
 			return make(map[string]string)
 		}
 	}
-	
+
 	// Load from cache
 	data, err := os.ReadFile(cachePath)
 	if err != nil {
 		return make(map[string]string)
 	}
-	
+
 	var config DependencyOverrideConfig
 	if err := json.Unmarshal(data, &config); err != nil {
 		return make(map[string]string)
 	}
-	
+
 	return config.Overrides
 }
 
@@ -122,35 +116,35 @@ func LoadDependencyOverrides(configPath string) map[string]string {
 	for k, v := range DependencyOverrides {
 		overrides[k] = v
 	}
-	
+
 	// Load and merge remote overrides
 	remoteOverrides := loadRemoteOverrides()
 	for original, replacement := range remoteOverrides {
 		overrides[original] = replacement
 	}
-	
+
 	// Try to load from local config file
 	if configPath == "" {
 		configPath = DefaultDependencyOverridesPath()
 	}
-	
+
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		// If file doesn't exist, just return current overrides
 		return overrides
 	}
-	
+
 	var config DependencyOverrideConfig
 	if err := json.Unmarshal(data, &config); err != nil {
 		// If parsing fails, just return current overrides
 		return overrides
 	}
-	
+
 	// Merge local overrides (they take highest precedence)
 	for original, replacement := range config.Overrides {
 		overrides[original] = replacement
 	}
-	
+
 	return overrides
 }
 
@@ -159,22 +153,22 @@ func SaveDependencyOverrides(overrides map[string]string, configPath string) err
 	if configPath == "" {
 		configPath = DefaultDependencyOverridesPath()
 	}
-	
+
 	// Create directory if it doesn't exist
 	dir := filepath.Dir(configPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
-	
+
 	config := DependencyOverrideConfig{
 		Overrides: overrides,
 	}
-	
+
 	data, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
 		return err
 	}
-	
+
 	return os.WriteFile(configPath, data, 0644)
 }
 
