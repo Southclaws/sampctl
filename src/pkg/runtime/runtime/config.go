@@ -266,7 +266,8 @@ func (o *OpenMPConfig) Generate(cfg *run.Runtime) error {
 	}
 
 	config := &OpenMPConfigData{
-		Extra: make(map[string]interface{}),
+		UseDynTicks: true,
+		Extra:       make(map[string]interface{}),
 	}
 
 	if cfg.Hostname != nil {
@@ -294,9 +295,26 @@ func (o *OpenMPConfig) Generate(cfg *run.Runtime) error {
 		config.Sleep = float64(*cfg.Sleep)
 	}
 
-	config.Game = &OpenMPGameConfig{}
-	config.Network = &OpenMPNetworkConfig{}
-	config.Logging = &OpenMPLoggingConfig{}
+	var defaultTrue = true
+	config.Game = &OpenMPGameConfig{
+		AllowInteriorWeapons: &defaultTrue,
+		UseEntryExitMarkers:  &defaultTrue,
+		UseNametagLOS:        &defaultTrue,
+		UseNametags:          &defaultTrue,
+		UseStuntBonuses:      &defaultTrue,
+		ValidateAnimations:   &defaultTrue,
+	}
+	config.Network = &OpenMPNetworkConfig{
+		Allow037Clients: &defaultTrue,
+	}
+	config.Logging = &OpenMPLoggingConfig{
+		Enable:                &defaultTrue,
+		LogChat:               &defaultTrue,
+		LogConnectionMessages: &defaultTrue,
+		LogDeaths:             &defaultTrue,
+		UsePrefix:             &defaultTrue,
+		UseTimestamp:          &defaultTrue,
+	}
 	config.RCON = &OpenMPRCONConfig{}
 	config.Pawn = &OpenMPPawnConfig{}
 
