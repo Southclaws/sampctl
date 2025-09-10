@@ -98,6 +98,9 @@ func TestOpenMPConfigGeneration(t *testing.T) {
 	cfg.Filterscripts = []string{"admin"}
 	cfg.Plugins = []run.Plugin{"mysql", "streamer"}
 
+	var announce = true
+	cfg.Announce = &announce
+
 	// Test that it's detected as Open.MP
 	assert.True(t, cfg.IsOpenMP())
 
@@ -147,6 +150,10 @@ func TestOpenMPConfigGeneration(t *testing.T) {
 	require.True(t, ok)
 	assert.Contains(t, legacyPlugins, "mysql")
 	assert.Contains(t, legacyPlugins, "streamer")
+
+	announceValue, ok := config["announce"].(bool)
+	require.True(t, ok)
+	assert.Equal(t, true, announceValue)
 }
 
 func TestConfigGeneratorSelection(t *testing.T) {

@@ -35,11 +35,11 @@ type OpenMPConfigData struct {
 	MaxBots     int     `json:"max_bots,omitempty"`
 	Language    string  `json:"language,omitempty"`
 	Password    string  `json:"password,omitempty"`
-	Announce    bool    `json:"announce,omitempty"`
-	EnableQuery bool    `json:"enable_query,omitempty"`
+	Announce    bool    `json:"announce"`
+	EnableQuery bool    `json:"enable_query"`
 	Website     string  `json:"website,omitempty"`
 	Sleep       float64 `json:"sleep,omitempty"`
-	UseDynTicks bool    `json:"use_dyn_ticks,omitempty"`
+	UseDynTicks bool    `json:"use_dyn_ticks"`
 
 	Game    *OpenMPGameConfig    `json:"game,omitempty"`
 	Network *OpenMPNetworkConfig `json:"network,omitempty"`
@@ -55,7 +55,7 @@ type OpenMPConfigData struct {
 }
 
 type OpenMPGameConfig struct {
-	AllowInteriorWeapons      *bool    `json:"allow_interior_weapons,omitempty"`
+	AllowInteriorWeapons      *bool    `json:"allow_interior_weapons"`
 	ChatRadius                *float64 `json:"chat_radius,omitempty"`
 	DeathDropAmount           *int     `json:"death_drop_amount,omitempty"`
 	Gravity                   *float64 `json:"gravity,omitempty"`
@@ -69,17 +69,17 @@ type OpenMPGameConfig struct {
 	Time                      *int     `json:"time,omitempty"`
 	UseAllAnimations          *bool    `json:"use_all_animations,omitempty"`
 	UseChatRadius             *bool    `json:"use_chat_radius,omitempty"`
-	UseEntryExitMarkers       *bool    `json:"use_entry_exit_markers,omitempty"`
+	UseEntryExitMarkers       *bool    `json:"use_entry_exit_markers"`
 	UseInstagib               *bool    `json:"use_instagib,omitempty"`
 	UseManualEngineAndLights  *bool    `json:"use_manual_engine_and_lights,omitempty"`
-	UseNametagLOS             *bool    `json:"use_nametag_los,omitempty"`
-	UseNametags               *bool    `json:"use_nametags,omitempty"`
+	UseNametagLOS             *bool    `json:"use_nametag_los"`
+	UseNametags               *bool    `json:"use_nametags"`
 	UsePlayerMarkerDrawRadius *bool    `json:"use_player_marker_draw_radius,omitempty"`
 	UsePlayerPedAnims         *bool    `json:"use_player_ped_anims,omitempty"`
-	UseStuntBonuses           *bool    `json:"use_stunt_bonuses,omitempty"`
+	UseStuntBonuses           *bool    `json:"use_stunt_bonuses"`
 	UseVehicleFriendlyFire    *bool    `json:"use_vehicle_friendly_fire,omitempty"`
 	UseZoneNames              *bool    `json:"use_zone_names,omitempty"`
-	ValidateAnimations        *bool    `json:"validate_animations,omitempty"`
+	ValidateAnimations        *bool    `json:"validate_animations"`
 	VehicleRespawnTime        *int     `json:"vehicle_respawn_time,omitempty"`
 	Weather                   *int     `json:"weather,omitempty"`
 }
@@ -87,7 +87,7 @@ type OpenMPGameConfig struct {
 type OpenMPNetworkConfig struct {
 	AcksLimit             *int     `json:"acks_limit,omitempty"`
 	AimingSyncRate        *int     `json:"aiming_sync_rate,omitempty"`
-	Allow037Clients       *bool    `json:"allow_037_clients,omitempty"`
+	Allow037Clients       *bool    `json:"allow_037_clients"`
 	UseOMPEncryption      *bool    `json:"use_omp_encryption,omitempty"`
 	Bind                  *string  `json:"bind,omitempty"`
 	CookieReseedTime      *int     `json:"cookie_reseed_time,omitempty"`
@@ -112,18 +112,18 @@ type OpenMPNetworkConfig struct {
 }
 
 type OpenMPLoggingConfig struct {
-	Enable                *bool   `json:"enable,omitempty"`
+	Enable                *bool   `json:"enable"`
 	File                  *string `json:"file,omitempty"`
-	LogChat               *bool   `json:"log_chat,omitempty"`
-	LogConnectionMessages *bool   `json:"log_connection_messages,omitempty"`
+	LogChat               *bool   `json:"log_chat"`
+	LogConnectionMessages *bool   `json:"log_connection_messages"`
 	LogCookies            *bool   `json:"log_cookies,omitempty"`
-	LogDeaths             *bool   `json:"log_deaths,omitempty"`
+	LogDeaths             *bool   `json:"log_deaths"`
 	LogQueries            *bool   `json:"log_queries,omitempty"`
 	LogSQLite             *bool   `json:"log_sqlite,omitempty"`
 	LogSQLiteQueries      *bool   `json:"log_sqlite_queries,omitempty"`
 	TimestampFormat       *string `json:"timestamp_format,omitempty"`
-	UsePrefix             *bool   `json:"use_prefix,omitempty"`
-	UseTimestamp          *bool   `json:"use_timestamp,omitempty"`
+	UsePrefix             *bool   `json:"use_prefix"`
+	UseTimestamp          *bool   `json:"use_timestamp"`
 }
 
 type OpenMPRCONConfig struct {
@@ -149,7 +149,7 @@ type OpenMPBannersConfig struct {
 
 type OpenMPArtworkConfig struct {
 	CDN           *string `json:"cdn,omitempty"`
-	Enable        *bool   `json:"enable,omitempty"`
+	Enable        *bool   `json:"enable"`
 	ModelsPath    *string `json:"models_path,omitempty"`
 	Port          *int    `json:"port,omitempty"`
 	WebServerBind *string `json:"web_server_bind,omitempty"`
