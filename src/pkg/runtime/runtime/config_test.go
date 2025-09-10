@@ -204,3 +204,66 @@ func TestExtraFieldsSupport(t *testing.T) {
 	assert.Equal(t, "custom_value", config["custom_plugin_setting"])
 	assert.Equal(t, "another_value", config["another_setting"])
 }
+
+func TestOpenMPConfigGenerateWithExtraServerCfg(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "openmp_config_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	cfg := &run.Runtime{
+		WorkingDir:  tmpDir,
+		RuntimeType: run.RuntimeTypeOpenMP,
+		Extra: map[string]string{
+			"legacy_setting": "legacy_value",
+			"custom_config":  "123",
+		},
+	}
+
+	// Generate the config
+	generator := NewOpenMPConfig(tmpDir)
+	err = generator.Generate(cfg)
+	require.NoError(t, err)
+
+	// Check that config.json was created
+	configJsonPath := filepath.Join(tmpDir, "config.json")
+	assert.FileExists(t, configJsonPath)
+
+	// Check that server.cfg was created
+	serverCfgPath := filepath.Join(tmpDir, "server.cfg")
+	assert.FileExists(t, serverCfgPath)
+
+	// Read and verify server.cfg contents
+	content, err := ioutil.ReadFile(serverCfgPath)
+	require.NoError(t, err)
+
+	contentStr := string(content)
+
+	// Check for extra configuration values
+	assert.Contains(t, contentStr, "legacy_setting legacy_value")
+	assert.Contains(t, contentStr, "custom_config 123")
+}
+
+func TestOpenMPConfigGenerateWithoutExtraServerCfg(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "openmp_config_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	cfg := &run.Runtime{
+		WorkingDir:  tmpDir,
+		RuntimeType: run.RuntimeTypeOpenMP,
+		Extra:       map[string]string{},
+	}
+
+	// Generate the config
+	generator := NewOpenMPConfig(tmpDir)
+	err = generator.Generate(cfg)
+	require.NoError(t, err)
+
+	// Check that config.json was created
+	configJsonPath := filepath.Join(tmpDir, "config.json")
+	assert.FileExists(t, configJsonPath)
+
+	// Check that server.cfg was NOT created
+	serverCfgPath := filepath.Join(tmpDir, "server.cfg")
+	assert.NoFileExists(t, serverCfgPath)
+}
