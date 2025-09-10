@@ -209,5 +209,11 @@ func (pcx *PackageContext) RunPrepare(ctx context.Context) (err error) {
 		return
 	}
 
+	print.Verb("generating server configuration file")
+	err = runtime.GenerateConfig(&pcx.ActualRuntime)
+	if err != nil {
+		return errors.Wrap(err, "failed to generate server configuration")
+	}
+
 	return nil
 }

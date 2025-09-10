@@ -44,12 +44,6 @@ func Ensure(ctx context.Context, gh *github.Client, cfg *run.Runtime, noCache bo
 		return errors.Wrap(err, "failed to ensure scripts")
 	}
 
-	print.Verb("generating server configuration file")
-	err = GenerateConfig(cfg)
-	if err != nil {
-		return errors.Wrap(err, "failed to generate server configuration")
-	}
-
 	return nil
 }
 
