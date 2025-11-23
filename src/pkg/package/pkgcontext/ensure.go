@@ -515,6 +515,7 @@ func (pcx PackageContext) extractResourceDependencies(
 		false,
 		true,
 		false,
+		pcx.Package.ExtractIgnorePatterns,
 	)
 	if err != nil {
 		err = errors.Wrap(err, "failed to ensure asset")

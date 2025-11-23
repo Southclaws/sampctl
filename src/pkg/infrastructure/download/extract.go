@@ -13,14 +13,40 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 )
+
+// shouldIgnoreFile checks if a file should be ignored based on patterns
+func shouldIgnoreFile(filename string, ignorePatterns []string) bool {
+	if len(ignorePatterns) == 0 {
+		return false
+	}
+
+	for _, pattern := range ignorePatterns {
+		matched, err := filepath.Match(pattern, filepath.Base(filename))
+		if err == nil && matched {
+			return true
+		}
+		// Also try matching the full path
+		matched, err = filepath.Match(pattern, filename)
+		if err == nil && matched {
+			return true
+		}
+	}
+	return false
+}
 
 // Untar takes a destination path and a reader; a tar reader loops over the tarfile
 // creating the file structure at 'dst' along the way, and writing any files
 // from https://medium.com/@skdomino/taring-untaring-files-in-go-6b07cf56bc07
 // nolint:gocyclo
 func Untar(src, dst string, paths map[string]string) (files map[string]string, err error) {
+	return UntarWithIgnore(src, dst, paths, nil)
+}
+
+// UntarWithIgnore is like Untar but accepts ignore patterns for files that should not be overwritten
+func UntarWithIgnore(src, dst string, paths map[string]string, ignorePatterns []string) (files map[string]string, err error) {
 	reader, err := os.Open(src)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open archive")
@@ -95,17 +121,22 @@ loop:
 		}
 
 		if header.FileInfo().IsDir() {
-			err = os.MkdirAll(target, 0700)
+			err = os.MkdirAll(target, 0o700)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to create dir for target")
 			}
 		} else {
 			targetDir := filepath.Dir(target)
 			if !util.Exists(targetDir) {
-				err = os.MkdirAll(targetDir, 0700)
+				err = os.MkdirAll(targetDir, 0o700)
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to create target dir for file")
 				}
+			}
+
+			if util.Exists(target) && shouldIgnoreFile(target, ignorePatterns) {
+				print.Verb("skipping existing file (matches ignore pattern):", target)
+				continue
 			}
 
 			var file *os.File
@@ -113,6 +144,7 @@ loop:
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to open extract target file")
 			}
+
 			defer func() {
 				if err = file.Close(); err != nil {
 					panic(err)
@@ -135,6 +167,11 @@ loop:
 // Unzip will un-compress a zip archive, moving all files and folders to an output directory.
 // from: https://golangcode.com/unzip-files-in-go/
 func Unzip(src, dst string, paths map[string]string) (files map[string]string, err error) {
+	return UnzipWithIgnore(src, dst, paths, nil)
+}
+
+// UnzipWithIgnore is like Unzip but accepts ignore patterns for files that should not be overwritten
+func UnzipWithIgnore(src, dst string, paths map[string]string, ignorePatterns []string) (files map[string]string, err error) {
 	reader, err := zip.OpenReader(src)
 	if err != nil {
 		return nil, err
@@ -153,7 +190,6 @@ func Unzip(src, dst string, paths map[string]string) (files map[string]string, e
 		}
 
 		// path checking and dir extraction
-
 		found, source, target := nameInPaths(header.Name, paths)
 		if !found {
 			continue
@@ -165,17 +201,22 @@ func Unzip(src, dst string, paths map[string]string) (files map[string]string, e
 		}
 
 		if header.FileInfo().IsDir() {
-			err = os.MkdirAll(target, 0700)
+			err = os.MkdirAll(target, 0o700)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to create dir for target")
 			}
 		} else {
 			targetDir := filepath.Dir(target)
 			if !util.Exists(targetDir) {
-				err = os.MkdirAll(targetDir, 0700)
+				err = os.MkdirAll(targetDir, 0o700)
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to create target dir for file")
 				}
+			}
+
+			if util.Exists(target) && shouldIgnoreFile(target, ignorePatterns) {
+				print.Verb("skipping existing file (matches ignore pattern):", target)
+				continue
 			}
 
 			archivedFile, err = header.Open()

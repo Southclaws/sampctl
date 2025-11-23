@@ -52,7 +52,6 @@ func EnsurePlugins(
 	cacheDir string,
 	noCache bool,
 ) (err error) {
-
 	fileExt := pluginExtForFile(cfg.Platform)
 
 	var (
@@ -61,7 +60,7 @@ func EnsurePlugins(
 	)
 
 	for _, plugin := range cfg.PluginDeps {
-		files, err = EnsureVersionedPlugin(ctx, gh, plugin, cfg.WorkingDir, cfg.Platform, cfg.Version, cacheDir, true, false, noCache)
+		files, err = EnsureVersionedPlugin(ctx, gh, plugin, cfg.WorkingDir, cfg.Platform, cfg.Version, cacheDir, true, false, noCache, nil)
 		if err != nil {
 			return
 		}
@@ -83,13 +82,13 @@ func EnsurePlugins(
 
 	if len(added) != 0 {
 		pluginsDir := util.FullPath(filepath.Join(cfg.WorkingDir, "plugins"))
-		err = os.MkdirAll(pluginsDir, 0700)
+		err = os.MkdirAll(pluginsDir, 0o700)
 		if err != nil {
 			return errors.Wrap(err, "failed to create runtime plugins directory")
 		}
 
 		componentsDir := util.FullPath(filepath.Join(cfg.WorkingDir, "components"))
-		err = os.MkdirAll(componentsDir, 0700)
+		err = os.MkdirAll(componentsDir, 0o700)
 		if err != nil {
 			return errors.Wrap(err, "failed to create runtime components directory")
 		}
@@ -110,6 +109,7 @@ func EnsureVersionedPlugin(
 	plugins bool,
 	includes bool,
 	noCache bool,
+	ignorePatterns []string,
 ) (files []run.Plugin, err error) {
 	filename, resource, err := EnsureVersionedPluginCached(ctx, meta, platform, version, cacheDir, noCache, gh)
 	if err != nil {
@@ -120,19 +120,7 @@ func EnsureVersionedPlugin(
 
 	if resource.Archive {
 		print.Verb(meta, "plugin resource is an archive")
-		var (
-			ext    = filepath.Ext(filename)
-			method download.ExtractFunc
-		)
-		switch ext {
-		case ".zip":
-			method = download.Unzip
-		case ".gz":
-			method = download.Untar
-		default:
-			err = errors.Errorf("unsupported archive format: %s", filename)
-			return
-		}
+		ext := filepath.Ext(filename)
 
 		paths := make(map[string]string)
 
@@ -160,8 +148,20 @@ func EnsureVersionedPlugin(
 			paths[src] = dest
 		}
 
+		if len(ignorePatterns) > 0 {
+			print.Verb(meta, "using", len(ignorePatterns), "ignore pattern(s) for extraction")
+		}
+
 		var extractedFiles map[string]string
-		extractedFiles, err = method(filename, dir, paths)
+		switch ext {
+		case ".zip":
+			extractedFiles, err = download.UnzipWithIgnore(filename, dir, paths, ignorePatterns)
+		case ".gz":
+			extractedFiles, err = download.UntarWithIgnore(filename, dir, paths, ignorePatterns)
+		default:
+			err = errors.Errorf("unsupported archive format: %s", filename)
+			return
+		}
 		if err != nil {
 			err = errors.Wrapf(err, "failed to extract plugin %s to %s", meta, dir)
 			return
@@ -188,7 +188,7 @@ func EnsureVersionedPlugin(
 		finalDir := filepath.Join(dir, pluginDir)
 		destination := filepath.Join(finalDir, base)
 
-		err = os.MkdirAll(finalDir, 0700)
+		err = os.MkdirAll(finalDir, 0o700)
 		if err != nil {
 			err = errors.Wrapf(err, "failed to create path for plugin resource %s to %s", filename, destination)
 			return
@@ -317,7 +317,7 @@ func PluginFromNet(
 	resourcePathOnly := GetResourcePath(meta)
 	resourcePath := filepath.Join(cacheDir, resourcePathOnly)
 
-	err = os.MkdirAll(resourcePath, 0700)
+	err = os.MkdirAll(resourcePath, 0o700)
 	if err != nil {
 		err = errors.Wrap(err, "failed to create cache directory for package resources")
 		return

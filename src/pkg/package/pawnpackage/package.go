@@ -61,17 +61,18 @@ type Package struct {
 	Website      string   `json:"website,omitempty" yaml:"website,omitempty"`           // website or forum topic associated with the package
 
 	// Functional, set by the package author to declare relevant files and dependencies
-	Entry        string                        `json:"entry,omitempty" yaml:"entry,omitempty"`                       // entry point script to compile the project
-	Output       string                        `json:"output,omitempty" yaml:"output,omitempty"`                     // output amx file
-	Dependencies []versioning.DependencyString `json:"dependencies,omitempty" yaml:"dependencies,omitempty"`         // list of packages that the package depends on
-	Development  []versioning.DependencyString `json:"dev_dependencies,omitempty" yaml:"dev_dependencies,omitempty"` // list of packages that only the package builds depend on
-	Local        bool                          `json:"local,omitempty" yaml:"local,omitempty"`                       // run package in local dir instead of in a temporary runtime
-	Runtime      *run.Runtime                  `json:"runtime,omitempty" yaml:"runtime,omitempty"`                   // runtime configuration
-	Runtimes     []*run.Runtime                `json:"runtimes,omitempty" yaml:"runtimes,omitempty"`                 // multiple runtime configurations
-	Build        *build.Config                 `json:"build,omitempty" yaml:"build,omitempty"`                       // build configuration
-	Builds       []*build.Config               `json:"builds,omitempty" yaml:"builds,omitempty"`                     // multiple build configurations
-	IncludePath  string                        `json:"include_path,omitempty" yaml:"include_path,omitempty"`         // include path within the repository, so users don't need to specify the path explicitly
-	Resources    []resource.Resource           `json:"resources,omitempty" yaml:"resources,omitempty"`               // list of additional resources associated with the package
+	Entry                 string                        `json:"entry,omitempty" yaml:"entry,omitempty"`                                     // entry point script to compile the project
+	Output                string                        `json:"output,omitempty" yaml:"output,omitempty"`                                   // output amx file
+	Dependencies          []versioning.DependencyString `json:"dependencies,omitempty" yaml:"dependencies,omitempty"`                       // list of packages that the package depends on
+	Development           []versioning.DependencyString `json:"dev_dependencies,omitempty" yaml:"dev_dependencies,omitempty"`               // list of packages that only the package builds depend on
+	Local                 bool                          `json:"local,omitempty" yaml:"local,omitempty"`                                     // run package in local dir instead of in a temporary runtime
+	Runtime               *run.Runtime                  `json:"runtime,omitempty" yaml:"runtime,omitempty"`                                 // runtime configuration
+	Runtimes              []*run.Runtime                `json:"runtimes,omitempty" yaml:"runtimes,omitempty"`                               // multiple runtime configurations
+	Build                 *build.Config                 `json:"build,omitempty" yaml:"build,omitempty"`                                     // build configuration
+	Builds                []*build.Config               `json:"builds,omitempty" yaml:"builds,omitempty"`                                   // multiple build configurations
+	IncludePath           string                        `json:"include_path,omitempty" yaml:"include_path,omitempty"`                       // include path within the repository, so users don't need to specify the path explicitly
+	Resources             []resource.Resource           `json:"resources,omitempty" yaml:"resources,omitempty"`                             // list of additional resources associated with the package
+	ExtractIgnorePatterns []string                      `json:"extract_ignore_patterns,omitempty" yaml:"extract_ignore_patterns,omitempty"` // patterns of files to skip when extracting plugin archives
 }
 
 func (pkg Package) String() string {
