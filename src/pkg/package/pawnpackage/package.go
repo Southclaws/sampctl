@@ -9,18 +9,18 @@ import (
 	"path/filepath"
 	"strings"
 
+	"dario.cat/mergo"
 	"github.com/google/go-github/github"
-	"github.com/imdario/mergo"
 	"github.com/pkg/errors"
 	"github.com/sampctl/configor"
 	"gopkg.in/yaml.v3"
 
 	"github.com/Southclaws/sampctl/src/pkg/build/build"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/resource"
-	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
+	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
+	"github.com/Southclaws/sampctl/src/resource"
 )
 
 // Package represents a definition for a Pawn package and can either be used to define a build or
@@ -156,7 +156,7 @@ func (pkg Package) WriteDefinition() (err error) {
 		if err != nil {
 			return errors.Wrap(err, "failed to encode package metadata")
 		}
-		err = ioutil.WriteFile(filepath.Join(pkg.LocalPath, "pawn.json"), contents, 0700)
+		err = ioutil.WriteFile(filepath.Join(pkg.LocalPath, "pawn.json"), contents, 0o700)
 		if err != nil {
 			return errors.Wrap(err, "failed to write pawn.json")
 		}
@@ -166,7 +166,7 @@ func (pkg Package) WriteDefinition() (err error) {
 		if err != nil {
 			return errors.Wrap(err, "failed to encode package metadata")
 		}
-		err = ioutil.WriteFile(filepath.Join(pkg.LocalPath, "pawn.yaml"), contents, 0700)
+		err = ioutil.WriteFile(filepath.Join(pkg.LocalPath, "pawn.yaml"), contents, 0o700)
 		if err != nil {
 			return errors.Wrap(err, "failed to write pawn.yaml")
 		}
