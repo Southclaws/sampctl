@@ -1,7 +1,7 @@
 VERSION 0.8
 
 deps:
-    FROM golang:1.21-bullseye
+    FROM golang:1.24-bookworm
     WORKDIR /workspace
     
     RUN dpkg --add-architecture i386 && \
