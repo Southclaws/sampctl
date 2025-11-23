@@ -115,7 +115,7 @@ func PrepareCommand(
 
 	outputDir := filepath.Dir(output)
 	if !util.Exists(outputDir) {
-		err = os.MkdirAll(outputDir, 0700)
+		err = os.MkdirAll(outputDir, 0o700)
 		if err != nil {
 			err = errors.Wrap(err, "failed to create output directory")
 			return
@@ -243,14 +243,29 @@ func PrepareCommand(
 	}
 
 	for name, value := range config.Constants {
+		var finalValue string
 		if strings.HasPrefix(value, "$") {
-			variable := os.Getenv(value[1:])
-			if variable == "" {
+			finalValue = os.Getenv(value[1:])
+			if finalValue == "" {
 				print.Warn("Build constant", value, "refers to an unset environment variable")
 			}
-			args = append(args, fmt.Sprintf("%s=%s", name, variable))
 		} else {
-			args = append(args, fmt.Sprintf("%s=%s", name, value))
+			finalValue = value
+		}
+
+		isNumeric := false
+		if _, err := strconv.Atoi(finalValue); err == nil {
+			isNumeric = true
+		} else if _, err := strconv.ParseFloat(finalValue, 64); err == nil {
+			isNumeric = true
+		}
+
+		if isNumeric || finalValue == "" {
+			args = append(args, fmt.Sprintf("-D%s=%s", name, finalValue))
+		} else {
+			// Escape any quotes in the value and wrap in quotes
+			escapedValue := strings.ReplaceAll(finalValue, `"`, `\"`)
+			args = append(args, fmt.Sprintf("-D%s=\"%s\"", name, escapedValue))
 		}
 	}
 
