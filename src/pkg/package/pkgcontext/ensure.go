@@ -98,61 +98,146 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 		return pcx.ensureURLSchemeDependency(meta)
 	}
 
-	var (
-		dependencyPath = filepath.Join(pcx.Package.Vendor, meta.Repo)
-		needToClone    = false // do we need to clone a new repo?
-		head           *plumbing.Reference
-	)
+	dependencyPath := filepath.Join(pcx.Package.Vendor, meta.Repo)
 
-	repo, err := git.PlainOpen(dependencyPath)
-	if err != nil && err != git.ErrRepositoryNotExists {
-		return errors.Wrap(err, "failed to open dependency repository")
-	} else if err == git.ErrRepositoryNotExists {
-		print.Verb(meta, "package does not exist at", dependencyPath, "cloning new copy")
-		needToClone = true
-	} else {
-		head, err = repo.Head()
-		if err != nil {
-			print.Verb(meta, "package already exists but failed to get repository HEAD:", err)
-			needToClone = true
-			err = os.RemoveAll(dependencyPath)
+	if util.Exists(dependencyPath) {
+		valid, validationErr := ValidateRepository(dependencyPath)
+		if validationErr != nil || !valid {
+			print.Verb(meta, "existing repository is invalid or corrupted")
+			if validationErr != nil {
+				print.Verb(meta, "validation error:", validationErr)
+			}
+			print.Verb(meta, "removing invalid repository for fresh clone")
+			err := os.RemoveAll(dependencyPath)
 			if err != nil {
-				return errors.Wrap(err, "failed to temporarily remove possibly corrupted dependency repo")
+				return errors.Wrap(err, "failed to remove invalid dependency repo")
 			}
-		} else {
-			print.Verb(meta, "package already exists at", head)
 		}
 	}
 
-	if needToClone {
-		print.Verb(meta, "need to clone new copy from cache")
-		repo, err = pcx.EnsureDependencyFromCache(meta, dependencyPath, false)
-		if err != nil {
-			errInner := os.RemoveAll(dependencyPath)
-			if errInner != nil {
-				return errors.Wrap(errInner, "failed to remove corrupted dependency repo")
-			}
-
-			errInner = errors.Wrap(err, "failed to ensure dependency from cache")
-			if errInner != nil {
-				return errInner
-			}
-			return nil
-		}
-	}
-
-	print.Verb(meta, "updating dependency package")
-	err = pcx.updateRepoState(repo, meta, forceUpdate)
+	repo, err := pcx.ensureDependencyRepository(meta, dependencyPath, forceUpdate)
 	if err != nil {
-		// try once more, but force a pull
-		print.Verb(meta, "unable to update repo in given state, force-pulling latest from repo tip")
-		err = pcx.updateRepoState(repo, meta, true)
-		if err != nil {
-			return errors.Wrap(err, "failed to update repo state")
+		return errors.Wrap(err, "failed to ensure dependency repository")
+	}
+
+	err = pcx.updateRepoStateWithRecovery(repo, meta, dependencyPath, forceUpdate)
+	if err != nil {
+		return errors.Wrap(err, "failed to update repository state")
+	}
+
+	err = pcx.installPackageResources(meta)
+	if err != nil {
+		return errors.Wrap(err, "failed to install package resources")
+	}
+
+	return nil
+}
+
+// ensureDependencyRepository makes sure the dependency repository exists and is accessible
+func (pcx *PackageContext) ensureDependencyRepository(meta versioning.DependencyMeta, dependencyPath string, forceUpdate bool) (*git.Repository, error) {
+	repo, err := git.PlainOpen(dependencyPath)
+	if err == nil {
+		// Repository exists, validate it
+		head, headErr := repo.Head()
+		if headErr != nil {
+			print.Verb(meta, "existing repository has invalid HEAD, re-cloning")
+			return pcx.recloneDependency(meta, dependencyPath)
+		}
+		print.Verb(meta, "repository already exists at", head.Hash().String()[:8])
+		return repo, nil
+	}
+
+	if err != git.ErrRepositoryNotExists {
+		// Unexpected error - try to recover
+		print.Verb(meta, "error opening repository:", err)
+		return pcx.recloneDependency(meta, dependencyPath)
+	}
+
+	// Repository doesn't exist - clone from cache
+	print.Verb(meta, "repository does not exist, cloning from cache")
+	return pcx.cloneDependencyFromCache(meta, dependencyPath)
+}
+
+// cloneDependencyFromCache clones a dependency from the cache
+func (pcx *PackageContext) cloneDependencyFromCache(meta versioning.DependencyMeta, dependencyPath string) (*git.Repository, error) {
+	repo, err := pcx.EnsureDependencyFromCache(meta, dependencyPath, false)
+	if err != nil {
+		// Failed to clone from cache - cleanup and report
+		print.Verb(meta, "failed to clone from cache:", err)
+		os.RemoveAll(dependencyPath)
+		return nil, errors.Wrap(err, "failed to clone dependency from cache")
+	}
+
+	// Validate the cloned repository
+	valid, validationErr := ValidateRepository(dependencyPath)
+	if validationErr != nil || !valid {
+		print.Verb(meta, "cloned repository failed validation")
+		os.RemoveAll(dependencyPath)
+		if validationErr != nil {
+			return nil, errors.Wrap(validationErr, "cloned repository is invalid")
+		}
+		return nil, errors.New("cloned repository failed validation")
+	}
+
+	return repo, nil
+}
+
+// recloneDependency removes and re-clones a dependency
+func (pcx *PackageContext) recloneDependency(meta versioning.DependencyMeta, dependencyPath string) (*git.Repository, error) {
+	print.Verb(meta, "re-cloning dependency at", dependencyPath)
+
+	err := os.RemoveAll(dependencyPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to remove corrupted dependency")
+	}
+
+	return pcx.cloneDependencyFromCache(meta, dependencyPath)
+}
+
+// updateRepoStateWithRecovery updates repository with automatic recovery on failure
+func (pcx *PackageContext) updateRepoStateWithRecovery(repo *git.Repository, meta versioning.DependencyMeta, dependencyPath string, forceUpdate bool) error {
+	err := pcx.updateRepoState(repo, meta, forceUpdate)
+	if err == nil {
+		return nil
+	}
+
+	print.Verb(meta, "first update attempt failed:", err)
+
+	repairErr := RepairRepository(dependencyPath)
+	if repairErr == nil {
+		print.Verb(meta, "repository repaired, retrying update")
+		repo, openErr := git.PlainOpen(dependencyPath)
+		if openErr == nil {
+			err = pcx.updateRepoState(repo, meta, true)
+			if err == nil {
+				return nil
+			}
 		}
 	}
 
-	// To install resources (includes from within release archives) we can't use the user's locally
+	// Repair failed or update still fails - try force update
+	print.Verb(meta, "attempting force update")
+	err = pcx.updateRepoState(repo, meta, true)
+	if err == nil {
+		return nil
+	}
+
+	print.Verb(meta, "all update attempts failed, re-cloning dependency")
+	_, err = pcx.recloneDependency(meta, dependencyPath)
+	if err != nil {
+		return errors.Wrap(err, "failed to recover by re-cloning")
+	}
+
+	repo, err = git.PlainOpen(dependencyPath)
+	if err != nil {
+		return errors.Wrap(err, "failed to open re-cloned repository")
+	}
+
+	return pcx.updateRepoState(repo, meta, forceUpdate)
+}
+
+// installPackageResources handles resource installation from cached package
+func (pcx *PackageContext) installPackageResources(meta versioning.DependencyMeta) error {
 	// cloned copy of the package that resides in `dependencies/` because that repository may be
 	// checked out to a commit that existed before a `pawn.json` file was added that describes where
 	// resources can be downloaded from. Therefore, we instead instantiate a new pawnpackage.Package from
@@ -413,7 +498,7 @@ func (pcx PackageContext) extractResourceDependencies(
 	dir = filepath.Join(pcx.Package.Vendor, res.Path(pkg.Repo))
 	print.Verb(pkg, "installing resource-based dependency", res.Name, "to", dir)
 
-	err = os.MkdirAll(dir, 0700)
+	err = os.MkdirAll(dir, 0o700)
 	if err != nil {
 		err = errors.Wrap(err, "failed to create target directory")
 		return
@@ -460,7 +545,7 @@ func (pcx *PackageContext) updateRepoState(
 		}
 
 		err = wt.Pull(&git.PullOptions{
-			Depth: 1000, // get full history
+			Depth: 1000, // TODO: We might want to consider removing depth for better reliability, or add a configurable option
 		})
 		if err != nil && err != git.NoErrAlreadyUpToDate {
 			return errors.Wrap(err, "failed to force pull for full update")

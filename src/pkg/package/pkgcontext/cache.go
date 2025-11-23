@@ -281,67 +281,136 @@ func (pcx PackageContext) ensureRepoExists(
 	ssh,
 	forceUpdate bool,
 ) (repo *git.Repository, err error) {
-	repo, err = git.PlainOpen(to)
-	if err != nil {
-		print.Verb("no repo at", to, "-", err, "cloning new copy")
-
-		if _, err = os.Stat(to); !os.IsNotExist(err) {
-			print.Verb("removing existing folder", to)
-			err = os.RemoveAll(to)
-			if err != nil {
-				return
+	if util.Exists(to) {
+		valid, validationErr := ValidateRepository(to)
+		if validationErr != nil || !valid {
+			print.Verb("repository at", to, "is invalid or corrupted")
+			if validationErr != nil {
+				print.Verb("validation error:", validationErr)
+			}
+			print.Verb("removing invalid repository for fresh clone")
+			errRemove := os.RemoveAll(to)
+			if errRemove != nil {
+				return nil, errors.Wrap(errRemove, "failed to remove invalid repository")
 			}
 		}
+	}
 
-		err = os.MkdirAll(to, 0700)
-		if err != nil {
-			return
-		}
-
-		cloneOpts := &git.CloneOptions{
-			URL:   from,
-			Depth: 1000,
-		}
-		if branch != "" {
-			cloneOpts.ReferenceName = plumbing.ReferenceName("refs/heads/" + branch)
-		}
-
-		if ssh {
-			cloneOpts.Auth = pcx.GitAuth
-		}
-
-		print.Verb("cloning latest copy to", to, "with", cloneOpts)
-		return git.PlainClone(to, false, cloneOpts)
+	repo, err = git.PlainOpen(to)
+	if err != nil {
+		// Repository doesn't exist or can't be opened - clone it
+		return pcx.cloneRepository(from, to, branch, ssh)
 	}
 
 	if forceUpdate {
-		var wt *git.Worktree
-		wt, err = repo.Worktree()
-		if err != nil {
-			return
-		}
-
-		pullOpts := &git.PullOptions{
-			Depth: 1000,
-		}
-		if branch != "" {
-			pullOpts.ReferenceName = plumbing.ReferenceName("refs/heads/" + branch)
-		}
-
-		print.Verb("pulling latest copy to", to, "with", pullOpts)
-		err = wt.Pull(pullOpts)
-		if err != nil && err != git.NoErrAlreadyUpToDate {
-			print.Verb("failed to pull, removing repository and starting fresh")
-			err = os.RemoveAll(to)
-			if err != nil {
-				err = errors.Wrap(err, "failed to remove repo in bad state for re-clone")
-				return
-			}
-			return pcx.ensureRepoExists(from, to, branch, ssh, false)
-		}
+		return pcx.updateRepository(repo, to, branch, ssh, from)
 	}
 
 	return repo, nil
+}
+
+// cloneRepository performs a fresh clone with validation
+func (pcx PackageContext) cloneRepository(from, to, branch string, ssh bool) (*git.Repository, error) {
+	print.Verb("cloning repository from", from, "to", to)
+
+	if util.Exists(to) {
+		print.Verb("removing existing directory before clone")
+		err := os.RemoveAll(to)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to remove existing directory")
+		}
+	}
+
+	err := os.MkdirAll(to, 0o700)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create directory for clone")
+	}
+
+	// Configure clone options
+	cloneOpts := &git.CloneOptions{
+		URL:   from,
+		Depth: 1000, // TODO: We might want to consider removing depth for better reliability, or add a configurable option
+	}
+	if branch != "" {
+		cloneOpts.ReferenceName = plumbing.ReferenceName("refs/heads/" + branch)
+	}
+	if ssh {
+		cloneOpts.Auth = pcx.GitAuth
+	}
+
+	print.Verb("executing clone with options:", cloneOpts)
+	repo, err := git.PlainClone(to, false, cloneOpts)
+	if err != nil {
+		print.Verb("clone failed, cleaning up:", err)
+		os.RemoveAll(to)
+		return nil, errors.Wrap(err, "failed to clone repository")
+	}
+
+	valid, validationErr := ValidateRepository(to)
+	if validationErr != nil || !valid {
+		print.Verb("cloned repository failed validation")
+		os.RemoveAll(to)
+		if validationErr != nil {
+			return nil, errors.Wrap(validationErr, "cloned repository is invalid")
+		}
+		return nil, errors.New("cloned repository failed validation")
+	}
+
+	print.Verb("repository cloned and validated successfully")
+	return repo, nil
+}
+
+// updateRepository attempts to update an existing repository with robust error handling
+func (pcx PackageContext) updateRepository(repo *git.Repository, to, branch string, ssh bool, from string) (*git.Repository, error) {
+	print.Verb("updating repository at", to)
+
+	wt, err := repo.Worktree()
+	if err != nil {
+		// Worktree error often indicates corruption - re-clone
+		print.Verb("worktree error, repository may be corrupted:", err)
+		return pcx.recoverByReclone(from, to, branch, ssh)
+	}
+
+	// Configure pull options
+	pullOpts := &git.PullOptions{}
+	if branch != "" {
+		pullOpts.ReferenceName = plumbing.ReferenceName("refs/heads/" + branch)
+	}
+	if ssh {
+		pullOpts.Auth = pcx.GitAuth
+	}
+
+	print.Verb("pulling latest changes")
+	err = wt.Pull(pullOpts)
+
+	if err != nil && err != git.NoErrAlreadyUpToDate {
+		print.Verb("pull failed:", err)
+		repairErr := RepairRepository(to)
+		if repairErr == nil {
+			print.Verb("repository repaired, retrying pull")
+			err = wt.Pull(pullOpts)
+			if err == nil || err == git.NoErrAlreadyUpToDate {
+				return repo, nil
+			}
+		}
+
+		print.Verb("repair unsuccessful, re-cloning repository")
+		return pcx.recoverByReclone(from, to, branch, ssh)
+	}
+
+	return repo, nil
+}
+
+// recoverByReclone removes a repository and clones it fresh
+func (pcx PackageContext) recoverByReclone(from, to, branch string, ssh bool) (*git.Repository, error) {
+	print.Verb("recovering repository by re-cloning")
+
+	err := os.RemoveAll(to)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to remove corrupted repository for recovery")
+	}
+
+	return pcx.cloneRepository(from, to, branch, ssh)
 }
 
 // ensureRepoExistsWithMeta wraps ensureRepoExists and provides improved error handling
@@ -355,7 +424,6 @@ func (pcx PackageContext) ensureRepoExistsWithMeta(
 ) (repo *git.Repository, err error) {
 	repo, err = pcx.ensureRepoExists(from, to, branch, ssh, forceUpdate)
 	if err != nil {
-		// Apply improved error handling
 		err = WrapGitError(err, meta)
 	}
 	return repo, err
