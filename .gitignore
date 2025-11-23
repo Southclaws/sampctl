@@ -18,6 +18,7 @@ dist/
 
 # main binary
 sampctl
+main
 
 # the one thing I hate about mac...
 .DS_Store
