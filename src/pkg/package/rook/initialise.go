@@ -43,7 +43,7 @@ type Answers struct {
 	StdLib        bool
 	Scan          bool
 	Git           bool
-	Travis        bool
+	EditorConfig  bool
 	EntryGenerate bool
 	Entry         string
 }
@@ -104,7 +104,7 @@ func Init(
 
 	color.Green("Found %d pwn files and %d inc files.", len(pwnFiles), len(incFiles))
 
-	var questions = []*survey.Question{
+	questions := []*survey.Question{
 		{
 			Name: "Format",
 			Prompt: &survey.Select{
@@ -174,8 +174,8 @@ func Init(
 			Prompt: &survey.Confirm{Message: "Initialise a git repository?", Default: true},
 		},
 		{
-			Name:   "Travis",
-			Prompt: &survey.Confirm{Message: "Add a .travis.yml for unit testing?", Default: false},
+			Name:   "EditorConfig",
+			Prompt: &survey.Confirm{Message: "Add a .editorconfig file for consistent code formatting?", Default: true},
 		},
 	}
 
@@ -264,7 +264,7 @@ func Init(
 			buf.WriteString("\n")
 			buf.WriteString(`	// then run "sampctl package run" to run it`)
 			buf.WriteString("\n}\n")
-			err := ioutil.WriteFile(file, buf.Bytes(), 0600)
+			err := ioutil.WriteFile(file, buf.Bytes(), 0o600)
 			if err != nil {
 				color.Red("failed to write generated %s entry file: %v", answers.Entry, err)
 			}
@@ -289,7 +289,7 @@ func Init(
 			buf.WriteString("\nmain() \n{\n")
 			buf.WriteString(`	// write tests for libraries here and run "sampctl package run"`)
 			buf.WriteString("\n}\n")
-			err = ioutil.WriteFile(filepath.Join(dir, "test.pwn"), buf.Bytes(), 0600)
+			err = ioutil.WriteFile(filepath.Join(dir, "test.pwn"), buf.Bytes(), 0o600)
 			if err != nil {
 				color.Red("failed to write generated tests.pwn file: %v", err)
 			}
@@ -378,13 +378,12 @@ func Init(
 		print.Info("You can use `sampctl package release` to apply a version number and release your first version!")
 	}
 
-	if answers.Travis {
-		pkg.Runtime = &run.Runtime{Mode: "y_testing"}
+	if answers.EditorConfig {
 		wg.Add(1)
 		go func() {
-			errInner := getTemplateFile(dir, ".travis.yml", answers)
+			errInner := createEditorConfig(dir)
 			if errInner != nil {
-				print.Erro("Failed to get .travis.yml template:", errInner)
+				print.Erro("Failed to create .editorconfig:", errInner)
 			}
 			wg.Done()
 		}()
@@ -400,22 +399,22 @@ func Init(
 			"omp-stdlib",
 		}
 
-		os.MkdirAll(filepath.Join(dir, "gamemodes"), 0755)
-		os.MkdirAll(filepath.Join(dir, "filterscripts"), 0755)
-		os.MkdirAll(filepath.Join(dir, "include"), 0755)
-		os.MkdirAll(filepath.Join(dir, "plugins"), 0755)
-		os.MkdirAll(filepath.Join(dir, "components"), 0755)
+		os.MkdirAll(filepath.Join(dir, "gamemodes"), 0o755)
+		os.MkdirAll(filepath.Join(dir, "filterscripts"), 0o755)
+		os.MkdirAll(filepath.Join(dir, "include"), 0o755)
+		os.MkdirAll(filepath.Join(dir, "plugins"), 0o755)
+		os.MkdirAll(filepath.Join(dir, "components"), 0o755)
 	} else {
 		pkg.Runtime.Version = "0.3.7"
 		pkg.Runtime.Plugins = []run.Plugin{
 			"crashdetect",
 		}
 
-		os.MkdirAll(filepath.Join(dir, "gamemodes"), 0755)
-		os.MkdirAll(filepath.Join(dir, "filterscripts"), 0755)
-		os.MkdirAll(filepath.Join(dir, "include"), 0755)
-		os.MkdirAll(filepath.Join(dir, "plugins"), 0755)
-		os.MkdirAll(filepath.Join(dir, "npcmodes"), 0755)
+		os.MkdirAll(filepath.Join(dir, "gamemodes"), 0o755)
+		os.MkdirAll(filepath.Join(dir, "filterscripts"), 0o755)
+		os.MkdirAll(filepath.Join(dir, "include"), 0o755)
+		os.MkdirAll(filepath.Join(dir, "plugins"), 0o755)
+		os.MkdirAll(filepath.Join(dir, "npcmodes"), 0o755)
 	}
 
 	// add a default tag
@@ -435,6 +434,29 @@ func Init(
 	err = pcx.EnsureDependenciesWithRuntime(ctx, true, false)
 	if err != nil {
 		return
+	}
+
+	return nil
+}
+
+func createEditorConfig(dir string) error {
+	editorConfigContent := `root = true
+
+[*.{pwn,inc}]
+indent_style = tab
+indent_size = 4
+end_of_line = lf
+insert_final_newline = true
+charset = utf-8
+`
+	outputFile := filepath.Join(dir, ".editorconfig")
+	if util.Exists(outputFile) {
+		return nil // Don't overwrite existing file
+	}
+
+	err := ioutil.WriteFile(outputFile, []byte(editorConfigContent), 0o644)
+	if err != nil {
+		return errors.Wrap(err, "failed to write .editorconfig")
 	}
 
 	return nil
@@ -471,7 +493,7 @@ func getTemplateFile(dir, filename string, answers Answers) (err error) {
 		outputFile = outputFile + "-duplicate"
 	}
 
-	err = os.MkdirAll(filepath.Dir(outputFile), 0700)
+	err = os.MkdirAll(filepath.Dir(outputFile), 0o700)
 	if err != nil {
 		return
 	}
