@@ -2,14 +2,115 @@ package build
 
 import (
 	"fmt"
+	"strconv"
 )
+
+// CompilerOptions represents human-readable compiler flags
+type CompilerOptions struct {
+	DebugLevel             *int    `json:"debug_level,omitempty" yaml:"debug_level,omitempty"`                           // -d<level> | 0=none, 1=minimal, 2=full, 3=extended | default=3
+	RequireSemicolons      *bool   `json:"require_semicolons,omitempty" yaml:"require_semicolons,omitempty"`             // -;+ <enforce> | -;- <relax> | default=true
+	RequireParentheses     *bool   `json:"require_parentheses,omitempty" yaml:"require_parentheses,omitempty"`           // -(+ <enforce> | -(- <relax> | default=true
+	RequireEscapeSequences *bool   `json:"require_escape_sequences,omitempty" yaml:"require_escape_sequences,omitempty"` // -\\+ <enforce> | -\\- <relax> | default=true
+	CompatibilityMode      *bool   `json:"compatibility_mode,omitempty" yaml:"compatibility_mode,omitempty"`             // -Z+ <enable> | -Z- <disable> | default=true
+	OptimizationLevel      *int    `json:"optimization_level,omitempty" yaml:"optimization_level,omitempty"`             // -O<level> | 0=none, 1=basic, 2=full | default=none
+	ShowListing            *bool   `json:"show_listing,omitempty" yaml:"show_listing,omitempty"`                         // -l <enable> | -l- <disable> | default=false
+	ShowAnnotatedAssembly  *bool   `json:"show_annotated_assembly,omitempty" yaml:"show_annotated_assembly,omitempty"`   // -a <enable> | -a- <disable> | default=false
+	ShowErrorFile          *string `json:"show_error_file,omitempty" yaml:"show_error_file,omitempty"`                   // -e<filename> | default=""
+	ShowWarnings           *bool   `json:"show_warnings,omitempty" yaml:"show_warnings,omitempty"`                       // -w+ to enable, -w- to disable | default=enabled
+	CompactEncoding        *bool   `json:"compact_encoding,omitempty" yaml:"compact_encoding,omitempty"`                 // -C+ to enable, -C- to disable | default=disabled
+	TabSize                *int    `json:"tab_size,omitempty" yaml:"tab_size,omitempty"`                                 // -t<spaces> | default=4
+}
+
+// ToArgs converts CompilerOptions to a slice of command-line arguments
+func (opts *CompilerOptions) ToArgs() []string {
+	if opts == nil {
+		return nil
+	}
+
+	var args []string
+
+	if opts.DebugLevel != nil {
+		args = append(args, "-d"+strconv.Itoa(*opts.DebugLevel))
+	}
+
+	if opts.RequireSemicolons != nil {
+		if *opts.RequireSemicolons {
+			args = append(args, "-;+")
+		} else {
+			args = append(args, "-;-")
+		}
+	}
+
+	if opts.RequireParentheses != nil {
+		if *opts.RequireParentheses {
+			args = append(args, "-(+")
+		} else {
+			args = append(args, "-(-")
+		}
+	}
+
+	if opts.RequireEscapeSequences != nil {
+		if *opts.RequireEscapeSequences {
+			args = append(args, "-\\+")
+		} else {
+			args = append(args, "-\\-")
+		}
+	}
+
+	if opts.CompatibilityMode != nil {
+		if *opts.CompatibilityMode {
+			args = append(args, "-Z+")
+		} else {
+			args = append(args, "-Z-")
+		}
+	}
+
+	if opts.OptimizationLevel != nil {
+		args = append(args, "-O"+strconv.Itoa(*opts.OptimizationLevel))
+	}
+
+	if opts.ShowListing != nil && *opts.ShowListing {
+		args = append(args, "-l")
+	}
+
+	if opts.ShowAnnotatedAssembly != nil && *opts.ShowAnnotatedAssembly {
+		args = append(args, "-a")
+	}
+
+	if opts.ShowErrorFile != nil && *opts.ShowErrorFile != "" {
+		args = append(args, "-e"+*opts.ShowErrorFile)
+	}
+
+	if opts.ShowWarnings != nil {
+		if *opts.ShowWarnings {
+			args = append(args, "-w+")
+		} else {
+			args = append(args, "-w-")
+		}
+	}
+
+	if opts.CompactEncoding != nil {
+		if *opts.CompactEncoding {
+			args = append(args, "-C+")
+		} else {
+			args = append(args, "-C-")
+		}
+	}
+
+	if opts.TabSize != nil {
+		args = append(args, "-t"+strconv.Itoa(*opts.TabSize))
+	}
+
+	return args
+}
 
 // Config represents a configuration for compiling a file
 type Config struct {
 	Name              string            `json:"name" yaml:"name"`                                 // name of the configuration
 	Version           CompilerVersion   `json:"version,omitempty" yaml:"version,omitempty"`       // compiler version to use for this build
 	WorkingDir        string            `json:"workingDir,omitempty" yaml:"workingDir,omitempty"` // working directory for the -D flag
-	Args              []string          `json:"args,omitempty" yaml:"args,omitempty"`             // list of arguments to pass to the compiler
+	Args              []string          `json:"args,omitempty" yaml:"args,omitempty"`             // list of arguments to pass to the compiler (deprecated)
+	Options           *CompilerOptions  `json:"options,omitempty" yaml:"options,omitempty"`       // human-readable compiler options (use this in future over args)
 	Input             string            `json:"input,omitempty" yaml:"input,omitempty"`           // input .pwn file
 	Output            string            `json:"output,omitempty" yaml:"output,omitempty"`         // output .amx file
 	Includes          []string          `json:"includes,omitempty" yaml:"includes,omitempty"`     // list of include files to pass to compiler via -i flags
@@ -67,8 +168,17 @@ func GetPredefinedCompilers() map[string]CompilerPreset {
 
 // Default defines and returns a default compiler configuration
 func Default() *Config {
+	boolPtr := func(b bool) *bool { return &b }
+	intPtr := func(i int) *int { return &i }
+
 	return &Config{
-		Args: []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
+		Options: &CompilerOptions{
+			DebugLevel:             intPtr(3),
+			RequireSemicolons:      boolPtr(true),
+			RequireParentheses:     boolPtr(true),
+			RequireEscapeSequences: boolPtr(true),
+			CompatibilityMode:      boolPtr(true),
+		},
 		Compiler: CompilerConfig{
 			Preset: "samp",
 		},

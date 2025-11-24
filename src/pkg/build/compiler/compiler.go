@@ -182,7 +182,12 @@ func PrepareCommand(
 		"-D" + config.WorkingDir,
 		"-o" + output,
 	}
-	args = append(args, config.Args...)
+
+	if config.Options != nil {
+		args = append(args, config.Options.ToArgs()...)
+	} else {
+		args = append(args, config.Args...)
+	}
 
 	includePaths := make(map[string]struct{})
 	includeFiles := make(map[string]string)
