@@ -395,9 +395,7 @@ func Init(
 
 	if answers.Runtime == "openmp" {
 		pkg.Runtime.Version = "openmp"
-		pkg.Runtime.Plugins = []run.Plugin{
-			"omp-stdlib",
-		}
+		pkg.Runtime.Plugins = []run.Plugin{}
 
 		os.MkdirAll(filepath.Join(dir, "gamemodes"), 0o755)
 		os.MkdirAll(filepath.Join(dir, "filterscripts"), 0o755)
@@ -406,9 +404,7 @@ func Init(
 		os.MkdirAll(filepath.Join(dir, "components"), 0o755)
 	} else {
 		pkg.Runtime.Version = "0.3.7"
-		pkg.Runtime.Plugins = []run.Plugin{
-			"crashdetect",
-		}
+		pkg.Runtime.Plugins = []run.Plugin{}
 
 		os.MkdirAll(filepath.Join(dir, "gamemodes"), 0o755)
 		os.MkdirAll(filepath.Join(dir, "filterscripts"), 0o755)
