@@ -7,12 +7,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
-	"strings"
 
 	"dario.cat/mergo"
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
-	"github.com/sampctl/configor"
 	"gopkg.in/yaml.v3"
 
 	"github.com/Southclaws/sampctl/src/pkg/build/build"
@@ -124,22 +122,22 @@ func PackageFromDir(dir string) (pkg Package, err error) {
 		return
 	}
 
-	cnfgr := configor.New(&configor.Config{
-		Environment:          "development",
-		EnvironmentPrefix:    "SAMP",
-		ErrorOnUnmatchedKeys: true,
-	})
+	// Read the file
+	data, err := ioutil.ReadFile(packageDefinition)
+	if err != nil {
+		err = errors.Wrapf(err, "failed to read configuration from '%s'", packageDefinition)
+		return
+	}
 
 	pkg = Package{}
-	// Note: configor returns weird errors on success for some dumb reason, awaiting fix upstream.
-	err = cnfgr.Load(&pkg, packageDefinition)
+	if packageDefinitionFormat == "json" {
+		err = json.Unmarshal(data, &pkg)
+	} else {
+		err = yaml.Unmarshal(data, &pkg)
+	}
 	if err != nil {
-		if strings.Contains(err.Error(), "cannot unmarshal !!seq into string") {
-			err = nil
-		} else {
-			err = errors.Wrapf(err, "failed to load configuration from '%s'", packageDefinition)
-			return
-		}
+		err = errors.Wrapf(err, "failed to parse configuration from '%s'", packageDefinition)
+		return
 	}
 
 	pkg.Format = packageDefinitionFormat
