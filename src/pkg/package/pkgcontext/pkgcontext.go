@@ -9,10 +9,10 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/src/pkg/build/build"
-	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
+	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
+	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 )
 
 // PackageContext stores state for a package during its lifecycle.
@@ -38,7 +38,6 @@ type PackageContext struct {
 	NoCache     bool   // Don't use a cache, download all plugin dependencies
 	BuildFile   string // File to increment build number
 	Relative    bool   // Show output as relative paths
-
 }
 
 // NewPackageContext attempts to parse a directory as a Package by looking for a
@@ -106,11 +105,13 @@ func NewPackageContext(
 		}
 	}
 
-	// if there is no runtime configuration, use the defaults
+	// if there is no runtime configuration, initialize an empty one
+	// Note: We don't apply defaults here because they would be persisted when
+	// WriteDefinition() is called. Defaults are only applied to ActualRuntime
+	// during execution
 	if pcx.Package.Runtime == nil {
 		pcx.Package.Runtime = new(run.Runtime)
 	}
-	run.ApplyRuntimeDefaults(pcx.Package.Runtime)
 
 	print.Verb(pcx.Package, "building dependency tree and ensuring cached copies")
 	err = pcx.EnsureDependenciesCached()

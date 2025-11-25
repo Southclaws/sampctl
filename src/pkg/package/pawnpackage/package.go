@@ -150,24 +150,29 @@ func PackageFromDir(dir string) (pkg Package, err error) {
 // WriteDefinition creates a JSON or YAML file for a package object, the format depends
 // on the `Format` field of the package.
 func (pkg Package) WriteDefinition() (err error) {
-	switch pkg.Format {
+	cleanPkg := pkg
+	if cleanPkg.Runtime != nil {
+		cleanPkg.Runtime = cleanRuntimeForWrite(cleanPkg.Runtime)
+	}
+
+	switch cleanPkg.Format {
 	case "json":
 		var contents []byte
-		contents, err = json.MarshalIndent(pkg, "", "\t")
+		contents, err = json.MarshalIndent(cleanPkg, "", "\t")
 		if err != nil {
 			return errors.Wrap(err, "failed to encode package metadata")
 		}
-		err = ioutil.WriteFile(filepath.Join(pkg.LocalPath, "pawn.json"), contents, 0o700)
+		err = ioutil.WriteFile(filepath.Join(cleanPkg.LocalPath, "pawn.json"), contents, 0o700)
 		if err != nil {
 			return errors.Wrap(err, "failed to write pawn.json")
 		}
 	case "yaml":
 		var contents []byte
-		contents, err = yaml.Marshal(pkg)
+		contents, err = yaml.Marshal(cleanPkg)
 		if err != nil {
 			return errors.Wrap(err, "failed to encode package metadata")
 		}
-		err = ioutil.WriteFile(filepath.Join(pkg.LocalPath, "pawn.yaml"), contents, 0o700)
+		err = ioutil.WriteFile(filepath.Join(cleanPkg.LocalPath, "pawn.yaml"), contents, 0o700)
 		if err != nil {
 			return errors.Wrap(err, "failed to write pawn.yaml")
 		}
@@ -176,6 +181,113 @@ func (pkg Package) WriteDefinition() (err error) {
 	}
 
 	return
+}
+
+// cleanRuntimeForWrite creates a copy of Runtime with default values set to nil
+// This prevents configor-applied defaults from being serialized to the config file
+func cleanRuntimeForWrite(rt *run.Runtime) *run.Runtime {
+	if rt == nil {
+		return nil
+	}
+
+	clean := &run.Runtime{
+		WorkingDir:    rt.WorkingDir,
+		Platform:      rt.Platform,
+		Container:     rt.Container,
+		AppVersion:    rt.AppVersion,
+		PluginDeps:    rt.PluginDeps,
+		Format:        rt.Format,
+		Name:          rt.Name,
+		Version:       rt.Version,
+		Echo:          rt.Echo,
+		Gamemodes:     rt.Gamemodes,
+		Filterscripts: rt.Filterscripts,
+		Plugins:       rt.Plugins,
+	}
+
+	if rt.Mode != "" && rt.Mode != "server" {
+		clean.Mode = rt.Mode
+	}
+
+	if rt.RuntimeType != "" {
+		clean.RuntimeType = rt.RuntimeType
+	}
+
+	if !rt.RootLink {
+		clean.RootLink = rt.RootLink
+	}
+
+	defaults := GetRuntimeDefaultValues()
+
+	if rt.RCONPassword != nil && *rt.RCONPassword != defaults.RCONPassword {
+		clean.RCONPassword = rt.RCONPassword
+	}
+	if rt.Port != nil && *rt.Port != defaults.Port {
+		clean.Port = rt.Port
+	}
+	if rt.Hostname != nil && *rt.Hostname != defaults.Hostname {
+		clean.Hostname = rt.Hostname
+	}
+	if rt.MaxPlayers != nil && *rt.MaxPlayers != defaults.MaxPlayers {
+		clean.MaxPlayers = rt.MaxPlayers
+	}
+
+	if rt.Language != nil && *rt.Language != defaults.Language && *rt.Language != "" {
+		clean.Language = rt.Language
+	}
+
+	clean.Mapname = rt.Mapname
+	clean.Weburl = rt.Weburl
+	clean.GamemodeText = rt.GamemodeText
+	clean.Bind = rt.Bind
+	clean.Password = rt.Password
+	clean.Announce = rt.Announce
+	clean.LANMode = rt.LANMode
+	clean.Query = rt.Query
+	clean.RCON = rt.RCON
+	clean.LogQueries = rt.LogQueries
+	clean.Sleep = rt.Sleep
+	clean.MaxNPC = rt.MaxNPC
+	clean.StreamRate = rt.StreamRate
+	clean.StreamDistance = rt.StreamDistance
+	clean.OnFootRate = rt.OnFootRate
+	clean.InCarRate = rt.InCarRate
+	clean.WeaponRate = rt.WeaponRate
+	clean.ChatLogging = rt.ChatLogging
+	clean.Timestamp = rt.Timestamp
+	clean.NoSign = rt.NoSign
+	clean.LogTimeFormat = rt.LogTimeFormat
+	clean.MessageHoleLimit = rt.MessageHoleLimit
+	clean.MessagesLimit = rt.MessagesLimit
+	clean.AcksLimit = rt.AcksLimit
+	clean.PlayerTimeout = rt.PlayerTimeout
+	clean.MinConnectionTime = rt.MinConnectionTime
+	clean.LagCompmode = rt.LagCompmode
+	clean.ConnseedTime = rt.ConnseedTime
+	clean.DBLogging = rt.DBLogging
+	clean.DBLogQueries = rt.DBLogQueries
+
+	return clean
+}
+
+// RuntimeDefaults holds the default values that configor applies to Runtime fields
+type RuntimeDefaults struct {
+	Port         int
+	RCONPassword string
+	Hostname     string
+	MaxPlayers   int
+	Language     string
+}
+
+// GetRuntimeDefaultValues returns the default values that configor applies
+func GetRuntimeDefaultValues() RuntimeDefaults {
+	return RuntimeDefaults{
+		Port:         8192,
+		RCONPassword: "",
+		Hostname:     "SA-MP Server",
+		MaxPlayers:   50,
+		Language:     "-",
+	}
 }
 
 // GetCachedPackage returns a package using the cached copy, if it exists
