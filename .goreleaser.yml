@@ -3,6 +3,7 @@ project_name: sampctl
 
 builds:
   - binary: sampctl
+    main: ./src
     goos:
       - windows
       - darwin
