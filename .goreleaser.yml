@@ -6,7 +6,6 @@ builds:
     main: ./src
     goos:
       - windows
-      - darwin
       - linux
     goarch:
       - "386"
