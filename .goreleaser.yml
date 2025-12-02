@@ -1,8 +1,6 @@
+version: 2
 project_name: sampctl
-release:
-  github:
-    owner: Southclaws
-    name: sampctl
+
 builds:
   - binary: sampctl
     goos:
@@ -18,9 +16,17 @@ builds:
       - CGO_ENABLED=0
     ldflags:
       - "-s -w -X main.version={{ .Version }}"
+
 archives:
   - format: tar.gz
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
     files:
       - licence*
       - LICENCE*
@@ -30,10 +36,13 @@ archives:
       - README*
       - changelog*
       - CHANGELOG*
+
 snapshot:
   name_template: SNAPSHOT-{{ .Commit }}
+
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+
 dockers:
   - goos: linux
     goarch: "386"
@@ -44,8 +53,10 @@ dockers:
       - "ghcr.io/southclaws/sampctl:v{{ .Major }}"
       - "ghcr.io/southclaws/sampctl:v{{ .Major }}.{{ .Minor }}"
       - "ghcr.io/southclaws/sampctl:latest"
+
 nfpms:
-  - vendor: Southclaws
+  - id: packages
+    vendor: Southclaws
     homepage: https://github.com/Southclaws/sampctl
     maintainer: Southclaws <hello@southcla.ws>
     description: The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
@@ -53,16 +64,18 @@ nfpms:
     formats:
       - deb
       - rpm
+
 brews:
-  - tap:
+  - repository:
       owner: Southclaws
       name: sampctl
     homepage: https://github.com/Southclaws/sampctl
     description: The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
-scoop:
-  bucket:
-    owner: Southclaws
-    name: sampctl
-  homepage: http://sampctl.com
-  description: The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
-  license: GPLv3
+
+scoops:
+  - repository:
+      owner: Southclaws
+      name: sampctl
+    homepage: http://sampctl.com
+    description: The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
+    license: GPLv3
