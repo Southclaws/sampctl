@@ -1,5 +1,6 @@
-FROM ubuntu
-COPY sampctl /bin/sampctl
+FROM debian:bookworm
+ARG TARGETARCH
+COPY linux/${TARGETARCH}/sampctl /bin/sampctl
 RUN mkdir samp && \
     dpkg --add-architecture i386 && \
     apt update && \
