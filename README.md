@@ -5,7 +5,7 @@
 [![Ko-Fi](https://shields.southcla.ws/badge/Ko--Fi-Buy%20Me%20a%20Coffee-brown.svg)](https://ko-fi.com/southclaws)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FSouthclaws%2Fsampctl.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2FSouthclaws%2Fsampctl?ref=badge_shield)
 
-![sampctl-logo](sampctl-wordmark.png)
+![sampctl-logo](docs/sampctl-wordmark.png)
 
 The Swiss Army Knife of SA:MP - vital tools for any server owner or library
 maintainer.
@@ -49,44 +49,44 @@ development environment.
 
 Always have the libraries you need. Inspired by npm.
 
-![images/sampctl-package-ensure.gif](images/sampctl-package-ensure.gif)
+![images/sampctl-package-ensure.gif](docs/images/sampctl-package-ensure.gif)
 
 ### Build/Run Tool
 
 Use on the command-line or integrate with any editor.
 
-![images/sampctl-package-build-vscode.gif](images/sampctl-package-build-vscode.gif)
+![images/sampctl-package-build-vscode.gif](docs/images/sampctl-package-build-vscode.gif)
 
 Easily write and run tests for libraries or quickly run arbitrary code. Utilise
 the power of Docker to run on any platform!
 
-![images/sampctl-package-run-container.gif](images/sampctl-package-run-container.gif)
+![images/sampctl-package-run-container.gif](docs/images/sampctl-package-run-container.gif)
 
 ### Developer Tools
 
 Quickly bootstrap new packages.
 
-![images/sampctl-package-init.gif](images/sampctl-package-init.gif)
+![images/sampctl-package-init.gif](docs/images/sampctl-package-init.gif)
 
 ### SA:MP Server Configuration - no more `server.cfg`
 
 Manage your server settings in JSON or YAML format
 
-![images/sampctl-server-init.gif](images/sampctl-server-init.gif)
+![images/sampctl-server-init.gif](docs/images/sampctl-server-init.gif)
 
 ### Automatic Server Restart - no more dodgy bash scripts
 
 Run the server from `sampctl` and let it worry about restarting in case of
 crashes.
 
-![images/sampctl-server-run.gif](images/sampctl-server-run.gif)
+![images/sampctl-server-run.gif](docs/images/sampctl-server-run.gif)
 
 ### Automatic Server and Plugin Installer
 
 Automatically download Windows/Linux server binaries and plugins when and where
 you need them.
 
-![images/sampctl-server-ensure.gif](images/sampctl-server-ensure.gif)
+![images/sampctl-server-ensure.gif](docs/images/sampctl-server-ensure.gif)
 
 ## Installation
 
