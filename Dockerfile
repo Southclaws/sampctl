@@ -1,4 +1,4 @@
-FROM ubuntu
+FROM debian:bookworm
 ARG TARGETARCH
 COPY linux/${TARGETARCH}/sampctl /bin/sampctl
 RUN mkdir samp && \
