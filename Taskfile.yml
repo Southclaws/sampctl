@@ -14,17 +14,17 @@ tasks:
   # Build static version of sampctl
   static:
     cmds:
-      - CGO_ENABLED=0 GOOS=linux go build -a {{.LDFLAGS}} -o sampctl .
+      - CGO_ENABLED=0 GOOS=linux go build -a {{.LDFLAGS}} -o sampctl ./src
 
   # Build a fast non static version
   fast:
     cmds:
-      - go build {{.LDFLAGS}} -o sampctl
+      - go build {{.LDFLAGS}} -o sampctl ./src
 
   # Install sampctl into the go bin folder
   install:
     cmds:
-      - go install {{.LDFLAGS}}
+      - go install {{.LDFLAGS}} ./src
 
   # Remove sampctl binary
   clean:
@@ -34,7 +34,7 @@ tasks:
   # Run go test against source code
   test:
     cmds:
-      - go test --race -v ./...
+      - go test --race -v ./src/...
 
   # Releasing sampctl via goreleaser
   # for osx tar fix
@@ -52,7 +52,7 @@ tasks:
   docs:
     deps: ["fast"]
     cmds:
-      - ./docgen.sh
+      - ./scripts/docgen.sh
 
   # Building the sampctl docker image
   docker:build:
@@ -77,12 +77,59 @@ tasks:
 
   earthly:test:
     cmds:
-      - earthly --secret FULL_ACCESS_GITHUB_TOKEN +test
+      - earthly +test
+
+  earthly:build:
+    cmds:
+      - earthly +build
+
+  earthly:build-windows:
+    cmds:
+      - earthly +build-windows
+
+  earthly:build-all:
+    cmds:
+      - earthly +build-all
+
+  earthly:all:
+    cmds:
+      - earthly +all
 
   earthly:release:
     cmds:
-      - earthly --secret GITHUB_TOKEN=$FULL_ACCESS_GITHUB_TOKEN +release
+      - earthly +release
 
-  earthly:release-push:
+  earthly:release-windows:
     cmds:
-      - earthly --secret GITHUB_TOKEN=$FULL_ACCESS_GITHUB_TOKEN +release-push
+      - earthly +release-windows
+
+  earthly:release-all:
+    cmds:
+      - earthly +release-all
+
+  ci:build:
+    desc: "Build sampctl binaries for both Linux and Windows"
+    cmds:
+      - earthly +release-all
+
+  ci:build-linux:
+    desc: "Build sampctl binary for Linux only"
+    cmds:
+      - earthly +release
+
+  ci:build-windows:
+    desc: "Build sampctl binary for Windows only"
+    cmds:
+      - earthly +release-windows
+
+  ci:test:
+    desc: "Run tests with token"
+    deps: ["ci:build"]
+    cmds:
+      - earthly --secret FULL_ACCESS_GITHUB_TOKEN +test
+
+  ci:full:
+    desc: "Run full CI workflow: build then test"
+    cmds:
+      - task: ci:build
+      - task: ci:test

@@ -1,0 +1,17 @@
+{
+	"gamemodes": [
+		"rivershell",
+		"baserace"
+	],
+	"plugins": [
+		"streamer",
+		"AmyrAhmady/samp-plugin-crashdetect"
+	],
+	"rcon_password": "test",
+	"port": 8080,
+	"hostname": "Test",
+	"maxplayers": 32,
+	"language": "English",
+	"announce": true,
+	"rcon": true
+}
