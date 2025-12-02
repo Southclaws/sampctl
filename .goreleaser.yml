@@ -12,14 +12,18 @@ builds:
       - "amd64"
       - "arm"
       - "arm64"
+    goarm:
+      - "7"
+    ignore:
+      - goos: windows
+        goarch: arm
     env:
       - CGO_ENABLED=0
     ldflags:
       - "-s -w -X main.version={{ .Version }}"
 
 archives:
-  - format: tar.gz
-    name_template: >-
+  - name_template: >-
       {{ .ProjectName }}_
       {{- .Version }}_
       {{- title .Os }}_
@@ -38,21 +42,10 @@ archives:
       - CHANGELOG*
 
 snapshot:
-  name_template: SNAPSHOT-{{ .Commit }}
+  version_template: "{{ .Commit }}"
 
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
-
-dockers:
-  - goos: linux
-    goarch: "386"
-    ids: ['sampctl']
-    dockerfile: Dockerfile
-    image_templates:
-      - "ghcr.io/southclaws/sampctl:{{ .Tag }}"
-      - "ghcr.io/southclaws/sampctl:v{{ .Major }}"
-      - "ghcr.io/southclaws/sampctl:v{{ .Major }}.{{ .Minor }}"
-      - "ghcr.io/southclaws/sampctl:latest"
 
 nfpms:
   - id: packages
@@ -65,8 +58,9 @@ nfpms:
       - deb
       - rpm
 
-brews:
-  - repository:
+homebrew_casks:
+  - name: sampctl
+    repository:
       owner: Southclaws
       name: sampctl
     homepage: https://github.com/Southclaws/sampctl
