@@ -19,13 +19,13 @@ jobs:
       - name: Build sampctl binaries
         run: earthly +release-all
       - name: Upload Linux binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: sampctl-linux-${{ github.sha }}
           path: sampctl
           retention-days: 30
       - name: Upload Windows binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: sampctl-windows-${{ github.sha }}
           path: sampctl.exe
