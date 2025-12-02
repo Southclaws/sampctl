@@ -47,6 +47,23 @@ snapshot:
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
 
+dockers_v2:
+  - ids:
+      - sampctl
+    images:
+      - "ghcr.io/southclaws/sampctl"
+    dockerfile: Dockerfile
+    tags:
+      - "{{ .Tag }}"
+      - "v{{ .Major }}"
+      - "v{{ .Major }}.{{ .Minor }}"
+      - "latest"
+    labels:
+      org.opencontainers.image.created: "{{ .Date }}"
+      org.opencontainers.image.title: "{{ .ProjectName }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.version: "{{ .Version }}"
+
 nfpms:
   - id: packages
     vendor: Southclaws
