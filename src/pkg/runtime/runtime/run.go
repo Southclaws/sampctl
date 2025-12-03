@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
@@ -73,6 +74,7 @@ func Run(
 }
 
 // nolint:gocyclo
+
 func dorun(
 	ctx context.Context,
 	binary string,
@@ -85,6 +87,10 @@ func dorun(
 	streamChan := make(chan string)    // channel for lines of output text
 	errChan := make(chan termination)  // channel for sending runtime errors to watchdog
 	sigChan := make(chan os.Signal, 1) // channel for capturing host signals
+	var (
+		cmdMu sync.Mutex
+		cmd   *exec.Cmd
+	)
 
 	defer func() {
 		errClose := outputWriter.Close()
@@ -102,9 +108,8 @@ func dorun(
 
 	print.Verb("running with mode", runType)
 
-	var cmd *exec.Cmd
 	go func() {
-		cmd = runBinary(
+		runBinary(
 			ctx,
 			binary,
 			runType,
@@ -112,6 +117,11 @@ func dorun(
 			outputWriter,
 			input,
 			errChan,
+			func(newCmd *exec.Cmd) {
+				cmdMu.Lock()
+				cmd = newCmd
+				cmdMu.Unlock()
+			},
 		)
 	}()
 
@@ -137,8 +147,11 @@ loop:
 	err = errors.Wrap(term.err, "received runtime error")
 
 	if term.exit {
-		if cmd.Process != nil {
-			killErr := cmd.Process.Kill()
+		cmdMu.Lock()
+		currentCmd := cmd
+		cmdMu.Unlock()
+		if currentCmd != nil && currentCmd.Process != nil {
+			killErr := currentCmd.Process.Kill()
 			if killErr != nil {
 				print.Erro("Failed to kill", killErr)
 			}
@@ -161,6 +174,7 @@ func runBinary(
 	outputWriter io.Writer,
 	input io.Reader,
 	errChan chan termination,
+	onStart func(*exec.Cmd),
 ) (cmd *exec.Cmd) {
 	var (
 		startTime          time.Time     // time of most recent start/restart
@@ -168,6 +182,9 @@ func runBinary(
 	)
 	for {
 		cmd = exec.CommandContext(ctx, binary) //nolint:gas
+		if onStart != nil {
+			onStart(cmd)
+		}
 		cmd.Dir = filepath.Dir(binary)
 
 		startTime = time.Now()
@@ -313,7 +330,7 @@ func createSpecialLink(cfg run.Runtime) error {
 	// Create a symlink from scriptfiles to the root
 	if _, err := os.Stat(scriptfilesPath); err != nil {
 		print.Verb("scriptfiles folder doesn't exist and is needed for 'DANGEROUS_SERVER_ROOT' symlink")
-		err = os.MkdirAll(scriptfilesPath, 0755)
+		err = os.MkdirAll(scriptfilesPath, 0o755)
 		if err != nil {
 			return err
 		}
