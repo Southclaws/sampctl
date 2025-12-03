@@ -12,7 +12,7 @@ require (
 	github.com/fatih/color v1.18.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-git/go-git/v5 v5.16.4
-	github.com/google/go-github v0.0.0-20180819205025-d7732128a00e
+	github.com/google/go-github v17.0.0+incompatible
 	github.com/jedib0t/go-pretty/v6 v6.7.5
 	github.com/joho/godotenv v1.5.1
 	github.com/kirsle/configdir v0.0.0-20170128060238-e45d2f54772f
