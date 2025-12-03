@@ -103,44 +103,40 @@ func PackageFromDep(depString versioning.DependencyString) (pkg Package, err err
 
 // PackageFromDir attempts to parse a pawn.json or pawn.yaml file from a directory
 func PackageFromDir(dir string) (pkg Package, err error) {
-	packageDefinitions := []string{
-		filepath.Join(dir, "pawn.json"),
-		filepath.Join(dir, "pawn.yaml"),
-	}
-	packageDefinition := ""
-	packageDefinitionFormat := ""
-	for _, configFile := range packageDefinitions {
-		if util.Exists(configFile) {
-			packageDefinition = configFile
-			packageDefinitionFormat = filepath.Ext(configFile)[1:]
-			break
-		}
-	}
+	jsonPath := filepath.Join(dir, "pawn.json")
+	yamlPath := filepath.Join(dir, "pawn.yaml")
+	jsonExists := util.Exists(jsonPath)
+	yamlExists := util.Exists(yamlPath)
 
-	if packageDefinition == "" {
+	switch {
+	case jsonExists && yamlExists:
+		return pkg, errors.New("found both pawn.json and pawn.yaml; please keep only one package definition file")
+	case jsonExists:
+		return readPackageDefinition(jsonPath, "json")
+	case yamlExists:
+		return readPackageDefinition(yamlPath, "yaml")
+	default:
 		print.Verb("no package definition file (pawn.{json|yaml})")
-		return
+		return pkg, nil
 	}
+}
 
-	// Read the file
-	data, err := ioutil.ReadFile(packageDefinition)
+func readPackageDefinition(path, format string) (pkg Package, err error) {
+	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		err = errors.Wrapf(err, "failed to read configuration from '%s'", packageDefinition)
-		return
+		return pkg, errors.Wrapf(err, "failed to read configuration from '%s'", path)
 	}
 
-	pkg = Package{}
-	if packageDefinitionFormat == "json" {
+	if format == "json" {
 		err = json.Unmarshal(data, &pkg)
 	} else {
 		err = yaml.Unmarshal(data, &pkg)
 	}
 	if err != nil {
-		err = errors.Wrapf(err, "failed to parse configuration from '%s'", packageDefinition)
-		return
+		return pkg, errors.Wrapf(err, "failed to parse configuration from '%s'", path)
 	}
 
-	pkg.Format = packageDefinitionFormat
+	pkg.Format = format
 
 	return pkg, nil
 }
@@ -467,7 +463,7 @@ func (pkg Package) GetRuntimeConfig(name string) (config run.Runtime, err error)
 			config = *pkg.Runtimes[0]
 
 			if pkg.Runtime != nil {
-				_ = mergo.Merge(&config, pkg.Runtime)
+				_ = mergo.Merge(&config, pkg.Runtime, mergo.WithOverride)
 			}
 
 			print.Verb(pkg, "searching", name, "in 'runtimes' list")
@@ -480,7 +476,7 @@ func (pkg Package) GetRuntimeConfig(name string) (config run.Runtime, err error)
 					found = true
 
 					if pkg.Runtime != nil {
-						_ = mergo.Merge(&config, pkg.Runtime)
+						_ = mergo.Merge(&config, pkg.Runtime, mergo.WithOverride)
 					}
 
 					break
