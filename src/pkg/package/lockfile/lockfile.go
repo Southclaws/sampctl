@@ -9,11 +9,7 @@ import (
 
 const Version = 1
 
-const (
-	Filename     = "pawn.lock"
-	FilenameJSON = "pawn.lock"
-	FilenameYAML = "pawn.lock"
-)
+const Filename = "pawn.lock"
 
 type Lockfile struct {
 	Version        int                          `json:"version" yaml:"version"`
