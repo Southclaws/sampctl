@@ -25,12 +25,16 @@ import (
 )
 
 var (
-	cfg     *config.Config       // global config
-	gh      *github.Client       // a github client to use for API requests
-	gitAuth transport.AuthMethod // for private dependencies
+	cfg            *config.Config       // global config
+	gh             *github.Client       // a github client to use for API requests
+	gitAuth        transport.AuthMethod // for private dependencies
+	sampctlVersion string               // version of sampctl for lockfile generation
 )
 
 func Run(args []string, version string) error {
+	// Store version for lockfile generation
+	sampctlVersion = version
+
 	cacheDir := util.GetConfigDir()
 	err := configdir.MakePath(cacheDir)
 	if err != nil {
