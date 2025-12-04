@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path"
@@ -94,185 +93,34 @@ func PrepareCommand(
 	platform string,
 	config build.Config,
 ) (cmd *exec.Cmd, err error) {
-	var (
-		input  string
-		output string
-	)
-
-	input = util.FullPath(config.Input)
-	output = util.FullPath(config.Output)
-	cacheDir = util.FullPath(cacheDir)
-
-	if !util.Exists(input) {
-		err = errors.Errorf("no such file '%s'", input)
-		return
+	input, output, workingDir, err := prepareIOPaths(config)
+	if err != nil {
+		return nil, err
 	}
+
+	cacheDir = util.FullPath(cacheDir)
 
 	if len(config.Plugins) != 0 {
 		print.Warn("The use of `plugins` in the build configuration has been disabled and will be removed in the future")
 		print.Warn("Please instead use `prebuild` or `postbuild`")
 	}
 
-	outputDir := filepath.Dir(output)
-	if !util.Exists(outputDir) {
-		err = os.MkdirAll(outputDir, 0o700)
-		if err != nil {
-			err = errors.Wrap(err, "failed to create output directory")
-			return
-		}
+	pkg, runtimeDir, err := resolveCompilerBinary(ctx, gh, cacheDir, platform, config)
+	if err != nil {
+		return nil, err
 	}
 
-	if config.WorkingDir == "" {
-		config.WorkingDir = filepath.Dir(input)
-	} else {
-		config.WorkingDir = util.FullPath(config.WorkingDir)
+	args := baseCompilerArgs(input, workingDir, output)
+	args = append(args, compilerOptionArgs(config)...)
+
+	includeArgs, err := buildIncludeArgs(execDir, config.Includes)
+	if err != nil {
+		return nil, err
 	}
+	args = append(args, includeArgs...)
 
-	var pkg download.Compiler
-	runtimeDir := filepath.Join(cacheDir, "pawn", config.Compiler.Version)
-	if config.Compiler.Path == "" {
-		pkg, err = GetCompilerPackage(ctx, gh, config, runtimeDir, platform, cacheDir)
-		if err != nil {
-			err = errors.Wrap(err, "failed to get compiler package")
-			return
-		}
-	} else {
-		print.Verb("using custom path for compiler", config.Compiler.Path)
-		pathStat, error := os.Stat(config.Compiler.Path)
-		if error != nil {
-			err = errors.Wrap(error, "compiler path is not valid")
-			return
-		}
-		if !pathStat.IsDir() {
-			err = errors.New("compiler path is not a valid directory")
-			return
-		}
-
-		compilerPath := ""
-		if runtime.GOOS == "windows" {
-			compilerPath = path.Join(config.Compiler.Path, "pawncc.exe")
-		} else {
-			compilerPath = path.Join(config.Compiler.Path, "pawncc")
-		}
-		if compilerPath == "" {
-			err = errors.New("compiler path is empty due to unknown os")
-			return
-		}
-
-		compilerPathStat, error := os.Stat(compilerPath)
-		if error != nil {
-			err = errors.Wrap(error, "compiler path is not invalid")
-			return
-		}
-		if !compilerPathStat.Mode().IsRegular() {
-			err = errors.New("compiler path does not contain a valid pawn compiler executable")
-			return
-		}
-
-		pkg = download.Compiler{
-			Match:  "",
-			Method: "",
-			Binary: compilerPath,
-			Paths:  map[string]string{},
-		}
-	}
-
-	args := []string{
-		input,
-		"-D" + config.WorkingDir,
-		"-o" + output,
-	}
-
-	if config.Options != nil {
-		args = append(args, config.Options.ToArgs()...)
-	} else {
-		args = append(args, config.Args...)
-	}
-
-	includePaths := make(map[string]struct{})
-	includeFiles := make(map[string]string)
-	includeErrors := []string{}
-
-	var (
-		fullPath string
-		contents []fs.DirEntry
-	)
-	for _, inc := range config.Includes {
-		if filepath.IsAbs(inc) {
-			fullPath = inc
-		} else {
-			fullPath = filepath.Join(execDir, inc)
-		}
-
-		// remove duplicates from the include path list
-		if _, found := includePaths[fullPath]; found {
-			continue
-		}
-		includePaths[fullPath] = struct{}{}
-
-		print.Verb("using include path", fullPath)
-		args = append(args, "-i"+fullPath)
-
-		contents, err = os.ReadDir(fullPath)
-		if err != nil {
-			err = errors.Wrapf(err, "failed to list dependency include path: %s", inc)
-			return
-		}
-
-		for _, dependencyFile := range contents {
-			fileName := dependencyFile.Name()
-			fileExt := filepath.Ext(fileName)
-			if fileExt == ".inc" {
-				if location, exists := includeFiles[fileName]; exists {
-					if location != fullPath {
-						includeErrors = append(includeErrors, fmt.Sprintf(
-							"Duplicate '%s' found in both\n'%s'\n'%s'\n",
-							fileName, location, fullPath,
-						))
-					}
-				} else {
-					includeFiles[fileName] = fullPath
-				}
-			}
-		}
-	}
-
-	if len(includeErrors) > 0 {
-		print.Erro("Dependency include path errors found:")
-		for _, errorString := range includeErrors {
-			print.Erro(errorString)
-		}
-
-		err = errors.New("could not compile due to conflicting filenames located in different include paths")
-		return
-	}
-
-	for name, value := range config.Constants {
-		var finalValue string
-		if strings.HasPrefix(value, "$") {
-			finalValue = os.Getenv(value[1:])
-			if finalValue == "" {
-				print.Warn("Build constant", value, "refers to an unset environment variable")
-			}
-		} else {
-			finalValue = value
-		}
-
-		isNumeric := false
-		if _, err := strconv.Atoi(finalValue); err == nil {
-			isNumeric = true
-		} else if _, err := strconv.ParseFloat(finalValue, 64); err == nil {
-			isNumeric = true
-		}
-
-		if isNumeric || finalValue == "" {
-			args = append(args, fmt.Sprintf("-D%s=%s", name, finalValue))
-		} else {
-			// Escape any quotes in the value and wrap in quotes
-			escapedValue := strings.ReplaceAll(finalValue, `"`, `\"`)
-			args = append(args, fmt.Sprintf("-D%s=\"%s\"", name, escapedValue))
-		}
-	}
+	constantArgs := buildConstantArgs(config.Constants)
+	args = append(args, constantArgs...)
 
 	cmd = exec.CommandContext(ctx, filepath.Join(runtimeDir, pkg.Binary), args...) //nolint:gas
 	cmd.Env = []string{
@@ -283,6 +131,192 @@ func PrepareCommand(
 	return cmd, nil
 }
 
+func prepareIOPaths(config build.Config) (input, output, workingDir string, err error) {
+	input = util.FullPath(config.Input)
+	output = util.FullPath(config.Output)
+
+	if !util.Exists(input) {
+		return "", "", "", errors.Errorf("no such file '%s'", input)
+	}
+
+	outputDir := filepath.Dir(output)
+	if !util.Exists(outputDir) {
+		if err = os.MkdirAll(outputDir, 0o700); err != nil {
+			return "", "", "", errors.Wrap(err, "failed to create output directory")
+		}
+	}
+
+	if config.WorkingDir == "" {
+		workingDir = filepath.Dir(input)
+	} else {
+		workingDir = util.FullPath(config.WorkingDir)
+	}
+
+	return input, output, workingDir, nil
+}
+
+func resolveCompilerBinary(
+	ctx context.Context,
+	gh *github.Client,
+	cacheDir,
+	platform string,
+	config build.Config,
+) (download.Compiler, string, error) {
+	resolved := config.Compiler.ResolveCompilerConfig()
+	runtimeDir := filepath.Join(cacheDir, "pawn", resolved.Version)
+
+	if config.Compiler.Path == "" {
+		pkg, err := GetCompilerPackage(ctx, gh, resolved, runtimeDir, platform, cacheDir)
+		if err != nil {
+			return download.Compiler{}, "", errors.Wrap(err, "failed to get compiler package")
+		}
+		return pkg, runtimeDir, nil
+	}
+
+	pkg, err := compilerFromCustomPath(config.Compiler.Path)
+	if err != nil {
+		return download.Compiler{}, "", err
+	}
+	return pkg, config.Compiler.Path, nil
+}
+
+func compilerFromCustomPath(pathRoot string) (download.Compiler, error) {
+	print.Verb("using custom path for compiler", pathRoot)
+	pathStat, err := os.Stat(pathRoot)
+	if err != nil {
+		return download.Compiler{}, errors.Wrap(err, "compiler path is not valid")
+	}
+	if !pathStat.IsDir() {
+		return download.Compiler{}, errors.New("compiler path is not a valid directory")
+	}
+
+	compilerPath := customCompilerBinary(pathRoot)
+	compilerPathStat, err := os.Stat(compilerPath)
+	if err != nil {
+		return download.Compiler{}, errors.Wrap(err, "compiler path is not invalid")
+	}
+	if !compilerPathStat.Mode().IsRegular() {
+		return download.Compiler{}, errors.New("compiler path does not contain a valid pawn compiler executable")
+	}
+
+	return download.Compiler{
+		Binary: compilerPath,
+		Paths:  map[string]string{},
+	}, nil
+}
+
+func customCompilerBinary(pathRoot string) string {
+	if runtime.GOOS == "windows" {
+		return path.Join(pathRoot, "pawncc.exe")
+	}
+	return path.Join(pathRoot, "pawncc")
+}
+
+func baseCompilerArgs(input, workingDir, output string) []string {
+	return []string{
+		input,
+		"-D" + workingDir,
+		"-o" + output,
+	}
+}
+
+func compilerOptionArgs(config build.Config) []string {
+	if config.Options != nil {
+		return append([]string{}, config.Options.ToArgs()...)
+	}
+	return append([]string{}, config.Args...)
+}
+
+func buildIncludeArgs(execDir string, includes []string) ([]string, error) {
+	includePaths := make(map[string]struct{})
+	includeFiles := make(map[string]string)
+	includeErrors := []string{}
+	args := make([]string, 0, len(includes))
+
+	for _, inc := range includes {
+		fullPath := inc
+		if !filepath.IsAbs(inc) {
+			fullPath = filepath.Join(execDir, inc)
+		}
+
+		if _, found := includePaths[fullPath]; found {
+			continue
+		}
+		includePaths[fullPath] = struct{}{}
+
+		print.Verb("using include path", fullPath)
+		args = append(args, "-i"+fullPath)
+
+		contents, err := os.ReadDir(fullPath)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to list dependency include path: %s", inc)
+		}
+
+		for _, dependencyFile := range contents {
+			if filepath.Ext(dependencyFile.Name()) != ".inc" {
+				continue
+			}
+
+			if location, exists := includeFiles[dependencyFile.Name()]; exists {
+				if location != fullPath {
+					includeErrors = append(includeErrors, fmt.Sprintf(
+						"Duplicate '%s' found in both\n'%s'\n'%s'\n",
+						dependencyFile.Name(), location, fullPath,
+					))
+				}
+			} else {
+				includeFiles[dependencyFile.Name()] = fullPath
+			}
+		}
+	}
+
+	if len(includeErrors) > 0 {
+		print.Erro("Dependency include path errors found:")
+		for _, errorString := range includeErrors {
+			print.Erro(errorString)
+		}
+		return nil, errors.New("could not compile due to conflicting filenames located in different include paths")
+	}
+
+	return args, nil
+}
+
+func buildConstantArgs(constants map[string]string) []string {
+	args := make([]string, 0, len(constants))
+	for name, value := range constants {
+		finalValue := resolveConstantValue(value)
+		if isNumeric(finalValue) || finalValue == "" {
+			args = append(args, fmt.Sprintf("-D%s=%s", name, finalValue))
+			continue
+		}
+
+		escapedValue := strings.ReplaceAll(finalValue, `"`, `\\"`)
+		args = append(args, fmt.Sprintf("-D%s=\"%s\"", name, escapedValue))
+	}
+	return args
+}
+
+func resolveConstantValue(value string) string {
+	if !strings.HasPrefix(value, "$") {
+		return value
+	}
+	translated := os.Getenv(value[1:])
+	if translated == "" {
+		print.Warn("Build constant", value, "refers to an unset environment variable")
+	}
+	return translated
+}
+
+func isNumeric(value string) bool {
+	if _, err := strconv.Atoi(value); err == nil {
+		return true
+	}
+	if _, err := strconv.ParseFloat(value, 64); err == nil {
+		return true
+	}
+	return false
+}
+
 // CompileWithCommand takes a prepared command and executes it
 func CompileWithCommand(
 	cmd *exec.Cmd,
@@ -290,21 +324,17 @@ func CompileWithCommand(
 	errorDir string,
 	relative bool,
 ) (problems build.Problems, result build.Result, err error) {
-	var (
-		outputReader, outputWriter = io.Pipe()
-		problemChan                = make(chan build.Problem, 2048)
-		resultChan                 = make(chan string, 6)
-	)
-
 	if errorDir == "" {
 		errorDir = util.FullPath(workingDir)
 	}
 
+	outputReader, outputWriter := io.Pipe()
 	cmd.Stdout = outputWriter
 	cmd.Stderr = outputWriter
 	workingDir = util.FullPath(workingDir)
 
-	go watchCompiler(outputReader, workingDir, errorDir, relative, problemChan, resultChan)
+	parser := newCompilerOutputParser(outputReader, workingDir, errorDir, relative)
+	go parser.Run()
 
 	print.Verb("executing compiler in", workingDir, "as", cmd.Env, cmd.Args)
 	cmdError := cmd.Run()
@@ -313,6 +343,8 @@ func CompileWithCommand(
 	if err != nil {
 		print.Erro("Compiler output read error:", err)
 	}
+
+	problems, result = parser.Wait()
 
 	if cmdError != nil {
 		if cmdError.Error() == "exit status 1" {
@@ -334,113 +366,130 @@ func CompileWithCommand(
 		}
 	}
 
-	for {
-		select {
-		case p, ok := <-problemChan:
-			if !ok {
-				problemChan = nil
-			} else {
-				fmt.Println(p.String())
-				problems = append(problems, p)
-			}
-		case line, ok := <-resultChan:
-			if g := matchHeader.FindStringSubmatch(line); len(g) == 2 {
-				result.Header, _ = strconv.Atoi(g[1])
-			} else if g := matchCode.FindStringSubmatch(line); len(g) == 2 {
-				result.Code, _ = strconv.Atoi(g[1])
-			} else if g := matchData.FindStringSubmatch(line); len(g) == 2 {
-				result.Data, _ = strconv.Atoi(g[1])
-			} else if g := matchStack.FindStringSubmatch(line); len(g) == 3 {
-				result.StackHeap, _ = strconv.Atoi(g[1])
-				result.Estimate, _ = strconv.Atoi(g[2])
-			} else if g := matchTotal.FindStringSubmatch(line); len(g) == 2 {
-				result.Total, _ = strconv.Atoi(g[1])
-			}
-			if !ok {
-				resultChan = nil
-			}
-		}
-
-		if problemChan == nil && resultChan == nil {
-			break
-		}
-	}
-
 	return problems, result, err
 }
 
-func watchCompiler(
-	outputReader io.Reader,
-	workingDir string,
-	errorDir string,
-	relative bool,
-	problemChan chan<- build.Problem,
-	resultChan chan<- string,
-) {
-	var err error
-	scanner := bufio.NewScanner(outputReader)
+type compilerOutputParser struct {
+	reader     io.Reader
+	workingDir string
+	errorDir   string
+	relative   bool
+	done       chan struct{}
+	problems   build.Problems
+	result     build.Result
+}
+
+func newCompilerOutputParser(reader io.Reader, workingDir, errorDir string, relative bool) *compilerOutputParser {
+	return &compilerOutputParser{
+		reader:     reader,
+		workingDir: workingDir,
+		errorDir:   errorDir,
+		relative:   relative,
+		done:       make(chan struct{}),
+	}
+}
+
+func (p *compilerOutputParser) Run() {
+	scanner := bufio.NewScanner(p.reader)
 	for scanner.Scan() {
-		line := scanner.Text()
-		groups := matchCompilerProblem.FindStringSubmatch(line)
+		p.handleLine(scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		print.Erro("Compiler output read error:", err)
+	}
+	close(p.done)
+}
 
-		if len(groups) == 5 {
-			// output is a warning or error
-			problem := build.Problem{}
+func (p *compilerOutputParser) Wait() (build.Problems, build.Result) {
+	<-p.done
+	return p.problems, p.result
+}
 
-			if filepath.IsAbs(groups[1]) {
-				problem.File = groups[1]
-			} else {
-				problem.File = filepath.Join(workingDir, groups[1])
-			}
+func (p *compilerOutputParser) handleLine(line string) {
+	groups := matchCompilerProblem.FindStringSubmatch(line)
+	if len(groups) == 5 {
+		p.handleProblem(groups)
+		return
+	}
+	p.handleResultLine(line)
+}
 
-			if string(filepath.Separator) != `\` {
-				problem.File = strings.ReplaceAll(problem.File, "\\", "/")
-			}
-			problem.File = filepath.Clean(problem.File)
-			if relative {
-				var rel string
-				rel, err = filepath.Rel(errorDir, problem.File)
-				if err == nil {
-					problem.File = rel
-				}
-			}
+func (p *compilerOutputParser) handleProblem(groups []string) {
+	problem := build.Problem{}
+	if filepath.IsAbs(groups[1]) {
+		problem.File = groups[1]
+	} else {
+		problem.File = filepath.Join(p.workingDir, groups[1])
+	}
 
-			problem.Line, err = strconv.Atoi(groups[2])
-			if err != nil {
-				return
-			}
-
-			switch groups[3] {
-			case "user warning":
-			case "warning":
-				problem.Severity = build.ProblemWarning
-			case "error":
-				problem.Severity = build.ProblemError
-			case "fatal error":
-				problem.Severity = build.ProblemFatal
-			}
-
-			problem.Description = groups[4]
-			problemChan <- problem
-		} else {
-			// output is pre-roll or post-roll
-			if strings.HasPrefix(line, "Pawn compiler") {
-				continue
-			} else if strings.HasPrefix(line, "Compilation aborted") {
-				continue
-			} else if strings.HasSuffix(line, "Error.") {
-				continue
-			} else if len(strings.TrimSpace(line)) == 0 {
-				continue
-			} else {
-				resultChan <- line
-			}
+	if string(filepath.Separator) != `\\` {
+		problem.File = strings.ReplaceAll(problem.File, "\\", "/")
+	}
+	problem.File = filepath.Clean(problem.File)
+	if p.relative {
+		if rel, err := filepath.Rel(p.errorDir, problem.File); err == nil {
+			problem.File = rel
 		}
 	}
 
-	// close output channels once scanner is closed
-	close(problemChan)
-	close(resultChan)
+	lineNumber, err := strconv.Atoi(groups[2])
+	if err != nil {
+		return
+	}
+	problem.Line = lineNumber
+
+	switch groups[3] {
+	case "user warning":
+		fallthrough
+	case "warning":
+		problem.Severity = build.ProblemWarning
+	case "error":
+		problem.Severity = build.ProblemError
+	case "fatal error":
+		problem.Severity = build.ProblemFatal
+	}
+
+	problem.Description = groups[4]
+	fmt.Println(problem.String())
+	p.problems = append(p.problems, problem)
+}
+
+func (p *compilerOutputParser) handleResultLine(line string) {
+	switch {
+	case strings.HasPrefix(line, "Pawn compiler"):
+		return
+	case strings.HasPrefix(line, "Compilation aborted"):
+		return
+	case strings.HasSuffix(line, "Error."):
+		return
+	case len(strings.TrimSpace(line)) == 0:
+		return
+	}
+
+	if g := matchHeader.FindStringSubmatch(line); len(g) == 2 {
+		p.result.Header, _ = strconv.Atoi(g[1])
+		return
+	}
+	if g := matchCode.FindStringSubmatch(line); len(g) == 2 {
+		p.result.Code, _ = strconv.Atoi(g[1])
+		return
+	}
+	if g := matchData.FindStringSubmatch(line); len(g) == 2 {
+		p.result.Data, _ = strconv.Atoi(g[1])
+		return
+	}
+	if g := matchStack.FindStringSubmatch(line); len(g) == 3 {
+		p.result.StackHeap, _ = strconv.Atoi(g[1])
+		p.result.Estimate, _ = strconv.Atoi(g[2])
+		return
+	}
+	if g := matchTotal.FindStringSubmatch(line); len(g) == 2 {
+		p.result.Total, _ = strconv.Atoi(g[1])
+		return
+	}
+
+	// preserve unknown result lines for potential debugging
+	print.Verb("compiler output:", line)
 }
 
 // RunPostBuildCommands executes commands after a build is ran for a certain build config

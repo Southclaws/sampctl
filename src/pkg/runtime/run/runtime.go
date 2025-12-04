@@ -2,7 +2,6 @@ package run
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -201,40 +200,33 @@ func RuntimeFromDir(dir string) (cfg Runtime, err error) {
 
 // RuntimeFromJSON creates a config from a JSON file
 func RuntimeFromJSON(file string) (cfg Runtime, err error) {
-	var contents []byte
-	contents, err = ioutil.ReadFile(file)
-	if err != nil {
-		err = errors.Wrap(err, "failed to read samp.json")
-		return
-	}
-
-	err = json.Unmarshal(contents, &cfg)
-	if err != nil {
-		err = errors.Wrap(err, "failed to unmarshal samp.json")
-		return
-	}
-	cfg.Format = "json"
-
-	return
+	return runtimeFromFile(file, "json", "samp.json", json.Unmarshal)
 }
 
 // RuntimeFromYAML creates a config from a YAML file
 func RuntimeFromYAML(file string) (cfg Runtime, err error) {
-	var contents []byte
-	contents, err = ioutil.ReadFile(file)
+	return runtimeFromFile(file, "yaml", "samp.yaml", yaml.Unmarshal)
+}
+
+func runtimeFromFile(
+	path string,
+	format string,
+	label string,
+	decode func([]byte, interface{}) error,
+) (Runtime, error) {
+	contents, err := os.ReadFile(path)
 	if err != nil {
-		err = errors.Wrap(err, "failed to read samp.json")
-		return
+		return Runtime{}, errors.Wrapf(err, "failed to read %s", label)
 	}
 
-	err = yaml.Unmarshal(contents, &cfg)
-	if err != nil {
-		err = errors.Wrap(err, "failed to unmarshal samp.json")
-		return
+	var cfg Runtime
+	if err := decode(contents, &cfg); err != nil {
+		return Runtime{}, errors.Wrapf(err, "failed to unmarshal %s", label)
 	}
-	cfg.Format = "yaml"
 
-	return
+	cfg.Format = format
+
+	return cfg, nil
 }
 
 // ResolveRemotePlugins separates simple plugin filenames from dependency strings
@@ -325,7 +317,7 @@ func (cfg Runtime) ToJSON() (err error) {
 		}
 	}
 
-	fh, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0600)
+	fh, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return
 	}
@@ -355,7 +347,7 @@ func (cfg Runtime) ToYAML() (err error) {
 		}
 	}
 
-	fh, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0600)
+	fh, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return
 	}
