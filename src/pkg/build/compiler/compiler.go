@@ -286,12 +286,12 @@ func buildConstantArgs(constants map[string]string) []string {
 	for name, value := range constants {
 		finalValue := resolveConstantValue(value)
 		if isNumeric(finalValue) || finalValue == "" {
-			args = append(args, fmt.Sprintf("-D%s=%s", name, finalValue))
+			args = append(args, fmt.Sprintf("%s=%s", name, finalValue))
 			continue
 		}
 
 		escapedValue := strings.ReplaceAll(finalValue, `"`, `\\"`)
-		args = append(args, fmt.Sprintf("-D%s=\"%s\"", name, escapedValue))
+		args = append(args, fmt.Sprintf("%s=\"%s\"", name, escapedValue))
 	}
 	return args
 }
