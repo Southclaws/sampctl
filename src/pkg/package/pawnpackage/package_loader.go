@@ -88,33 +88,32 @@ func PackageFromRepo(
 	if err != nil {
 		return
 	}
-	var resp *http.Response
 
-	resp, err = http.Get(fmt.Sprintf(
+	branch := "master"
+	if repo.DefaultBranch != nil && *repo.DefaultBranch != "" {
+		branch = *repo.DefaultBranch
+	}
+
+	jsonURL := fmt.Sprintf(
 		"https://raw.githubusercontent.com/%s/%s/%s/pawn.json",
-		meta.User, meta.Repo, *repo.DefaultBranch,
-	))
-	if err != nil {
-		return
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode == 200 {
-		return packageFromJSONResponse(resp, meta)
-	}
-
-	resp, err = http.Get(fmt.Sprintf(
+		meta.User, meta.Repo, branch,
+	)
+	yamlURL := fmt.Sprintf(
 		"https://raw.githubusercontent.com/%s/%s/%s/pawn.yaml",
-		meta.User, meta.Repo, *repo.DefaultBranch,
-	))
-	if err != nil {
-		return
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode == 200 {
-		return packageFromYAMLResponse(resp, meta)
+		meta.User, meta.Repo, branch,
+	)
+
+	candidates := []remoteCandidate{
+		{url: jsonURL, format: "json"},
+		{url: yamlURL, format: "yaml"},
 	}
 
-	return pkg, errors.Wrap(err, "package does not point to a valid remote package")
+	pkg, err = fetchRemoteDefinition(ctx, candidates)
+	if err != nil {
+		return pkg, errors.Wrap(err, "package does not point to a valid remote package")
+	}
+
+	return pkg, nil
 }
 
 // PackageFromOfficialRepo attempts to get a package from the sampctl/plugins official repository
@@ -124,40 +123,77 @@ func PackageFromOfficialRepo(
 	client *github.Client,
 	meta versioning.DependencyMeta,
 ) (pkg Package, err error) {
-	resp, err := http.Get(fmt.Sprintf(
+	officialURL := fmt.Sprintf(
 		"https://raw.githubusercontent.com/sampctl/plugins/master/%s-%s.json",
 		meta.User, meta.Repo,
-	))
+	)
+
+	candidate := remoteCandidate{
+		url:    officialURL,
+		format: "json",
+		onStatusError: func(status int) error {
+			if status == http.StatusNotFound {
+				return errors.Errorf("plugin '%s' does not exist in official repo", meta)
+			}
+			return errors.Errorf("official repository returned %d for '%s'", status, meta)
+		},
+	}
+
+	return fetchRemoteDefinition(ctx, []remoteCandidate{candidate})
+}
+
+type remoteCandidate struct {
+	url           string
+	format        string
+	onStatusError func(status int) error
+}
+
+func fetchRemoteDefinition(ctx context.Context, candidates []remoteCandidate) (Package, error) {
+	var lastErr error
+	for _, candidate := range candidates {
+		pkg, err := fetchCandidate(ctx, candidate)
+		if err == nil {
+			return pkg, nil
+		}
+		lastErr = err
+	}
+	if lastErr == nil {
+		lastErr = errors.New("no remote definition candidates provided")
+	}
+	return Package{}, lastErr
+}
+
+func fetchCandidate(ctx context.Context, candidate remoteCandidate) (Package, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, candidate.url, nil)
 	if err != nil {
-		err = errors.Wrapf(err, "failed to get plugin '%s' from official repo", meta)
-		return
+		return Package{}, errors.Wrap(err, "failed to build remote definition request")
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return Package{}, errors.Wrap(err, "failed to fetch remote definition")
 	}
 	defer resp.Body.Close()
-	return packageFromJSONResponse(resp, meta)
-}
 
-func packageFromJSONResponse(resp *http.Response, meta versioning.DependencyMeta) (pkg Package, err error) {
-	if resp.StatusCode != 200 {
-		err = errors.Errorf("plugin '%s' does not exist in official repo", meta)
-		return
+	if resp.StatusCode != http.StatusOK {
+		if candidate.onStatusError != nil {
+			return Package{}, candidate.onStatusError(resp.StatusCode)
+		}
+		return Package{}, errors.Errorf("remote responded with %d for %s", resp.StatusCode, candidate.url)
 	}
-	err = json.NewDecoder(resp.Body).Decode(&pkg)
-	if err != nil {
-		err = errors.Wrapf(err, "failed to decode plugin package '%s'", meta)
-		return
-	}
-	return
-}
 
-func packageFromYAMLResponse(resp *http.Response, meta versioning.DependencyMeta) (pkg Package, err error) {
-	if resp.StatusCode != 200 {
-		err = errors.Errorf("plugin '%s' does not exist in official repo", meta)
-		return
+	var pkg Package
+	switch candidate.format {
+	case "json":
+		err = json.NewDecoder(resp.Body).Decode(&pkg)
+	case "yaml":
+		err = yaml.NewDecoder(resp.Body).Decode(&pkg)
+	default:
+		err = errors.Errorf("unsupported remote definition format '%s'", candidate.format)
 	}
-	err = yaml.NewDecoder(resp.Body).Decode(&pkg)
 	if err != nil {
-		err = errors.Wrapf(err, "failed to decode plugin package '%s'", meta)
-		return
+		return Package{}, errors.Wrapf(err, "failed to decode remote definition from %s", candidate.url)
 	}
-	return
+
+	return pkg, nil
 }
