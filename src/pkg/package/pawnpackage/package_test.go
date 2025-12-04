@@ -3,7 +3,6 @@ package pawnpackage_test
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -16,15 +15,17 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/Southclaws/sampctl/src/pkg/build/build"
-	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
-	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
+	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
+	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
-var gh *github.Client
-var gitAuth transport.AuthMethod
+var (
+	gh      *github.Client
+	gitAuth transport.AuthMethod
+)
 
 func TestMain(m *testing.M) {
 	_ = godotenv.Load("../.env", "../../.env")
@@ -36,7 +37,7 @@ func TestMain(m *testing.M) {
 	}
 	gh = github.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})))
 
-	err := os.MkdirAll("./tests/cache", 0700)
+	err := os.MkdirAll("./tests/cache", 0o700)
 	if err != nil {
 		panic(err)
 	}
@@ -72,7 +73,8 @@ func TestPackage_Build(t *testing.T) {
 						{Name: "build", Version: "3.10.10"},
 					},
 				},
-				"build", true, []versioning.DependencyMeta{},
+				"build", true,
+				[]versioning.DependencyMeta{},
 			}, nil, false,
 		},
 		{
@@ -121,12 +123,12 @@ func TestPackage_Build(t *testing.T) {
 		pcxWorkspace := util.FullPath("./tests/build-auto-" + tt.name)
 		pcxVendor := filepath.Join(pcxWorkspace, "dependencies")
 
-		err := os.MkdirAll(filepath.Join(pcxWorkspace, "gamemodes"), 0700)
+		err := os.MkdirAll(filepath.Join(pcxWorkspace, "gamemodes"), 0o700)
 		if err != nil {
 			panic(err)
 		}
 
-		err = ioutil.WriteFile(filepath.Join(pcxWorkspace, tt.args.pkg.Entry), tt.sourceCode, 0700)
+		err = os.WriteFile(filepath.Join(pcxWorkspace, tt.args.pkg.Entry), tt.sourceCode, 0o700)
 		if err != nil {
 			panic(err)
 		}

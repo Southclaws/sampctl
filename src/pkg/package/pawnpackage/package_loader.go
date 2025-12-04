@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"path/filepath"
 
@@ -38,9 +37,9 @@ func PackageFromDir(dir string) (pkg Package, err error) {
 }
 
 func readPackageDefinition(path, format string) (pkg Package, err error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := readDefinitionFile(path)
 	if err != nil {
-		return pkg, errors.Wrapf(err, "failed to read configuration from '%s'", path)
+		return pkg, err
 	}
 
 	if format == "json" {
