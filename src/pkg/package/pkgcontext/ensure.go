@@ -2,6 +2,9 @@ package pkgcontext
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -13,6 +16,7 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
+	"github.com/Southclaws/sampctl/src/pkg/package/lockfile"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 	"github.com/Southclaws/sampctl/src/pkg/runtime/runtime"
 	"github.com/Southclaws/sampctl/src/resource"
@@ -81,6 +85,8 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 		if err := runtime.EnsurePlugins(ctx, pcx.GitHub, &pcx.ActualRuntime, pcx.CacheDir, false); err != nil {
 			return errors.Wrap(err, "failed to ensure runtime plugins")
 		}
+
+		pcx.recordRuntimeToLockfile()
 	}
 
 	return err
@@ -484,4 +490,69 @@ func (pcx PackageContext) extractResourceDependencies(
 	}
 
 	return dir, nil
+}
+
+func (pcx *PackageContext) recordRuntimeToLockfile() {
+	if pcx.LockfileResolver == nil {
+		return
+	}
+
+	manifestInfo, err := runtime.GetRuntimeManifestInfo(pcx.Package.LocalPath)
+	if err != nil {
+		print.Warn("failed to get runtime manifest info:", err)
+		return
+	}
+	if manifestInfo == nil {
+		return
+	}
+
+	files := make([]lockfile.LockedFileInfo, len(manifestInfo.Files))
+	for i, f := range manifestInfo.Files {
+		files[i] = lockfile.LockedFileInfo{
+			Path: f.Path,
+			Size: f.Size,
+			Hash: f.Hash,
+			Mode: f.Mode,
+		}
+	}
+
+	pcx.LockfileResolver.RecordRuntime(
+		manifestInfo.Version,
+		manifestInfo.Platform,
+		manifestInfo.RuntimeType,
+		files,
+	)
+}
+
+func (pcx *PackageContext) RecordBuildToLockfile(compilerVersion, compilerPreset, entry, output string) {
+	if pcx.LockfileResolver == nil {
+		return
+	}
+
+	outputHash := ""
+	if output != "" && util.Exists(output) {
+		hash, err := hashOutputFile(output)
+		if err != nil {
+			print.Warn("failed to hash output file:", err)
+		} else {
+			outputHash = hash
+		}
+	}
+
+	pcx.LockfileResolver.RecordBuild(compilerVersion, compilerPreset, entry, output, outputHash)
+}
+
+func hashOutputFile(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, file); err != nil {
+		return "", err
+	}
+
+	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
 }

@@ -304,3 +304,195 @@ func TestUpdateTimestamp(t *testing.T) {
 
 	assert.True(t, lf.Generated.After(originalTime))
 }
+
+func TestDependencyKeyWithOverride(t *testing.T) {
+	tests := []struct {
+		name            string
+		original        string
+		meta            versioning.DependencyMeta
+		expectedKey     string
+		lockfileHasOld  bool
+		shouldMatchOld  bool
+	}{
+		{
+			name:     "overridden dependency uses new key",
+			original: "Zeex/samp-plugin-crashdetect",
+			meta: versioning.DependencyMeta{
+				Site: "github.com",
+				User: "AmyrAhmady",
+				Repo: "samp-plugin-crashdetect",
+			},
+			expectedKey:    "github.com/AmyrAhmady/samp-plugin-crashdetect",
+			lockfileHasOld: true,
+			shouldMatchOld: false,
+		},
+		{
+			name:     "non-overridden dependency uses original key",
+			original: "pawn-lang/samp-stdlib",
+			meta: versioning.DependencyMeta{
+				Site: "github.com",
+				User: "pawn-lang",
+				Repo: "samp-stdlib",
+			},
+			expectedKey:    "github.com/pawn-lang/samp-stdlib",
+			lockfileHasOld: false,
+			shouldMatchOld: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			key := DependencyKey(tt.meta)
+			assert.Equal(t, tt.expectedKey, key)
+
+			lf := New("1.0.0")
+			if tt.lockfileHasOld {
+				oldKey := "github.com/Zeex/samp-plugin-crashdetect"
+				lf.AddDependency(oldKey, LockedDependency{
+					Commit: "oldcommit1234567890123456789012345678",
+					User:   "Zeex",
+					Repo:   "samp-plugin-crashdetect",
+				})
+			}
+
+			_, found := lf.GetLockedMeta(tt.meta)
+			assert.Equal(t, tt.shouldMatchOld, found)
+		})
+	}
+}
+
+func TestLockfileOverrideTransition(t *testing.T) {
+	lf := New("1.0.0")
+
+	oldCommit := "oldcommit1234567890123456789012345678"
+	newCommit := "newcommit1234567890123456789012345678"
+
+	lf.AddDependency("github.com/Zeex/samp-plugin-crashdetect", LockedDependency{
+		Constraint: ":4.x",
+		Resolved:   "4.2.1",
+		Commit:     oldCommit,
+		User:       "Zeex",
+		Repo:       "samp-plugin-crashdetect",
+	})
+
+	assert.Equal(t, 1, lf.DependencyCount())
+	assert.True(t, lf.HasDependency("github.com/Zeex/samp-plugin-crashdetect"))
+	assert.False(t, lf.HasDependency("github.com/AmyrAhmady/samp-plugin-crashdetect"))
+
+	overriddenMeta := versioning.DependencyMeta{
+		Site: "github.com",
+		User: "AmyrAhmady",
+		Repo: "samp-plugin-crashdetect",
+		Tag:  "4.x",
+	}
+
+	_, found := lf.GetLockedMeta(overriddenMeta)
+	assert.False(t, found, "overridden dependency should NOT find old lockfile entry")
+
+	newKey := DependencyKey(overriddenMeta)
+	assert.Equal(t, "github.com/AmyrAhmady/samp-plugin-crashdetect", newKey)
+
+	lf.AddDependency(newKey, LockedDependency{
+		Constraint: ":4.x",
+		Resolved:   "4.2.2",
+		Commit:     newCommit,
+		User:       "AmyrAhmady",
+		Repo:       "samp-plugin-crashdetect",
+	})
+
+	assert.Equal(t, 2, lf.DependencyCount())
+
+	lockedMeta, found := lf.GetLockedMeta(overriddenMeta)
+	assert.True(t, found)
+	assert.Equal(t, newCommit, lockedMeta.Commit)
+}
+
+func TestLockfileConstraintChange(t *testing.T) {
+	lf := New("1.0.0")
+
+	lf.AddDependency("github.com/user/repo", LockedDependency{
+		Constraint: ":1.x",
+		Resolved:   "1.5.0",
+		Commit:     "commit1234567890123456789012345678901234",
+		User:       "user",
+		Repo:       "repo",
+	})
+
+	metaOld := versioning.DependencyMeta{
+		User: "user",
+		Repo: "repo",
+		Tag:  "1.x",
+	}
+	assert.False(t, lf.IsOutdated(metaOld))
+
+	metaNew := versioning.DependencyMeta{
+		User: "user",
+		Repo: "repo",
+		Tag:  "2.x",
+	}
+	assert.True(t, lf.IsOutdated(metaNew))
+}
+
+func TestLockfileTransitiveDependencyWithOverride(t *testing.T) {
+	lf := New("1.0.0")
+
+	lf.AddDependency("github.com/user/lib-a", LockedDependency{
+		Constraint: ":1.0.0",
+		Resolved:   "1.0.0",
+		Commit:     "liba1234567890123456789012345678901234",
+		User:       "user",
+		Repo:       "lib-a",
+		Transitive: false,
+	})
+
+	lf.AddDependency("github.com/AmyrAhmady/samp-plugin-crashdetect", LockedDependency{
+		Constraint:  ":4.x",
+		Resolved:    "4.2.2",
+		Commit:      "crash234567890123456789012345678901234",
+		User:        "AmyrAhmady",
+		Repo:        "samp-plugin-crashdetect",
+		Transitive:  true,
+		RequiredBy:  []string{"github.com/user/lib-a"},
+	})
+
+	transitive := lf.TransitiveDependencies()
+	assert.Len(t, transitive, 1)
+	assert.Contains(t, transitive, "github.com/AmyrAhmady/samp-plugin-crashdetect")
+
+	dep := transitive["github.com/AmyrAhmady/samp-plugin-crashdetect"]
+	assert.Equal(t, []string{"github.com/user/lib-a"}, dep.RequiredBy)
+}
+
+func TestLockfileRuntimeAndBuild(t *testing.T) {
+	lf := New("1.0.0")
+
+	assert.False(t, lf.HasRuntime())
+	assert.False(t, lf.HasBuild())
+	assert.Nil(t, lf.GetRuntime())
+	assert.Nil(t, lf.GetBuild())
+
+	files := []LockedFileInfo{
+		{Path: "samp-server", Size: 1024, Hash: "sha256:abc123", Mode: 0755},
+		{Path: "server.cfg", Size: 256, Hash: "sha256:def456", Mode: 0644},
+	}
+	lf.SetRuntime("0.3.7", "linux", "samp", files)
+
+	assert.True(t, lf.HasRuntime())
+	runtime := lf.GetRuntime()
+	assert.NotNil(t, runtime)
+	assert.Equal(t, "0.3.7", runtime.Version)
+	assert.Equal(t, "linux", runtime.Platform)
+	assert.Equal(t, "samp", runtime.RuntimeType)
+	assert.Len(t, runtime.Files, 2)
+
+	lf.SetBuild("3.10.11", "openmp", "gamemodes/main.pwn", "gamemodes/main.amx", "sha256:build123")
+
+	assert.True(t, lf.HasBuild())
+	build := lf.GetBuild()
+	assert.NotNil(t, build)
+	assert.Equal(t, "3.10.11", build.CompilerVersion)
+	assert.Equal(t, "openmp", build.CompilerPreset)
+	assert.Equal(t, "gamemodes/main.pwn", build.Entry)
+	assert.Equal(t, "gamemodes/main.amx", build.Output)
+	assert.Equal(t, "sha256:build123", build.OutputHash)
+}

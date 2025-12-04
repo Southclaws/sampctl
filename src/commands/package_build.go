@@ -39,6 +39,10 @@ var packageBuildFlags = []cli.Flag{
 		Name:  "relativePaths",
 		Usage: "force compiler output to use relative paths instead of absolute",
 	},
+	cli.BoolFlag{
+		Name:  "no-lock",
+		Usage: "disable lockfile support",
+	},
 }
 
 func packageBuild(c *cli.Context) error {
@@ -48,6 +52,8 @@ func packageBuild(c *cli.Context) error {
 	watch := c.Bool("watch")
 	buildFile := c.String("buildFile")
 	relativePaths := c.Bool("relativePaths")
+	noLock := c.Bool("no-lock")
+	useLockfile := !noLock
 
 	build := c.Args().Get(0)
 
@@ -59,6 +65,13 @@ func packageBuild(c *cli.Context) error {
 	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, env.Platform, env.CacheDir, "", false)
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
+	}
+
+	if useLockfile {
+		err = pcx.InitLockfileResolver(sampctlVersion)
+		if err != nil {
+			print.Warn("failed to initialize lockfile resolver:", err)
+		}
 	}
 
 	if watch {
@@ -95,6 +108,21 @@ func packageBuild(c *cli.Context) error {
 			result.Estimate,
 			result.Total,
 		))
+
+		if useLockfile && !problems.Fatal() && len(problems.Errors()) == 0 {
+			config := pcx.Package.GetBuildConfig(build)
+			if config != nil {
+				pcx.RecordBuildToLockfile(
+					config.Compiler.Version,
+					config.Compiler.Preset,
+					pcx.Package.Entry,
+					pcx.Package.Output,
+				)
+				if saveErr := pcx.SaveLockfile(); saveErr != nil {
+					print.Warn("failed to save lockfile:", saveErr)
+				}
+			}
+		}
 	}
 
 	return nil
