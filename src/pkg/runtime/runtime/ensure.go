@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -48,10 +49,39 @@ func Ensure(ctx context.Context, gh *github.Client, cfg *run.Runtime, noCache bo
 }
 
 // EnsureBinaries ensures the dir has all the necessary files to run a server
-func EnsureBinaries(cacheDir string, cfg run.Runtime) (err error) {
-	err = GetServerPackage(cfg.Version, cfg.WorkingDir, cfg.Platform)
+func EnsureBinaries(cacheDir string, cfg run.Runtime) error {
+	manifest, stageDir, err := ensureStagedRuntime(cacheDir, cfg)
 	if err != nil {
-		return errors.Wrap(err, "failed to get runtime package")
+		return errors.Wrap(err, "failed to prepare runtime files")
+	}
+
+	installManifestPath := runtimeManifestPath(cfg.WorkingDir)
+	if util.Exists(installManifestPath) {
+		existingManifest, readErr := readRuntimeManifest(installManifestPath)
+		if readErr != nil {
+			print.Warn("failed to read installed runtime manifest:", readErr)
+		} else {
+			if existingManifest.matchesRuntime(cfg) {
+				verifyErr := verifyRuntimeManifest(existingManifest, cfg.WorkingDir)
+				if verifyErr == nil {
+					print.Verb("runtime binaries already up to date")
+					return nil
+				}
+				print.Warn("installed runtime verification failed, reinstalling:", verifyErr)
+			}
+
+			if removeErr := removeRuntimeFiles(existingManifest, cfg.WorkingDir); removeErr != nil {
+				print.Warn("failed to remove previous runtime binaries:", removeErr)
+			}
+		}
+	}
+
+	if err = copyRuntimeFiles(manifest, stageDir, cfg.WorkingDir); err != nil {
+		return errors.Wrap(err, "failed to install runtime binaries")
+	}
+
+	if err = writeRuntimeManifest(installManifestPath, manifest); err != nil {
+		print.Warn("failed to write runtime manifest:", err)
 	}
 
 	return nil
@@ -102,4 +132,41 @@ func pluginExtForFile(os string) (ext string) {
 		ext = ".so"
 	}
 	return
+}
+
+func ensureStagedRuntime(cacheDir string, cfg run.Runtime) (runtimeManifest, string, error) {
+	stageDir := filepath.Join(cacheDir, runtimeStagingDir, cfg.Platform, cfg.Version)
+	manifestPath := runtimeManifestPath(stageDir)
+
+	if util.Exists(manifestPath) {
+		manifest, err := readRuntimeManifest(manifestPath)
+		if err == nil && manifest.matchesRuntime(cfg) {
+			if err = verifyRuntimeManifest(manifest, stageDir); err == nil {
+				return manifest, stageDir, nil
+			}
+			print.Warn("staged runtime verification failed, rebuilding cache:", err)
+		}
+	}
+
+	if err := os.RemoveAll(stageDir); err != nil && !os.IsNotExist(err) {
+		return runtimeManifest{}, "", errors.Wrap(err, "failed to clean runtime staging directory")
+	}
+	if err := os.MkdirAll(stageDir, 0o755); err != nil {
+		return runtimeManifest{}, "", errors.Wrap(err, "failed to create runtime staging directory")
+	}
+
+	if err := GetServerPackage(cfg.Version, stageDir, cfg.Platform); err != nil {
+		return runtimeManifest{}, "", errors.Wrap(err, "failed to download runtime package")
+	}
+
+	manifest, err := buildRuntimeManifest(stageDir, cfg)
+	if err != nil {
+		return runtimeManifest{}, "", errors.Wrap(err, "failed to build runtime manifest")
+	}
+
+	if err := writeRuntimeManifest(manifestPath, manifest); err != nil {
+		return runtimeManifest{}, "", errors.Wrap(err, "failed to persist runtime manifest")
+	}
+
+	return manifest, stageDir, nil
 }
