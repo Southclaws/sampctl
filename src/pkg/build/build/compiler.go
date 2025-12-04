@@ -2,7 +2,7 @@ package build
 
 import (
 	"fmt"
-	"strconv"
+	"strings"
 )
 
 // CompilerOptions represents human-readable compiler flags
@@ -28,80 +28,66 @@ func (opts *CompilerOptions) ToArgs() []string {
 	}
 
 	var args []string
-
-	if opts.DebugLevel != nil {
-		args = append(args, "-d"+strconv.Itoa(*opts.DebugLevel))
+	for _, builder := range compilerOptionBuilders {
+		args = append(args, builder(opts)...)
 	}
-
-	if opts.RequireSemicolons != nil {
-		if *opts.RequireSemicolons {
-			args = append(args, "-;+")
-		} else {
-			args = append(args, "-;-")
-		}
-	}
-
-	if opts.RequireParentheses != nil {
-		if *opts.RequireParentheses {
-			args = append(args, "-(+")
-		} else {
-			args = append(args, "-(-")
-		}
-	}
-
-	if opts.RequireEscapeSequences != nil {
-		if *opts.RequireEscapeSequences {
-			args = append(args, "-\\+")
-		} else {
-			args = append(args, "-\\-")
-		}
-	}
-
-	if opts.CompatibilityMode != nil {
-		if *opts.CompatibilityMode {
-			args = append(args, "-Z+")
-		} else {
-			args = append(args, "-Z-")
-		}
-	}
-
-	if opts.OptimizationLevel != nil {
-		args = append(args, "-O"+strconv.Itoa(*opts.OptimizationLevel))
-	}
-
-	if opts.ShowListing != nil && *opts.ShowListing {
-		args = append(args, "-l")
-	}
-
-	if opts.ShowAnnotatedAssembly != nil && *opts.ShowAnnotatedAssembly {
-		args = append(args, "-a")
-	}
-
-	if opts.ShowErrorFile != nil && *opts.ShowErrorFile != "" {
-		args = append(args, "-e"+*opts.ShowErrorFile)
-	}
-
-	if opts.ShowWarnings != nil {
-		if *opts.ShowWarnings {
-			args = append(args, "-w+")
-		} else {
-			args = append(args, "-w-")
-		}
-	}
-
-	if opts.CompactEncoding != nil {
-		if *opts.CompactEncoding {
-			args = append(args, "-C+")
-		} else {
-			args = append(args, "-C-")
-		}
-	}
-
-	if opts.TabSize != nil {
-		args = append(args, "-t"+strconv.Itoa(*opts.TabSize))
-	}
-
 	return args
+}
+
+var compilerOptionBuilders = []func(*CompilerOptions) []string{
+	func(o *CompilerOptions) []string { return intOption(o.DebugLevel, "-d", 0, 3) },
+	func(o *CompilerOptions) []string { return boolOption(o.RequireSemicolons, "-;+", "-;-") },
+	func(o *CompilerOptions) []string { return boolOption(o.RequireParentheses, "-(+", "-(-") },
+	func(o *CompilerOptions) []string { return boolOption(o.RequireEscapeSequences, "-\\+", "-\\-") },
+	func(o *CompilerOptions) []string { return boolOption(o.CompatibilityMode, "-Z+", "-Z-") },
+	func(o *CompilerOptions) []string { return intOption(o.OptimizationLevel, "-O", 0, 2) },
+	func(o *CompilerOptions) []string { return flagOption(o.ShowListing, "-l") },
+	func(o *CompilerOptions) []string { return flagOption(o.ShowAnnotatedAssembly, "-a") },
+	func(o *CompilerOptions) []string { return stringOption(o.ShowErrorFile, "-e") },
+	func(o *CompilerOptions) []string { return boolOption(o.ShowWarnings, "-w+", "-w-") },
+	func(o *CompilerOptions) []string { return boolOption(o.CompactEncoding, "-C+", "-C-") },
+	func(o *CompilerOptions) []string { return intOption(o.TabSize, "-t") },
+}
+
+func intOption(value *int, prefix string, bounds ...int) []string {
+	if value == nil {
+		return nil
+	}
+	v := *value
+	if len(bounds) > 0 && v < bounds[0] {
+		v = bounds[0]
+	}
+	if len(bounds) > 1 && v > bounds[1] {
+		v = bounds[1]
+	}
+	return []string{fmt.Sprintf("%s%d", prefix, v)}
+}
+
+func boolOption(value *bool, trueArg, falseArg string) []string {
+	if value == nil {
+		return nil
+	}
+	if *value {
+		return []string{trueArg}
+	}
+	if falseArg == "" {
+		return nil
+	}
+	return []string{falseArg}
+}
+
+func flagOption(value *bool, arg string) []string {
+	if value == nil || !*value {
+		return nil
+	}
+	return []string{arg}
+}
+
+func stringOption(value *string, prefix string) []string {
+	if value == nil || *value == "" {
+		return nil
+	}
+	return []string{prefix + *value}
 }
 
 // Config represents a configuration for compiling a file
@@ -209,21 +195,29 @@ func (cc *CompilerConfig) ResolveCompilerConfig() CompilerConfig {
 		}
 	}
 
-	// Apply default values if still empty
-	if resolved.Site == "" {
-		resolved.Site = "github.com"
-	}
-	if resolved.User == "" {
-		resolved.User = "pawn-lang"
-	}
-	if resolved.Repo == "" {
-		resolved.Repo = "compiler"
-	}
-	if resolved.Version == "" {
-		resolved.Version = "3.10.10"
-	}
+	resolved.Site = defaultString(resolved.Site, "github.com")
+	resolved.User = defaultString(resolved.User, "pawn-lang")
+	resolved.Repo = defaultString(resolved.Repo, "compiler")
+	resolved.Version = ensureCompilerVersion(resolved.Version)
 
 	return resolved
+}
+
+func defaultString(value, fallback string) string {
+	if value == "" {
+		return fallback
+	}
+	return value
+}
+
+func ensureCompilerVersion(version string) string {
+	if version == "" {
+		version = "3.10.10"
+	}
+	if !strings.HasPrefix(version, "v") {
+		return "v" + version
+	}
+	return version
 }
 
 // Result represents the final statistics (in bytes) of a successfully built .amx file.
