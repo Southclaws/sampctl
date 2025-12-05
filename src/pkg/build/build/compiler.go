@@ -116,8 +116,21 @@ type CompilerConfig struct {
 	User    string `json:"user,omitempty" yaml:"user,omitempty"`       // Name of the github user
 	Repo    string `json:"repo,omitempty" yaml:"repo,omitempty"`       // Name of the github repository
 	Version string `json:"version,omitempty" yaml:"version,omitempty"` // The version of the compiler to use
-	Path    string `json:"path,omitempty" yaml:"path,omitempty"`       // The path to the compiler (overrides the above)
+	Path    string `json:"path,omitempty" yaml:"path,omitempty"`       // Local path to a compiler instance
 	Preset  string `json:"preset,omitempty" yaml:"preset,omitempty"`   // Predefined compiler preset (pawn-lang, openmp, etc.)
+}
+
+// Validate ensures mutually exclusive parameters are respected.
+func (cc CompilerConfig) Validate() error {
+	if cc.Path == "" {
+		return nil
+	}
+
+	if cc.Site != "" || cc.User != "" || cc.Repo != "" || cc.Version != "" || cc.Preset != "" {
+		return fmt.Errorf("compiler.path cannot be combined with compiler.site, compiler.user, compiler.repo, compiler.version, or compiler.preset")
+	}
+
+	return nil
 }
 
 // CompilerPreset represents a predefined compiler configuration

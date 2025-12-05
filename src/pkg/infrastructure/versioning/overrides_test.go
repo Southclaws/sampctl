@@ -9,6 +9,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestMain(m *testing.M) {
+	originalLoader := remoteOverridesLoader
+	remoteOverridesLoader = func() map[string]string {
+		return map[string]string{}
+	}
+	ResetDependencyOverrides()
+	code := m.Run()
+	remoteOverridesLoader = originalLoader
+	ResetDependencyOverrides()
+	os.Exit(code)
+}
+
 func TestApplyDependencyOverrides(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -109,28 +121,28 @@ func TestDependencyOverrideConfig(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "sampctl-config-test")
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
-	
+
 	configPath := filepath.Join(tmpDir, "dependency-overrides.json")
-	
+
 	// Test saving and loading config
 	testOverrides := map[string]string{
-		"old-user/old-repo":     "new-user/new-repo",
-		"github.com/foo/bar":    "github.com/baz/qux",
-		"deprecated/package":    "maintained/package",
+		"old-user/old-repo":  "new-user/new-repo",
+		"github.com/foo/bar": "github.com/baz/qux",
+		"deprecated/package": "maintained/package",
 	}
-	
+
 	// Save config
 	err = SaveDependencyOverrides(testOverrides, configPath)
 	require.NoError(t, err)
-	
+
 	// Load config
 	loadedOverrides := LoadDependencyOverrides(configPath)
-	
+
 	// Check that loaded overrides contain both built-in and user-defined overrides
 	for original, replacement := range DependencyOverrides {
 		assert.Equal(t, replacement, loadedOverrides[original], "built-in override should be preserved")
 	}
-	
+
 	for original, replacement := range testOverrides {
 		assert.Equal(t, replacement, loadedOverrides[original], "user-defined override should be loaded")
 	}
@@ -139,7 +151,7 @@ func TestDependencyOverrideConfig(t *testing.T) {
 func TestLoadDependencyOverridesWithNonexistentFile(t *testing.T) {
 	// Test loading from a file that doesn't exist
 	loadedOverrides := LoadDependencyOverrides("/nonexistent/path/config.json")
-	
+
 	// Should return built-in overrides
 	for original, replacement := range DependencyOverrides {
 		assert.Equal(t, replacement, loadedOverrides[original])
@@ -149,24 +161,24 @@ func TestLoadDependencyOverridesWithNonexistentFile(t *testing.T) {
 func TestApplyDependencyOverridesWithConfig(t *testing.T) {
 	// Reset the global loaded overrides
 	ResetDependencyOverrides()
-	
+
 	// Create a temporary config with custom overrides
 	tmpDir, err := os.MkdirTemp("", "sampctl-test")
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
-	
+
 	configPath := filepath.Join(tmpDir, "dependency-overrides.json")
 	customOverrides := map[string]string{
 		"custom/dependency": "replacement/dependency",
 	}
-	
+
 	err = SaveDependencyOverrides(customOverrides, configPath)
 	require.NoError(t, err)
-	
+
 	// Test that the function works with built-in overrides
 	result := ApplyDependencyOverrides("Zeex/samp-plugin-crashdetect")
 	assert.Equal(t, "AmyrAhmady/samp-plugin-crashdetect", result)
-	
+
 	// Reset for other tests
 	ResetDependencyOverrides()
 }

@@ -19,9 +19,9 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/build/build"
 	"github.com/Southclaws/sampctl/src/pkg/build/compiler"
-	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
+	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
 
 // Build compiles a package, dependencies are ensured and a list of paths are sent to the compiler.
@@ -42,7 +42,7 @@ func (pcx *PackageContext) Build(
 		return
 	}
 
-	var buildNumber = uint32(0)
+	buildNumber := uint32(0)
 	if buildFile != "" {
 		buildNumber, err = readInt(buildFile)
 		if err != nil {
@@ -88,7 +88,7 @@ func (pcx *PackageContext) Build(
 		atomic.AddUint32(&buildNumber, 1)
 
 		if buildFile != "" {
-			err2 := os.WriteFile(buildFile, []byte(fmt.Sprint(buildNumber)), 0700)
+			err2 := os.WriteFile(buildFile, []byte(fmt.Sprint(buildNumber)), 0o700)
 			if err2 != nil {
 				print.Erro("Failed to write buildfile:", err2)
 			}
@@ -119,7 +119,7 @@ func (pcx *PackageContext) BuildWatch(
 		return
 	}
 
-	var buildNumber = uint32(0)
+	buildNumber := uint32(0)
 	if buildFile != "" {
 		buildNumber, err = readInt(buildFile)
 		if err != nil {
@@ -246,7 +246,7 @@ loop:
 				}
 
 				if buildFile != "" {
-					err2 := os.WriteFile(buildFile, []byte(fmt.Sprint(buildNumber)), 0700)
+					err2 := os.WriteFile(buildFile, []byte(fmt.Sprint(buildNumber)), 0o700)
 					if err2 != nil {
 						print.Erro("Failed to write buildfile:", err2)
 					}
@@ -272,6 +272,11 @@ func (pcx *PackageContext) buildPrepare(
 		return
 	}
 
+	if err = config.Compiler.Validate(); err != nil {
+		err = errors.Wrap(err, "invalid compiler configuration")
+		return
+	}
+
 	if config.WorkingDir == "" {
 		config.WorkingDir = filepath.Dir(util.FullPath(pcx.Package.Entry))
 	}
@@ -280,6 +285,14 @@ func (pcx *PackageContext) buildPrepare(
 	}
 	if config.Output == "" {
 		config.Output = filepath.Join(pcx.Package.LocalPath, pcx.Package.Output)
+	}
+
+	if config.Compiler.Path != "" {
+		compilerPath := config.Compiler.Path
+		if !filepath.IsAbs(compilerPath) {
+			compilerPath = filepath.Join(pcx.Package.LocalPath, compilerPath)
+		}
+		config.Compiler.Path = util.FullPath(compilerPath)
 	}
 
 	config.Includes = append(config.Includes, pcx.Package.LocalPath)
@@ -352,7 +365,7 @@ func readInt(file string) (n uint32, err error) {
 		}
 		n = uint32(result)
 	} else {
-		err = os.WriteFile(file, []byte("0"), 0700)
+		err = os.WriteFile(file, []byte("0"), 0o700)
 		n = 0
 	}
 	return

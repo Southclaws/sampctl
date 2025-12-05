@@ -160,3 +160,45 @@ func TestBackwardCompatibility(t *testing.T) {
 		t.Errorf("Expected 5 args, got %d", len(config.Args))
 	}
 }
+
+func TestCompilerConfigValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		cfg     CompilerConfig
+		wantErr bool
+	}{
+		{
+			name:    "remote only",
+			cfg:     CompilerConfig{Preset: "samp"},
+			wantErr: false,
+		},
+		{
+			name:    "local only",
+			cfg:     CompilerConfig{Path: "/tmp/custom-compiler"},
+			wantErr: false,
+		},
+		{
+			name:    "path with preset",
+			cfg:     CompilerConfig{Path: "/tmp/custom-compiler", Preset: "samp"},
+			wantErr: true,
+		},
+		{
+			name:    "path with repo",
+			cfg:     CompilerConfig{Path: "/tmp/custom-compiler", Repo: "compiler"},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.cfg.Validate()
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error but got nil")
+				}
+			} else if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
