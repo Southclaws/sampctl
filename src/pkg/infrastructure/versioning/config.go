@@ -24,6 +24,8 @@ const (
 	CacheValidityDuration = 24 * time.Hour
 )
 
+var remoteOverridesLoader = defaultRemoteOverridesLoader
+
 // DefaultDependencyOverridesPath returns the default path for the dependency overrides configuration file
 func DefaultDependencyOverridesPath() string {
 	return filepath.Join(util.GetConfigDir(), "dependency-overrides.json")
@@ -47,7 +49,7 @@ func isCacheValid(cachePath string) bool {
 func downloadRemoteOverrides(url, cachePath string) error {
 	// Create directory if it doesn't exist
 	dir := filepath.Dir(cachePath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("failed to create cache directory: %w", err)
 	}
 
@@ -78,20 +80,20 @@ func downloadRemoteOverrides(url, cachePath string) error {
 	return nil
 }
 
-// loadRemoteOverrides loads dependency overrides from the remote URL with caching
 func loadRemoteOverrides() map[string]string {
+	return remoteOverridesLoader()
+}
+
+// defaultRemoteOverridesLoader downloads dependency overrides from the remote URL with caching.
+func defaultRemoteOverridesLoader() map[string]string {
 	cachePath := DefaultDependencyOverridesCachePath()
 
-	// Check if cache is valid
 	if !isCacheValid(cachePath) {
-		// Try to download fresh overrides
 		if err := downloadRemoteOverrides(RemoteOverridesURL, cachePath); err != nil {
-			// If download fails, silently continue without remote overrides
 			return make(map[string]string)
 		}
 	}
 
-	// Load from cache
 	data, err := os.ReadFile(cachePath)
 	if err != nil {
 		return make(map[string]string)
@@ -123,14 +125,12 @@ func LoadDependencyOverrides(configPath string) map[string]string {
 		overrides[original] = replacement
 	}
 
-	// Try to load from local config file
 	if configPath == "" {
 		configPath = DefaultDependencyOverridesPath()
 	}
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		// If file doesn't exist, just return current overrides
 		return overrides
 	}
 
@@ -156,7 +156,7 @@ func SaveDependencyOverrides(overrides map[string]string, configPath string) err
 
 	// Create directory if it doesn't exist
 	dir := filepath.Dir(configPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
 
@@ -169,7 +169,7 @@ func SaveDependencyOverrides(overrides map[string]string, configPath string) err
 		return err
 	}
 
-	return os.WriteFile(configPath, data, 0644)
+	return os.WriteFile(configPath, data, 0o644)
 }
 
 // ClearRemoteOverridesCache removes the cached remote overrides file

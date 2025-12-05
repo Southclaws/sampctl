@@ -162,12 +162,14 @@ func (pkg Package) GetBuildConfig(name string) (config *build.Config) {
 		}
 	}
 
-	if config.Version != "" {
-		config.Compiler.Version = string(config.Version)
-	}
+	if config.Compiler.Path == "" {
+		if config.Version != "" {
+			config.Compiler.Version = string(config.Version)
+		}
 
-	if config.Compiler.Version == "" {
-		config.Compiler.Version = def.Compiler.Version
+		if config.Compiler.Version == "" {
+			config.Compiler.Version = def.Compiler.Version
+		}
 	}
 
 	if len(config.Args) == 0 {
