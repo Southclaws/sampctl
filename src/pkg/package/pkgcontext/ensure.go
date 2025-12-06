@@ -77,7 +77,7 @@ func (pcx *PackageContext) EnsureDependenciesWithRuntime(ctx context.Context, fo
 			return
 		}
 
-		pcx.recordRuntimeToLockfile()
+		pcx.recordRuntimeToLockfileFromConfig()
 		if saveErr := pcx.SaveLockfile(); saveErr != nil {
 			print.Warn("failed to save lockfile after runtime update:", saveErr)
 		}
@@ -422,7 +422,7 @@ func (pcx PackageContext) extractResourceDependencies(
 	return dir, nil
 }
 
-func (pcx *PackageContext) recordRuntimeToLockfile() {
+func (pcx *PackageContext) recordRuntimeToLockfileFromConfig() {
 	if pcx.LockfileResolver == nil {
 		return
 	}
@@ -447,11 +447,11 @@ func (pcx *PackageContext) recordRuntimeToLockfile() {
 		}
 	}
 
-	print.Verb("recording runtime to lockfile:", manifestInfo.Version, manifestInfo.Platform, manifestInfo.RuntimeType)
+	print.Verb("recording runtime to lockfile:", pcx.ActualRuntime.Version, pcx.ActualRuntime.Platform, string(pcx.ActualRuntime.RuntimeType))
 	pcx.LockfileResolver.RecordRuntime(
-		manifestInfo.Version,
-		manifestInfo.Platform,
-		manifestInfo.RuntimeType,
+		pcx.ActualRuntime.Version,
+		pcx.ActualRuntime.Platform,
+		string(pcx.ActualRuntime.RuntimeType),
 		files,
 	)
 }
