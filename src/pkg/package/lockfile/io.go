@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
@@ -27,12 +26,7 @@ func loadFromFile(path string) (*Lockfile, error) {
 	}
 
 	var lockfile Lockfile
-	if len(data) > 0 && data[0] == '{' {
-		err = json.Unmarshal(data, &lockfile)
-	} else {
-		err = yaml.Unmarshal(data, &lockfile)
-	}
-
+	err = json.Unmarshal(data, &lockfile)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse lockfile")
 	}
@@ -45,25 +39,14 @@ func loadFromFile(path string) (*Lockfile, error) {
 	return &lockfile, nil
 }
 
-func Save(dir string, lockfile *Lockfile, format string) error {
+func Save(dir string, lockfile *Lockfile) error {
 	if lockfile == nil {
 		return errors.New("cannot save nil lockfile")
 	}
 
 	lockfile.UpdateTimestamp()
 
-	var (
-		data []byte
-		err  error
-	)
-
-	switch format {
-	case "yaml":
-		data, err = yaml.Marshal(lockfile)
-	default:
-		data, err = json.MarshalIndent(lockfile, "", "\t")
-	}
-
+	data, err := json.MarshalIndent(lockfile, "", "\t")
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal lockfile")
 	}

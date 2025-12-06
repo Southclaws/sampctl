@@ -155,7 +155,6 @@ func NewPackageContextWithLockfile(
 	if useLockfile && parent {
 		pcx.LockfileResolver, err = lockfile.NewResolver(
 			dir,
-			pcx.Package.Format,
 			sampctlVersion,
 			true,
 		)
@@ -177,7 +176,6 @@ func (pcx *PackageContext) InitLockfileResolver(sampctlVersion string) error {
 	var err error
 	pcx.LockfileResolver, err = lockfile.NewResolver(
 		pcx.Package.LocalPath,
-		pcx.Package.Format,
 		sampctlVersion,
 		true,
 	)

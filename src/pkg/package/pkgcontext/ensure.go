@@ -87,6 +87,9 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 		}
 
 		pcx.recordRuntimeToLockfile()
+		if saveErr := pcx.SaveLockfile(); saveErr != nil {
+			print.Warn("failed to save lockfile after runtime update:", saveErr)
+		}
 	}
 
 	return err
@@ -503,6 +506,7 @@ func (pcx *PackageContext) recordRuntimeToLockfile() {
 		return
 	}
 	if manifestInfo == nil {
+		print.Verb("no runtime manifest found, skipping lockfile runtime record")
 		return
 	}
 
@@ -516,6 +520,7 @@ func (pcx *PackageContext) recordRuntimeToLockfile() {
 		}
 	}
 
+	print.Verb("recording runtime to lockfile:", manifestInfo.Version, manifestInfo.Platform, manifestInfo.RuntimeType)
 	pcx.LockfileResolver.RecordRuntime(
 		manifestInfo.Version,
 		manifestInfo.Platform,

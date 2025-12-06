@@ -95,8 +95,6 @@ func isRelevantExtension(ext string) bool {
 		".json": true,
 		".yaml": true,
 		".yml":  true,
-		".md":   true,
-		".txt":  true,
 	}
 	return relevantExtensions[ext]
 }
