@@ -13,16 +13,14 @@ import (
 type Resolver struct {
 	lockfile       *Lockfile
 	dir            string
-	format         string
 	sampctlVersion string
 	useLockfile    bool
 	modified       bool
 }
 
-func NewResolver(dir, format, sampctlVersion string, useLockfile bool) (*Resolver, error) {
+func NewResolver(dir, sampctlVersion string, useLockfile bool) (*Resolver, error) {
 	resolver := &Resolver{
 		dir:            dir,
-		format:         format,
 		sampctlVersion: sampctlVersion,
 		useLockfile:    useLockfile,
 	}
@@ -165,7 +163,7 @@ func (r *Resolver) Save() error {
 		return nil
 	}
 
-	return Save(r.dir, r.lockfile, r.format)
+	return Save(r.dir, r.lockfile)
 }
 
 func (r *Resolver) ForceUpdate() {

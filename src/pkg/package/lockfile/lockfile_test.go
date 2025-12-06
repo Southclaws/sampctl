@@ -1,7 +1,6 @@
 package lockfile
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -217,8 +216,7 @@ func TestSaveAndLoad(t *testing.T) {
 		Repo:       "repo",
 	})
 
-	// Test JSON format (default)
-	err := Save(tmpDir, lf, "json")
+	err := Save(tmpDir, lf)
 	require.NoError(t, err)
 
 	assert.FileExists(t, filepath.Join(tmpDir, Filename))
@@ -230,20 +228,6 @@ func TestSaveAndLoad(t *testing.T) {
 	assert.Equal(t, lf.Version, loaded.Version)
 	assert.Equal(t, lf.SampctlVersion, loaded.SampctlVersion)
 	assert.Equal(t, lf.DependencyCount(), loaded.DependencyCount())
-
-	// Clean up and test YAML format (same filename, different encoding)
-	os.Remove(filepath.Join(tmpDir, Filename))
-
-	err = Save(tmpDir, lf, "yaml")
-	require.NoError(t, err)
-
-	assert.FileExists(t, filepath.Join(tmpDir, Filename))
-
-	loaded, err = Load(tmpDir)
-	require.NoError(t, err)
-	require.NotNil(t, loaded)
-
-	assert.Equal(t, lf.DependencyCount(), loaded.DependencyCount())
 }
 
 func TestExists(t *testing.T) {
@@ -252,7 +236,7 @@ func TestExists(t *testing.T) {
 	assert.False(t, Exists(tmpDir))
 
 	lf := New("1.0.0")
-	err := Save(tmpDir, lf, "json")
+	err := Save(tmpDir, lf)
 	require.NoError(t, err)
 
 	assert.True(t, Exists(tmpDir))
@@ -262,7 +246,7 @@ func TestDelete(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	lf := New("1.0.0")
-	err := Save(tmpDir, lf, "json")
+	err := Save(tmpDir, lf)
 	require.NoError(t, err)
 
 	assert.True(t, Exists(tmpDir))
@@ -285,7 +269,7 @@ func TestLoadOrCreate(t *testing.T) {
 
 	// Save it
 	lf.AddDependency("github.com/user/repo", LockedDependency{User: "user", Repo: "repo"})
-	err = Save(tmpDir, lf, "json")
+	err = Save(tmpDir, lf)
 	require.NoError(t, err)
 
 	// Should load existing
