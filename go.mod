@@ -26,7 +26,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/oauth2 v0.33.0
 	golang.org/x/sys v0.38.0
-	golang.org/x/text v0.31.0
+	golang.org/x/text v0.32.0
 	gopkg.in/AlecAivazis/survey.v1 v1.8.8
 	gopkg.in/eapache/go-resiliency.v1 v1.2.0
 	gopkg.in/urfave/cli.v1 v1.20.0
@@ -76,7 +76,7 @@ require (
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/net v0.47.0 // indirect
-	golang.org/x/sync v0.18.0 // indirect
+	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/time v0.2.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gotest.tools/v3 v3.4.0 // indirect
