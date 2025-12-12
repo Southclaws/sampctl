@@ -21,12 +21,12 @@ import (
 // ErrNotRemotePackage describes a repository that does not contain a package definition file
 var ErrNotRemotePackage = errors.New("remote repository does not declare a package")
 
-// EnsureDependencies traverses package dependencies and ensures they are up to date
+// EnsureDependencies traverses package dependencies and ensures they are up to date.
 func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate bool) (err error) {
-	return pcx.EnsureDependenciesWithRuntime(ctx, forceUpdate, true)
+	return pcx.EnsureDependenciesWithRuntime(ctx, forceUpdate, false)
 }
 
-// EnsureDependenciesWithRuntime traverses package dependencies and ensures they are up to date,
+// EnsureDependenciesWithRuntime traverses package dependencies and ensures they are up to date.
 func (pcx *PackageContext) EnsureDependenciesWithRuntime(ctx context.Context, forceUpdate bool, setupRuntime bool) (err error) {
 	if pcx.Package.LocalPath == "" {
 		return errors.New("package does not represent a locally stored package")
