@@ -50,51 +50,60 @@ func EnsurePlugins(
 	gh *github.Client,
 	cfg *run.Runtime,
 	cacheDir string,
-	noCache bool,
-) (err error) {
-	fileExt := pluginExtForFile(cfg.Platform)
-
-	var (
-		newPlugins = []run.Plugin{}
-		files      []run.Plugin
-	)
-
-	for _, plugin := range cfg.PluginDeps {
-		files, err = EnsureVersionedPlugin(ctx, gh, plugin, cfg.WorkingDir, cfg.Platform, cfg.Version, cacheDir, true, false, noCache, nil)
-		if err != nil {
-			return
-		}
-		newPlugins = append(newPlugins, files...)
+	noCache bool) (err error) {
+	// Ensure required directories exist
+	err = os.MkdirAll(cfg.WorkingDir, 0o700)
+	if err != nil {
+		err = errors.Wrap(err, "failed to create target directory")
+		return
 	}
 
-	added := make(map[run.Plugin]struct{})
+	if len(cfg.PluginDeps) > 0 {
+		_ = os.MkdirAll(filepath.Join(cfg.WorkingDir, "plugins"), 0o700)
+		_ = os.MkdirAll(filepath.Join(cfg.WorkingDir, "components"), 0o700)
+	}
 
-	for _, plugin := range newPlugins {
-		pluginName := run.Plugin(strings.TrimSuffix(string(plugin), fileExt))
-		if _, ok := added[pluginName]; ok {
+	newPlugins := []run.Plugin{}
+
+	for _, plugin := range cfg.PluginDeps {
+		files, errInner := EnsureVersionedPlugin(
+			ctx,
+			gh,
+			plugin,
+			cfg.WorkingDir,
+			cfg.Platform,
+			cfg.Version,
+			cacheDir,
+			true,  // plugins
+			false, // includes
+			noCache,
+			nil, // ignorePatterns
+		)
+		if errInner != nil {
+			err = errInner
+			return
+		}
+
+		if plugin.Scheme == "components" {
 			continue
 		}
 
-		print.Verb("adding plugin by local filename", pluginName)
-		cfg.Plugins = append(cfg.Plugins, pluginName)
-		added[pluginName] = struct{}{}
+		newPlugins = append(newPlugins, files...)
 	}
 
-	if len(added) != 0 {
-		pluginsDir := util.FullPath(filepath.Join(cfg.WorkingDir, "plugins"))
-		err = os.MkdirAll(pluginsDir, 0o700)
-		if err != nil {
-			return errors.Wrap(err, "failed to create runtime plugins directory")
+	// merge unique
+	added := map[run.Plugin]struct{}{}
+	allPlugins := append(cfg.Plugins, newPlugins...)
+	cfg.Plugins = []run.Plugin{}
+	for _, p := range allPlugins {
+		if _, ok := added[p]; ok {
+			continue
 		}
-
-		componentsDir := util.FullPath(filepath.Join(cfg.WorkingDir, "components"))
-		err = os.MkdirAll(componentsDir, 0o700)
-		if err != nil {
-			return errors.Wrap(err, "failed to create runtime components directory")
-		}
+		added[p] = struct{}{}
+		cfg.Plugins = append(cfg.Plugins, p)
 	}
 
-	return err
+	return nil
 }
 
 // EnsureVersionedPlugin automatically downloads a plugin binary from its github releases page
@@ -127,8 +136,12 @@ func EnsureVersionedPlugin(
 		// get plugins
 		if plugins {
 			for _, plugin := range resource.Plugins {
-				// Determine plugin directory based on resource version
-				pluginDir := getPluginDirectoryForResource(resource.Version) + "/"
+				// NEW: choose dir by dependency scheme first
+				pluginDir := getPluginDirectoryForResource(resource.Version)
+				if meta.Scheme == "components" {
+					pluginDir = "components"
+				}
+				pluginDir += "/"
 				print.Verb(meta, "marking plugin path", plugin, "for extraction to ./"+pluginDir)
 				paths[plugin] = pluginDir
 			}
@@ -167,7 +180,6 @@ func EnsureVersionedPlugin(
 			return
 		}
 		if len(extractedFiles) == 0 {
-			//nolint:lll
 			err = errors.Errorf("no files extracted from plugin %s: check the package definition of this dependency against the release assets", meta)
 			return
 		}
@@ -184,7 +196,14 @@ func EnsureVersionedPlugin(
 	} else {
 		print.Verb(meta, "plugin resource is a single file")
 		base := filepath.Base(filename)
+
+		// NEW: choose dir by dependency scheme first
 		pluginDir := getPluginDirectoryForResource(resource.Version)
+		if meta.Scheme == "components" {
+			pluginDir = "components"
+		}
+		pluginDir += "/"
+
 		finalDir := filepath.Join(dir, pluginDir)
 		destination := filepath.Join(finalDir, base)
 

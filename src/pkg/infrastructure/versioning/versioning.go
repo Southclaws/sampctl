@@ -87,7 +87,8 @@ func (dm DependencyMeta) Validate() (err error) {
 	// Handle URL-like schemes
 	if dm.Scheme != "" {
 		switch dm.Scheme {
-		case "plugin", "includes", "filterscript":
+		case "plugin", "components", "includes", "filterscript":
+			// Local schemes only need Local path
 			if dm.Local != "" {
 				// Local schemes only need Local path
 				if dm.Local == "" {
@@ -114,7 +115,7 @@ func (dm DependencyMeta) Validate() (err error) {
 	if dm.Repo == "" {
 		return errors.New("dependency meta missing repo")
 	}
-	return
+	return nil
 }
 
 // DependencyOverrides maps original dependency strings to replacement dependency strings
@@ -191,14 +192,14 @@ func ApplyDependencyOverrides(depStr string) string {
 // Returns the overridden dependency string and whether an override was applied
 func ApplyDependencyOverridesWithLogging(depStr string) (string, bool) {
 	overriddenStr := ApplyDependencyOverrides(depStr)
-	
+
 	if overriddenStr != depStr {
 		// An override was applied, log it
 		print.Info(fmt.Sprintf("dependency '%s' was overridden by '%s'", depStr, overriddenStr))
 		print.Verb(fmt.Sprintf("dependency override applied for '%s' -> '%s' (original repository may no longer exist, be deprecated, or have security issues)", depStr, overriddenStr))
 		return overriddenStr, true
 	}
-	
+
 	return depStr, false
 }
 
@@ -214,7 +215,7 @@ var (
 	// MatchDependencyString matches a dependency string such as 'Username/Repository:tag', 'Username/Repository@branch', 'Username/Repository#commit'
 	MatchDependencyString = regexp.MustCompile(`^\/?([a-zA-Z0-9-]+)\/([a-zA-Z0-9-._]+)(?:\/)?([a-zA-Z0-9-_$\[\]{}().,\/]*)?((?:@)|(?:\:)|(?:#))?(.+)?$`)
 	// MatchURLScheme matches URL-like dependency strings such as 'plugin://plugins/name', 'includes://legacy', 'filterscript://user/repo:tag'
-	MatchURLScheme = regexp.MustCompile(`^(plugin|includes|filterscript):\/\/(.+)$`)
+	MatchURLScheme = regexp.MustCompile(`^(plugin|includes|filterscript|component):\/\/(.+)$`)
 )
 
 // Explode splits a dependency string into its component parts and returns a meta object
@@ -414,7 +415,12 @@ func (dm DependencyMeta) IsRemoteScheme() bool {
 
 // IsPlugin returns true if this dependency represents a plugin
 func (dm DependencyMeta) IsPlugin() bool {
-	return dm.Scheme == "plugin"
+	return dm.Scheme == "plugin" || dm.Scheme == "components"
+}
+
+// IsComponent returns true if this dependency represents an Open.MP component
+func (dm DependencyMeta) IsComponent() bool {
+	return dm.Scheme == "components"
 }
 
 // IsIncludes returns true if this dependency represents an includes directory

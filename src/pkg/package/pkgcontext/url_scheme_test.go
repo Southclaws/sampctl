@@ -8,19 +8,19 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
+	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
 
 func TestHandleURLSchemeCaching(t *testing.T) {
 	tests := []struct {
-		name              string
-		pcx               *PackageContext
-		meta              versioning.DependencyMeta
-		expectedPlugins   int
-		expectedIncludes  int
-		expectedDeps      int
-		wantErr           bool
+		name             string
+		pcx              *PackageContext
+		meta             versioning.DependencyMeta
+		expectedPlugins  int
+		expectedIncludes int
+		expectedDeps     int
+		wantErr          bool
 	}{
 		{
 			name: "local plugin scheme",
@@ -190,12 +190,12 @@ func TestEnsureURLSchemeDependency(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	testPath := filepath.Join(tmpDir, "test", "path")
-	
+
 	// Create necessary directories and files for the tests
 	require.NoError(t, os.MkdirAll(filepath.Join(testPath, "plugins"), 0755))
 	require.NoError(t, os.MkdirAll(filepath.Join(testPath, "legacy"), 0755))
 	require.NoError(t, os.MkdirAll(filepath.Join(testPath, "filterscripts"), 0755))
-	
+
 	// Create mock files
 	require.NoError(t, os.WriteFile(filepath.Join(testPath, "plugins", "test"), []byte("mock plugin"), 0644))
 	require.NoError(t, os.WriteFile(filepath.Join(testPath, "legacy", "includes"), []byte("mock include"), 0644))

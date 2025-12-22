@@ -39,6 +39,12 @@ func PrepareRuntimeDirectory(cacheDir, version, platform, scriptfiles string) (e
 		return errors.Wrap(err, "failed to create plugins directory")
 	}
 
+	// open.mp components dir
+	err = os.MkdirAll(filepath.Join(dir, "components"), 0700)
+	if err != nil {
+		return errors.Wrap(err, "failed to create components directory")
+	}
+
 	scriptfilesTmp := filepath.Join(dir, "scriptfiles")
 	err = os.RemoveAll(scriptfilesTmp)
 	if err != nil {

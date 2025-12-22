@@ -168,78 +168,117 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 // handleURLSchemeCaching handles URL scheme dependencies during the caching phase
 func (pcx *PackageContext) handleURLSchemeCaching(meta versioning.DependencyMeta, prefix string) error {
 	switch meta.Scheme {
-	case "plugin":
+
+	case "plugin", "components":
 		if meta.IsLocalScheme() {
+			localPath := filepath.Join(pcx.Package.LocalPath, meta.Local)
+			if !util.Exists(localPath) {
+				return errors.Errorf("local %s path does not exist: %s", meta.Scheme, localPath)
+			}
+
 			pluginMeta := versioning.DependencyMeta{
-				Scheme: "plugin",
+				Scheme: meta.Scheme, // plugin или components
 				Local:  meta.Local,
 				User:   "local",
 				Repo:   filepath.Base(meta.Local),
 			}
 			pcx.AllPlugins = append(pcx.AllPlugins, pluginMeta)
-			print.Verb(prefix, "added local plugin:", meta.Local)
-		} else {
-			remoteMeta := versioning.DependencyMeta{
-				Site:   meta.Site,
-				User:   meta.User,
-				Repo:   meta.Repo,
-				Tag:    meta.Tag,
-				Branch: meta.Branch,
-				Commit: meta.Commit,
-				Path:   meta.Path,
-			}
-			pcx.AllDependencies = append(pcx.AllDependencies, remoteMeta)
-			pcx.AllPlugins = append(pcx.AllPlugins, remoteMeta)
-			print.Verb(prefix, "added remote plugin dependency:", remoteMeta)
+			print.Verb(prefix, "added local", meta.Scheme, "dependency:", localPath)
+			return nil
 		}
+
+		site := meta.Site
+		if site == "" {
+			site = "github.com"
+		}
+
+		// В AllDependencies кладём БЕЗ scheme (чтобы дальше шло как обычная зависимость)
+		remoteMeta := versioning.DependencyMeta{
+			Site:   site,
+			User:   meta.User,
+			Repo:   meta.Repo,
+			Tag:    meta.Tag,
+			Branch: meta.Branch,
+			Commit: meta.Commit,
+			Path:   meta.Path,
+		}
+		pcx.AllDependencies = append(pcx.AllDependencies, remoteMeta)
+
+		// В AllPlugins сохраняем scheme, чтобы runtime понял, что это components://
+		pluginMeta := remoteMeta
+		pluginMeta.Scheme = meta.Scheme
+		pcx.AllPlugins = append(pcx.AllPlugins, pluginMeta)
+
+		print.Verb(prefix, "added remote", meta.Scheme, "dependency:", pluginMeta)
+		return nil
 
 	case "includes":
 		if meta.IsLocalScheme() {
 			includesPath := filepath.Join(pcx.Package.LocalPath, meta.Local)
+			if !util.Exists(includesPath) {
+				return errors.Errorf("local includes path does not exist: %s", includesPath)
+			}
 			pcx.AllIncludePaths = append(pcx.AllIncludePaths, includesPath)
 			print.Verb(prefix, "added local includes path:", includesPath)
-		} else {
-			remoteMeta := versioning.DependencyMeta{
-				Site:   meta.Site,
-				User:   meta.User,
-				Repo:   meta.Repo,
-				Tag:    meta.Tag,
-				Branch: meta.Branch,
-				Commit: meta.Commit,
-				Path:   meta.Path,
-			}
-			pcx.AllDependencies = append(pcx.AllDependencies, remoteMeta)
-
-			includesPath := filepath.Join(pcx.Package.Vendor, remoteMeta.Repo)
-			if remoteMeta.Path != "" {
-				includesPath = filepath.Join(includesPath, remoteMeta.Path)
-			}
-			pcx.AllIncludePaths = append(pcx.AllIncludePaths, includesPath)
-			print.Verb(prefix, "added remote includes dependency:", remoteMeta)
+			return nil
 		}
+
+		site := meta.Site
+		if site == "" {
+			site = "github.com"
+		}
+
+		remoteMeta := versioning.DependencyMeta{
+			Site:   site,
+			User:   meta.User,
+			Repo:   meta.Repo,
+			Tag:    meta.Tag,
+			Branch: meta.Branch,
+			Commit: meta.Commit,
+			Path:   meta.Path,
+		}
+		pcx.AllDependencies = append(pcx.AllDependencies, remoteMeta)
+
+		includesPath := filepath.Join(pcx.Package.Vendor, remoteMeta.Repo)
+		if remoteMeta.Path != "" {
+			includesPath = filepath.Join(includesPath, remoteMeta.Path)
+		}
+		pcx.AllIncludePaths = append(pcx.AllIncludePaths, includesPath)
+
+		print.Verb(prefix, "added remote includes dependency:", remoteMeta)
+		return nil
 
 	case "filterscript":
 		if meta.IsLocalScheme() {
-			print.Verb(prefix, "added local filterscript:", meta.Local)
-		} else {
-			remoteMeta := versioning.DependencyMeta{
-				Site:   meta.Site,
-				User:   meta.User,
-				Repo:   meta.Repo,
-				Tag:    meta.Tag,
-				Branch: meta.Branch,
-				Commit: meta.Commit,
-				Path:   meta.Path,
+			filterscriptPath := filepath.Join(pcx.Package.LocalPath, meta.Local)
+			if !util.Exists(filterscriptPath) {
+				return errors.Errorf("local filterscript path does not exist: %s", filterscriptPath)
 			}
-			pcx.AllDependencies = append(pcx.AllDependencies, remoteMeta)
-			print.Verb(prefix, "added remote filterscript dependency:", remoteMeta)
+			print.Verb(prefix, "added local filterscript dependency:", filterscriptPath)
+			return nil
 		}
+
+		site := meta.Site
+		if site == "" {
+			site = "github.com"
+		}
+
+		remoteMeta := versioning.DependencyMeta{
+			Site:   site,
+			User:   meta.User,
+			Repo:   meta.Repo,
+			Tag:    meta.Tag,
+			Branch: meta.Branch,
+			Commit: meta.Commit,
+			Path:   meta.Path,
+		}
+		pcx.AllDependencies = append(pcx.AllDependencies, remoteMeta)
+		print.Verb(prefix, "added remote filterscript dependency:", remoteMeta)
+		return nil
 
 	default:
 		return errors.Errorf("unsupported URL scheme: %s", meta.Scheme)
 	}
-
-	return nil
 }
 
 // EnsureDependencyFromCache ensures the repository at `path` is up to date

@@ -170,6 +170,8 @@ func (pcx *PackageContext) ensureURLSchemeDependency(meta versioning.DependencyM
 	switch meta.Scheme {
 	case "plugin":
 		return pcx.ensurePluginDependency(meta)
+	case "components":
+		return pcx.ensureComponentDependency(meta)
 	case "includes":
 		return pcx.ensureIncludesDependency(meta)
 	case "filterscript":
@@ -177,6 +179,53 @@ func (pcx *PackageContext) ensureURLSchemeDependency(meta versioning.DependencyM
 	default:
 		return errors.Errorf("unsupported URL scheme: %s", meta.Scheme)
 	}
+}
+
+func (pcx *PackageContext) ensureComponentDependency(meta versioning.DependencyMeta) error {
+	if meta.IsLocalScheme() {
+		componentPath := filepath.Join(pcx.Package.LocalPath, meta.Local)
+		if !util.Exists(componentPath) {
+			return errors.Errorf("local component path does not exist: %s", componentPath)
+		}
+
+		componentMeta := versioning.DependencyMeta{
+			Scheme: "components",
+			Local:  meta.Local,
+			User:   "local",
+			Repo:   filepath.Base(meta.Local),
+		}
+
+		pcx.AllPlugins = append(pcx.AllPlugins, componentMeta)
+		print.Verb(meta, "added local component dependency:", componentPath)
+		return nil
+	}
+
+	site := meta.Site
+	if site == "" {
+		site = "github.com"
+	}
+
+	remoteMeta := versioning.DependencyMeta{
+		Site:   site,
+		User:   meta.User,
+		Repo:   meta.Repo,
+		Tag:    meta.Tag,
+		Branch: meta.Branch,
+		Commit: meta.Commit,
+		Path:   meta.Path,
+	}
+
+	err := pcx.EnsurePackage(remoteMeta, false)
+	if err != nil {
+		return err
+	}
+
+	componentMeta := remoteMeta
+	componentMeta.Scheme = "components"
+	pcx.AllPlugins = append(pcx.AllPlugins, componentMeta)
+
+	print.Verb(meta, "added remote component dependency:", componentMeta)
+	return nil
 }
 
 // ensurePluginDependency handles plugin:// scheme dependencies
