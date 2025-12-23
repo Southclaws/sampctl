@@ -87,7 +87,7 @@ func LoadOrCreateConfig(cacheDir string, verbose bool) (cfg *Config, err error) 
 		if err != nil {
 			return
 		}
-		err = os.WriteFile(configFiles[0], contents, 0o666)
+		err = os.WriteFile(configFiles[0], contents, fs.PermFileShared)
 		if err != nil {
 			return
 		}
@@ -103,7 +103,7 @@ func WriteConfig(cacheDir string, cfg Config) (err error) {
 	if err != nil {
 		return
 	}
-	err = os.WriteFile(configFile, contents, 0o666)
+	err = os.WriteFile(configFile, contents, fs.PermFileShared)
 	if err != nil {
 		return
 	}
