@@ -148,7 +148,7 @@ func GetPredefinedCompilers() map[string]CompilerPreset {
 	return map[string]CompilerPreset{
 		"openmp": {
 			Name:        "openmp",
-			Description: "Open.MP modified Pawn compiler with improvements",
+			Description: "open.mp modified Pawn compiler with improvements",
 			Site:        "github.com",
 			User:        "openmultiplayer",
 			Repo:        "compiler",

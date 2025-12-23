@@ -268,7 +268,7 @@ func (o *OpenMPConfig) Generate(cfg *run.Runtime) error {
 	// Remove any existing server.cfg file to avoid confusion
 	serverCfgPath := filepath.Join(o.workingDir, "server.cfg")
 	if _, err := os.Stat(serverCfgPath); err == nil {
-		print.Verb("Removing existing server.cfg file (Open.MP uses config.json)")
+		print.Verb("Removing existing server.cfg file (open.mp uses config.json)")
 		os.Remove(serverCfgPath)
 	}
 
@@ -414,7 +414,7 @@ func (o *OpenMPConfig) Generate(cfg *run.Runtime) error {
 	if len(cfg.Plugins) > 0 {
 		plugins := make([]string, len(cfg.Plugins))
 		for i, plugin := range cfg.Plugins {
-			// Remove .so/.dll extension for Open.MP
+			// Remove .so/.dll extension for open.mp
 			pluginStr := string(plugin)
 			if strings.HasSuffix(pluginStr, ".so") || strings.HasSuffix(pluginStr, ".dll") {
 				pluginStr = strings.TrimSuffix(pluginStr, filepath.Ext(pluginStr))

@@ -23,7 +23,7 @@ func TestGetPluginDirectory(t *testing.T) {
 			expectedDir: "plugins",
 		},
 		{
-			name:        "Open.MP runtime auto-detect",
+			name:        "open.mp runtime auto-detect",
 			version:     "v1.0.0-openmp",
 			runtimeType: run.RuntimeTypeAuto,
 			expectedDir: "components",
@@ -35,7 +35,7 @@ func TestGetPluginDirectory(t *testing.T) {
 			expectedDir: "plugins",
 		},
 		{
-			name:        "Explicit Open.MP runtime",
+			name:        "Explicit open.mp runtime",
 			version:     "custom-version",
 			runtimeType: run.RuntimeTypeOpenMP,
 			expectedDir: "components",

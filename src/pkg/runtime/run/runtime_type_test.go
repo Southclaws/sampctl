@@ -23,17 +23,17 @@ func TestDetectRuntimeType(t *testing.T) {
 			expected: RuntimeTypeSAMP,
 		},
 		{
-			name:     "Open.MP version lowercase",
+			name:     "open.mp version lowercase",
 			version:  "v1.0.0-openmp",
 			expected: RuntimeTypeOpenMP,
 		},
 		{
-			name:     "Open.MP version uppercase",
+			name:     "open.mp version uppercase",
 			version:  "v1.0.0-OPENMP",
 			expected: RuntimeTypeOpenMP,
 		},
 		{
-			name:     "Open.MP with dot notation",
+			name:     "open.mp with dot notation",
 			version:  "v1.0.0-open.mp",
 			expected: RuntimeTypeOpenMP,
 		},
@@ -71,7 +71,7 @@ func TestRuntimeGetEffectiveRuntimeType(t *testing.T) {
 			expectedResult: RuntimeTypeSAMP,
 		},
 		{
-			name:           "Auto-detect Open.MP",
+			name:           "Auto-detect open.mp",
 			version:        "v1.0.0-openmp",
 			explicitType:   RuntimeTypeAuto,
 			expectedResult: RuntimeTypeOpenMP,
@@ -83,7 +83,7 @@ func TestRuntimeGetEffectiveRuntimeType(t *testing.T) {
 			expectedResult: RuntimeTypeSAMP,
 		},
 		{
-			name:           "Explicit Open.MP overrides auto-detection",
+			name:           "Explicit open.mp overrides auto-detection",
 			version:        "0.3.7",
 			explicitType:   RuntimeTypeOpenMP,
 			expectedResult: RuntimeTypeOpenMP,
@@ -116,13 +116,13 @@ func TestRuntimeIsOpenMP(t *testing.T) {
 			expected:     false,
 		},
 		{
-			name:         "Open.MP version",
+			name:         "open.mp version",
 			version:      "v1.0.0-openmp",
 			explicitType: RuntimeTypeAuto,
 			expected:     true,
 		},
 		{
-			name:         "Explicit Open.MP",
+			name:         "Explicit open.mp",
 			version:      "0.3.7",
 			explicitType: RuntimeTypeOpenMP,
 			expected:     true,

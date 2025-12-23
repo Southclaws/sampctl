@@ -21,7 +21,7 @@ var packageInitFlags = []cli.Flag{
 	cli.StringFlag{
 		Name:  "runtime",
 		Value: "samp",
-		Usage: "default target runtime for the project: 'samp' for SA-MP or 'openmp' for Open.MP",
+		Usage: "default target runtime for the project: 'samp' for SA-MP or 'openmp' for open.mp",
 	},
 }
 
