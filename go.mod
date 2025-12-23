@@ -17,14 +17,12 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/kirsle/configdir v0.0.0-20170128060238-e45d2f54772f
 	github.com/kr/pretty v0.3.1
-	github.com/michaelbironneau/garbler v0.0.0-20180525195632-2018e2dc9c11
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/nbutton23/zxcvbn-go v0.0.0-20210217022336-fa2cb2858354
 	github.com/otiai10/copy v1.14.1
 	github.com/pkg/errors v0.9.1
 	github.com/sampctl/configor v0.0.0-20200702165352-24e52bc67e97
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/oauth2 v0.33.0
+	golang.org/x/oauth2 v0.34.0
 	golang.org/x/sys v0.38.0
 	golang.org/x/text v0.32.0
 	gopkg.in/AlecAivazis/survey.v1 v1.8.8
