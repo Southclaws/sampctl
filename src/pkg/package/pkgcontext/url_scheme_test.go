@@ -8,19 +8,19 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
+	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
 
 func TestHandleURLSchemeCaching(t *testing.T) {
 	tests := []struct {
-		name              string
-		pcx               *PackageContext
-		meta              versioning.DependencyMeta
-		expectedPlugins   int
-		expectedIncludes  int
-		expectedDeps      int
-		wantErr           bool
+		name             string
+		pcx              *PackageContext
+		meta             versioning.DependencyMeta
+		expectedPlugins  int
+		expectedIncludes int
+		expectedDeps     int
+		wantErr          bool
 	}{
 		{
 			name: "local plugin scheme",
@@ -56,6 +56,47 @@ func TestHandleURLSchemeCaching(t *testing.T) {
 				Site:   "github.com",
 				User:   "user",
 				Repo:   "plugin-repo",
+				Tag:    "v1.0.0",
+			},
+			expectedPlugins:  1,
+			expectedIncludes: 0,
+			expectedDeps:     1,
+			wantErr:          false,
+		},
+		{
+			name: "local component scheme",
+			pcx: &PackageContext{
+				Package: pawnpackage.Package{
+					LocalPath: "/test/path",
+				},
+				AllPlugins:      []versioning.DependencyMeta{},
+				AllIncludePaths: []string{},
+				AllDependencies: []versioning.DependencyMeta{},
+			},
+			meta: versioning.DependencyMeta{
+				Scheme: "component",
+				Local:  "components/test",
+			},
+			expectedPlugins:  1,
+			expectedIncludes: 0,
+			expectedDeps:     0,
+			wantErr:          false,
+		},
+		{
+			name: "remote component scheme",
+			pcx: &PackageContext{
+				Package: pawnpackage.Package{
+					LocalPath: "/test/path",
+				},
+				AllPlugins:      []versioning.DependencyMeta{},
+				AllIncludePaths: []string{},
+				AllDependencies: []versioning.DependencyMeta{},
+			},
+			meta: versioning.DependencyMeta{
+				Scheme: "component",
+				Site:   "github.com",
+				User:   "user",
+				Repo:   "component-repo",
 				Tag:    "v1.0.0",
 			},
 			expectedPlugins:  1,
@@ -190,16 +231,18 @@ func TestEnsureURLSchemeDependency(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	testPath := filepath.Join(tmpDir, "test", "path")
-	
+
 	// Create necessary directories and files for the tests
-	require.NoError(t, os.MkdirAll(filepath.Join(testPath, "plugins"), 0755))
-	require.NoError(t, os.MkdirAll(filepath.Join(testPath, "legacy"), 0755))
-	require.NoError(t, os.MkdirAll(filepath.Join(testPath, "filterscripts"), 0755))
-	
+	require.NoError(t, os.MkdirAll(filepath.Join(testPath, "plugins"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(testPath, "components"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(testPath, "legacy"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(testPath, "filterscripts"), 0o755))
+
 	// Create mock files
-	require.NoError(t, os.WriteFile(filepath.Join(testPath, "plugins", "test"), []byte("mock plugin"), 0644))
-	require.NoError(t, os.WriteFile(filepath.Join(testPath, "legacy", "includes"), []byte("mock include"), 0644))
-	require.NoError(t, os.WriteFile(filepath.Join(testPath, "filterscripts", "test.pwn"), []byte("mock filterscript"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(testPath, "plugins", "test"), []byte("mock plugin"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(testPath, "components", "test"), []byte("mock component"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(testPath, "legacy", "includes"), []byte("mock include"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(testPath, "filterscripts", "test.pwn"), []byte("mock filterscript"), 0o644))
 
 	tests := []struct {
 		name    string
@@ -234,6 +277,21 @@ func TestEnsureURLSchemeDependency(t *testing.T) {
 			meta: versioning.DependencyMeta{
 				Scheme: "includes",
 				Local:  "legacy/includes",
+			},
+			wantErr: false,
+		},
+		{
+			name: "component scheme",
+			pcx: &PackageContext{
+				Package: pawnpackage.Package{
+					LocalPath: testPath,
+				},
+				AllPlugins:      []versioning.DependencyMeta{},
+				AllIncludePaths: []string{},
+			},
+			meta: versioning.DependencyMeta{
+				Scheme: "component",
+				Local:  "components/test",
 			},
 			wantErr: false,
 		},

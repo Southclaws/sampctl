@@ -93,6 +93,11 @@ func TestURLSchemeDependencies(t *testing.T) {
 			want:  DependencyMeta{Scheme: "plugin", Local: "plugins/mysql"},
 		},
 		{
+			name:  "component local",
+			input: "component://local/components/pawn-memory",
+			want:  DependencyMeta{Scheme: "component", Local: "components/pawn-memory"},
+		},
+		{
 			name:  "includes local",
 			input: "includes://local/legacy",
 			want:  DependencyMeta{Scheme: "includes", Local: "legacy"},
@@ -100,12 +105,17 @@ func TestURLSchemeDependencies(t *testing.T) {
 		{
 			name:  "filterscript remote",
 			input: "filterscript://southclaws/samp-object-loader",
-			want:  DependencyMeta{Scheme: "filterscript", User: "southclaws", Repo: "samp-object-loader"},
+			want:  DependencyMeta{Scheme: "filterscript", Site: "github.com", User: "southclaws", Repo: "samp-object-loader"},
+		},
+		{
+			name:  "component remote with tag",
+			input: "component://katursis/Pawn.RakNet:1.6.0-omp",
+			want:  DependencyMeta{Scheme: "component", Site: "github.com", User: "katursis", Repo: "Pawn.RakNet", Tag: "1.6.0-omp"},
 		},
 		{
 			name:  "filterscript remote with tag",
 			input: "filterscript://southclaws/samp-object-loader:1.0.0",
-			want:  DependencyMeta{Scheme: "filterscript", User: "southclaws", Repo: "samp-object-loader", Tag: "1.0.0"},
+			want:  DependencyMeta{Scheme: "filterscript", Site: "github.com", User: "southclaws", Repo: "samp-object-loader", Tag: "1.0.0"},
 		},
 		{
 			name:    "invalid scheme",
@@ -121,7 +131,7 @@ func TestURLSchemeDependencies(t *testing.T) {
 				assert.Error(t, err)
 				return
 			}
-			
+
 			assert.NoError(t, err)
 			assert.Equal(t, tt.want, dep)
 		})
@@ -140,6 +150,11 @@ func TestURLSchemeString(t *testing.T) {
 			want: "plugin://local/plugins/mysql",
 		},
 		{
+			name: "component local",
+			meta: DependencyMeta{Scheme: "component", Local: "components/pawn-memory"},
+			want: "component://local/components/pawn-memory",
+		},
+		{
 			name: "includes local",
 			meta: DependencyMeta{Scheme: "includes", Local: "legacy"},
 			want: "includes://local/legacy",
@@ -148,6 +163,11 @@ func TestURLSchemeString(t *testing.T) {
 			name: "filterscript remote",
 			meta: DependencyMeta{Scheme: "filterscript", User: "southclaws", Repo: "samp-object-loader"},
 			want: "filterscript://southclaws/samp-object-loader",
+		},
+		{
+			name: "component remote with tag",
+			meta: DependencyMeta{Scheme: "component", User: "katursis", Repo: "Pawn.RakNet", Tag: "1.6.0-omp"},
+			want: "component://katursis/Pawn.RakNet:1.6.0-omp",
 		},
 		{
 			name: "filterscript remote with tag",
@@ -170,10 +190,10 @@ func TestLoadRemoteOverrides(t *testing.T) {
 
 	// Test loading remote overrides (should gracefully handle failure)
 	overrides := loadRemoteOverrides()
-	
+
 	// Since the remote file doesn't exist yet, it should return empty map
 	assert.NotNil(t, overrides)
-	
+
 	// Test that the function doesn't panic and returns a valid map
 	assert.IsType(t, map[string]string{}, overrides)
 }
@@ -186,20 +206,20 @@ func TestLoadDependencyOverridesWithRemote(t *testing.T) {
 	// Create a temporary config file
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test-overrides.json")
-	
+
 	localOverrides := map[string]string{
 		"local/override": "local/replacement",
 	}
-	
+
 	err = SaveDependencyOverrides(localOverrides, configPath)
 	assert.NoError(t, err)
 
 	// Load overrides (should include built-in, remote attempts, and local)
 	overrides := LoadDependencyOverrides(configPath)
-	
+
 	// Should contain built-in overrides
 	assert.Equal(t, "AmyrAhmady/samp-plugin-crashdetect", overrides["Zeex/samp-plugin-crashdetect"])
-	
+
 	// Should contain local overrides (they have highest precedence)
 	assert.Equal(t, "local/replacement", overrides["local/override"])
 }
@@ -212,20 +232,20 @@ func TestClearRemoteOverridesCache(t *testing.T) {
 	// Create a dummy cache file
 	cachePath := DefaultDependencyOverridesCachePath()
 	dir := filepath.Dir(cachePath)
-	err = os.MkdirAll(dir, 0755)
+	err = os.MkdirAll(dir, 0o755)
 	assert.NoError(t, err)
-	
-	err = os.WriteFile(cachePath, []byte(`{"overrides":{}}`), 0644)
+
+	err = os.WriteFile(cachePath, []byte(`{"overrides":{}}`), 0o644)
 	assert.NoError(t, err)
-	
+
 	// Verify file exists
 	_, err = os.Stat(cachePath)
 	assert.NoError(t, err)
-	
+
 	// Clear cache
 	err = ClearRemoteOverridesCache()
 	assert.NoError(t, err)
-	
+
 	// Verify file is gone
 	_, err = os.Stat(cachePath)
 	assert.True(t, os.IsNotExist(err))

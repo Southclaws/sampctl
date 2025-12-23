@@ -137,6 +137,7 @@ type OpenMPRCONConfig struct {
 
 type OpenMPPawnConfig struct {
 	LegacyPlugins []string `json:"legacy_plugins,omitempty"`
+	Components    []string `json:"components,omitempty"`
 	MainScripts   []string `json:"main_scripts,omitempty"`
 	SideScripts   []string `json:"side_scripts,omitempty"`
 }
@@ -421,6 +422,18 @@ func (o *OpenMPConfig) Generate(cfg *run.Runtime) error {
 			plugins[i] = pluginStr
 		}
 		config.Pawn.LegacyPlugins = plugins
+	}
+
+	if len(cfg.Components) > 0 {
+		components := make([]string, len(cfg.Components))
+		for i, component := range cfg.Components {
+			componentStr := string(component)
+			if strings.HasSuffix(componentStr, ".so") || strings.HasSuffix(componentStr, ".dll") {
+				componentStr = strings.TrimSuffix(componentStr, filepath.Ext(componentStr))
+			}
+			components[i] = componentStr
+		}
+		config.Pawn.Components = components
 	}
 
 	if len(cfg.Gamemodes) > 0 {
