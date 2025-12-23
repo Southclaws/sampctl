@@ -1,14 +1,15 @@
 package versioning
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/cache"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 )
 
@@ -47,36 +48,21 @@ func isCacheValid(cachePath string) bool {
 
 // downloadRemoteOverrides downloads dependency overrides from the remote URL
 func downloadRemoteOverrides(url, cachePath string) error {
-	// Create directory if it doesn't exist
-	dir := filepath.Dir(cachePath)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("failed to create cache directory: %w", err)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
 	}
-
-	// Download the file
-	resp, err := http.Get(url)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to download overrides: %w", err)
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to download overrides: HTTP %d", resp.StatusCode)
 	}
-
-	// Create the cache file
-	file, err := os.Create(cachePath)
-	if err != nil {
-		return fmt.Errorf("failed to create cache file: %w", err)
-	}
-	defer file.Close()
-
-	// Copy the response body to the file
-	_, err = io.Copy(file, resp.Body)
-	if err != nil {
+	if err := cache.WriteFromReaderAtomic(cachePath, resp.Body, 0o755, 0o644); err != nil {
 		return fmt.Errorf("failed to write cache file: %w", err)
 	}
-
 	return nil
 }
 

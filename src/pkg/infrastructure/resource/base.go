@@ -90,7 +90,7 @@ func (br *BaseResource) getCachePath(version string) string {
 // ensureCacheDir creates the cache directory if it doesn't exist
 func (br *BaseResource) ensureCacheDir(cachePath string) error {
 	dir := filepath.Dir(cachePath)
-	return os.MkdirAll(dir, 0755)
+	return os.MkdirAll(dir, 0o755)
 }
 
 // SetCacheDir allows overriding the default cache directory
@@ -176,6 +176,9 @@ func (br *BaseResource) EnsureFromURL(ctx context.Context, version, targetPath s
 
 	// Check if already cached
 	if cached, path := br.Cached(version); cached {
+		if err := br.MarkCached(path); err != nil {
+			return errors.Wrap(err, "failed to update cache timestamp")
+		}
 		// Copy from cache to target if different
 		if path != targetPath && targetPath != "" {
 			return util.CopyFile(path, targetPath)
@@ -188,9 +191,7 @@ func (br *BaseResource) EnsureFromURL(ctx context.Context, version, targetPath s
 		return errors.Wrap(err, "failed to create cache directory")
 	}
 
-	// Download to cache
-	filename := filepath.Base(cachePath)
-	_, err := download.FromNet(br.downloadURL, filepath.Dir(cachePath), filename)
+	_, err := download.FromNet(ctx, br.downloadURL, cachePath)
 	if err != nil {
 		return errors.Wrap(err, "failed to download resource")
 	}

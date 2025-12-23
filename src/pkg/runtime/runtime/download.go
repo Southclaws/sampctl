@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -44,7 +45,7 @@ func FromCache(cacheDir, version, dir, platform string) (hit bool, err error) {
 	}
 
 	if !util.Exists(dir) {
-		err = os.MkdirAll(dir, 0700)
+		err = os.MkdirAll(dir, 0o700)
 		if err != nil {
 			err = errors.Wrapf(err, "failed to create dir %s", dir)
 			return
@@ -75,13 +76,13 @@ func FromNet(cacheDir, version, dir, platform string) (err error) {
 	}
 
 	if !util.Exists(dir) {
-		err = os.MkdirAll(dir, 0700)
+		err = os.MkdirAll(dir, 0o700)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create dir %s", dir)
 		}
 	}
 
-	fullPath, err := download.FromNet(location, cacheDir, filename)
+	fullPath, err := download.FromNet(context.Background(), location, filepath.Join(cacheDir, filename))
 	if err != nil {
 		return errors.Wrap(err, "failed to download package")
 	}

@@ -2,16 +2,16 @@
 package download
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/pkg/errors"
 
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/cache"
 )
 
 // Compilers is a list of compilers for each platform
@@ -28,45 +28,33 @@ type Compiler struct {
 // GetCompilerList gets a list of known compiler packages from the sampctl repo, if the list does not
 // exist locally, it is downloaded and cached for future use.
 func GetCompilerList(cacheDir string) (compilers Compilers, err error) {
-	runtimesFile := filepath.Join(cacheDir, "compilers.json")
+	compilersFile := cache.Path(cacheDir, "compilers.json")
 
-	var update bool
-
-	info, err := os.Stat(runtimesFile)
-	if os.IsNotExist(err) {
-		update = true
-	} else if time.Since(info.ModTime()) > time.Hour*24*7 {
-		// update package list every week
-		update = true
-	}
-
-	if update {
-		// print to stderr so bash doesn't pick it up as an auto-complete result
+	if !cache.IsFresh(compilersFile, time.Hour*24*7) {
 		fmt.Fprintln(os.Stderr, "updating compiler list...") // nolint:gas
-		err = UpdateCompilerList(cacheDir)
-		if err != nil {
+		if err := UpdateCompilerList(cacheDir); err != nil {
 			fmt.Fprintln(os.Stderr, errors.Wrap(err, "failed to update compiler list"))
-			err = nil
 		}
 	}
 
-	contents, err := os.ReadFile(runtimesFile)
+	compilers, err = cache.ReadJSON[Compilers](compilersFile)
 	if err != nil {
-		err = errors.Wrap(err, "failed to read package cache file")
-		return
+		return nil, errors.Wrap(err, "failed to read package cache file")
 	}
-
-	err = json.Unmarshal(contents, &compilers)
-	return
+	return compilers, nil
 }
 
 // UpdateCompilerList downloads a list of all runtime packages to a file in the cache directory
 func UpdateCompilerList(cacheDir string) (err error) {
-	resp, err := http.Get("https://raw.githubusercontent.com/sampctl/compilers/master/compilers.json")
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://raw.githubusercontent.com/sampctl/compilers/master/compilers.json", nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to create request")
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return errors.Wrap(err, "failed to download package list")
 	}
-
+	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		return errors.Errorf("package list status %s", resp.Status)
 	}
@@ -77,34 +65,15 @@ func UpdateCompilerList(cacheDir string) (err error) {
 		return errors.Wrap(err, "failed to decode package list")
 	}
 
-	contents, err := json.MarshalIndent(compilers, "", "    ")
-	if err != nil {
-		return errors.Wrap(err, "failed to encode compilers list")
+	if err := cache.WriteJSONAtomic(cache.Path(cacheDir, "compilers.json"), compilers, 0o755, 0o644); err != nil {
+		return errors.Wrap(err, "failed to write compilers list to file")
 	}
-
-	err = WriteCompilerCacheFile(cacheDir, contents)
-	if err != nil {
-		return err
-	}
-
-	return
+	return nil
 }
 
 func WriteCompilerCacheFile(cacheDir string, data []byte) error {
-	var err error
-	if !util.Exists(cacheDir) {
-		err = os.MkdirAll(cacheDir, 0700)
-		if err != nil {
-			err = errors.Wrap(err, "failed to create path to cache directory")
-			return err
-		}
-	}
-
-	runtimesFile := filepath.Join(cacheDir, "compilers.json")
-	err = os.WriteFile(runtimesFile, data, 0700)
-	if err != nil {
+	if err := cache.WriteFileAtomic(cache.Path(cacheDir, "compilers.json"), data, 0o755, 0o644); err != nil {
 		return errors.Wrap(err, "failed to write compilers list to file")
 	}
-
 	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 
 	"github.com/google/go-github/github"
@@ -106,7 +107,13 @@ func newCompilerPackageFetcher(meta versioning.DependencyMeta, platform, cacheDi
 }
 
 func (f *compilerPackageFetcher) archiveName() string {
-	return GetCompilerFilename(f.meta.Tag, f.platform, f.compiler.Method)
+	return filepath.Join(
+		"assets",
+		f.meta.User,
+		f.meta.Repo,
+		f.meta.Tag,
+		GetCompilerFilename(f.meta.Tag, f.platform, f.compiler.Method),
+	)
 }
 
 func (f *compilerPackageFetcher) fromCache(dir string) (download.Compiler, bool, error) {
