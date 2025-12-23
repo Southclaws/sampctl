@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/cache"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 )
 
 // Compilers is a list of compilers for each platform
@@ -28,7 +29,7 @@ type Compiler struct {
 // GetCompilerList gets a list of known compiler packages from the sampctl repo, if the list does not
 // exist locally, it is downloaded and cached for future use.
 func GetCompilerList(cacheDir string) (compilers Compilers, err error) {
-	compilersFile := cache.Path(cacheDir, "compilers.json")
+	compilersFile := fs.Join(cacheDir, "compilers.json")
 
 	if !cache.IsFresh(compilersFile, time.Hour*24*7) {
 		fmt.Fprintln(os.Stderr, "updating compiler list...") // nolint:gas
@@ -65,14 +66,14 @@ func UpdateCompilerList(cacheDir string) (err error) {
 		return errors.Wrap(err, "failed to decode package list")
 	}
 
-	if err := cache.WriteJSONAtomic(cache.Path(cacheDir, "compilers.json"), compilers, 0o755, 0o644); err != nil {
+	if err := fs.WriteJSONAtomic(fs.Join(cacheDir, "compilers.json"), compilers, fs.PermDirPrivate, fs.PermFileShared); err != nil {
 		return errors.Wrap(err, "failed to write compilers list to file")
 	}
 	return nil
 }
 
 func WriteCompilerCacheFile(cacheDir string, data []byte) error {
-	if err := cache.WriteFileAtomic(cache.Path(cacheDir, "compilers.json"), data, 0o755, 0o644); err != nil {
+	if err := fs.WriteFileAtomic(fs.Join(cacheDir, "compilers.json"), data, fs.PermDirPrivate, fs.PermFileShared); err != nil {
 		return errors.Wrap(err, "failed to write compilers list to file")
 	}
 	return nil

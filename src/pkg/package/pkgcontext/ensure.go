@@ -9,8 +9,8 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/eapache/go-resiliency.v1/retrier"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
@@ -32,7 +32,7 @@ func (pcx *PackageContext) EnsureDependenciesWithRuntime(ctx context.Context, fo
 		return errors.New("package does not represent a locally stored package")
 	}
 
-	if !util.Exists(pcx.Package.LocalPath) {
+	if !fs.Exists(pcx.Package.LocalPath) {
 		return errors.New("package local path does not exist")
 	}
 
@@ -98,7 +98,7 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 
 	dependencyPath := filepath.Join(pcx.Package.Vendor, meta.Repo)
 
-	if util.Exists(dependencyPath) {
+	if fs.Exists(dependencyPath) {
 		valid, validationErr := ValidateRepository(dependencyPath)
 		if validationErr != nil || !valid {
 			print.Verb(meta, "existing repository is invalid or corrupted")
@@ -184,7 +184,7 @@ func (pcx *PackageContext) ensurePluginDependency(meta versioning.DependencyMeta
 	if meta.IsLocalScheme() {
 		// Local plugin: plugin://local/path
 		pluginPath := filepath.Join(pcx.Package.LocalPath, meta.Local)
-		if !util.Exists(pluginPath) {
+		if !fs.Exists(pluginPath) {
 			return errors.Errorf("local plugin path does not exist: %s", pluginPath)
 		}
 
@@ -227,7 +227,7 @@ func (pcx *PackageContext) ensureIncludesDependency(meta versioning.DependencyMe
 	if meta.IsLocalScheme() {
 		// Local includes: includes://local/path
 		includesPath := filepath.Join(pcx.Package.LocalPath, meta.Local)
-		if !util.Exists(includesPath) {
+		if !fs.Exists(includesPath) {
 			return errors.Errorf("local includes path does not exist: %s", includesPath)
 		}
 
@@ -267,7 +267,7 @@ func (pcx *PackageContext) ensureFilterscriptDependency(meta versioning.Dependen
 	if meta.IsLocalScheme() {
 		// Local filterscript: filterscript://local/path
 		filterscriptPath := filepath.Join(pcx.Package.LocalPath, meta.Local)
-		if !util.Exists(filterscriptPath) {
+		if !fs.Exists(filterscriptPath) {
 			return errors.Errorf("local filterscript path does not exist: %s", filterscriptPath)
 		}
 
@@ -318,6 +318,7 @@ func (pcx PackageContext) extractResourceDependencies(
 		pcx.Platform,
 		res.Version,
 		pcx.CacheDir,
+		"",
 		false,
 		true,
 		false,

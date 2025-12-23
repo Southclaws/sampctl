@@ -9,14 +9,14 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 )
 
 // ValidateRepository performs checks on a git repository to ensure it's in a healthy state
 func ValidateRepository(path string) (valid bool, err error) {
 	gitDir := filepath.Join(path, ".git")
-	if !util.Exists(gitDir) {
+	if !fs.Exists(gitDir) {
 		print.Verb("repository missing .git directory:", path)
 		return false, nil
 	}
@@ -75,13 +75,13 @@ func ValidateRepository(path string) (valid bool, err error) {
 	}
 
 	objectsDir := filepath.Join(gitDir, "objects")
-	if !util.Exists(objectsDir) {
+	if !fs.Exists(objectsDir) {
 		print.Verb("objects directory missing:", path)
 		return false, nil
 	}
 
 	refsDir := filepath.Join(gitDir, "refs")
-	if !util.Exists(refsDir) {
+	if !fs.Exists(refsDir) {
 		print.Verb("refs directory missing:", path)
 		return false, nil
 	}
@@ -119,7 +119,7 @@ func ValidateRepositoryWithRefs(path string, requiredRefs []string) (valid bool,
 
 // CleanInvalidRepository removes a repository if it fails validation
 func CleanInvalidRepository(path string) error {
-	if !util.Exists(path) {
+	if !fs.Exists(path) {
 		return nil
 	}
 
@@ -142,7 +142,7 @@ func CleanInvalidRepository(path string) error {
 func DiagnoseRepository(path string) (diagnosis string, healthy bool) {
 	gitDir := filepath.Join(path, ".git")
 
-	if !util.Exists(gitDir) {
+	if !fs.Exists(gitDir) {
 		return "Missing .git directory", false
 	}
 

@@ -9,8 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/cache"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 )
 
 // DependencyOverrideConfig represents the structure of a dependency override configuration file
@@ -29,12 +28,12 @@ var remoteOverridesLoader = defaultRemoteOverridesLoader
 
 // DefaultDependencyOverridesPath returns the default path for the dependency overrides configuration file
 func DefaultDependencyOverridesPath() string {
-	return filepath.Join(util.GetConfigDir(), "dependency-overrides.json")
+	return filepath.Join(fs.MustConfigDir(), "dependency-overrides.json")
 }
 
 // DefaultDependencyOverridesCachePath returns the default path for the cached remote dependency overrides
 func DefaultDependencyOverridesCachePath() string {
-	return filepath.Join(util.GetConfigDir(), "remote-dependency-overrides.json")
+	return filepath.Join(fs.MustConfigDir(), "remote-dependency-overrides.json")
 }
 
 // isCacheValid checks if the cached file exists and is within the validity period
@@ -60,7 +59,7 @@ func downloadRemoteOverrides(url, cachePath string) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to download overrides: HTTP %d", resp.StatusCode)
 	}
-	if err := cache.WriteFromReaderAtomic(cachePath, resp.Body, 0o755, 0o644); err != nil {
+	if err := fs.WriteFromReaderAtomic(cachePath, resp.Body, fs.PermDirPrivate, fs.PermFileShared); err != nil {
 		return fmt.Errorf("failed to write cache file: %w", err)
 	}
 	return nil
@@ -142,7 +141,7 @@ func SaveDependencyOverrides(overrides map[string]string, configPath string) err
 
 	// Create directory if it doesn't exist
 	dir := filepath.Dir(configPath)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := fs.EnsureDir(dir, fs.PermDirPrivate); err != nil {
 		return err
 	}
 
@@ -155,7 +154,7 @@ func SaveDependencyOverrides(overrides map[string]string, configPath string) err
 		return err
 	}
 
-	return os.WriteFile(configPath, data, 0o644)
+	return os.WriteFile(configPath, data, fs.PermFileShared)
 }
 
 // ClearRemoteOverridesCache removes the cached remote overrides file

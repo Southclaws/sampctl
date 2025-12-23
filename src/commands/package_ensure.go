@@ -7,8 +7,8 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
@@ -29,8 +29,11 @@ func packageEnsure(c *cli.Context) error {
 		print.SetVerbose()
 	}
 
-	cacheDir := util.GetConfigDir()
-	dir := util.FullPath(c.String("dir"))
+	cacheDir, err := fs.ConfigDir()
+	if err != nil {
+		return errors.Wrap(err, "failed to get config dir")
+	}
+	dir := fs.MustAbs(c.String("dir"))
 	forceUpdate := c.Bool("update")
 
 	pcx, err := pkgcontext.NewPackageContext(

@@ -6,8 +6,8 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 	"github.com/Southclaws/sampctl/src/pkg/package/rook"
 )
@@ -30,7 +30,7 @@ func packageInit(c *cli.Context) error {
 		print.SetVerbose()
 	}
 
-	dir := util.FullPath(c.String("dir"))
+	dir := fs.MustAbs(c.String("dir"))
 	runtime := c.String("runtime")
 
 	if runtime != "samp" && runtime != "openmp" {
@@ -38,9 +38,12 @@ func packageInit(c *cli.Context) error {
 		runtime = "samp"
 	}
 
-	cacheDir := util.GetConfigDir()
+	cacheDir, err := fs.ConfigDir()
+	if err != nil {
+		return errors.Wrap(err, "failed to get config dir")
+	}
 
-	_, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "", true)
+	_, err = pkgcontext.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "", true)
 	if err != nil {
 		return errors.New("Directory already appears to be a package")
 	}

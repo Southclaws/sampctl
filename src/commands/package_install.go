@@ -10,8 +10,8 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
@@ -34,7 +34,7 @@ func packageInstall(c *cli.Context) error {
 		print.SetVerbose()
 	}
 
-	dir := util.FullPath(c.String("dir"))
+	dir := fs.MustAbs(c.String("dir"))
 	development := c.Bool("dev")
 
 	if len(c.Args()) == 0 {
@@ -42,7 +42,10 @@ func packageInstall(c *cli.Context) error {
 		return nil
 	}
 
-	cacheDir := util.GetConfigDir()
+	cacheDir, err := fs.ConfigDir()
+	if err != nil {
+		return errors.Wrap(err, "failed to get config dir")
+	}
 
 	deps := []versioning.DependencyString{}
 	for _, dep := range c.Args() {
@@ -65,7 +68,11 @@ func packageInstall(c *cli.Context) error {
 }
 
 func packageInstallBash(c *cli.Context) {
-	cacheDir := util.GetConfigDir()
+	cacheDir, err := fs.ConfigDir()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Failed to get config dir:", err)
+		return
+	}
 
 	packages, err := download.GetPackageList(cacheDir)
 	if err != nil {

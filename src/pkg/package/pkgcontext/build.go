@@ -19,8 +19,8 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/build/build"
 	"github.com/Southclaws/sampctl/src/pkg/build/compiler"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
 
@@ -278,7 +278,7 @@ func (pcx *PackageContext) buildPrepare(
 	}
 
 	if config.WorkingDir == "" {
-		config.WorkingDir = filepath.Dir(util.FullPath(pcx.Package.Entry))
+		config.WorkingDir = filepath.Dir(fs.MustAbs(pcx.Package.Entry))
 	}
 	if config.Input == "" {
 		config.Input = filepath.Join(pcx.Package.LocalPath, pcx.Package.Entry)
@@ -292,7 +292,7 @@ func (pcx *PackageContext) buildPrepare(
 		if !filepath.IsAbs(compilerPath) {
 			compilerPath = filepath.Join(pcx.Package.LocalPath, compilerPath)
 		}
-		config.Compiler.Path = util.FullPath(compilerPath)
+		config.Compiler.Path = fs.MustAbs(compilerPath)
 	}
 
 	config.Includes = append(config.Includes, pcx.Package.LocalPath)
@@ -347,7 +347,7 @@ func (pcx *PackageContext) buildPrepare(
 
 func readInt(file string) (n uint32, err error) {
 	var contents []byte
-	if util.Exists(file) {
+	if fs.Exists(file) {
 		contents, err = os.ReadFile(file)
 		if err != nil {
 			err = errors.Wrap(err, "failed to read buildfile")

@@ -21,8 +21,8 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/build/build"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 )
 
 //nolint:lll
@@ -98,7 +98,7 @@ func PrepareCommand(
 		return nil, err
 	}
 
-	cacheDir = util.FullPath(cacheDir)
+	cacheDir = fs.MustAbs(cacheDir)
 
 	if len(config.Plugins) != 0 {
 		print.Warn("The use of `plugins` in the build configuration has been disabled and will be removed in the future")
@@ -132,16 +132,16 @@ func PrepareCommand(
 }
 
 func prepareIOPaths(config build.Config) (input, output, workingDir string, err error) {
-	input = util.FullPath(config.Input)
-	output = util.FullPath(config.Output)
+	input = fs.MustAbs(config.Input)
+	output = fs.MustAbs(config.Output)
 
-	if !util.Exists(input) {
+	if !fs.Exists(input) {
 		return "", "", "", errors.Errorf("no such file '%s'", input)
 	}
 
 	outputDir := filepath.Dir(output)
-	if !util.Exists(outputDir) {
-		if err = os.MkdirAll(outputDir, 0o700); err != nil {
+	if !fs.Exists(outputDir) {
+		if err = fs.EnsureDir(outputDir, fs.PermDirPrivate); err != nil {
 			return "", "", "", errors.Wrap(err, "failed to create output directory")
 		}
 	}
@@ -149,7 +149,7 @@ func prepareIOPaths(config build.Config) (input, output, workingDir string, err 
 	if config.WorkingDir == "" {
 		workingDir = filepath.Dir(input)
 	} else {
-		workingDir = util.FullPath(config.WorkingDir)
+		workingDir = fs.MustAbs(config.WorkingDir)
 	}
 
 	return input, output, workingDir, nil
@@ -325,13 +325,13 @@ func CompileWithCommand(
 	relative bool,
 ) (problems build.Problems, result build.Result, err error) {
 	if errorDir == "" {
-		errorDir = util.FullPath(workingDir)
+		errorDir = fs.MustAbs(workingDir)
 	}
 
 	outputReader, outputWriter := io.Pipe()
 	cmd.Stdout = outputWriter
 	cmd.Stderr = outputWriter
-	workingDir = util.FullPath(workingDir)
+	workingDir = fs.MustAbs(workingDir)
 
 	parser := newCompilerOutputParser(outputReader, workingDir, errorDir, relative)
 	go parser.Run()

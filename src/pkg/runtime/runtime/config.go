@@ -177,10 +177,10 @@ func (o *OpenMPConfig) GetConfigFilename() string {
 // Generate creates a SA-MP server.cfg file
 func (s *SAMPConfig) Generate(cfg *run.Runtime) error {
 	// Remove any existing config.json file to avoid confusion
-	configJsonPath := filepath.Join(s.workingDir, "config.json")
-	if _, err := os.Stat(configJsonPath); err == nil {
+	configJSONPath := filepath.Join(s.workingDir, "config.json")
+	if _, err := os.Stat(configJSONPath); err == nil {
 		print.Verb("Removing existing config.json file (SA-MP uses server.cfg)")
-		os.Remove(configJsonPath)
+		os.Remove(configJSONPath)
 	}
 
 	file, err := os.Create(filepath.Join(s.workingDir, "server.cfg"))

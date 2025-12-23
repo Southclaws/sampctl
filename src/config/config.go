@@ -11,8 +11,8 @@ import (
 	"github.com/kr/pretty"
 	"github.com/sampctl/configor"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 )
 
 // Config represents a local configuration for sampctl
@@ -43,7 +43,7 @@ func LoadOrCreateConfig(cacheDir string, verbose bool) (cfg *Config, err error) 
 	}
 	configFile := ""
 	for _, file := range configFiles {
-		if util.Exists(file) {
+		if fs.Exists(file) {
 			configFile = file
 			break
 		}
@@ -87,7 +87,7 @@ func LoadOrCreateConfig(cacheDir string, verbose bool) (cfg *Config, err error) 
 		if err != nil {
 			return
 		}
-		err = os.WriteFile(configFiles[0], contents, 0666)
+		err = os.WriteFile(configFiles[0], contents, 0o666)
 		if err != nil {
 			return
 		}
@@ -103,7 +103,7 @@ func WriteConfig(cacheDir string, cfg Config) (err error) {
 	if err != nil {
 		return
 	}
-	err = os.WriteFile(configFile, contents, 0666)
+	err = os.WriteFile(configFile, contents, 0o666)
 	if err != nil {
 		return
 	}

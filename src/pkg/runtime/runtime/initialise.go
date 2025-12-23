@@ -10,8 +10,8 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/AlecAivazis/survey.v1"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 )
 
@@ -32,26 +32,26 @@ func InitialiseServer(version, dir, platform string) (err error) {
 		pluginsList       []string
 	)
 
-	if !util.Exists(gamemodesDir) {
+	if !fs.Exists(gamemodesDir) {
 		//nolint:lll
 		print.Warn("This directory does not appear to have a gamemodes directory, you must add at least one gamemode to run a server")
 	} else {
 		gamemodesList = getAmxFiles(gamemodesDir)
 	}
 
-	if !util.Exists(filterscriptsDir) {
+	if !fs.Exists(filterscriptsDir) {
 		print.Warn("This directory does not appear to have a filterscripts directory")
 	} else {
 		filterscriptsList = getAmxFiles(filterscriptsDir)
 	}
 
-	if !util.Exists(pluginsDir) {
+	if !fs.Exists(pluginsDir) {
 		print.Warn("This directory does not appear to have a plugins directory")
 	} else {
 		pluginsList = getPlugins(pluginsDir, platform)
 	}
 
-	var questions = []*survey.Question{
+	questions := []*survey.Question{
 		{
 			Name: "Format",
 			Prompt: &survey.Select{

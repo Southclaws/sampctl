@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 )
 
@@ -31,7 +32,7 @@ func NewBaseResource(identifier, version string, resourceType ResourceType) *Bas
 		identifier:   identifier,
 		version:      version,
 		resourceType: resourceType,
-		cacheDir:     util.GetConfigDir(),
+		cacheDir:     fs.MustConfigDir(),
 		cacheTTL:     time.Hour * 24 * 7, // Default 1 week cache
 	}
 }
@@ -56,7 +57,7 @@ func (br *BaseResource) Cached(version string) (bool, string) {
 	cachePath := br.getCachePath(version)
 
 	// Check if cached file/directory exists
-	if !util.Exists(cachePath) {
+	if !fs.Exists(cachePath) {
 		return false, ""
 	}
 
@@ -90,7 +91,7 @@ func (br *BaseResource) getCachePath(version string) string {
 // ensureCacheDir creates the cache directory if it doesn't exist
 func (br *BaseResource) ensureCacheDir(cachePath string) error {
 	dir := filepath.Dir(cachePath)
-	return os.MkdirAll(dir, 0o755)
+	return fs.EnsureDir(dir, fs.PermDirPrivate)
 }
 
 // SetCacheDir allows overriding the default cache directory

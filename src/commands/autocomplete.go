@@ -9,12 +9,12 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 )
 
 func autoComplete(c *cli.Context) (err error) {
-	var flavour = "bash"
+	flavour := "bash"
 	if c.String("flavour") == "zsh" {
 		flavour = "zsh"
 	}
@@ -37,11 +37,14 @@ func autoComplete(c *cli.Context) (err error) {
 		return
 	}
 
-	cacheDir := util.GetConfigDir()
+	cacheDir, err := fs.ConfigDir()
+	if err != nil {
+		return err
+	}
 
 	completionFile := filepath.Join(cacheDir, "autocomplete")
 
-	err = ioutil.WriteFile(completionFile, contents, 0700)
+	err = ioutil.WriteFile(completionFile, contents, fs.PermFileExec)
 	if err != nil {
 		return
 	}

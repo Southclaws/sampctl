@@ -17,9 +17,8 @@ import (
 	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
 
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/cache"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
 
@@ -47,7 +46,7 @@ func ExtractFuncFromName(name string) ExtractFunc {
 	}
 }
 
-// Migrate old config to new path
+// MigrateOldConfig migrates old config to the new path.
 func MigrateOldConfig(cacheDir string) error {
 	home, err := homedir.Dir()
 	if err != nil {
@@ -76,7 +75,7 @@ func MigrateOldConfig(cacheDir string) error {
 func FromCache(cacheDir, filename, dir string, method ExtractFunc, paths map[string]string, platform string) (hit bool, err error) {
 	path := filepath.Join(cacheDir, filename)
 
-	if !util.Exists(path) {
+	if !fs.Exists(path) {
 		hit = false
 		return
 	}
@@ -133,7 +132,7 @@ func FromNet(ctx context.Context, location, cachePath string) (result string, er
 		}
 	}
 
-	if err := cache.WriteFromReaderAtomic(cachePath, resp.Body, 0o755, 0o644); err != nil {
+	if err := fs.WriteFromReaderAtomic(cachePath, resp.Body, fs.PermDirPrivate, fs.PermFileShared); err != nil {
 		return "", errors.Wrap(err, "failed to write package to cache")
 	}
 

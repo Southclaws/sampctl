@@ -12,8 +12,8 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/build/build"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
 
@@ -133,7 +133,7 @@ func (f *compilerPackageFetcher) fromNetwork(
 	dir string,
 ) (download.Compiler, error) {
 	print.Info("Downloading compiler package", f.meta.Tag)
-	if !util.Exists(dir) {
+	if !fs.Exists(dir) {
 		if err := os.MkdirAll(dir, 0o700); err != nil {
 			return download.Compiler{}, errors.Wrapf(err, "failed to create dir %s", dir)
 		}

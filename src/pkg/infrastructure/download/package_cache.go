@@ -11,19 +11,20 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/cache"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
 
 // GetPackageList gets a list of known packages from the sampctl package service, if the list does
 // not exist locally, it is downloaded and cached for future use.
 func GetPackageList(cacheDir string) (packages []pawnpackage.Package, err error) {
-	packageFile := cache.Path(cacheDir, "packages.json")
+	packageFile := fs.Join(cacheDir, "packages.json")
 	packages, refreshed, err := cache.GetOrRefreshJSON[[]pawnpackage.Package](
 		context.Background(),
 		packageFile,
 		time.Hour*24*7,
-		0o755,
-		0o644,
+		fs.PermDirPrivate,
+		fs.PermFileShared,
 		func(ctx context.Context) ([]pawnpackage.Package, error) {
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://list.packages.sampctl.com", nil)
 			if err != nil {
@@ -55,13 +56,13 @@ func GetPackageList(cacheDir string) (packages []pawnpackage.Package, err error)
 
 // UpdatePackageList downloads a list of all packages to a file in the cache directory
 func UpdatePackageList(cacheDir string) (err error) {
-	packageFile := cache.Path(cacheDir, "packages.json")
+	packageFile := fs.Join(cacheDir, "packages.json")
 	_, _, err = cache.GetOrRefreshJSON[[]pawnpackage.Package](
 		context.Background(),
 		packageFile,
 		-1,
-		0o755,
-		0o644,
+		fs.PermDirPrivate,
+		fs.PermFileShared,
 		func(ctx context.Context) ([]pawnpackage.Package, error) {
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://list.packages.sampctl.com", nil)
 			if err != nil {
@@ -86,7 +87,7 @@ func UpdatePackageList(cacheDir string) (err error) {
 }
 
 func WritePackageCacheFile(cacheDir string, data []byte) error {
-	if err := cache.WriteFileAtomic(cache.Path(cacheDir, "packages.json"), data, 0o755, 0o644); err != nil {
+	if err := fs.WriteFileAtomic(fs.Join(cacheDir, "packages.json"), data, fs.PermDirPrivate, fs.PermFileShared); err != nil {
 		return errors.Wrap(err, "failed to write package list to file")
 	}
 	return nil

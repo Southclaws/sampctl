@@ -10,8 +10,8 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
 
@@ -175,7 +175,7 @@ func (cfg Runtime) IsOpenMP() bool {
 // read settings from. If both exist, the JSON file takes precedence.
 func RuntimeFromDir(dir string) (cfg Runtime, err error) {
 	jsonFile := filepath.Join(dir, "samp.json")
-	if util.Exists(jsonFile) {
+	if fs.Exists(jsonFile) {
 		cfg, err = RuntimeFromJSON(jsonFile)
 		if err != nil {
 			return
@@ -185,7 +185,7 @@ func RuntimeFromDir(dir string) (cfg Runtime, err error) {
 	}
 
 	yamlFile := filepath.Join(dir, "samp.yaml")
-	if util.Exists(yamlFile) {
+	if fs.Exists(yamlFile) {
 		cfg, err = RuntimeFromYAML(yamlFile)
 		if err != nil {
 			return
@@ -311,7 +311,7 @@ func (cfg Runtime) ToFile() (err error) {
 func (cfg Runtime) ToJSON() (err error) {
 	path := filepath.Join(cfg.WorkingDir, "samp.json")
 
-	if util.Exists(path) {
+	if fs.Exists(path) {
 		if err = os.Remove(path); err != nil {
 			panic(err)
 		}
@@ -341,7 +341,7 @@ func (cfg Runtime) ToJSON() (err error) {
 func (cfg Runtime) ToYAML() (err error) {
 	path := filepath.Join(cfg.WorkingDir, "samp.yaml")
 
-	if util.Exists(path) {
+	if fs.Exists(path) {
 		if err = os.Remove(path); err != nil {
 			panic(err)
 		}

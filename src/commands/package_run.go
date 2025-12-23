@@ -7,8 +7,8 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
@@ -59,7 +59,7 @@ func packageRun(c *cli.Context) error {
 		print.SetVerbose()
 	}
 
-	dir := util.FullPath(c.String("dir"))
+	dir := fs.MustAbs(c.String("dir"))
 	container := c.Bool("container")
 	build := c.String("build")
 	forceBuild := c.Bool("forceBuild")
@@ -71,7 +71,10 @@ func packageRun(c *cli.Context) error {
 
 	runtimeName := c.Args().Get(0)
 
-	cacheDir := util.GetConfigDir()
+	cacheDir, err := fs.ConfigDir()
+	if err != nil {
+		return errors.Wrap(err, "failed to get config dir")
+	}
 
 	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "", false)
 	if err != nil {

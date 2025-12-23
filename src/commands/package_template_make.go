@@ -3,15 +3,14 @@ package commands
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
@@ -40,15 +39,18 @@ func packageTemplateMake(c *cli.Context) (err error) {
 		return nil
 	}
 
-	cacheDir := util.GetConfigDir()
+	cacheDir, err := fs.ConfigDir()
+	if err != nil {
+		return err
+	}
 	name := c.Args().First()
 
 	templatePath := filepath.Join(cacheDir, "templates", name)
-	if util.Exists(templatePath) {
+	if fs.Exists(templatePath) {
 		return errors.New("A template with that name already exists")
 	}
 
-	err = os.MkdirAll(templatePath, 0700)
+	err = fs.EnsureDir(templatePath, fs.PermDirPrivate)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create template directory at '%s'", templatePath)
 	}

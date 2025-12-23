@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -53,8 +54,8 @@ func TestGetPluginDirectory(t *testing.T) {
 			assert.Equal(t, tt.expectedDir, result)
 
 			// Also test the full path
-			expectedPath := "/test/dir/" + tt.expectedDir
-			assert.Equal(t, expectedPath, getPluginPath(cfg))
+			expectedPath := filepath.Join("/test/dir", tt.expectedDir)
+			assert.Equal(t, expectedPath, filepath.Join(cfg.WorkingDir, result))
 		})
 	}
 }

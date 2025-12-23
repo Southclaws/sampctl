@@ -9,8 +9,8 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
@@ -255,7 +255,7 @@ func (pcx PackageContext) EnsureDependencyFromCache(
 		err = errors.Wrap(err, "failed to make canonical path to cached copy")
 		return
 	}
-	if !util.Exists(filepath.Join(from, ".git")) || forceUpdate {
+	if !fs.Exists(filepath.Join(from, ".git")) || forceUpdate {
 		_, err = pcx.EnsureDependencyCached(meta, forceUpdate)
 		if err != nil {
 			return
@@ -281,7 +281,7 @@ func (pcx PackageContext) ensureRepoExists(
 	ssh,
 	forceUpdate bool,
 ) (repo *git.Repository, err error) {
-	if util.Exists(to) {
+	if fs.Exists(to) {
 		valid, validationErr := ValidateRepository(to)
 		if validationErr != nil || !valid {
 			print.Verb("repository at", to, "is invalid or corrupted")
@@ -313,7 +313,7 @@ func (pcx PackageContext) ensureRepoExists(
 func (pcx PackageContext) cloneRepository(from, to, branch string, ssh bool) (*git.Repository, error) {
 	print.Verb("cloning repository from", from, "to", to)
 
-	if util.Exists(to) {
+	if fs.Exists(to) {
 		print.Verb("removing existing directory before clone")
 		err := os.RemoveAll(to)
 		if err != nil {

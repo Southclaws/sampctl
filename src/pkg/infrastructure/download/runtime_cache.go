@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/cache"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 )
 
 // Runtimes is a collection of Package objects for sorting
@@ -34,13 +35,13 @@ type RuntimePackage struct {
 // GetRuntimeList gets a list of known runtime packages from the sampctl repo, if the list does not
 // exist locally, it is downloaded and cached for future use.
 func GetRuntimeList(cacheDir string) (runtimes Runtimes, err error) {
-	runtimesFile := cache.Path(cacheDir, "runtimes.json")
+	runtimesFile := fs.Join(cacheDir, "runtimes.json")
 	runtimes, refreshed, err := cache.GetOrRefreshJSON[Runtimes](
 		context.Background(),
 		runtimesFile,
 		time.Hour*24*7,
-		0o755,
-		0o644,
+		fs.PermDirPrivate,
+		fs.PermFileShared,
 		func(ctx context.Context) (Runtimes, error) {
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://raw.githubusercontent.com/sampctl/runtimes/master/runtimes.json", nil)
 			if err != nil {
@@ -72,13 +73,13 @@ func GetRuntimeList(cacheDir string) (runtimes Runtimes, err error) {
 
 // UpdateRuntimeList downloads a list of all runtime packages to a file in the cache directory
 func UpdateRuntimeList(cacheDir string) (err error) {
-	runtimesFile := cache.Path(cacheDir, "runtimes.json")
+	runtimesFile := fs.Join(cacheDir, "runtimes.json")
 	_, _, err = cache.GetOrRefreshJSON[Runtimes](
 		context.Background(),
 		runtimesFile,
 		-1,
-		0o755,
-		0o644,
+		fs.PermDirPrivate,
+		fs.PermFileShared,
 		func(ctx context.Context) (Runtimes, error) {
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://raw.githubusercontent.com/sampctl/runtimes/master/runtimes.json", nil)
 			if err != nil {
@@ -103,7 +104,7 @@ func UpdateRuntimeList(cacheDir string) (err error) {
 }
 
 func WriteRuntimeCacheFile(cacheDir string, data []byte) error {
-	if err := cache.WriteFileAtomic(cache.Path(cacheDir, "runtimes.json"), data, 0o755, 0o644); err != nil {
+	if err := fs.WriteFileAtomic(fs.Join(cacheDir, "runtimes.json"), data, fs.PermDirPrivate, fs.PermFileShared); err != nil {
 		return errors.Wrap(err, "failed to write runtime list to file")
 	}
 	return nil

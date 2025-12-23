@@ -15,8 +15,8 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/Southclaws/sampctl/src/pkg/build/build"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
@@ -65,7 +65,7 @@ func TestPackage_Build(t *testing.T) {
 			"bare", []byte(`main(){}`), args{
 				pawnpackage.Package{
 					Parent:         true,
-					LocalPath:      util.FullPath("./tests/build-auto-bare"),
+					LocalPath:      fs.MustAbs("./tests/build-auto-bare"),
 					DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "bare"},
 					Entry:          "gamemodes/test.pwn",
 					Output:         "gamemodes/test.amx",
@@ -83,7 +83,7 @@ func TestPackage_Build(t *testing.T) {
 			), args{
 				pawnpackage.Package{
 					Parent:         true,
-					LocalPath:      util.FullPath("./tests/build-auto-stdlib"),
+					LocalPath:      fs.MustAbs("./tests/build-auto-stdlib"),
 					DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "stdlib"},
 					Entry:          "gamemodes/test.pwn",
 					Output:         "gamemodes/test.amx",
@@ -105,7 +105,7 @@ func TestPackage_Build(t *testing.T) {
 			), args{
 				pawnpackage.Package{
 					Parent:         true,
-					LocalPath:      util.FullPath("./tests/build-auto-requests"),
+					LocalPath:      fs.MustAbs("./tests/build-auto-requests"),
 					DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "requests"},
 					Entry:          "gamemodes/test.pwn",
 					Output:         "gamemodes/test.amx",
@@ -120,7 +120,7 @@ func TestPackage_Build(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		pcxWorkspace := util.FullPath("./tests/build-auto-" + tt.name)
+		pcxWorkspace := fs.MustAbs("./tests/build-auto-" + tt.name)
 		pcxVendor := filepath.Join(pcxWorkspace, "dependencies")
 
 		err := os.MkdirAll(filepath.Join(pcxWorkspace, "gamemodes"), 0o700)

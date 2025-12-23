@@ -6,9 +6,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
+	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
 
 func TestEnsureDependenciesCached(t *testing.T) {
@@ -18,39 +18,43 @@ func TestEnsureDependenciesCached(t *testing.T) {
 		wantAllDependencies []versioning.DependencyMeta
 		wantErr             bool
 	}{
-		{"basic", PackageContext{
-			Package: pawnpackage.Package{
-				Parent:         true,
-				LocalPath:      util.FullPath("./tests/deps-basic"),
-				DependencyMeta: versioning.DependencyMeta{User: "local", Repo: "local"},
-				Dependencies: []versioning.DependencyString{
-					"pawn-lang/samp-stdlib",
+		{
+			"basic",
+			PackageContext{
+				Package: pawnpackage.Package{
+					Parent:         true,
+					LocalPath:      fs.MustAbs("./tests/deps-basic"),
+					DependencyMeta: versioning.DependencyMeta{User: "local", Repo: "local"},
+					Dependencies: []versioning.DependencyString{
+						"pawn-lang/samp-stdlib",
+					},
 				},
+				Platform: "linux",
+				CacheDir: "./tests/cache",
+				GitAuth:  gitAuth,
 			},
-			Platform: "linux",
-			CacheDir: "./tests/cache",
-			GitAuth:  gitAuth,
-		},
 			[]versioning.DependencyMeta{
 				{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
 				{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib"},
 			},
 			false,
 		},
-		{"plugin", PackageContext{
-			Package: pawnpackage.Package{
-				Parent:         true,
-				LocalPath:      util.FullPath("./tests/deps-plugin"),
-				DependencyMeta: versioning.DependencyMeta{User: "local", Repo: "local"},
-				Dependencies: []versioning.DependencyString{
-					"pawn-lang/samp-stdlib",
-					"Southclaws/pawn-requests",
+		{
+			"plugin",
+			PackageContext{
+				Package: pawnpackage.Package{
+					Parent:         true,
+					LocalPath:      fs.MustAbs("./tests/deps-plugin"),
+					DependencyMeta: versioning.DependencyMeta{User: "local", Repo: "local"},
+					Dependencies: []versioning.DependencyString{
+						"pawn-lang/samp-stdlib",
+						"Southclaws/pawn-requests",
+					},
 				},
+				Platform: "linux",
+				CacheDir: "./tests/cache",
+				GitAuth:  gitAuth,
 			},
-			Platform: "linux",
-			CacheDir: "./tests/cache",
-			GitAuth:  gitAuth,
-		},
 			[]versioning.DependencyMeta{
 				{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
 				{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib"},
@@ -62,7 +66,7 @@ func TestEnsureDependenciesCached(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			os.RemoveAll(tt.pcx.Package.LocalPath)
-			os.MkdirAll(tt.pcx.Package.LocalPath, 0700) //nolint
+			os.MkdirAll(tt.pcx.Package.LocalPath, 0o700) //nolint
 
 			tt.pcx.GitHub = gh
 			tt.pcx.GitAuth = gitAuth

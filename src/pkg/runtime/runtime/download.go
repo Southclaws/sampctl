@@ -9,13 +9,16 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 )
 
 // GetServerPackage checks if a cached package is available and if not, downloads it to dir
 func GetServerPackage(version, dir, platform string) (err error) {
-	cacheDir := util.GetConfigDir()
+	cacheDir, err := fs.ConfigDir()
+	if err != nil {
+		return errors.Wrap(err, "failed to get config dir")
+	}
 
 	hit, err := FromCache(cacheDir, version, dir, platform)
 	if err != nil {
@@ -44,8 +47,8 @@ func FromCache(cacheDir, version, dir, platform string) (hit bool, err error) {
 		return
 	}
 
-	if !util.Exists(dir) {
-		err = os.MkdirAll(dir, 0o700)
+	if !fs.Exists(dir) {
+		err = fs.EnsureDir(dir, fs.PermDirPrivate)
 		if err != nil {
 			err = errors.Wrapf(err, "failed to create dir %s", dir)
 			return
@@ -75,8 +78,8 @@ func FromNet(cacheDir, version, dir, platform string) (err error) {
 		return
 	}
 
-	if !util.Exists(dir) {
-		err = os.MkdirAll(dir, 0o700)
+	if !fs.Exists(dir) {
+		err = fs.EnsureDir(dir, fs.PermDirPrivate)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create dir %s", dir)
 		}

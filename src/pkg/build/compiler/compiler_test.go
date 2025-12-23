@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Southclaws/sampctl/src/pkg/build/build"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 )
 
 func TestCompileSource(t *testing.T) {
@@ -27,28 +27,37 @@ func TestCompileSource(t *testing.T) {
 		wantErr      bool
 		wantOutput   bool
 	}{
-		{"simple-pass", args{
-			util.FullPath("./tests/cache"),
-			build.Config{
-				WorkingDir: "./tests/build-simple-pass",
-				Input:      "./tests/build-simple-pass/script.pwn",
-				Output:     "./tests/build-simple-pass/script.amx",
-				Includes:   []string{},
-				Version:    "3.10.8",
-			}, false},
+		{
+			"simple-pass",
+			args{
+				fs.MustAbs("./tests/cache"),
+				build.Config{
+					WorkingDir: "./tests/build-simple-pass",
+					Input:      "./tests/build-simple-pass/script.pwn",
+					Output:     "./tests/build-simple-pass/script.amx",
+					Includes:   []string{},
+					Version:    "3.10.8",
+				},
+				false,
+			},
 			nil,
 			build.Result{},
-			false, true},
-		{"simple-pass-d3", args{
-			util.FullPath("./tests/cache"),
-			build.Config{
-				WorkingDir: "./tests/build-simple-pass",
-				Input:      "./tests/build-simple-pass/script.pwn",
-				Output:     "./tests/build-simple-pass/script.amx",
-				Args:       []string{"-d3"},
-				Includes:   []string{},
-				Version:    "3.10.8",
-			}, false},
+			false, true,
+		},
+		{
+			"simple-pass-d3",
+			args{
+				fs.MustAbs("./tests/cache"),
+				build.Config{
+					WorkingDir: "./tests/build-simple-pass",
+					Input:      "./tests/build-simple-pass/script.pwn",
+					Output:     "./tests/build-simple-pass/script.amx",
+					Args:       []string{"-d3"},
+					Includes:   []string{},
+					Version:    "3.10.8",
+				},
+				false,
+			},
 			nil,
 			build.Result{
 				Header:    60,
@@ -58,16 +67,21 @@ func TestCompileSource(t *testing.T) {
 				Estimate:  20,
 				Total:     16628,
 			},
-			false, true},
-		{"simple-fail", args{
-			util.FullPath("./tests/cache"),
-			build.Config{
-				WorkingDir: "./tests/build-simple-fail",
-				Input:      "./tests/build-simple-fail/script.pwn",
-				Output:     "./tests/build-simple-fail/script.amx",
-				Includes:   []string{},
-				Version:    "3.10.8",
-			}, false},
+			false, true,
+		},
+		{
+			"simple-fail",
+			args{
+				fs.MustAbs("./tests/cache"),
+				build.Config{
+					WorkingDir: "./tests/build-simple-fail",
+					Input:      "./tests/build-simple-fail/script.pwn",
+					Output:     "./tests/build-simple-fail/script.amx",
+					Includes:   []string{},
+					Version:    "3.10.8",
+				},
+				false,
+			},
 			build.Problems{
 				{File: "script.pwn", Line: 1, Severity: build.ProblemError, Description: `invalid function or declaration`},
 				{File: "script.pwn", Line: 3, Severity: build.ProblemError, Description: `invalid function or declaration`},
@@ -75,16 +89,21 @@ func TestCompileSource(t *testing.T) {
 				{File: "script.pwn", Line: 2, Severity: build.ProblemError, Description: `no entry point (no public functions)`},
 			},
 			build.Result{},
-			false, false},
-		{"simple-fail-rel", args{
-			util.FullPath("./tests/cache"),
-			build.Config{
-				WorkingDir: "./tests/build-simple-fail",
-				Input:      "./tests/build-simple-fail/script.pwn",
-				Output:     "./tests/build-simple-fail/script.amx",
-				Includes:   []string{},
-				Version:    "3.10.8",
-			}, true},
+			false, false,
+		},
+		{
+			"simple-fail-rel",
+			args{
+				fs.MustAbs("./tests/cache"),
+				build.Config{
+					WorkingDir: "./tests/build-simple-fail",
+					Input:      "./tests/build-simple-fail/script.pwn",
+					Output:     "./tests/build-simple-fail/script.amx",
+					Includes:   []string{},
+					Version:    "3.10.8",
+				},
+				true,
+			},
 			build.Problems{
 				{File: "script.pwn", Line: 1, Severity: build.ProblemError, Description: `invalid function or declaration`},
 				{File: "script.pwn", Line: 3, Severity: build.ProblemError, Description: `invalid function or declaration`},
@@ -92,17 +111,22 @@ func TestCompileSource(t *testing.T) {
 				{File: "script.pwn", Line: 2, Severity: build.ProblemError, Description: `no entry point (no public functions)`},
 			},
 			build.Result{},
-			false, false},
-		{"local-include-pass", args{
-			util.FullPath("./tests/cache"),
-			build.Config{
-				WorkingDir: "./tests/build-local-include-pass",
-				Input:      "./tests/build-local-include-pass/script.pwn",
-				Output:     "./tests/build-local-include-pass/script.amx",
-				Args:       []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
-				Includes:   []string{},
-				Version:    "3.10.8",
-			}, false},
+			false, false,
+		},
+		{
+			"local-include-pass",
+			args{
+				fs.MustAbs("./tests/cache"),
+				build.Config{
+					WorkingDir: "./tests/build-local-include-pass",
+					Input:      "./tests/build-local-include-pass/script.pwn",
+					Output:     "./tests/build-local-include-pass/script.amx",
+					Args:       []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
+					Includes:   []string{},
+					Version:    "3.10.8",
+				},
+				false,
+			},
 			nil,
 			build.Result{
 				Header:    60,
@@ -112,17 +136,22 @@ func TestCompileSource(t *testing.T) {
 				Estimate:  32,
 				Total:     16664,
 			},
-			false, true},
-		{"local-include-warn", args{
-			util.FullPath("./tests/cache"),
-			build.Config{
-				WorkingDir: "./tests/build-local-include-warn",
-				Input:      "./tests/build-local-include-warn/script.pwn",
-				Output:     "./tests/build-local-include-warn/script.amx",
-				Args:       []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
-				Includes:   []string{},
-				Version:    "3.10.8",
-			}, false},
+			false, true,
+		},
+		{
+			"local-include-warn",
+			args{
+				fs.MustAbs("./tests/cache"),
+				build.Config{
+					WorkingDir: "./tests/build-local-include-warn",
+					Input:      "./tests/build-local-include-warn/script.pwn",
+					Output:     "./tests/build-local-include-warn/script.amx",
+					Args:       []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
+					Includes:   []string{},
+					Version:    "3.10.8",
+				},
+				false,
+			},
 			build.Problems{
 				{File: "library.inc", Line: 6, Severity: build.ProblemWarning, Description: `symbol is never used: "b"`},
 				{File: "script.pwn", Line: 5, Severity: build.ProblemWarning, Description: `symbol is never used: "a"`},
@@ -135,26 +164,32 @@ func TestCompileSource(t *testing.T) {
 				Estimate:  32,
 				Total:     16720,
 			},
-			false, true},
-		{"fatal", args{
-			util.FullPath("./tests/cache"),
-			build.Config{
-				WorkingDir: "./tests/build-fatal",
-				Input:      "./tests/build-fatal/script.pwn",
-				Output:     "./tests/build-fatal/script.amx",
-				Args:       []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
-				Includes:   []string{},
-				Version:    "3.10.8",
-			}, false},
+			false, true,
+		},
+		{
+			"fatal",
+			args{
+				fs.MustAbs("./tests/cache"),
+				build.Config{
+					WorkingDir: "./tests/build-fatal",
+					Input:      "./tests/build-fatal/script.pwn",
+					Output:     "./tests/build-fatal/script.amx",
+					Args:       []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
+					Includes:   []string{},
+					Version:    "3.10.8",
+				},
+				false,
+			},
 			build.Problems{
 				{File: "script.pwn", Line: 1, Severity: build.ProblemFatal, Description: `cannot read from file: "idonotexist"`},
 			},
 			build.Result{},
-			false, false},
+			false, false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := os.MkdirAll(tt.args.cacheDir, 0700)
+			err := os.MkdirAll(tt.args.cacheDir, 0o700)
 			assert.NoError(t, err)
 
 			gotProblems, gotResult, err := CompileSource(context.Background(), gh, ".", "", tt.args.cacheDir, runtime.GOOS, tt.args.config, tt.args.relative)
@@ -167,7 +202,7 @@ func TestCompileSource(t *testing.T) {
 
 			for i, p := range tt.wantProblems {
 				if !tt.args.relative {
-					tt.wantProblems[i].File = util.FullPath(filepath.Join(tt.args.config.WorkingDir, p.File))
+					tt.wantProblems[i].File = fs.MustAbs(filepath.Join(tt.args.config.WorkingDir, p.File))
 				}
 			}
 
@@ -175,7 +210,7 @@ func TestCompileSource(t *testing.T) {
 			assert.Equal(t, tt.wantResult, gotResult)
 
 			if tt.wantOutput {
-				assert.True(t, util.Exists(tt.args.config.Output))
+				assert.True(t, fs.Exists(tt.args.config.Output))
 			}
 		})
 	}
