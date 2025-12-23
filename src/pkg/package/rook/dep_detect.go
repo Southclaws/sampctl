@@ -2,7 +2,7 @@ package rook
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"regexp"
 	"sort"
 	"sync"
@@ -43,7 +43,7 @@ func FindIncludes(files []string) (includes []versioning.DependencyString) {
 	for _, file := range files {
 		wg.Add(1)
 		go func(innerFile string) {
-			content, err := ioutil.ReadFile(innerFile)
+			content, err := os.ReadFile(innerFile)
 			if err != nil {
 				print.Erro(err)
 				return

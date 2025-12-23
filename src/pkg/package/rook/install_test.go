@@ -2,7 +2,6 @@ package rook
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -10,8 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
+	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
 func Test_PackageInstall(t *testing.T) {
@@ -44,9 +43,9 @@ func Test_PackageInstall(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := filepath.Join("./tests/install", tt.name)
 			_ = os.RemoveAll(dir)
-			_ = os.MkdirAll(dir, 0700)
+			_ = os.MkdirAll(dir, 0o700)
 
-			ioutil.WriteFile(filepath.Join(dir, "pawn.json"), tt.pkg, 0700) // nolint
+			_ = os.WriteFile(filepath.Join(dir, "pawn.json"), tt.pkg, 0o700) // nolint
 
 			pcx1, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, "./tests/cache", "", false)
 			if err != nil {

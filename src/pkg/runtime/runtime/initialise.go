@@ -1,7 +1,7 @@
 package runtime
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -169,7 +169,7 @@ func InitialiseServer(version, dir, platform string) (err error) {
 }
 
 func getAmxFiles(dir string) (result []string) {
-	files, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		panic(err)
 	}
@@ -187,7 +187,7 @@ func getAmxFiles(dir string) (result []string) {
 }
 
 func getPlugins(dir, platform string) (result []string) {
-	files, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		panic(err)
 	}

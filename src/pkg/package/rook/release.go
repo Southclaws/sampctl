@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -289,7 +288,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 
 func generateVersionInc(pkg pawnpackage.Package, version *semver.Version) (filename string, err error) {
 	filename = packageSlug(pkg.Repo) + "_version.inc"
-	err = ioutil.WriteFile(
+	err = os.WriteFile(
 		filepath.Join(pkg.LocalPath, filename),
 		[]byte(generateVersionIncString(pkg.Repo, version)),
 		0o600,

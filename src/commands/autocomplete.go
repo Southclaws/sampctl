@@ -2,8 +2,9 @@ package commands
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 
 	"github.com/pkg/errors"
@@ -32,7 +33,7 @@ func autoComplete(c *cli.Context) (err error) {
 		return errors.Errorf("failed to get bash completion: %s", resp.Status)
 	}
 
-	contents, err := ioutil.ReadAll(resp.Body)
+	contents, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return
 	}
@@ -44,7 +45,7 @@ func autoComplete(c *cli.Context) (err error) {
 
 	completionFile := filepath.Join(cacheDir, "autocomplete")
 
-	err = ioutil.WriteFile(completionFile, contents, fs.PermFileExec)
+	err = os.WriteFile(completionFile, contents, fs.PermFileExec)
 	if err != nil {
 		return
 	}

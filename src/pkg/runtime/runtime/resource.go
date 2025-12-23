@@ -3,7 +3,7 @@ package runtime
 import (
 	"crypto/md5"
 	"encoding/hex"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -115,7 +115,7 @@ func MatchesChecksum(src, platform, cacheDir, version string) (ok bool, err erro
 		return
 	}
 
-	contents, err := ioutil.ReadFile(src)
+	contents, err := os.ReadFile(src)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to read downloaded server package")
 	}

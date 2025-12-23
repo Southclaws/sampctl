@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"path"
@@ -264,7 +264,7 @@ func Init(
 			buf.WriteString("\n")
 			buf.WriteString(`	// then run "sampctl package run" to run it`)
 			buf.WriteString("\n}\n")
-			err := ioutil.WriteFile(file, buf.Bytes(), 0o600)
+			err := os.WriteFile(file, buf.Bytes(), 0o600)
 			if err != nil {
 				color.Red("failed to write generated %s entry file: %v", answers.Entry, err)
 			}
@@ -289,7 +289,7 @@ func Init(
 			buf.WriteString("\nmain() \n{\n")
 			buf.WriteString(`	// write tests for libraries here and run "sampctl package run"`)
 			buf.WriteString("\n}\n")
-			err = ioutil.WriteFile(filepath.Join(dir, "test.pwn"), buf.Bytes(), 0o600)
+			err = os.WriteFile(filepath.Join(dir, "test.pwn"), buf.Bytes(), 0o600)
 			if err != nil {
 				color.Red("failed to write generated tests.pwn file: %v", err)
 			}
@@ -453,7 +453,7 @@ charset = utf-8
 		return nil // Don't overwrite existing file
 	}
 
-	err := ioutil.WriteFile(outputFile, []byte(editorConfigContent), 0o644)
+	err := os.WriteFile(outputFile, []byte(editorConfigContent), 0o644)
 	if err != nil {
 		return errors.Wrap(err, "failed to write .editorconfig")
 	}
@@ -473,7 +473,7 @@ func getTemplateFile(dir, filename string, answers Answers) (err error) {
 		}
 	}()
 
-	contents, err := ioutil.ReadAll(resp.Body)
+	contents, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return
 	}

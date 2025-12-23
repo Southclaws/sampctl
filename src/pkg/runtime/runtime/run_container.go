@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"syscall"
@@ -121,7 +120,7 @@ func RunContainer(
 					print.Erro(errDefer)
 				}
 			}()
-			_, errInner = ioutil.ReadAll(pullReader)
+			_, errInner = io.ReadAll(pullReader)
 			if errInner != nil {
 				return errors.Wrap(errInner, "failed to read pull output")
 			}

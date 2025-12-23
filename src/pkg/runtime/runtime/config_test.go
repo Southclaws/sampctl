@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -55,7 +54,7 @@ func TestSAMPConfigGeneration(t *testing.T) {
 	assert.FileExists(t, serverCfgPath)
 
 	// Read the file and check some basic content
-	content, err := ioutil.ReadFile(serverCfgPath)
+	content, err := os.ReadFile(serverCfgPath)
 	require.NoError(t, err)
 
 	contentStr := string(content)
@@ -113,7 +112,7 @@ func TestOpenMPConfigGeneration(t *testing.T) {
 	assert.FileExists(t, configJSONPath)
 
 	// Read the file and check the JSON structure
-	content, err := ioutil.ReadFile(configJSONPath)
+	content, err := os.ReadFile(configJSONPath)
 	require.NoError(t, err)
 
 	var config map[string]interface{}
@@ -200,7 +199,7 @@ func TestExtraFieldsSupport(t *testing.T) {
 
 	// Check that config.json was created
 	configJSONPath := filepath.Join(tmpDir, "config.json")
-	content, err := ioutil.ReadFile(configJSONPath)
+	content, err := os.ReadFile(configJSONPath)
 	require.NoError(t, err)
 
 	var config map[string]interface{}
@@ -240,7 +239,7 @@ func TestOpenMPConfigGenerateWithExtraServerCfg(t *testing.T) {
 	assert.FileExists(t, serverCfgPath)
 
 	// Read and verify server.cfg contents
-	content, err := ioutil.ReadFile(serverCfgPath)
+	content, err := os.ReadFile(serverCfgPath)
 	require.NoError(t, err)
 
 	contentStr := string(content)

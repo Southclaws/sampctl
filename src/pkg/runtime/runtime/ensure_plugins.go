@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -245,7 +244,7 @@ func PluginFromCache(
 		return
 	}
 
-	files, err := ioutil.ReadDir(resourcePath)
+	files, err := os.ReadDir(resourcePath)
 	if err != nil {
 		print.Verb("cache hit failed while trying to read cached plugin folder:", err)
 		err = nil

@@ -1,7 +1,7 @@
 package run
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -207,7 +207,7 @@ func TestRuntimeToJSON(t *testing.T) {
 			err := tt.config.ToJSON()
 			assert.NoError(t, err)
 
-			contents, err := ioutil.ReadFile(filepath.Join(tt.config.WorkingDir, "samp.json"))
+			contents, err := os.ReadFile(filepath.Join(tt.config.WorkingDir, "samp.json"))
 			assert.NoError(t, err)
 
 			assert.Equal(t, string(tt.want), string(contents))
@@ -257,7 +257,7 @@ rcon: true
 			err := tt.config.ToYAML()
 			assert.NoError(t, err)
 
-			contents, err := ioutil.ReadFile(filepath.Join(tt.config.WorkingDir, "samp.yaml"))
+			contents, err := os.ReadFile(filepath.Join(tt.config.WorkingDir, "samp.yaml"))
 			assert.NoError(t, err)
 
 			assert.Equal(t, string(tt.want), string(contents))

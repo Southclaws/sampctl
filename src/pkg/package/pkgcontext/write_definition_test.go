@@ -2,7 +2,6 @@ package pkgcontext
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -37,7 +36,7 @@ func TestInstallDoesNotWriteDefaultRuntimeFields(t *testing.T) {
 	require.NoError(t, err)
 
 	configPath := filepath.Join(tmpDir, "pawn.json")
-	err = ioutil.WriteFile(configPath, configBytes, 0o644)
+	err = os.WriteFile(configPath, configBytes, 0o644)
 	require.NoError(t, err)
 
 	// Load the package
@@ -53,7 +52,7 @@ func TestInstallDoesNotWriteDefaultRuntimeFields(t *testing.T) {
 	err = pkg.WriteDefinition()
 	require.NoError(t, err)
 
-	writtenBytes, err := ioutil.ReadFile(configPath)
+	writtenBytes, err := os.ReadFile(configPath)
 	require.NoError(t, err)
 
 	var writtenConfig map[string]interface{}
@@ -111,7 +110,7 @@ func TestPackageContextDoesNotApplyDefaultsToPackageRuntime(t *testing.T) {
 	require.NoError(t, err)
 
 	configPath := filepath.Join(tmpDir, "pawn.json")
-	err = ioutil.WriteFile(configPath, configBytes, 0o644)
+	err = os.WriteFile(configPath, configBytes, 0o644)
 	require.NoError(t, err)
 
 	cacheDir, err := os.MkdirTemp("", "sampctl-cache-*")
@@ -155,10 +154,10 @@ func TestActualRuntimeHasDefaults(t *testing.T) {
 	require.NoError(t, err)
 
 	configPath := filepath.Join(tmpDir, "pawn.json")
-	err = ioutil.WriteFile(configPath, configBytes, 0o644)
+	err = os.WriteFile(configPath, configBytes, 0o644)
 	require.NoError(t, err)
 
-	err = ioutil.WriteFile(filepath.Join(tmpDir, "test.pwn"), []byte("main() {}"), 0o644)
+	err = os.WriteFile(filepath.Join(tmpDir, "test.pwn"), []byte("main() {}"), 0o644)
 	require.NoError(t, err)
 
 	cacheDir, err := os.MkdirTemp("", "sampctl-cache-*")
