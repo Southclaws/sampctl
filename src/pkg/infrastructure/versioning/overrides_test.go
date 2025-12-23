@@ -77,6 +77,19 @@ func TestApplyDependencyOverrides(t *testing.T) {
 	}
 }
 
+func TestApplyDependencyOverrides_ReplacementWithVersionDoesNotAppendOriginal(t *testing.T) {
+	ResetDependencyOverrides()
+
+	loadedOverrides = map[string]string{
+		"Zeex/samp-plugin-crashdetect": "AmyrAhmady/samp-plugin-crashdetect:v4.22",
+	}
+
+	result := ApplyDependencyOverrides("Zeex/samp-plugin-crashdetect:v4.20")
+	assert.Equal(t, "AmyrAhmady/samp-plugin-crashdetect:v4.22", result)
+
+	ResetDependencyOverrides()
+}
+
 func TestDependencyOverrideIntegration(t *testing.T) {
 	tests := []struct {
 		name     string
