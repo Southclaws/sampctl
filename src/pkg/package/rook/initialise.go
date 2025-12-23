@@ -360,7 +360,11 @@ func Init(
 
 	if answers.StdLib {
 		if answers.Runtime == "openmp" {
-			pkg.Dependencies = append(pkg.Dependencies, versioning.DependencyString("openmultiplayer/omp-stdlib"))
+			pkg.Dependencies = append(pkg.Dependencies,
+				versioning.DependencyString("openmultiplayer/omp-stdlib"),
+				versioning.DependencyString("pawn-lang/samp-stdlib@open.mp"),
+				versioning.DependencyString("pawn-lang/pawn-stdlib@open.mp"),
+			)
 		} else {
 			pkg.Dependencies = append(pkg.Dependencies, versioning.DependencyString("pawn-lang/samp-stdlib"))
 		}
