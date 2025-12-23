@@ -4,12 +4,14 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
+	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 )
 
 func getServerBinary(cacheDir, version, platform string) (binary string) {
@@ -18,6 +20,8 @@ func getServerBinary(cacheDir, version, platform string) (binary string) {
 		return
 	}
 
+	runtimeType := run.DetectRuntimeType(version)
+
 	var (
 		paths map[string]string
 		part  string
@@ -25,78 +29,26 @@ func getServerBinary(cacheDir, version, platform string) (binary string) {
 	switch platform {
 	case "windows":
 		paths = pkg.Win32Paths
-		part = "samp-server"
-	case "linux", "darwin":
-		paths = pkg.LinuxPaths
-		part = "samp03svr"
-	default:
-		return
-	}
-
-	for _, destination := range paths {
-		if strings.Contains(destination, part) {
-			binary = destination
-			break
+		if runtimeType == run.RuntimeTypeOpenMP {
+			part = "omp-server.exe"
+		} else {
+			part = "samp-server.exe"
 		}
-	}
-
-	return
-}
-
-func getNpcBinary(cacheDir, version, platform string) (binary string) {
-	pkg, err := FindPackage(cacheDir, version)
-	if err != nil {
-		return
-	}
-
-	var (
-		paths map[string]string
-		part  string
-	)
-	switch platform {
-	case "windows":
-		paths = pkg.Win32Paths
-		part = "npc"
 	case "linux", "darwin":
 		paths = pkg.LinuxPaths
-		part = "npc"
-	default:
-		return
-	}
-
-	for _, destination := range paths {
-		if strings.Contains(destination, part) {
-			binary = destination
-			break
+		if runtimeType == run.RuntimeTypeOpenMP {
+			part = "omp-server"
+		} else {
+			part = "samp03svr"
 		}
-	}
-
-	return
-}
-
-func getAnnounceBinary(cacheDir, version, platform string) (binary string) {
-	pkg, err := FindPackage(cacheDir, version)
-	if err != nil {
-		return
-	}
-
-	var (
-		paths map[string]string
-		part  string
-	)
-	switch platform {
-	case "windows":
-		paths = pkg.Win32Paths
-		part = "announ"
-	case "linux", "darwin":
-		paths = pkg.LinuxPaths
-		part = "announ"
 	default:
 		return
 	}
 
+	paths = normalizeRuntimePaths(paths, runtimeType)
+
 	for _, destination := range paths {
-		if strings.Contains(destination, part) {
+		if strings.Contains(filepath.Base(destination), part) {
 			binary = destination
 			break
 		}

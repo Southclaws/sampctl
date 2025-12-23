@@ -424,7 +424,7 @@ func Init(
 	if err != nil {
 		return
 	}
-	err = pcx.EnsureDependenciesWithRuntime(ctx, true, false)
+	err = pcx.EnsureDependencies(ctx, true)
 	if err != nil {
 		return
 	}

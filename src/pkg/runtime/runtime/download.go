@@ -11,6 +11,7 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
+	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 )
 
 // GetServerPackage checks if a cached package is available and if not, downloads it to dir
@@ -46,6 +47,7 @@ func FromCache(cacheDir, version, dir, platform string) (hit bool, err error) {
 	if err != nil {
 		return
 	}
+	paths = normalizeRuntimePaths(paths, run.DetectRuntimeType(version))
 
 	if !fs.Exists(dir) {
 		err = fs.EnsureDir(dir, fs.PermDirPrivate)
@@ -77,6 +79,7 @@ func FromNet(cacheDir, version, dir, platform string) (err error) {
 	if err != nil {
 		return
 	}
+	paths = normalizeRuntimePaths(paths, run.DetectRuntimeType(version))
 
 	if !fs.Exists(dir) {
 		err = fs.EnsureDir(dir, fs.PermDirPrivate)
@@ -144,4 +147,23 @@ func infoForPlatform(
 	filename = filepath.Base(u.Path)
 
 	return
+}
+
+func normalizeRuntimePaths(paths map[string]string, runtimeType run.RuntimeType) map[string]string {
+	if runtimeType != run.RuntimeTypeOpenMP {
+		return paths
+	}
+
+	out := make(map[string]string, len(paths))
+	for src, dst := range paths {
+		base := filepath.Base(src)
+		switch {
+		case base == "omp-server" && dst == "samp03svr":
+			dst = "omp-server"
+		case base == "omp-server.exe" && dst == "samp-server.exe":
+			dst = "omp-server.exe"
+		}
+		out[src] = dst
+	}
+	return out
 }

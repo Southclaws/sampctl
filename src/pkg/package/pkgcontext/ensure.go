@@ -13,7 +13,6 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
-	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 	"github.com/Southclaws/sampctl/src/pkg/runtime/runtime"
 	"github.com/Southclaws/sampctl/src/resource"
 )
@@ -23,11 +22,6 @@ var ErrNotRemotePackage = errors.New("remote repository does not declare a packa
 
 // EnsureDependencies traverses package dependencies and ensures they are up to date
 func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate bool) (err error) {
-	return pcx.EnsureDependenciesWithRuntime(ctx, forceUpdate, true)
-}
-
-// EnsureDependenciesWithRuntime traverses package dependencies and ensures they are up to date,
-func (pcx *PackageContext) EnsureDependenciesWithRuntime(ctx context.Context, forceUpdate bool, setupRuntime bool) (err error) {
 	if pcx.Package.LocalPath == "" {
 		return errors.New("package does not represent a locally stored package")
 	}
@@ -57,19 +51,34 @@ func (pcx *PackageContext) EnsureDependenciesWithRuntime(ctx context.Context, fo
 		}
 	}
 
-	if pcx.Package.Local && setupRuntime {
-		print.Verb(pcx.Package, "package is local, ensuring binaries too")
-		pcx.ActualRuntime.WorkingDir = pcx.Package.LocalPath
-		pcx.ActualRuntime.Format = pcx.Package.Format
+	// Ensure runtime binaries/plugins for the root package so all ensure entrypoints
+	// keep the local runtime in sync with any runtime config changes.
+	if pcx.Package.Parent {
+		cfg, cfgErr := pcx.Package.GetRuntimeConfig(pcx.Runtime)
+		if cfgErr != nil {
+			return errors.Wrap(cfgErr, "failed to get runtime config")
+		}
+		cfg.WorkingDir = pcx.Package.LocalPath
+		cfg.Platform = pcx.Platform
+		cfg.Format = pcx.Package.Format
 
-		pcx.ActualRuntime.PluginDeps, err = pcx.GatherPlugins()
+		cfg.PluginDeps, err = pcx.GatherPlugins()
 		if err != nil {
 			return
 		}
-		run.ApplyRuntimeDefaults(&pcx.ActualRuntime)
-		err = runtime.Ensure(ctx, pcx.GitHub, &pcx.ActualRuntime, false)
-		if err != nil {
-			return
+
+		pcx.ActualRuntime = cfg
+
+		if err := fs.EnsurePackageLayout(cfg.WorkingDir, cfg.IsOpenMP()); err != nil {
+			return errors.Wrap(err, "failed to ensure package layout")
+		}
+
+		if err := runtime.EnsureBinaries(pcx.CacheDir, cfg); err != nil {
+			return errors.Wrap(err, "failed to ensure runtime binaries")
+		}
+
+		if err := runtime.EnsurePlugins(ctx, pcx.GitHub, &pcx.ActualRuntime, pcx.CacheDir, false); err != nil {
+			return errors.Wrap(err, "failed to ensure runtime plugins")
 		}
 	}
 
