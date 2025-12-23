@@ -10,8 +10,8 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 )
 
@@ -25,7 +25,10 @@ func Ensure(ctx context.Context, gh *github.Client, cfg *run.Runtime, noCache bo
 		return
 	}
 
-	cacheDir := util.GetConfigDir()
+	cacheDir, err := fs.ConfigDir()
+	if err != nil {
+		return errors.Wrap(err, "failed to get config dir")
+	}
 
 	print.Verb("ensuring server binaries")
 	err = EnsureBinaries(cacheDir, *cfg)
@@ -56,7 +59,7 @@ func EnsureBinaries(cacheDir string, cfg run.Runtime) error {
 	}
 
 	installManifestPath := runtimeManifestPath(cfg.WorkingDir)
-	if util.Exists(installManifestPath) {
+	if fs.Exists(installManifestPath) {
 		existingManifest, readErr := readRuntimeManifest(installManifestPath)
 		if readErr != nil {
 			print.Warn("failed to read installed runtime manifest:", readErr)
@@ -92,10 +95,10 @@ func EnsureScripts(cfg run.Runtime) (err error) {
 	errs := []string{}
 
 	gamemodes := filepath.Join(cfg.WorkingDir, "gamemodes")
-	if util.Exists(gamemodes) {
+	if fs.Exists(gamemodes) {
 		for _, gamemode := range cfg.Gamemodes {
 			fullpath := filepath.Join(gamemodes, gamemode+".amx")
-			if !util.Exists(fullpath) {
+			if !fs.Exists(fullpath) {
 				errs = append(errs, fmt.Sprintf(
 					"gamemode '%s' is missing its .amx file from the gamemodes directory",
 					gamemode,
@@ -105,10 +108,10 @@ func EnsureScripts(cfg run.Runtime) (err error) {
 	}
 
 	filterscripts := filepath.Join(cfg.WorkingDir, "filterscripts")
-	if util.Exists(filterscripts) {
+	if fs.Exists(filterscripts) {
 		for _, filterscript := range cfg.Filterscripts {
 			fullpath := filepath.Join(cfg.WorkingDir, "filterscripts", filterscript+".amx")
-			if !util.Exists(fullpath) {
+			if !fs.Exists(fullpath) {
 				errs = append(errs, fmt.Sprintf(
 					"filterscript '%s' is missing its .amx file from the filterscripts directory",
 					filterscript,
@@ -138,7 +141,7 @@ func ensureStagedRuntime(cacheDir string, cfg run.Runtime) (runtimeManifest, str
 	stageDir := filepath.Join(cacheDir, runtimeStagingDir, cfg.Platform, cfg.Version)
 	manifestPath := runtimeManifestPath(stageDir)
 
-	if util.Exists(manifestPath) {
+	if fs.Exists(manifestPath) {
 		manifest, err := readRuntimeManifest(manifestPath)
 		if err == nil && manifest.matchesRuntime(cfg) {
 			if err = verifyRuntimeManifest(manifest, stageDir); err == nil {

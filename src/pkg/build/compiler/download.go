@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 
 	"github.com/google/go-github/github"
@@ -11,8 +12,8 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/build/build"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
 
@@ -106,7 +107,13 @@ func newCompilerPackageFetcher(meta versioning.DependencyMeta, platform, cacheDi
 }
 
 func (f *compilerPackageFetcher) archiveName() string {
-	return GetCompilerFilename(f.meta.Tag, f.platform, f.compiler.Method)
+	return filepath.Join(
+		"assets",
+		f.meta.User,
+		f.meta.Repo,
+		f.meta.Tag,
+		GetCompilerFilename(f.meta.Tag, f.platform, f.compiler.Method),
+	)
 }
 
 func (f *compilerPackageFetcher) fromCache(dir string) (download.Compiler, bool, error) {
@@ -126,7 +133,7 @@ func (f *compilerPackageFetcher) fromNetwork(
 	dir string,
 ) (download.Compiler, error) {
 	print.Info("Downloading compiler package", f.meta.Tag)
-	if !util.Exists(dir) {
+	if !fs.Exists(dir) {
 		if err := os.MkdirAll(dir, 0o700); err != nil {
 			return download.Compiler{}, errors.Wrapf(err, "failed to create dir %s", dir)
 		}

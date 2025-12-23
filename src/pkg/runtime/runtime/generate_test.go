@@ -1,7 +1,7 @@
 package runtime
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -227,7 +227,7 @@ something_else 100
 				t.Errorf("Config.GenerateConfig() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
-			raw, _ := ioutil.ReadFile("./tests/generate/server.cfg")
+			raw, _ := os.ReadFile("./tests/generate/server.cfg")
 			gotCfg := string(raw)
 
 			assert.Equal(t, tt.wantCfg, gotCfg)

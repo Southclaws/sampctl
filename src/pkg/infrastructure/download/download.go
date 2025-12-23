@@ -4,7 +4,6 @@ package download
 
 import (
 	"context"
-	"io"
 	"mime"
 	"net/http"
 	"net/url"
@@ -18,8 +17,8 @@ import (
 	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
 
@@ -47,7 +46,7 @@ func ExtractFuncFromName(name string) ExtractFunc {
 	}
 }
 
-// Migrate old config to new path
+// MigrateOldConfig migrates old config to the new path.
 func MigrateOldConfig(cacheDir string) error {
 	home, err := homedir.Dir()
 	if err != nil {
@@ -76,7 +75,7 @@ func MigrateOldConfig(cacheDir string) error {
 func FromCache(cacheDir, filename, dir string, method ExtractFunc, paths map[string]string, platform string) (hit bool, err error) {
 	path := filepath.Join(cacheDir, filename)
 
-	if !util.Exists(path) {
+	if !fs.Exists(path) {
 		hit = false
 		return
 	}
@@ -92,7 +91,7 @@ func FromCache(cacheDir, filename, dir string, method ExtractFunc, paths map[str
 	if platform == "linux" || platform == "darwin" {
 		print.Verb("setting permissions for binaries")
 		for _, file := range files {
-			err = os.Chmod(file, 0700)
+			err = os.Chmod(file, 0o700)
 			if err != nil {
 				return
 			}
@@ -102,14 +101,17 @@ func FromCache(cacheDir, filename, dir string, method ExtractFunc, paths map[str
 	return true, nil
 }
 
-// FromNet downloads the server package by filename from the specified location to the cache dir
-func FromNet(location, cacheDir, filename string) (result string, err error) {
-	print.Verb("attempting to download package from", location, "with the destination of", cacheDir, "with the name of", filename)
+func FromNet(ctx context.Context, location, cachePath string) (result string, err error) {
+	print.Verb("attempting to download package from", location, "to", cachePath)
 
-	resp, err := http.Get(location)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, location, nil)
 	if err != nil {
-		err = errors.Wrapf(err, "failed to download package from %s", location)
-		return
+		return "", errors.Wrap(err, "failed to create request")
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to download package from %s", location)
 	}
 	defer func() {
 		if errClose := resp.Body.Close(); errClose != nil {
@@ -118,33 +120,23 @@ func FromNet(location, cacheDir, filename string) (result string, err error) {
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return result, errors.Errorf("unexpected status code given %d", resp.StatusCode)
+		return "", errors.Errorf("unexpected status code given %d", resp.StatusCode)
 	}
 
-	content, err := io.ReadAll(resp.Body)
-	if err != nil {
-		err = errors.Wrap(err, "failed to read download contents")
-		return
+	ct := resp.Header.Get("Content-Type")
+	if ct != "" {
+		if t, _, err := mime.ParseMediaType(ct); err == nil {
+			if !(strings.HasPrefix(t, "application/") || strings.HasPrefix(t, "text/")) {
+				return "", errors.Errorf("content has unexpected content type %s", t)
+			}
+		}
 	}
 
-	t, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
-	if err != nil {
-		return result, err
+	if err := fs.WriteFromReaderAtomic(cachePath, resp.Body, fs.PermDirPrivate, fs.PermFileShared); err != nil {
+		return "", errors.Wrap(err, "failed to write package to cache")
 	}
 
-	if !strings.HasPrefix(t, "application") {
-		return result, errors.Errorf("content has unexpected content type %s", t)
-	}
-
-	result = filepath.Join(cacheDir, filename)
-
-	err = os.WriteFile(result, content, 0655)
-	if err != nil {
-		err = errors.Wrap(err, "failed to write package to cache")
-		return
-	}
-
-	return
+	return cachePath, nil
 }
 
 // ReleaseAssetByPattern downloads a resource file, which is a GitHub release asset
@@ -185,6 +177,14 @@ func ReleaseAssetByPattern(
 		return
 	}
 	tag = release.GetTagName()
+	if dir == "" {
+		dir = filepath.Join("assets", meta.User, meta.Repo, tag)
+	}
+
+	baseDir := dir
+	if !filepath.IsAbs(baseDir) {
+		baseDir = filepath.Join(cacheDir, baseDir)
+	}
 
 	if outputFile == "" {
 		var u *url.URL
@@ -193,12 +193,13 @@ func ReleaseAssetByPattern(
 			err = errors.Wrap(err, "failed to parse download URL from GitHub API")
 			return
 		}
-		outputFile = filepath.Join(dir, filepath.Base(u.Path))
+		outputFile = filepath.Base(u.Path)
 	} else {
-		outputFile = filepath.Join(dir, outputFile)
+		outputFile = filepath.Base(outputFile)
 	}
 
-	filename, err = FromNet(*asset.BrowserDownloadURL, cacheDir, outputFile)
+	destination := filepath.Join(baseDir, outputFile)
+	filename, err = FromNet(ctx, *asset.BrowserDownloadURL, destination)
 	if err != nil {
 		return
 	}

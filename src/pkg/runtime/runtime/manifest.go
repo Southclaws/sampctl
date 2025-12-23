@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io"
-	"io/fs"
+	iofs "io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -13,7 +13,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 )
 
@@ -55,7 +55,7 @@ func buildRuntimeManifest(root string, cfg run.Runtime) (runtimeManifest, error)
 	manifestRel := filepath.ToSlash(runtimeManifestRelativePath)
 	manifestDir := filepath.ToSlash(runtimeManifestDirName)
 
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
+	err := filepath.WalkDir(root, func(path string, d iofs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -69,7 +69,7 @@ func buildRuntimeManifest(root string, cfg run.Runtime) (runtimeManifest, error)
 		}
 		if d.IsDir() {
 			if relPath != "" && strings.EqualFold(relPath, manifestDir) {
-				return fs.SkipDir
+				return iofs.SkipDir
 			}
 			return nil
 		}
@@ -204,7 +204,7 @@ func removeRuntimeFiles(manifest runtimeManifest, root string) error {
 	dirSet := map[string]struct{}{}
 	for _, file := range manifest.Files {
 		target := filepath.Join(root, filepath.FromSlash(file.Path))
-		if util.Exists(target) {
+		if fs.Exists(target) {
 			if err := os.Remove(target); err != nil && !os.IsNotExist(err) {
 				return errors.Wrapf(err, "failed to remove runtime file %s", file.Path)
 			}

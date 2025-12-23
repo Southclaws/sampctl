@@ -2,19 +2,20 @@ package commands
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 )
 
 func autoComplete(c *cli.Context) (err error) {
-	var flavour = "bash"
+	flavour := "bash"
 	if c.String("flavour") == "zsh" {
 		flavour = "zsh"
 	}
@@ -32,16 +33,19 @@ func autoComplete(c *cli.Context) (err error) {
 		return errors.Errorf("failed to get bash completion: %s", resp.Status)
 	}
 
-	contents, err := ioutil.ReadAll(resp.Body)
+	contents, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return
 	}
 
-	cacheDir := util.GetConfigDir()
+	cacheDir, err := fs.ConfigDir()
+	if err != nil {
+		return err
+	}
 
 	completionFile := filepath.Join(cacheDir, "autocomplete")
 
-	err = ioutil.WriteFile(completionFile, contents, 0700)
+	err = os.WriteFile(completionFile, contents, fs.PermFileExec)
 	if err != nil {
 		return
 	}

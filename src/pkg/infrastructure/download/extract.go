@@ -13,8 +13,8 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 )
 
 // shouldIgnoreFile checks if a file should be ignored based on patterns
@@ -127,14 +127,14 @@ loop:
 			}
 		} else {
 			targetDir := filepath.Dir(target)
-			if !util.Exists(targetDir) {
+			if !fs.Exists(targetDir) {
 				err = os.MkdirAll(targetDir, 0o700)
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to create target dir for file")
 				}
 			}
 
-			if util.Exists(target) && shouldIgnoreFile(target, ignorePatterns) {
+			if fs.Exists(target) && shouldIgnoreFile(target, ignorePatterns) {
 				print.Verb("skipping existing file (matches ignore pattern):", target)
 				continue
 			}
@@ -207,14 +207,14 @@ func UnzipWithIgnore(src, dst string, paths map[string]string, ignorePatterns []
 			}
 		} else {
 			targetDir := filepath.Dir(target)
-			if !util.Exists(targetDir) {
+			if !fs.Exists(targetDir) {
 				err = os.MkdirAll(targetDir, 0o700)
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to create target dir for file")
 				}
 			}
 
-			if util.Exists(target) && shouldIgnoreFile(target, ignorePatterns) {
+			if fs.Exists(target) && shouldIgnoreFile(target, ignorePatterns) {
 				print.Verb("skipping existing file (matches ignore pattern):", target)
 				continue
 			}

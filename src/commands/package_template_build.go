@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
@@ -27,17 +28,20 @@ func packageTemplateBuild(c *cli.Context) (err error) {
 		return nil
 	}
 
-	cacheDir := util.GetConfigDir()
+	cacheDir, err := fs.ConfigDir()
+	if err != nil {
+		return err
+	}
 
 	template := c.Args().Get(0)
 	filename := c.Args().Get(1)
 
 	templatePath := filepath.Join(cacheDir, "templates", template)
-	if !util.Exists(templatePath) {
+	if !fs.Exists(templatePath) {
 		return errors.Errorf("template '%s' does not exist", template)
 	}
 
-	if !util.Exists(filename) {
+	if !fs.Exists(filename) {
 		return errors.Errorf("no such file or directory: %s", filename)
 	}
 

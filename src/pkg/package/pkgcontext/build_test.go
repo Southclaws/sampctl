@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/Southclaws/sampctl/src/pkg/build/build"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
 
@@ -33,7 +33,7 @@ func TestBuildPrepareResolvesCompilerPath(t *testing.T) {
 	config, err := pcx.buildPrepare(context.Background(), "", false, false)
 	require.NoError(t, err)
 
-	expectedPath := util.FullPath(filepath.Join(tempDir, "tools/compiler"))
+	expectedPath := fs.MustAbs(filepath.Join(tempDir, "tools/compiler"))
 	require.Equal(t, expectedPath, config.Compiler.Path)
 }
 

@@ -9,8 +9,8 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/rook"
 )
@@ -27,7 +27,10 @@ func packageGet(c *cli.Context) error {
 		return nil
 	}
 
-	cacheDir := util.GetConfigDir()
+	cacheDir, err := fs.ConfigDir()
+	if err != nil {
+		return err
+	}
 
 	dep, err := versioning.DependencyString(c.Args().First()).Explode()
 	if err != nil {
@@ -36,7 +39,7 @@ func packageGet(c *cli.Context) error {
 
 	dir := c.Args().Get(1)
 	if dir == "" {
-		dir = util.FullPath(".")
+		dir = fs.MustAbs(".")
 	}
 
 	err = rook.Get(context.Background(), gh, dep, dir, gitAuth, platform(c), cacheDir)
@@ -50,7 +53,11 @@ func packageGet(c *cli.Context) error {
 }
 
 func packageGetBash(c *cli.Context) {
-	cacheDir := util.GetConfigDir()
+	cacheDir, err := fs.ConfigDir()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Failed to get config dir:", err)
+		return
+	}
 
 	packages, err := download.GetPackageList(cacheDir)
 	if err != nil {

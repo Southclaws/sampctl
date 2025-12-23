@@ -1,10 +1,12 @@
 package runtime
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
+	"github.com/pkg/errors"
 )
 
 // adjustForOS quickly does some tweaks depending on the OS such as .so plugin extension on linux
@@ -31,4 +33,32 @@ func adjustForOS(dir, os string, cfg *run.Runtime) {
 			}
 		}
 	}
+}
+
+func getPlugins(dir, platform string) (result []string) {
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		panic(err)
+	}
+
+	var ext string
+	switch platform {
+	case "windows":
+		ext = ".dll"
+	case "linux", "darwin":
+		ext = ".so"
+	default:
+		panic(errors.Errorf("unsupported OS %s", platform))
+	}
+
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+
+		if filepath.Ext(file.Name()) == ext {
+			result = append(result, strings.TrimSuffix(file.Name(), filepath.Ext(file.Name())))
+		}
+	}
+	return
 }

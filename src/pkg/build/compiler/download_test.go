@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
 
@@ -33,7 +33,7 @@ func Test_CompilerFromNet(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := os.MkdirAll(tt.args.cacheDir, 0700)
+			err := os.MkdirAll(tt.args.cacheDir, 0o700)
 			assert.NoError(t, err)
 
 			_, err = FromNet(context.Background(), gh, tt.args.meta, tt.args.dir, tt.args.platform, tt.args.cacheDir)
@@ -41,14 +41,14 @@ func Test_CompilerFromNet(t *testing.T) {
 
 			switch tt.args.platform {
 			case "linux":
-				assert.True(t, util.Exists(filepath.Join(tt.args.dir, "pawncc")))
-				assert.True(t, util.Exists(filepath.Join(tt.args.dir, "libpawnc.so")))
+				assert.True(t, fs.Exists(filepath.Join(tt.args.dir, "pawncc")))
+				assert.True(t, fs.Exists(filepath.Join(tt.args.dir, "libpawnc.so")))
 			case "darwin":
-				assert.True(t, util.Exists(filepath.Join(tt.args.dir, "pawncc")))
-				assert.True(t, util.Exists(filepath.Join(tt.args.dir, "libpawnc.dylib")))
+				assert.True(t, fs.Exists(filepath.Join(tt.args.dir, "pawncc")))
+				assert.True(t, fs.Exists(filepath.Join(tt.args.dir, "libpawnc.dylib")))
 			case "windows":
-				assert.True(t, util.Exists(filepath.Join(tt.args.dir, "pawncc.exe")))
-				assert.True(t, util.Exists(filepath.Join(tt.args.dir, "pawnc.dll")))
+				assert.True(t, fs.Exists(filepath.Join(tt.args.dir, "pawncc.exe")))
+				assert.True(t, fs.Exists(filepath.Join(tt.args.dir, "pawnc.dll")))
 			}
 		})
 	}
@@ -76,7 +76,7 @@ func Test_CompilerFromCache(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := os.MkdirAll(tt.args.cacheDir, 0700)
+			err := os.MkdirAll(tt.args.cacheDir, 0o700)
 			assert.NoError(t, err)
 
 			_, gotHit, err := FromCache(tt.args.meta, tt.args.dir, tt.args.platform, tt.args.cacheDir)

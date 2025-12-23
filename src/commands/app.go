@@ -13,15 +13,14 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/joho/godotenv"
 	_ "github.com/joho/godotenv/autoload"
-	"github.com/kirsle/configdir"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/src/config"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 )
 
 var (
@@ -31,10 +30,9 @@ var (
 )
 
 func Run(args []string, version string) error {
-	cacheDir := util.GetConfigDir()
-	err := configdir.MakePath(cacheDir)
+	cacheDir, err := fs.ConfigDir()
 	if err != nil {
-		return errors.Wrap(err, "Failed to create config path")
+		return errors.Wrap(err, "failed to get config dir")
 	}
 
 	err = download.MigrateOldConfig(cacheDir)

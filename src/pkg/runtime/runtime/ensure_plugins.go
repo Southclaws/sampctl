@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -12,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
@@ -28,22 +28,6 @@ func getPluginDirectory(cfg *run.Runtime) string {
 	return "plugins"
 }
 
-// getPluginDirectoryForResource returns the appropriate plugin directory based on resource version
-func getPluginDirectoryForResource(resourceVersion string) string {
-	// Check if the resource version indicates it's for Open.MP
-	lowerVersion := strings.ToLower(resourceVersion)
-	if strings.Contains(lowerVersion, "openmp") || strings.Contains(lowerVersion, "open.mp") {
-		return "components"
-	}
-	// Default to plugins for SA-MP compatibility
-	return "plugins"
-}
-
-// getPluginPath returns the full path to the plugin directory
-func getPluginPath(cfg *run.Runtime) string {
-	return filepath.Join(cfg.WorkingDir, getPluginDirectory(cfg))
-}
-
 // EnsurePlugins validates and downloads plugin binary files
 func EnsurePlugins(
 	ctx context.Context,
@@ -52,6 +36,10 @@ func EnsurePlugins(
 	cacheDir string,
 	noCache bool,
 ) (err error) {
+	if err := fs.EnsurePackageLayout(cfg.WorkingDir, cfg.IsOpenMP()); err != nil {
+		return err
+	}
+
 	fileExt := pluginExtForFile(cfg.Platform)
 
 	var (
@@ -60,7 +48,7 @@ func EnsurePlugins(
 	)
 
 	for _, plugin := range cfg.PluginDeps {
-		files, err = EnsureVersionedPlugin(ctx, gh, plugin, cfg.WorkingDir, cfg.Platform, cfg.Version, cacheDir, true, false, noCache, nil)
+		files, err = EnsureVersionedPlugin(ctx, gh, plugin, cfg.WorkingDir, cfg.Platform, cfg.Version, cacheDir, getPluginDirectory(cfg), true, false, noCache, nil)
 		if err != nil {
 			return
 		}
@@ -80,20 +68,6 @@ func EnsurePlugins(
 		added[pluginName] = struct{}{}
 	}
 
-	if len(added) != 0 {
-		pluginsDir := util.FullPath(filepath.Join(cfg.WorkingDir, "plugins"))
-		err = os.MkdirAll(pluginsDir, 0o700)
-		if err != nil {
-			return errors.Wrap(err, "failed to create runtime plugins directory")
-		}
-
-		componentsDir := util.FullPath(filepath.Join(cfg.WorkingDir, "components"))
-		err = os.MkdirAll(componentsDir, 0o700)
-		if err != nil {
-			return errors.Wrap(err, "failed to create runtime components directory")
-		}
-	}
-
 	return err
 }
 
@@ -106,6 +80,7 @@ func EnsureVersionedPlugin(
 	platform string,
 	version string,
 	cacheDir string,
+	pluginDestDir string,
 	plugins bool,
 	includes bool,
 	noCache bool,
@@ -126,9 +101,11 @@ func EnsureVersionedPlugin(
 
 		// get plugins
 		if plugins {
+			if pluginDestDir == "" {
+				return nil, errors.New("pluginDestDir is required when plugins=true")
+			}
 			for _, plugin := range resource.Plugins {
-				// Determine plugin directory based on resource version
-				pluginDir := getPluginDirectoryForResource(resource.Version) + "/"
+				pluginDir := pluginDestDir + "/"
 				print.Verb(meta, "marking plugin path", plugin, "for extraction to ./"+pluginDir)
 				paths[plugin] = pluginDir
 			}
@@ -184,11 +161,13 @@ func EnsureVersionedPlugin(
 	} else {
 		print.Verb(meta, "plugin resource is a single file")
 		base := filepath.Base(filename)
-		pluginDir := getPluginDirectoryForResource(resource.Version)
-		finalDir := filepath.Join(dir, pluginDir)
+		if pluginDestDir == "" {
+			return nil, errors.New("pluginDestDir is required when plugins=true")
+		}
+		finalDir := filepath.Join(dir, pluginDestDir)
 		destination := filepath.Join(finalDir, base)
 
-		err = os.MkdirAll(finalDir, 0o700)
+		err = fs.EnsureDir(finalDir, fs.PermDirShared)
 		if err != nil {
 			err = errors.Wrapf(err, "failed to create path for plugin resource %s to %s", filename, destination)
 			return
@@ -265,7 +244,7 @@ func PluginFromCache(
 		return
 	}
 
-	files, err := ioutil.ReadDir(resourcePath)
+	files, err := os.ReadDir(resourcePath)
 	if err != nil {
 		print.Verb("cache hit failed while trying to read cached plugin folder:", err)
 		err = nil

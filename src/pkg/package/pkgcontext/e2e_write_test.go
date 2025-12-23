@@ -2,7 +2,6 @@ package pkgcontext
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -37,7 +36,7 @@ func TestE2EConfigWrite(t *testing.T) {
 	configBytes, err := json.MarshalIndent(minimalConfig, "", "\t")
 	require.NoError(t, err)
 
-	err = ioutil.WriteFile(configPath, configBytes, 0o644)
+	err = os.WriteFile(configPath, configBytes, 0o644)
 	require.NoError(t, err)
 
 	t.Log("Initial config:")
@@ -52,7 +51,7 @@ func TestE2EConfigWrite(t *testing.T) {
 	err = pkg.WriteDefinition()
 	require.NoError(t, err)
 
-	writtenBytes, err := ioutil.ReadFile(configPath)
+	writtenBytes, err := os.ReadFile(configPath)
 	require.NoError(t, err)
 
 	var writtenConfig map[string]interface{}

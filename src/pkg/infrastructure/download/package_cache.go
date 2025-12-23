@@ -1,97 +1,94 @@
 package download
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/cache"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 )
 
 // GetPackageList gets a list of known packages from the sampctl package service, if the list does
 // not exist locally, it is downloaded and cached for future use.
 func GetPackageList(cacheDir string) (packages []pawnpackage.Package, err error) {
-	packageFile := filepath.Join(cacheDir, "packages.json")
-
-	var update bool
-
-	info, err := os.Stat(packageFile)
-	if os.IsNotExist(err) {
-		update = true
-	} else if time.Since(info.ModTime()) > time.Hour*24*7 {
-		// update package list every week
-		update = true
-	}
-
-	if update {
-		// print to stderr so bash doesn't pick it up as an auto-complete result
-		fmt.Fprintln(os.Stderr, "updating package list...") //nolint
-		err = UpdatePackageList(cacheDir)
-		if err != nil {
-			return
-		}
-	}
-
-	contents, err := os.ReadFile(packageFile)
+	packageFile := fs.Join(cacheDir, "packages.json")
+	packages, refreshed, err := cache.GetOrRefreshJSON[[]pawnpackage.Package](
+		context.Background(),
+		packageFile,
+		time.Hour*24*7,
+		fs.PermDirPrivate,
+		fs.PermFileShared,
+		func(ctx context.Context) ([]pawnpackage.Package, error) {
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://list.packages.sampctl.com", nil)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to create request")
+			}
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to download package list")
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != 200 {
+				return nil, errors.Errorf("package list status %s", resp.Status)
+			}
+			var out []pawnpackage.Package
+			if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+				return nil, errors.Wrap(err, "failed to decode package list")
+			}
+			return out, nil
+		},
+	)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to read package cache file")
+		return nil, err
 	}
-
-	err = json.Unmarshal(contents, &packages)
-	return
+	if refreshed {
+		fmt.Fprintln(os.Stderr, "updating package list...") //nolint
+	}
+	return packages, nil
 }
 
 // UpdatePackageList downloads a list of all packages to a file in the cache directory
 func UpdatePackageList(cacheDir string) (err error) {
-	resp, err := http.Get("http://list.packages.sampctl.com")
-	if err != nil {
-		return errors.Wrap(err, "failed to download package list")
-	}
-
-	if resp.StatusCode != 200 {
-		return errors.Errorf("package list status %s", resp.Status)
-	}
-
-	var packages []pawnpackage.Package
-	err = json.NewDecoder(resp.Body).Decode(&packages)
-	if err != nil {
-		return errors.Wrap(err, "failed to decode package list")
-	}
-
-	contents, err := json.MarshalIndent(packages, "", "    ")
-	if err != nil {
-		return errors.Wrap(err, "failed to encode packages list")
-	}
-
-	err = WritePackageCacheFile(cacheDir, contents)
-	if err != nil {
-		return err
-	}
-
-	return
+	packageFile := fs.Join(cacheDir, "packages.json")
+	_, _, err = cache.GetOrRefreshJSON[[]pawnpackage.Package](
+		context.Background(),
+		packageFile,
+		-1,
+		fs.PermDirPrivate,
+		fs.PermFileShared,
+		func(ctx context.Context) ([]pawnpackage.Package, error) {
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://list.packages.sampctl.com", nil)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to create request")
+			}
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to download package list")
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != 200 {
+				return nil, errors.Errorf("package list status %s", resp.Status)
+			}
+			var out []pawnpackage.Package
+			if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+				return nil, errors.Wrap(err, "failed to decode package list")
+			}
+			return out, nil
+		},
+	)
+	return err
 }
 
 func WritePackageCacheFile(cacheDir string, data []byte) error {
-	var err error
-	if !util.Exists(cacheDir) {
-		err = os.MkdirAll(cacheDir, 0700)
-		if err != nil {
-			err = errors.Wrap(err, "failed to create path to cache directory")
-			return err
-		}
-	}
-
-	runtimesFile := filepath.Join(cacheDir, "compilers.json")
-	err = os.WriteFile(runtimesFile, data, 0700)
-	if err != nil {
+	if err := fs.WriteFileAtomic(fs.Join(cacheDir, "packages.json"), data, fs.PermDirPrivate, fs.PermFileShared); err != nil {
 		return errors.Wrap(err, "failed to write package list to file")
 	}
-
 	return nil
 }

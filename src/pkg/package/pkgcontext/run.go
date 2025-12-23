@@ -14,8 +14,8 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/src/pkg/build/build"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 	"github.com/Southclaws/sampctl/src/pkg/runtime/runtime"
 )
@@ -91,7 +91,7 @@ loop:
 				defer cancel()
 			}
 
-			err = runtime.CopyFileToRuntime(pcx.CacheDir, pcx.ActualRuntime.Version, util.FullPath(pcx.Package.Output))
+			err = runtime.CopyFileToRuntime(pcx.CacheDir, pcx.ActualRuntime.Version, fs.MustAbs(pcx.Package.Output))
 			if err != nil {
 				err = errors.Wrap(err, "failed to copy amx file to temporary runtime directory")
 				print.Erro(err)
@@ -124,7 +124,7 @@ func (pcx *PackageContext) RunPrepare(ctx context.Context) (err error) {
 		problems build.Problems
 		canRun   = true
 	)
-	if !util.Exists(filename) || pcx.ForceBuild {
+	if !fs.Exists(filename) || pcx.ForceBuild {
 		problems, _, err = pcx.Build(ctx, pcx.BuildName, pcx.ForceEnsure, false, pcx.Relative, pcx.BuildFile)
 		if err != nil {
 			return
@@ -163,7 +163,7 @@ func (pcx *PackageContext) RunPrepare(ctx context.Context) (err error) {
 		print.Verb(pcx.Package, "package is not local, preparing temporary runtime")
 
 		scriptfiles := filepath.Join(pcx.Package.LocalPath, "scriptfiles")
-		if !util.Exists(scriptfiles) {
+		if !fs.Exists(scriptfiles) {
 			scriptfiles = ""
 		}
 		err = runtime.PrepareRuntimeDirectory(

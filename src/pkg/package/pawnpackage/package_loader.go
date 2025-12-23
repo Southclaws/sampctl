@@ -11,8 +11,8 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
 
@@ -20,8 +20,8 @@ import (
 func PackageFromDir(dir string) (pkg Package, err error) {
 	jsonPath := filepath.Join(dir, "pawn.json")
 	yamlPath := filepath.Join(dir, "pawn.yaml")
-	jsonExists := util.Exists(jsonPath)
-	yamlExists := util.Exists(yamlPath)
+	jsonExists := fs.Exists(jsonPath)
+	yamlExists := fs.Exists(yamlPath)
 
 	switch {
 	case jsonExists && yamlExists:

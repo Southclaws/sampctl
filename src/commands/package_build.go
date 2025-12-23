@@ -8,8 +8,8 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
@@ -47,7 +47,7 @@ func packageBuild(c *cli.Context) error {
 		print.SetVerbose()
 	}
 
-	dir := util.FullPath(c.String("dir"))
+	dir := fs.MustAbs(c.String("dir"))
 	forceEnsure := c.Bool("forceEnsure")
 	dryRun := c.Bool("dryRun")
 	watch := c.Bool("watch")
@@ -56,7 +56,10 @@ func packageBuild(c *cli.Context) error {
 
 	build := c.Args().Get(0)
 
-	cacheDir := util.GetConfigDir()
+	cacheDir, err := fs.ConfigDir()
+	if err != nil {
+		return errors.Wrap(err, "failed to get config dir")
+	}
 
 	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "", false)
 	if err != nil {
@@ -103,9 +106,12 @@ func packageBuild(c *cli.Context) error {
 }
 
 func packageBuildBash(c *cli.Context) {
-	dir := util.FullPath(c.String("dir"))
+	dir := fs.MustAbs(c.String("dir"))
 
-	cacheDir := util.GetConfigDir()
+	cacheDir, err := fs.ConfigDir()
+	if err != nil {
+		return
+	}
 
 	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, cacheDir, "", false)
 	if err != nil {

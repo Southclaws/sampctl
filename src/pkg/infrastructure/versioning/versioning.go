@@ -12,10 +12,8 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 )
 
-var (
-	// loadedOverrides caches the dependency overrides loaded from configuration
-	loadedOverrides map[string]string
-)
+// loadedOverrides caches the dependency overrides loaded from configuration
+var loadedOverrides map[string]string
 
 // DependencyString represents a git repository via various patterns
 type DependencyString string
@@ -131,6 +129,16 @@ func ApplyDependencyOverrides(depStr string) string {
 		loadedOverrides = LoadDependencyOverrides("")
 	}
 
+	overrideHasExplicitVersion := func(s string) bool {
+		trimmed := strings.TrimPrefix(s, "https://")
+		trimmed = strings.TrimPrefix(trimmed, "http://")
+
+		if idx := strings.LastIndex(trimmed, "/"); idx != -1 {
+			return strings.ContainsAny(trimmed[idx+1:], ":@#")
+		}
+		return strings.ContainsAny(trimmed, ":@#")
+	}
+
 	// Normalize the dependency string by removing common prefixes
 	normalized := strings.TrimPrefix(depStr, "https://")
 	normalized = strings.TrimPrefix(normalized, "http://")
@@ -145,26 +153,27 @@ func ApplyDependencyOverrides(depStr string) string {
 		return override
 	}
 
-	// For dependency strings with version specifiers, extract the base and version parts
 	var baseDep, versionPart string
-	for _, sep := range []string{":", "@", "#"} {
-		if idx := strings.Index(depStr, sep); idx != -1 {
-			baseDep = depStr[:idx]
-			versionPart = depStr[idx:]
-			break
+	if idx := strings.LastIndex(normalized, "/"); idx != -1 {
+		// Only consider version separators after the final path segment.
+		if subIdx := strings.IndexAny(normalized[idx+1:], ":@#"); subIdx != -1 {
+			idxFull := idx + 1 + subIdx
+			baseDep = normalized[:idxFull]
+			versionPart = normalized[idxFull:]
+		}
+	} else {
+		// Fallback for unexpected formats.
+		if subIdx := strings.IndexAny(normalized, ":@#"); subIdx != -1 {
+			baseDep = normalized[:subIdx]
+			versionPart = normalized[subIdx:]
 		}
 	}
 
-	// If we found a version part, check if the base dependency has an override
 	if baseDep != "" && versionPart != "" {
 		if override, exists := loadedOverrides[baseDep]; exists {
-			return override + versionPart
-		}
-
-		// Also check normalized base dependency
-		normalizedBase := strings.TrimPrefix(baseDep, "https://")
-		normalizedBase = strings.TrimPrefix(normalizedBase, "http://")
-		if override, exists := loadedOverrides[normalizedBase]; exists {
+			if overrideHasExplicitVersion(override) {
+				return override
+			}
 			return override + versionPart
 		}
 	}
@@ -191,14 +200,14 @@ func ApplyDependencyOverrides(depStr string) string {
 // Returns the overridden dependency string and whether an override was applied
 func ApplyDependencyOverridesWithLogging(depStr string) (string, bool) {
 	overriddenStr := ApplyDependencyOverrides(depStr)
-	
+
 	if overriddenStr != depStr {
 		// An override was applied, log it
 		print.Info(fmt.Sprintf("dependency '%s' was overridden by '%s'", depStr, overriddenStr))
 		print.Verb(fmt.Sprintf("dependency override applied for '%s' -> '%s' (original repository may no longer exist, be deprecated, or have security issues)", depStr, overriddenStr))
 		return overriddenStr, true
 	}
-	
+
 	return depStr, false
 }
 

@@ -12,7 +12,7 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
 
@@ -138,7 +138,7 @@ func (m *DefaultResourceManager) EnsureAll(ctx context.Context, resources []Reso
 
 // CleanCache removes unused cached resources
 func (m *DefaultResourceManager) CleanCache() error {
-	cacheDir := util.GetConfigDir()
+	cacheDir := fs.MustConfigDir()
 
 	// Walk through all resource type directories in cache
 	resourceTypes := []ResourceType{
@@ -154,7 +154,7 @@ func (m *DefaultResourceManager) CleanCache() error {
 
 	for _, resourceType := range resourceTypes {
 		typeDir := filepath.Join(cacheDir, string(resourceType))
-		if !util.Exists(typeDir) {
+		if !fs.Exists(typeDir) {
 			continue
 		}
 

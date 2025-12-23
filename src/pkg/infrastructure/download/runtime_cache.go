@@ -2,16 +2,17 @@
 package download
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/pkg/errors"
 
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/cache"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 )
 
 // Runtimes is a collection of Package objects for sorting
@@ -34,82 +35,77 @@ type RuntimePackage struct {
 // GetRuntimeList gets a list of known runtime packages from the sampctl repo, if the list does not
 // exist locally, it is downloaded and cached for future use.
 func GetRuntimeList(cacheDir string) (runtimes Runtimes, err error) {
-	runtimesFile := filepath.Join(cacheDir, "runtimes.json")
-
-	var update bool
-
-	info, err := os.Stat(runtimesFile)
-	if os.IsNotExist(err) {
-		update = true
-	} else if time.Since(info.ModTime()) > time.Hour*24*7 {
-		// update package list every week
-		update = true
-	}
-
-	if update {
-		// print to stderr so bash doesn't pick it up as an auto-complete result
-		fmt.Fprintln(os.Stderr, "updating runtimes list...") // nolint:gas
-		err = UpdateRuntimeList(cacheDir)
-		if err != nil {
-			return
-		}
-	}
-
-	contents, err := os.ReadFile(runtimesFile)
+	runtimesFile := fs.Join(cacheDir, "runtimes.json")
+	runtimes, refreshed, err := cache.GetOrRefreshJSON[Runtimes](
+		context.Background(),
+		runtimesFile,
+		time.Hour*24*7,
+		fs.PermDirPrivate,
+		fs.PermFileShared,
+		func(ctx context.Context) (Runtimes, error) {
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://raw.githubusercontent.com/sampctl/runtimes/master/runtimes.json", nil)
+			if err != nil {
+				return Runtimes{}, errors.Wrap(err, "failed to create request")
+			}
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				return Runtimes{}, errors.Wrap(err, "failed to download package list")
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != 200 {
+				return Runtimes{}, errors.Errorf("package list status %s", resp.Status)
+			}
+			var out Runtimes
+			if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+				return Runtimes{}, errors.Wrap(err, "failed to decode package list")
+			}
+			return out, nil
+		},
+	)
 	if err != nil {
-		err = errors.Wrap(err, "failed to read package cache file")
-		return
+		return Runtimes{}, err
 	}
-
-	err = json.Unmarshal(contents, &runtimes)
-	return
+	if refreshed {
+		fmt.Fprintln(os.Stderr, "updating runtimes list...") // nolint:gas
+	}
+	return runtimes, nil
 }
 
 // UpdateRuntimeList downloads a list of all runtime packages to a file in the cache directory
 func UpdateRuntimeList(cacheDir string) (err error) {
-	resp, err := http.Get("https://raw.githubusercontent.com/sampctl/runtimes/master/runtimes.json")
-	if err != nil {
-		return errors.Wrap(err, "failed to download package list")
-	}
-
-	if resp.StatusCode != 200 {
-		return errors.Errorf("package list status %s", resp.Status)
-	}
-
-	var runtimes Runtimes
-	err = json.NewDecoder(resp.Body).Decode(&runtimes)
-	if err != nil {
-		return errors.Wrap(err, "failed to decode package list")
-	}
-
-	contents, err := json.MarshalIndent(runtimes, "", "    ")
-	if err != nil {
-		return errors.Wrap(err, "failed to encode runtimes list")
-	}
-
-	err = WriteRuntimeCacheFile(cacheDir, contents)
-	if err != nil {
-		return err
-	}
-
-	return
+	runtimesFile := fs.Join(cacheDir, "runtimes.json")
+	_, _, err = cache.GetOrRefreshJSON[Runtimes](
+		context.Background(),
+		runtimesFile,
+		-1,
+		fs.PermDirPrivate,
+		fs.PermFileShared,
+		func(ctx context.Context) (Runtimes, error) {
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://raw.githubusercontent.com/sampctl/runtimes/master/runtimes.json", nil)
+			if err != nil {
+				return Runtimes{}, errors.Wrap(err, "failed to create request")
+			}
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				return Runtimes{}, errors.Wrap(err, "failed to download package list")
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != 200 {
+				return Runtimes{}, errors.Errorf("package list status %s", resp.Status)
+			}
+			var out Runtimes
+			if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+				return Runtimes{}, errors.Wrap(err, "failed to decode package list")
+			}
+			return out, nil
+		},
+	)
+	return err
 }
 
 func WriteRuntimeCacheFile(cacheDir string, data []byte) error {
-	var err error
-	if !util.Exists(cacheDir) {
-		err = os.MkdirAll(cacheDir, 0700)
-		if err != nil {
-			err = errors.Wrap(err, "failed to create path to cache directory")
-			return err
-		}
-	}
-
-	runtimesFile := filepath.Join(cacheDir, "runtimes.json")
-	err = os.WriteFile(runtimesFile, data, 0700)
-	if err != nil {
+	if err := fs.WriteFileAtomic(fs.Join(cacheDir, "runtimes.json"), data, fs.PermDirPrivate, fs.PermFileShared); err != nil {
 		return errors.Wrap(err, "failed to write runtime list to file")
 	}
-
 	return nil
 }

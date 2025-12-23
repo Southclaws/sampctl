@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -23,8 +22,8 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/AlecAivazis/survey.v1"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
@@ -224,7 +223,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 	})
 	if err != nil {
 		if err.Error() == "authentication required" {
-			configPath := filepath.Join(util.GetConfigDir(), "config.json")
+			configPath := filepath.Join(fs.MustConfigDir(), "config.json")
 			print.Erro("Git authentication failed. Options:")
 			print.Erro("  1. Set up SSH keys: ssh-keygen && ssh-add ~/.ssh/id_rsa")
 			print.Erro("  2. Add git credentials to:", configPath)
@@ -262,7 +261,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 			Draft:   &[]bool{true}[0],
 		})
 		if err != nil {
-			configPath := filepath.Join(util.GetConfigDir(), "config.json")
+			configPath := filepath.Join(fs.MustConfigDir(), "config.json")
 			print.Erro("Failed to create GitHub release. Please ensure:")
 			print.Erro("  1. You have a valid GitHub API token set in:", configPath)
 			print.Erro("     {\"github_token\": \"your-github-token\"}")
@@ -289,7 +288,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 
 func generateVersionInc(pkg pawnpackage.Package, version *semver.Version) (filename string, err error) {
 	filename = packageSlug(pkg.Repo) + "_version.inc"
-	err = ioutil.WriteFile(
+	err = os.WriteFile(
 		filepath.Join(pkg.LocalPath, filename),
 		[]byte(generateVersionIncString(pkg.Repo, version)),
 		0o600,
