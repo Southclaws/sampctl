@@ -381,9 +381,10 @@ func Init(
 	if answers.EditorConfig {
 		wg.Add(1)
 		go func() {
-			errInner := createEditorConfig(dir)
+			errInner := getTemplateFile(dir, ".editorconfig", answers)
 			if errInner != nil {
-				print.Erro("Failed to create .editorconfig:", errInner)
+				print.Erro("Failed to get .editorconfig template:", errInner)
+				return
 			}
 			wg.Done()
 		}()
@@ -431,31 +432,8 @@ func Init(
 	return nil
 }
 
-func createEditorConfig(dir string) error {
-	editorConfigContent := `root = true
-
-[*.{pwn,inc}]
-indent_style = tab
-indent_size = 4
-end_of_line = lf
-insert_final_newline = true
-charset = utf-8
-`
-	outputFile := filepath.Join(dir, ".editorconfig")
-	if fs.Exists(outputFile) {
-		return nil // Don't overwrite existing file
-	}
-
-	err := os.WriteFile(outputFile, []byte(editorConfigContent), 0o644)
-	if err != nil {
-		return errors.Wrap(err, "failed to write .editorconfig")
-	}
-
-	return nil
-}
-
 func getTemplateFile(dir, filename string, answers Answers) (err error) {
-	resp, err := http.Get("https://raw.githubusercontent.com/Southclaws/pawn-package-template/master/" + filename)
+	resp, err := http.Get("https://raw.githubusercontent.com/sampctl/pawn-package-template/master/" + filename)
 	if err != nil {
 		return
 	}
