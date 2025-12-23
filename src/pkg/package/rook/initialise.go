@@ -397,9 +397,6 @@ func Init(
 		pkg.Runtime.Version = "openmp"
 		pkg.Runtime.Plugins = []run.Plugin{}
 
-		os.MkdirAll(filepath.Join(dir, "gamemodes"), 0o755)
-		os.MkdirAll(filepath.Join(dir, "filterscripts"), 0o755)
-		os.MkdirAll(filepath.Join(dir, "include"), 0o755)
 		if err := fs.EnsurePackageLayout(dir, true); err != nil {
 			return err
 		}
@@ -407,13 +404,9 @@ func Init(
 		pkg.Runtime.Version = "0.3.7"
 		pkg.Runtime.Plugins = []run.Plugin{}
 
-		os.MkdirAll(filepath.Join(dir, "gamemodes"), 0o755)
-		os.MkdirAll(filepath.Join(dir, "filterscripts"), 0o755)
-		os.MkdirAll(filepath.Join(dir, "include"), 0o755)
 		if err := fs.EnsurePackageLayout(dir, false); err != nil {
 			return err
 		}
-		os.MkdirAll(filepath.Join(dir, "npcmodes"), 0o755)
 	}
 
 	// add a default tag
