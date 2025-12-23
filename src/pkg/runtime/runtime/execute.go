@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 )
@@ -14,7 +15,7 @@ import (
 func PrepareRuntimeDirectory(cacheDir, version, platform, scriptfiles string) (err error) {
 	dir := GetRuntimePath(cacheDir, version)
 
-	err = os.MkdirAll(dir, 0700)
+	err = fs.EnsureDir(dir, fs.PermDirPrivate)
 	if err != nil {
 		return errors.Wrap(err, "failed to create temporary directory")
 	}
@@ -24,22 +25,22 @@ func PrepareRuntimeDirectory(cacheDir, version, platform, scriptfiles string) (e
 		return errors.Wrap(err, "failed to get server package")
 	}
 
-	err = os.MkdirAll(filepath.Join(dir, "gamemodes"), 0700)
+	err = fs.EnsureDir(fs.Join(dir, "gamemodes"), fs.PermDirPrivate)
 	if err != nil {
 		return errors.Wrap(err, "failed to create gamemodes directory")
 	}
 
-	err = os.MkdirAll(filepath.Join(dir, "filterscripts"), 0700)
+	err = fs.EnsureDir(fs.Join(dir, "filterscripts"), fs.PermDirPrivate)
 	if err != nil {
 		return errors.Wrap(err, "failed to create filterscripts directory")
 	}
 
-	err = os.MkdirAll(filepath.Join(dir, "plugins"), 0700)
+	err = fs.EnsureDir(fs.Join(dir, "plugins"), fs.PermDirPrivate)
 	if err != nil {
 		return errors.Wrap(err, "failed to create plugins directory")
 	}
 
-	scriptfilesTmp := filepath.Join(dir, "scriptfiles")
+	scriptfilesTmp := fs.Join(dir, "scriptfiles")
 	err = os.RemoveAll(scriptfilesTmp)
 	if err != nil {
 		return errors.Wrap(err, "failed to remove scriptfiles directory")
@@ -65,7 +66,7 @@ func CopyFileToRuntime(cacheDir, version, filePath string) (err error) {
 		return errors.New("specified file is not an .amx")
 	}
 
-	err = util.CopyFile(filePath, filepath.Join(dir, "gamemodes", fileName))
+	err = util.CopyFile(filePath, fs.Join(dir, "gamemodes", fileName))
 	if err != nil {
 		return errors.Wrap(err, "failed to copy AMX to temporary runtime area")
 	}
@@ -76,5 +77,5 @@ func CopyFileToRuntime(cacheDir, version, filePath string) (err error) {
 // GetRuntimePath returns the path from the cache directory where the runtime for a specific version
 // of the server should exist.
 func GetRuntimePath(cacheDir, version string) (runtimeDir string) {
-	return filepath.Join(cacheDir, "runtime", version)
+	return fs.Join(cacheDir, "runtime", version)
 }
