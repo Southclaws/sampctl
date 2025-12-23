@@ -96,6 +96,7 @@ func TestOpenMPConfigGeneration(t *testing.T) {
 	cfg.Gamemodes = []string{"test"}
 	cfg.Filterscripts = []string{"admin"}
 	cfg.Plugins = []run.Plugin{"mysql", "streamer"}
+	cfg.Components = []run.Plugin{"pawnraknet"}
 
 	announce := true
 	cfg.Announce = &announce
@@ -149,7 +150,11 @@ func TestOpenMPConfigGeneration(t *testing.T) {
 	require.True(t, ok)
 	assert.Contains(t, legacyPlugins, "mysql")
 	assert.Contains(t, legacyPlugins, "streamer")
+	assert.NotContains(t, legacyPlugins, "pawnraknet")
 
+	components, ok := pawn["components"].([]interface{})
+	require.True(t, ok)
+	assert.Contains(t, components, "pawnraknet")
 	announceValue, ok := config["announce"].(bool)
 	require.True(t, ok)
 	assert.Equal(t, true, announceValue)

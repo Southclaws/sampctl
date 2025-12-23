@@ -179,7 +179,7 @@ func (pcx *PackageContext) handleURLSchemeCaching(meta versioning.DependencyMeta
 			pcx.AllPlugins = append(pcx.AllPlugins, pluginMeta)
 			print.Verb(prefix, "added local plugin:", meta.Local)
 		} else {
-			remoteMeta := versioning.DependencyMeta{
+			ensureMeta := versioning.DependencyMeta{
 				Site:   meta.Site,
 				User:   meta.User,
 				Repo:   meta.Repo,
@@ -188,9 +188,40 @@ func (pcx *PackageContext) handleURLSchemeCaching(meta versioning.DependencyMeta
 				Commit: meta.Commit,
 				Path:   meta.Path,
 			}
-			pcx.AllDependencies = append(pcx.AllDependencies, remoteMeta)
-			pcx.AllPlugins = append(pcx.AllPlugins, remoteMeta)
-			print.Verb(prefix, "added remote plugin dependency:", remoteMeta)
+			pcx.AllDependencies = append(pcx.AllDependencies, ensureMeta)
+
+			pluginMeta := ensureMeta
+			pluginMeta.Scheme = "plugin"
+			pcx.AllPlugins = append(pcx.AllPlugins, pluginMeta)
+			print.Verb(prefix, "added remote plugin dependency:", ensureMeta)
+		}
+
+	case "component":
+		if meta.IsLocalScheme() {
+			componentMeta := versioning.DependencyMeta{
+				Scheme: "component",
+				Local:  meta.Local,
+				User:   "local",
+				Repo:   filepath.Base(meta.Local),
+			}
+			pcx.AllPlugins = append(pcx.AllPlugins, componentMeta)
+			print.Verb(prefix, "added local component:", meta.Local)
+		} else {
+			ensureMeta := versioning.DependencyMeta{
+				Site:   meta.Site,
+				User:   meta.User,
+				Repo:   meta.Repo,
+				Tag:    meta.Tag,
+				Branch: meta.Branch,
+				Commit: meta.Commit,
+				Path:   meta.Path,
+			}
+			pcx.AllDependencies = append(pcx.AllDependencies, ensureMeta)
+
+			componentMeta := ensureMeta
+			componentMeta.Scheme = "component"
+			pcx.AllPlugins = append(pcx.AllPlugins, componentMeta)
+			print.Verb(prefix, "added remote component dependency:", ensureMeta)
 		}
 
 	case "includes":

@@ -30,7 +30,7 @@ type DependencyMeta struct {
 	SSH    string `json:"ssh,omitempty" yaml:"ssh,omitempty"`       // SSH user (usually 'git')
 
 	// URL-like dependency fields
-	Scheme string `json:"scheme,omitempty" yaml:"scheme,omitempty"`    // URL scheme (plugin://, includes://, filterscript://)
+	Scheme string `json:"scheme,omitempty" yaml:"scheme,omitempty"`    // URL scheme (plugin://, includes://, filterscript://, component://)
 	Local  string `json:"local,omitempty" yaml:"local_path,omitempty"` // Local path for local schemes
 }
 
@@ -85,7 +85,7 @@ func (dm DependencyMeta) Validate() (err error) {
 	// Handle URL-like schemes
 	if dm.Scheme != "" {
 		switch dm.Scheme {
-		case "plugin", "includes", "filterscript":
+		case "plugin", "includes", "filterscript", "component":
 			if dm.Local != "" {
 				// Local schemes only need Local path
 				if dm.Local == "" {
@@ -223,7 +223,7 @@ var (
 	// MatchDependencyString matches a dependency string such as 'Username/Repository:tag', 'Username/Repository@branch', 'Username/Repository#commit'
 	MatchDependencyString = regexp.MustCompile(`^\/?([a-zA-Z0-9-]+)\/([a-zA-Z0-9-._]+)(?:\/)?([a-zA-Z0-9-_$\[\]{}().,\/]*)?((?:@)|(?:\:)|(?:#))?(.+)?$`)
 	// MatchURLScheme matches URL-like dependency strings such as 'plugin://plugins/name', 'includes://legacy', 'filterscript://user/repo:tag'
-	MatchURLScheme = regexp.MustCompile(`^(plugin|includes|filterscript):\/\/(.+)$`)
+	MatchURLScheme = regexp.MustCompile(`^(plugin|includes|filterscript|component):\/\/(.+)$`)
 )
 
 // Explode splits a dependency string into its component parts and returns a meta object
@@ -256,6 +256,7 @@ var (
 // New URL-like scheme examples:
 //
 //	plugin://plugins/name (local plugin)
+//	component://components/name (local component)
 //	includes://legacy (local include directory)
 //	filterscript://user/repo:tag (remote filterscript)
 func (d DependencyString) Explode() (dep DependencyMeta, err error) {
@@ -344,6 +345,7 @@ func explodeURLScheme(d string) (dep DependencyMeta, err error) {
 		dep.Local = strings.TrimPrefix(pathPart, "local/")
 	} else {
 		// Remote schemes like filterscript://user/repo:tag
+		dep.Site = "github.com"
 		// Parse as if it's a user/repo with optional version
 		remoteDep, err := explodePath(pathPart)
 		if err != nil {

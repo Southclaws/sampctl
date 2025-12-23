@@ -179,6 +179,8 @@ func (pcx *PackageContext) ensureURLSchemeDependency(meta versioning.DependencyM
 	switch meta.Scheme {
 	case "plugin":
 		return pcx.ensurePluginDependency(meta)
+	case "component":
+		return pcx.ensureComponentDependency(meta)
 	case "includes":
 		return pcx.ensureIncludesDependency(meta)
 	case "filterscript":
@@ -211,7 +213,7 @@ func (pcx *PackageContext) ensurePluginDependency(meta versioning.DependencyMeta
 
 	// Remote plugin: plugin://user/repo or plugin://user/repo:tag
 	// Treat as a regular dependency but mark it as a plugin
-	remoteMeta := versioning.DependencyMeta{
+	ensureMeta := versioning.DependencyMeta{
 		Site:   meta.Site,
 		User:   meta.User,
 		Repo:   meta.Repo,
@@ -220,14 +222,69 @@ func (pcx *PackageContext) ensurePluginDependency(meta versioning.DependencyMeta
 		Commit: meta.Commit,
 		Path:   meta.Path,
 	}
+	if ensureMeta.Site == "" {
+		ensureMeta.Site = "github.com"
+	}
 
-	err := pcx.EnsurePackage(remoteMeta, false)
+	err := pcx.EnsurePackage(ensureMeta, false)
 	if err != nil {
 		return err
 	}
 
+	remoteMeta := ensureMeta
+	remoteMeta.Scheme = "plugin"
+
 	pcx.AllPlugins = append(pcx.AllPlugins, remoteMeta)
 	print.Verb(meta, "added remote plugin dependency:", remoteMeta)
+	return nil
+}
+
+// ensureComponentDependency handles component:// scheme dependencies
+// Components are installed like plugins but into the ./components directory.
+func (pcx *PackageContext) ensureComponentDependency(meta versioning.DependencyMeta) error {
+	if meta.IsLocalScheme() {
+		// Local component: component://local/path
+		componentPath := filepath.Join(pcx.Package.LocalPath, meta.Local)
+		if !fs.Exists(componentPath) {
+			return errors.Errorf("local component path does not exist: %s", componentPath)
+		}
+
+		componentMeta := versioning.DependencyMeta{
+			Scheme: "component",
+			Local:  meta.Local,
+			User:   "local",
+			Repo:   filepath.Base(meta.Local),
+		}
+
+		pcx.AllPlugins = append(pcx.AllPlugins, componentMeta)
+		print.Verb(meta, "added local component dependency:", componentPath)
+		return nil
+	}
+
+	// Remote component: component://user/repo or component://user/repo:tag
+	ensureMeta := versioning.DependencyMeta{
+		Site:   meta.Site,
+		User:   meta.User,
+		Repo:   meta.Repo,
+		Tag:    meta.Tag,
+		Branch: meta.Branch,
+		Commit: meta.Commit,
+		Path:   meta.Path,
+	}
+	if ensureMeta.Site == "" {
+		ensureMeta.Site = "github.com"
+	}
+
+	err := pcx.EnsurePackage(ensureMeta, false)
+	if err != nil {
+		return err
+	}
+
+	remoteMeta := ensureMeta
+	remoteMeta.Scheme = "component"
+
+	pcx.AllPlugins = append(pcx.AllPlugins, remoteMeta)
+	print.Verb(meta, "added remote component dependency:", remoteMeta)
 	return nil
 }
 

@@ -38,6 +38,7 @@ type Runtime struct {
 	Gamemodes     []string `cfg:"gamemode" numbered:"1"          json:"gamemodes,omitempty"     yaml:"gamemodes,omitempty"`     //
 	Filterscripts []string `                        required:"0" json:"filterscripts,omitempty" yaml:"filterscripts,omitempty"` //
 	Plugins       []Plugin `                        required:"0" json:"plugins,omitempty"       yaml:"plugins,omitempty"`       //
+	Components    []Plugin `ignore:"1"              required:"0" json:"components,omitempty"    yaml:"components,omitempty"`    // Open.MP components list
 	RCONPassword  *string  `                        required:"1" json:"rcon_password,omitempty" yaml:"rcon_password,omitempty"` // changeme
 	Port          *int     `default:"8192"          required:"0" json:"port,omitempty"          yaml:"port,omitempty"`          // 8192
 	Hostname      *string  `default:"SA-MP Server"  required:"0" json:"hostname,omitempty"      yaml:"hostname,omitempty"`      // SA-MP Server

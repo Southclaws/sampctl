@@ -42,30 +42,40 @@ func EnsurePlugins(
 
 	fileExt := pluginExtForFile(cfg.Platform)
 
-	var (
-		newPlugins = []run.Plugin{}
-		files      []run.Plugin
-	)
+	var files []run.Plugin
+
+	addedPlugins := make(map[run.Plugin]struct{})
+	addedComponents := make(map[run.Plugin]struct{})
 
 	for _, plugin := range cfg.PluginDeps {
-		files, err = EnsureVersionedPlugin(ctx, gh, plugin, cfg.WorkingDir, cfg.Platform, cfg.Version, cacheDir, getPluginDirectory(cfg), true, false, noCache, nil)
+		destDir := getPluginDirectory(cfg)
+		if plugin.Scheme == "component" {
+			destDir = "components"
+		}
+		files, err = EnsureVersionedPlugin(ctx, gh, plugin, cfg.WorkingDir, cfg.Platform, cfg.Version, cacheDir, destDir, true, false, noCache, nil)
 		if err != nil {
 			return
 		}
-		newPlugins = append(newPlugins, files...)
-	}
 
-	added := make(map[run.Plugin]struct{})
+		for _, file := range files {
+			name := run.Plugin(strings.TrimSuffix(string(file), fileExt))
+			if plugin.Scheme == "component" {
+				if _, ok := addedComponents[name]; ok {
+					continue
+				}
+				print.Verb("adding component by local filename", name)
+				cfg.Components = append(cfg.Components, name)
+				addedComponents[name] = struct{}{}
+				continue
+			}
 
-	for _, plugin := range newPlugins {
-		pluginName := run.Plugin(strings.TrimSuffix(string(plugin), fileExt))
-		if _, ok := added[pluginName]; ok {
-			continue
+			if _, ok := addedPlugins[name]; ok {
+				continue
+			}
+			print.Verb("adding plugin by local filename", name)
+			cfg.Plugins = append(cfg.Plugins, name)
+			addedPlugins[name] = struct{}{}
 		}
-
-		print.Verb("adding plugin by local filename", pluginName)
-		cfg.Plugins = append(cfg.Plugins, pluginName)
-		added[pluginName] = struct{}{}
 	}
 
 	return err
