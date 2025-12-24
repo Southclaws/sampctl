@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"dario.cat/mergo"
 	"github.com/pkg/errors"
@@ -54,11 +55,12 @@ type Package struct {
 	Website      string   `json:"website,omitempty" yaml:"website,omitempty"`           // website or forum topic associated with the package
 
 	// Functional, set by the package author to declare relevant files and dependencies
+	Preset                string                        `json:"preset,omitempty" yaml:"preset,omitempty"`                                   // package preset controlling default runtime/compiler (samp, openmp)
 	Entry                 string                        `json:"entry,omitempty" yaml:"entry,omitempty"`                                     // entry point script to compile the project
 	Output                string                        `json:"output,omitempty" yaml:"output,omitempty"`                                   // output amx file
 	Dependencies          []versioning.DependencyString `json:"dependencies,omitempty" yaml:"dependencies,omitempty"`                       // list of packages that the package depends on
 	Development           []versioning.DependencyString `json:"dev_dependencies,omitempty" yaml:"dev_dependencies,omitempty"`               // list of packages that only the package builds depend on
-	Local                 bool                          `json:"local,omitempty" yaml:"local,omitempty"`                                     // run package in local dir instead of in a temporary runtime
+	Local                 *bool                         `json:"local,omitempty" yaml:"local,omitempty"`                                     // run package in local dir instead of in a temporary runtime (nil = inferred)
 	Runtime               *run.Runtime                  `json:"runtime,omitempty" yaml:"runtime,omitempty"`                                 // runtime configuration
 	Runtimes              []*run.Runtime                `json:"runtimes,omitempty" yaml:"runtimes,omitempty"`                               // multiple runtime configurations
 	Build                 *build.Config                 `json:"build,omitempty" yaml:"build,omitempty"`                                     // build configuration
@@ -66,6 +68,28 @@ type Package struct {
 	IncludePath           string                        `json:"include_path,omitempty" yaml:"include_path,omitempty"`                       // include path within the repository, so users don't need to specify the path explicitly
 	Resources             []resource.Resource           `json:"resources,omitempty" yaml:"resources,omitempty"`                             // list of additional resources associated with the package
 	ExtractIgnorePatterns []string                      `json:"extract_ignore_patterns,omitempty" yaml:"extract_ignore_patterns,omitempty"` // patterns of files to skip when extracting plugin archives
+}
+
+func (pkg Package) effectivePreset() string {
+	preset := strings.ToLower(strings.TrimSpace(pkg.Preset))
+	if preset != "" {
+		return preset
+	}
+
+	if pkg.Runtime != nil && pkg.Runtime.Version != "" {
+		if run.DetectRuntimeType(pkg.Runtime.Version) == run.RuntimeTypeOpenMP {
+			return "openmp"
+		}
+	}
+	for _, rt := range pkg.Runtimes {
+		if rt != nil && rt.Version != "" {
+			if run.DetectRuntimeType(rt.Version) == run.RuntimeTypeOpenMP {
+				return "openmp"
+			}
+		}
+	}
+
+	return "samp"
 }
 
 func (pkg Package) String() string {
@@ -79,6 +103,15 @@ func (pkg Package) Validate() (err error) {
 	}
 
 	return
+}
+
+// EffectiveLocal resolves whether this package should run inside the working directory.
+func (pkg Package) EffectiveLocal() bool {
+	if pkg.Local != nil {
+		return *pkg.Local
+	}
+
+	return pkg.Parent
 }
 
 // GetAllDependencies returns the Dependencies and the Development dependencies in one list
@@ -131,6 +164,14 @@ func (pkg Package) WriteDefinition() (err error) {
 // configuration is returned.
 func (pkg Package) GetBuildConfig(name string) (config *build.Config) {
 	def := build.Default()
+	preset := pkg.effectivePreset()
+	noBuildDefs := len(pkg.Builds) == 0 && pkg.Build == nil
+	if noBuildDefs {
+		switch preset {
+		case "samp", "openmp":
+			def.Compiler.Preset = preset
+		}
+	}
 
 	// if there are no builds at all, use default
 	if len(pkg.Builds) == 0 && pkg.Build == nil {
@@ -176,6 +217,15 @@ func (pkg Package) GetBuildConfig(name string) (config *build.Config) {
 		config.Args = def.Args
 	}
 
+	if config.Compiler.Path == "" &&
+		config.Compiler.Site == "" && config.Compiler.User == "" && config.Compiler.Repo == "" && config.Compiler.Version == "" &&
+		config.Compiler.Preset == "" {
+		switch preset {
+		case "samp", "openmp":
+			config.Compiler.Preset = preset
+		}
+	}
+
 	return config
 }
 
@@ -206,6 +256,15 @@ func (pkg Package) GetRuntimeConfig(name string) (config run.Runtime, err error)
 	} else {
 		print.Verb(pkg, "using default config")
 		config = run.Runtime{}
+	}
+
+	if config.Version == "" {
+		switch pkg.effectivePreset() {
+		case "openmp":
+			config.Version = "openmp"
+		case "samp":
+			config.Version = "0.3.7"
+		}
 	}
 	run.ApplyRuntimeDefaults(&config)
 

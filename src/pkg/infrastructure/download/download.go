@@ -4,13 +4,17 @@ package download
 
 import (
 	"context"
+	"io"
+	"math/rand/v2"
 	"mime"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/go-github/github"
 	"github.com/mitchellh/go-homedir"
@@ -20,6 +24,21 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
+)
+
+var (
+	fromNetMaxAttempts   = 5
+	fromNetSleep         = time.Sleep
+	fromNetClientFactory = func() *http.Client { return &http.Client{Timeout: 60 * time.Second} }
+	fromNetBackoff       = func(attempt int) time.Duration {
+		base := 250 * time.Millisecond
+		d := base << max(0, attempt-1)
+		if d > 4*time.Second {
+			d = 4 * time.Second
+		}
+		j := time.Duration(rand.IntN(200)) * time.Millisecond
+		return d + j
+	}
 )
 
 // ExtractFunc represents a function responsible for extracting a set of files from an archive to
@@ -104,39 +123,97 @@ func FromCache(cacheDir, filename, dir string, method ExtractFunc, paths map[str
 func FromNet(ctx context.Context, location, cachePath string) (result string, err error) {
 	print.Verb("attempting to download package from", location, "to", cachePath)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, location, nil)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to create request")
-	}
+	client := fromNetClientFactory()
+	maxAttempts := fromNetMaxAttempts
+	backoff := fromNetBackoff
 
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", errors.Wrapf(err, "failed to download package from %s", location)
-	}
-	defer func() {
-		if errClose := resp.Body.Close(); errClose != nil {
-			panic(errClose)
+	var lastErr error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		req, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, location, nil)
+		if reqErr != nil {
+			return "", errors.Wrap(reqErr, "failed to create request")
 		}
-	}()
+		req.Header.Set("User-Agent", "sampctl")
+		req.Header.Set("Accept", "application/octet-stream, application/*, */*")
 
-	if resp.StatusCode != http.StatusOK {
-		return "", errors.Errorf("unexpected status code given %d", resp.StatusCode)
-	}
+		resp, doErr := client.Do(req)
+		if doErr != nil {
+			lastErr = errors.Wrapf(doErr, "failed to download package from %s", location)
+			if attempt < maxAttempts {
+				fromNetSleep(backoff(attempt))
+				continue
+			}
+			return "", lastErr
+		}
 
-	ct := resp.Header.Get("Content-Type")
-	if ct != "" {
-		if t, _, err := mime.ParseMediaType(ct); err == nil {
-			if !(strings.HasPrefix(t, "application/") || strings.HasPrefix(t, "text/")) {
-				return "", errors.Errorf("content has unexpected content type %s", t)
+		if resp.StatusCode != http.StatusOK {
+			retryable := (resp.StatusCode >= 500 && resp.StatusCode <= 599) || resp.StatusCode == http.StatusTooManyRequests
+			_, _ = io.CopyN(io.Discard, resp.Body, 32*1024)
+			_ = resp.Body.Close()
+			lastErr = errors.Errorf("unexpected status code given %d", resp.StatusCode)
+			err = lastErr
+			if !retryable {
+				// Non-retryable status codes (e.g., 401/403/404) won't improve with retries.
+				return "", err
+			}
+			if attempt < maxAttempts {
+				if resp.StatusCode == http.StatusTooManyRequests {
+					if ra := resp.Header.Get("Retry-After"); ra != "" {
+						if secs, convErr := strconv.Atoi(strings.TrimSpace(ra)); convErr == nil && secs > 0 && secs <= 10 {
+							fromNetSleep(time.Duration(secs) * time.Second)
+							continue
+						}
+					}
+				}
+				fromNetSleep(backoff(attempt))
+				continue
+			}
+			return "", err
+		}
+
+		ct := resp.Header.Get("Content-Type")
+		if ct != "" {
+			if t, _, parseErr := mime.ParseMediaType(ct); parseErr == nil {
+				if !(strings.HasPrefix(t, "application/") || strings.HasPrefix(t, "text/")) {
+					_ = resp.Body.Close()
+					lastErr = errors.Errorf("content has unexpected content type %s", t)
+					err = lastErr
+					if attempt < maxAttempts {
+						fromNetSleep(backoff(attempt))
+						continue
+					}
+					return "", err
+				}
 			}
 		}
+
+		if writeErr := fs.WriteFromReaderAtomic(cachePath, resp.Body, fs.PermDirPrivate, fs.PermFileShared); writeErr != nil {
+			_ = resp.Body.Close()
+			lastErr = errors.Wrap(writeErr, "failed to write package to cache")
+			err = lastErr
+			if attempt < maxAttempts {
+				fromNetSleep(backoff(attempt))
+				continue
+			}
+			return "", err
+		}
+		_ = resp.Body.Close()
+		err = nil
+
+		if err == nil {
+			return cachePath, nil
+		}
+		if attempt < maxAttempts {
+			fromNetSleep(backoff(attempt))
+			continue
+		}
+		return "", err
 	}
 
-	if err := fs.WriteFromReaderAtomic(cachePath, resp.Body, fs.PermDirPrivate, fs.PermFileShared); err != nil {
-		return "", errors.Wrap(err, "failed to write package to cache")
+	if lastErr == nil {
+		lastErr = errors.New("download failed")
 	}
-
-	return cachePath, nil
+	return "", lastErr
 }
 
 // ReleaseAssetByPattern downloads a resource file, which is a GitHub release asset

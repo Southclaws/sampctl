@@ -19,9 +19,9 @@ var packageInitFlags = []cli.Flag{
 		Usage: "working directory for the project - by default, uses the current directory",
 	},
 	cli.StringFlag{
-		Name:  "runtime",
+		Name:  "preset",
 		Value: "samp",
-		Usage: "default target runtime for the project: 'samp' for SA-MP or 'openmp' for open.mp",
+		Usage: "specify the preset to use for the project: 'samp' for SA-MP or 'openmp' for open.mp",
 	},
 }
 
@@ -31,11 +31,11 @@ func packageInit(c *cli.Context) error {
 	}
 
 	dir := fs.MustAbs(c.String("dir"))
-	runtime := c.String("runtime")
+	preset := c.String("preset")
 
-	if runtime != "samp" && runtime != "openmp" {
-		print.Warn("Invalid runtime option provided, defaulting to 'samp'.")
-		runtime = "samp"
+	if preset != "samp" && preset != "openmp" {
+		print.Warn("Invalid preset option provided, defaulting to 'samp'.")
+		preset = "samp"
 	}
 
 	cacheDir, err := fs.ConfigDir()
@@ -48,7 +48,7 @@ func packageInit(c *cli.Context) error {
 		return errors.New("Directory already appears to be a package")
 	}
 
-	err = rook.Init(context.Background(), gh, dir, cfg, gitAuth, platform(c), cacheDir, runtime)
+	err = rook.Init(context.Background(), gh, dir, cfg, gitAuth, platform(c), cacheDir, preset)
 
 	return err
 }

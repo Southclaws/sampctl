@@ -159,7 +159,7 @@ func (pcx *PackageContext) RunPrepare(ctx context.Context) (err error) {
 		pcx.ActualRuntime.Platform = pcx.Platform
 	}
 
-	if !pcx.Package.Local {
+	if !pcx.Package.EffectiveLocal() {
 		print.Verb(pcx.Package, "package is not local, preparing temporary runtime")
 
 		scriptfiles := filepath.Join(pcx.Package.LocalPath, "scriptfiles")
