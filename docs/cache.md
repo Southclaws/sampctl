@@ -8,8 +8,6 @@ On Linux, the cache/config directory is typically:
 
 - `~/.config/sampctl`
 
-(Example from this environment: `/root/.config/sampctl`.)
-
 On other platforms it uses the OS “local app config” directory for the app name `sampctl`.
 
 ## What’s inside?
