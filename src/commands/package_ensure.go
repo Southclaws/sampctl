@@ -45,6 +45,14 @@ func packageEnsure(c *cli.Context) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
 	defer cancel()
 
+	updated, err := pcx.TagTaglessDependencies(ctx, forceUpdate)
+	if err != nil {
+		return errors.Wrap(err, "failed to tag tagless dependencies")
+	}
+	if updated {
+		print.Info("updated package dependencies with latest tags")
+	}
+
 	err = pcx.EnsureDependencies(ctx, forceUpdate)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure dependencies")
