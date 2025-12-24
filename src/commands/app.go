@@ -321,7 +321,7 @@ func CheckForUpdates(thisVersion string) {
 
 	this, err := semver.NewVersion(thisVersion)
 	if err != nil {
-		print.Erro("Failed to interpret this version number as a semantic version:", err)
+		print.Verb("Failed to interpret this version number as a semantic version:", err)
 		return
 	}
 
@@ -336,9 +336,9 @@ func CheckForUpdates(thisVersion string) {
 			print.Info("  scoop update sampctl")
 		case "linux":
 			print.Info("  Debian/Ubuntu based systems:")
-			print.Info("  curl https://raw.githubusercontent.com/Southclaws/sampctl/master/install-deb.sh | sh")
+			print.Info("  curl https://raw.githubusercontent.com/Southclaws/sampctl/master/scripts/install-deb.sh | sh")
 			print.Info("  CentOS/Red Hat based systems")
-			print.Info("  curl https://raw.githubusercontent.com/Southclaws/sampctl/master/install-rpm.sh | sh")
+			print.Info("  curl https://raw.githubusercontent.com/Southclaws/sampctl/master/scripts/install-rpm.sh | sh")
 		case "darwin":
 			print.Info("  brew update")
 			print.Info("  brew upgrade sampctl")
