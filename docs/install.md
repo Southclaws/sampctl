@@ -53,6 +53,17 @@ A Homebrew formula is provided in `Casks/sampctl.rb`. If you use Homebrew, you c
 
 If you’re not sure, use “Option A” (GitHub releases).
 
+## Option D: Scoop (Windows)
+
+If you use Scoop on Windows, you can install sampctl using the Scoop manifest in this repo (`sampctl.json`).
+
+1. Install Scoop (if you don’t already have it): https://scoop.sh/
+2. Install sampctl:
+
+```powershell
+scoop install https://raw.githubusercontent.com/Southclaws/sampctl/master/sampctl.json
+```
+
 ## Verify it works
 
 ```bash
