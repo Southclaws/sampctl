@@ -111,11 +111,7 @@ func (pkg Package) EffectiveLocal() bool {
 		return *pkg.Local
 	}
 
-	if !pkg.Parent {
-		return false
-	}
-
-	return false
+	return pkg.Parent
 }
 
 // GetAllDependencies returns the Dependencies and the Development dependencies in one list

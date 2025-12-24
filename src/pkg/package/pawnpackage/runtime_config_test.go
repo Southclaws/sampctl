@@ -42,3 +42,22 @@ func TestGetBuildConfigPresetInferredFromRuntime(t *testing.T) {
 	cfg := pkg.GetBuildConfig("")
 	require.Equal(t, "openmp", cfg.Compiler.Preset)
 }
+
+func TestEffectiveLocal_Inferred(t *testing.T) {
+	pkg := Package{Parent: true, Local: nil}
+	require.True(t, pkg.EffectiveLocal())
+
+	pkg = Package{Parent: false, Local: nil}
+	require.False(t, pkg.EffectiveLocal())
+}
+
+func TestEffectiveLocal_ExplicitOverride(t *testing.T) {
+	trueVal := true
+	falseVal := false
+
+	pkg := Package{Parent: false, Local: &trueVal}
+	require.True(t, pkg.EffectiveLocal())
+
+	pkg = Package{Parent: true, Local: &falseVal}
+	require.False(t, pkg.EffectiveLocal())
+}
