@@ -26,6 +26,21 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
 
+var (
+	fromNetMaxAttempts   = 5
+	fromNetSleep         = time.Sleep
+	fromNetClientFactory = func() *http.Client { return &http.Client{Timeout: 60 * time.Second} }
+	fromNetBackoff       = func(attempt int) time.Duration {
+		base := 250 * time.Millisecond
+		d := base << max(0, attempt-1)
+		if d > 4*time.Second {
+			d = 4 * time.Second
+		}
+		j := time.Duration(rand.Intn(200)) * time.Millisecond
+		return d + j
+	}
+)
+
 // ExtractFunc represents a function responsible for extracting a set of files from an archive to
 // a directory. The map argument contains a map of source files in the archive to target file
 // locations on the host filesystem (absolute paths).
@@ -108,18 +123,9 @@ func FromCache(cacheDir, filename, dir string, method ExtractFunc, paths map[str
 func FromNet(ctx context.Context, location, cachePath string) (result string, err error) {
 	print.Verb("attempting to download package from", location, "to", cachePath)
 
-	client := &http.Client{Timeout: 60 * time.Second}
-
-	const maxAttempts = 5
-	backoff := func(attempt int) time.Duration {
-		base := 250 * time.Millisecond
-		d := base << max(0, attempt-1)
-		if d > 4*time.Second {
-			d = 4 * time.Second
-		}
-		j := time.Duration(rand.Intn(200)) * time.Millisecond
-		return d + j
-	}
+	client := fromNetClientFactory()
+	maxAttempts := fromNetMaxAttempts
+	backoff := fromNetBackoff
 
 	var lastErr error
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
@@ -134,64 +140,71 @@ func FromNet(ctx context.Context, location, cachePath string) (result string, er
 		if doErr != nil {
 			lastErr = errors.Wrapf(doErr, "failed to download package from %s", location)
 			if attempt < maxAttempts {
-				time.Sleep(backoff(attempt))
+				fromNetSleep(backoff(attempt))
 				continue
 			}
 			return "", lastErr
 		}
 
-		func() {
-			defer func() {
-				_ = resp.Body.Close()
-			}()
-
-			if resp.StatusCode != http.StatusOK {
-				if (resp.StatusCode >= 500 && resp.StatusCode <= 599) || resp.StatusCode == http.StatusTooManyRequests {
-					_, _ = io.CopyN(io.Discard, resp.Body, 32*1024)
-					lastErr = errors.Errorf("unexpected status code given %d", resp.StatusCode)
-					if attempt < maxAttempts {
-						if ra := resp.Header.Get("Retry-After"); ra != "" {
-							if secs, convErr := strconv.Atoi(strings.TrimSpace(ra)); convErr == nil && secs > 0 && secs <= 10 {
-								time.Sleep(time.Duration(secs) * time.Second)
-								return
-							}
+		if resp.StatusCode != http.StatusOK {
+			retryable := (resp.StatusCode >= 500 && resp.StatusCode <= 599) || resp.StatusCode == http.StatusTooManyRequests
+			_, _ = io.CopyN(io.Discard, resp.Body, 32*1024)
+			_ = resp.Body.Close()
+			lastErr = errors.Errorf("unexpected status code given %d", resp.StatusCode)
+			err = lastErr
+			if !retryable {
+				// Non-retryable status codes (e.g., 401/403/404) won't improve with retries.
+				return "", err
+			}
+			if attempt < maxAttempts {
+				if resp.StatusCode == http.StatusTooManyRequests {
+					if ra := resp.Header.Get("Retry-After"); ra != "" {
+						if secs, convErr := strconv.Atoi(strings.TrimSpace(ra)); convErr == nil && secs > 0 && secs <= 10 {
+							fromNetSleep(time.Duration(secs) * time.Second)
+							continue
 						}
-						time.Sleep(backoff(attempt))
-						return
 					}
+				}
+				fromNetSleep(backoff(attempt))
+				continue
+			}
+			return "", err
+		}
+
+		ct := resp.Header.Get("Content-Type")
+		if ct != "" {
+			if t, _, parseErr := mime.ParseMediaType(ct); parseErr == nil {
+				if !(strings.HasPrefix(t, "application/") || strings.HasPrefix(t, "text/")) {
+					_ = resp.Body.Close()
+					lastErr = errors.Errorf("content has unexpected content type %s", t)
 					err = lastErr
-					return
-				}
-
-				lastErr = errors.Errorf("unexpected status code given %d", resp.StatusCode)
-				err = lastErr
-				return
-			}
-
-			ct := resp.Header.Get("Content-Type")
-			if ct != "" {
-				if t, _, parseErr := mime.ParseMediaType(ct); parseErr == nil {
-					if !(strings.HasPrefix(t, "application/") || strings.HasPrefix(t, "text/")) {
-						lastErr = errors.Errorf("content has unexpected content type %s", t)
-						err = lastErr
-						return
+					if attempt < maxAttempts {
+						fromNetSleep(backoff(attempt))
+						continue
 					}
+					return "", err
 				}
 			}
+		}
 
-			if writeErr := fs.WriteFromReaderAtomic(cachePath, resp.Body, fs.PermDirPrivate, fs.PermFileShared); writeErr != nil {
-				lastErr = errors.Wrap(writeErr, "failed to write package to cache")
-				err = lastErr
-				return
+		if writeErr := fs.WriteFromReaderAtomic(cachePath, resp.Body, fs.PermDirPrivate, fs.PermFileShared); writeErr != nil {
+			_ = resp.Body.Close()
+			lastErr = errors.Wrap(writeErr, "failed to write package to cache")
+			err = lastErr
+			if attempt < maxAttempts {
+				fromNetSleep(backoff(attempt))
+				continue
 			}
-			err = nil
-		}()
+			return "", err
+		}
+		_ = resp.Body.Close()
+		err = nil
 
 		if err == nil {
 			return cachePath, nil
 		}
 		if attempt < maxAttempts {
-			time.Sleep(backoff(attempt))
+			fromNetSleep(backoff(attempt))
 			continue
 		}
 		return "", err
