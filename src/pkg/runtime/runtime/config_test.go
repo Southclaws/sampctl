@@ -71,11 +71,11 @@ func TestOpenMPConfigGeneration(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
 
-	// Create necessary directories for Open.MP
+	// Create necessary directories for open.mp
 	err = os.MkdirAll(filepath.Join(tmpDir, "components"), 0o755)
 	require.NoError(t, err)
 
-	// Create an Open.MP runtime config
+	// Create an open.mp runtime config
 	cfg := &run.Runtime{
 		WorkingDir: tmpDir,
 		Platform:   "linux",
@@ -84,7 +84,7 @@ func TestOpenMPConfigGeneration(t *testing.T) {
 	}
 
 	// Set some basic config values
-	hostname := "My Open.MP Test Server"
+	hostname := "My open.mp Test Server"
 	port := 7777
 	maxPlayers := 100
 	rconPassword := "testpass123"
@@ -101,7 +101,7 @@ func TestOpenMPConfigGeneration(t *testing.T) {
 	announce := true
 	cfg.Announce = &announce
 
-	// Test that it's detected as Open.MP
+	// Test that it's detected as open.mp
 	assert.True(t, cfg.IsOpenMP())
 
 	// Generate config
@@ -121,7 +121,7 @@ func TestOpenMPConfigGeneration(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check basic fields
-	assert.Equal(t, "My Open.MP Test Server", config["name"])
+	assert.Equal(t, "My open.mp Test Server", config["name"])
 	assert.Equal(t, float64(100), config["max_players"])
 
 	// Check network settings
@@ -169,7 +169,7 @@ func TestConfigGeneratorSelection(t *testing.T) {
 	generator := GetConfigGenerator(sampCfg)
 	assert.Equal(t, "server.cfg", generator.GetConfigFilename())
 
-	// Test Open.MP generator selection
+	// Test open.mp generator selection
 	openmpCfg := &run.Runtime{
 		WorkingDir: "/tmp",
 		Version:    "1.2.0-openmp",
@@ -183,7 +183,7 @@ func TestExtraFieldsSupport(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
 
-	// Create an Open.MP runtime config with extra fields
+	// Create an open.mp runtime config with extra fields
 	cfg := &run.Runtime{
 		WorkingDir: tmpDir,
 		Platform:   "linux",
