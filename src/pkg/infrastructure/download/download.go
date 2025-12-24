@@ -5,7 +5,7 @@ package download
 import (
 	"context"
 	"io"
-	"math/rand"
+	"math/rand/v2"
 	"mime"
 	"net/http"
 	"net/url"
@@ -36,7 +36,7 @@ var (
 		if d > 4*time.Second {
 			d = 4 * time.Second
 		}
-		j := time.Duration(rand.Intn(200)) * time.Millisecond
+		j := time.Duration(rand.IntN(200)) * time.Millisecond
 		return d + j
 	}
 )
