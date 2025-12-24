@@ -299,12 +299,6 @@ func Init(
 		pkg.Output = "gamemodes/test.amx"
 	}
 
-	if answers.PackageType == "gamemode" {
-		pkg.Local = true
-	} else {
-		pkg.Local = false
-	}
-
 	wg := sync.WaitGroup{}
 
 	if answers.GitIgnore {

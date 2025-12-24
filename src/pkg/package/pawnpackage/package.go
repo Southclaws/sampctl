@@ -60,7 +60,7 @@ type Package struct {
 	Output                string                        `json:"output,omitempty" yaml:"output,omitempty"`                                   // output amx file
 	Dependencies          []versioning.DependencyString `json:"dependencies,omitempty" yaml:"dependencies,omitempty"`                       // list of packages that the package depends on
 	Development           []versioning.DependencyString `json:"dev_dependencies,omitempty" yaml:"dev_dependencies,omitempty"`               // list of packages that only the package builds depend on
-	Local                 bool                          `json:"local,omitempty" yaml:"local,omitempty"`                                     // run package in local dir instead of in a temporary runtime
+	Local                 *bool                         `json:"local,omitempty" yaml:"local,omitempty"`                                     // run package in local dir instead of in a temporary runtime (nil = inferred)
 	Runtime               *run.Runtime                  `json:"runtime,omitempty" yaml:"runtime,omitempty"`                                 // runtime configuration
 	Runtimes              []*run.Runtime                `json:"runtimes,omitempty" yaml:"runtimes,omitempty"`                               // multiple runtime configurations
 	Build                 *build.Config                 `json:"build,omitempty" yaml:"build,omitempty"`                                     // build configuration
@@ -103,6 +103,19 @@ func (pkg Package) Validate() (err error) {
 	}
 
 	return
+}
+
+// EffectiveLocal resolves whether this package should run inside the working directory.
+func (pkg Package) EffectiveLocal() bool {
+	if pkg.Local != nil {
+		return *pkg.Local
+	}
+
+	if !pkg.Parent {
+		return false
+	}
+
+	return false
 }
 
 // GetAllDependencies returns the Dependencies and the Development dependencies in one list
