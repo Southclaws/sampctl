@@ -4,13 +4,17 @@ package download
 
 import (
 	"context"
+	"io"
+	"math/rand"
 	"mime"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/go-github/github"
 	"github.com/mitchellh/go-homedir"
@@ -104,39 +108,106 @@ func FromCache(cacheDir, filename, dir string, method ExtractFunc, paths map[str
 func FromNet(ctx context.Context, location, cachePath string) (result string, err error) {
 	print.Verb("attempting to download package from", location, "to", cachePath)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, location, nil)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to create request")
-	}
+	client := &http.Client{Timeout: 60 * time.Second}
 
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", errors.Wrapf(err, "failed to download package from %s", location)
-	}
-	defer func() {
-		if errClose := resp.Body.Close(); errClose != nil {
-			panic(errClose)
+	const maxAttempts = 5
+	backoff := func(attempt int) time.Duration {
+		base := 250 * time.Millisecond
+		d := base << max(0, attempt-1)
+		if d > 4*time.Second {
+			d = 4 * time.Second
 		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", errors.Errorf("unexpected status code given %d", resp.StatusCode)
+		j := time.Duration(rand.Intn(200)) * time.Millisecond
+		return d + j
 	}
 
-	ct := resp.Header.Get("Content-Type")
-	if ct != "" {
-		if t, _, err := mime.ParseMediaType(ct); err == nil {
-			if !(strings.HasPrefix(t, "application/") || strings.HasPrefix(t, "text/")) {
-				return "", errors.Errorf("content has unexpected content type %s", t)
+	var lastErr error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		req, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, location, nil)
+		if reqErr != nil {
+			return "", errors.Wrap(reqErr, "failed to create request")
+		}
+		req.Header.Set("User-Agent", "sampctl")
+		req.Header.Set("Accept", "application/octet-stream, application/*, */*")
+
+		resp, doErr := client.Do(req)
+		if doErr != nil {
+			lastErr = errors.Wrapf(doErr, "failed to download package from %s", location)
+			if attempt < maxAttempts {
+				time.Sleep(backoff(attempt))
+				continue
 			}
+			return "", lastErr
 		}
+
+		func() {
+			defer func() {
+				_ = resp.Body.Close()
+			}()
+
+			if resp.StatusCode != http.StatusOK {
+				if (resp.StatusCode >= 500 && resp.StatusCode <= 599) || resp.StatusCode == http.StatusTooManyRequests {
+					_, _ = io.CopyN(io.Discard, resp.Body, 32*1024)
+					lastErr = errors.Errorf("unexpected status code given %d", resp.StatusCode)
+					if attempt < maxAttempts {
+						if ra := resp.Header.Get("Retry-After"); ra != "" {
+							if secs, convErr := strconv.Atoi(strings.TrimSpace(ra)); convErr == nil && secs > 0 && secs <= 10 {
+								time.Sleep(time.Duration(secs) * time.Second)
+								return
+							}
+						}
+						time.Sleep(backoff(attempt))
+						return
+					}
+					err = lastErr
+					return
+				}
+
+				lastErr = errors.Errorf("unexpected status code given %d", resp.StatusCode)
+				err = lastErr
+				return
+			}
+
+			ct := resp.Header.Get("Content-Type")
+			if ct != "" {
+				if t, _, parseErr := mime.ParseMediaType(ct); parseErr == nil {
+					if !(strings.HasPrefix(t, "application/") || strings.HasPrefix(t, "text/")) {
+						lastErr = errors.Errorf("content has unexpected content type %s", t)
+						err = lastErr
+						return
+					}
+				}
+			}
+
+			if writeErr := fs.WriteFromReaderAtomic(cachePath, resp.Body, fs.PermDirPrivate, fs.PermFileShared); writeErr != nil {
+				lastErr = errors.Wrap(writeErr, "failed to write package to cache")
+				err = lastErr
+				return
+			}
+			err = nil
+		}()
+
+		if err == nil {
+			return cachePath, nil
+		}
+		if attempt < maxAttempts {
+			time.Sleep(backoff(attempt))
+			continue
+		}
+		return "", err
 	}
 
-	if err := fs.WriteFromReaderAtomic(cachePath, resp.Body, fs.PermDirPrivate, fs.PermFileShared); err != nil {
-		return "", errors.Wrap(err, "failed to write package to cache")
+	if lastErr == nil {
+		lastErr = errors.New("download failed")
 	}
+	return "", lastErr
+}
 
-	return cachePath, nil
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // ReleaseAssetByPattern downloads a resource file, which is a GitHub release asset
