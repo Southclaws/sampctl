@@ -2,6 +2,7 @@ package pkgcontext
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -27,6 +28,14 @@ func (pcx *PackageContext) TagTaglessDependencies(ctx context.Context, forceUpda
 		return false, errors.New("package has no local path")
 	}
 
+	definitionPath, definitionPerm, originalDefinition, err := pcx.readDefinitionSnapshot()
+	if err != nil {
+		return false, errors.Wrap(err, "failed to read package definition")
+	}
+
+	originalDeps := append([]versioning.DependencyString(nil), pcx.Package.Dependencies...)
+	originalDev := append([]versioning.DependencyString(nil), pcx.Package.Development...)
+
 	changedDeps, err := pcx.tagTaglessDependencyList(ctx, pcx.Package.Dependencies, forceUpdate)
 	if err != nil {
 		return false, err
@@ -49,10 +58,43 @@ func (pcx *PackageContext) TagTaglessDependencies(ctx context.Context, forceUpda
 	}
 
 	if err := pcx.EnsureDependenciesCached(); err != nil {
-		return true, errors.Wrap(err, "failed to refresh dependency tree after tagging")
+		pcx.Package.Dependencies = originalDeps
+		pcx.Package.Development = originalDev
+		restoreErr := fs.WriteFileAtomic(definitionPath, originalDefinition, fs.PermDirPrivate, definitionPerm)
+		if restoreErr != nil {
+			return false, errors.Wrapf(err, "failed to refresh dependency tree after tagging, rollback failed: %v", restoreErr)
+		}
+		return false, errors.Wrap(err, "failed to refresh dependency tree after tagging, rolling back changes")
 	}
 
 	return true, nil
+}
+
+func (pcx *PackageContext) readDefinitionSnapshot() (path string, perm os.FileMode, contents []byte, err error) {
+	var name string
+	switch pcx.Package.Format {
+	case "json":
+		name = "pawn.json"
+	case "yaml":
+		name = "pawn.yaml"
+	default:
+		err = errors.New("package has no format associated with it")
+		return
+	}
+
+	path = filepath.Join(pcx.Package.LocalPath, name)
+	stat, statErr := os.Stat(path)
+	if statErr != nil {
+		err = statErr
+		return
+	}
+	perm = stat.Mode().Perm()
+
+	contents, err = os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	return
 }
 
 type tagListResult struct {
@@ -65,6 +107,7 @@ func (pcx *PackageContext) tagTaglessDependencyList(ctx context.Context, deps []
 	for _, depStr := range deps {
 		meta, err := depStr.Explode()
 		if err != nil {
+			print.Warn("invalid dependency string, skipping tag resolution:", depStr, "(", err, ")")
 			res.updated = append(res.updated, depStr)
 			continue
 		}
@@ -84,7 +127,11 @@ func (pcx *PackageContext) tagTaglessDependencyList(ctx context.Context, deps []
 
 		tag, err := pcx.resolveLatestTag(ctx, meta, forceUpdate)
 		if err != nil {
-			print.Verb(meta, "failed to resolve latest tag:", err)
+			if strings.Contains(err.Error(), "failed to refresh dependency cache") {
+				print.Warn(meta, "failed to resolve latest tag:", err)
+			} else {
+				print.Verb(meta, "failed to resolve latest tag:", err)
+			}
 			res.updated = append(res.updated, depStr)
 			continue
 		}
@@ -143,8 +190,16 @@ func (pcx *PackageContext) resolveLatestTag(ctx context.Context, meta versioning
 		}
 	}
 
-	_, _ = pcx.EnsureDependencyCached(meta, forceUpdate)
-	return pcx.latestTagFromCache(meta)
+	_, ensureErr := pcx.EnsureDependencyCached(meta, forceUpdate)
+	if ensureErr != nil {
+		return "", errors.Wrap(ensureErr, "failed to refresh dependency cache")
+	}
+
+	tag, err = pcx.latestTagFromCache(meta)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to read tags after refreshing dependency cache")
+	}
+	return tag, nil
 }
 
 func (pcx *PackageContext) latestTagFromGitHubRelease(ctx context.Context, meta versioning.DependencyMeta) (string, error) {
@@ -253,6 +308,12 @@ func (pcx *PackageContext) latestTagFromCache(meta versioning.DependencyMeta) (s
 			} else if bestVer == nil && parsed != nil {
 				bestName = tagName
 				bestVer = parsed
+			} else if bestVer == nil && parsed == nil {
+				// Deterministic tie-break for non-semver tags: prefer the lexicographically
+				// greatest tag name (stable across map/iterator ordering).
+				if tagName > bestName {
+					bestName = tagName
+				}
 			}
 		}
 
