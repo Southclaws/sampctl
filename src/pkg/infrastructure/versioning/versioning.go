@@ -20,7 +20,7 @@ type DependencyString string
 
 // DependencyMeta represents all the individual components of a DependencyString
 type DependencyMeta struct {
-	Site   string `json:"site,omitempty"`                           // The site the repo exists on, default is github.com
+	Site   string `json:"site,omitempty" yaml:"site,omitempty"`     // The site the repo exists on, default is github.com
 	User   string `json:"user"`                                     // Repository owner
 	Repo   string `json:"repo"`                                     // Repository name
 	Path   string `json:"path,omitempty" yaml:"path,omitempty"`     // Optional subdirectory for .inc files
