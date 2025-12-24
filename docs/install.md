@@ -67,7 +67,7 @@ scoop bucket add sampctl https://github.com/Southclaws/sampctl
 3. Install sampctl:
 
 ```powershell
-scoop install sampctl
+scoop install sampctl/sampctl
 ```
 
 **Note**: sampctl is not yet available in the official Scoop buckets (like `main` or `extras`). The above method adds this repository as a custom bucket for easier updates. If you prefer a one-time install without adding a bucket, you can use:
