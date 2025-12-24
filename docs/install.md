@@ -58,11 +58,25 @@ If you’re not sure, use “Option A” (GitHub releases).
 If you use Scoop on Windows, you can install sampctl using the Scoop manifest in this repo (`sampctl.json`).
 
 1. Install Scoop (if you don’t already have it): https://scoop.sh/
-2. Install sampctl:
+2. Add the sampctl bucket:
+
+```powershell
+scoop bucket add sampctl https://github.com/Southclaws/sampctl
+```
+
+3. Install sampctl:
+
+```powershell
+scoop install sampctl
+```
+
+**Note**: sampctl is not yet available in the official Scoop buckets (like `main` or `extras`). The above method adds this repository as a custom bucket for easier updates. If you prefer a one-time install without adding a bucket, you can use:
 
 ```powershell
 scoop install https://raw.githubusercontent.com/Southclaws/sampctl/master/sampctl.json
 ```
+
+However, this method won’t support automatic updates via `scoop update`.
 
 ## Verify it works
 
