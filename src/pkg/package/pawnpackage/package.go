@@ -38,7 +38,7 @@ type Package struct {
 	// `dependencies` directory that have been downloaded as a result of an Ensure.
 	Parent bool `json:"-" yaml:"-"`
 	// LocalPath indicates the Package object represents a local copy which is a directory
-	// containing a `samp.json`/`samp.yaml` file and a set of Pawn source code files.
+	// containing a `pawn.json`/`pawn.yaml` file and a set of Pawn source code files.
 	// If this field is not set, then the Package is just an in-memory pointer to a remote package.
 	LocalPath string `json:"-" yaml:"-"`
 	// The vendor directory - for simple packages with no sub-dependencies, this is simply
