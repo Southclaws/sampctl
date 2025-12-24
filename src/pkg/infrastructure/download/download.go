@@ -216,13 +216,6 @@ func FromNet(ctx context.Context, location, cachePath string) (result string, er
 	return "", lastErr
 }
 
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 // ReleaseAssetByPattern downloads a resource file, which is a GitHub release asset
 func ReleaseAssetByPattern(
 	ctx context.Context,
