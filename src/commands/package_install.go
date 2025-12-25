@@ -2,18 +2,13 @@ package commands
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"strings"
 
-	"github.com/pkg/errors"
-	"gopkg.in/urfave/cli.v1"
-
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
+	"github.com/pkg/errors"
+	"gopkg.in/urfave/cli.v1"
 )
 
 var packageInstallFlags = []cli.Flag{
@@ -68,22 +63,5 @@ func packageInstall(c *cli.Context) error {
 }
 
 func packageInstallBash(c *cli.Context) {
-	cacheDir, err := fs.ConfigDir()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to get config dir:", err)
-		return
-	}
-
-	packages, err := download.GetPackageList(cacheDir)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to get package list:", err)
-		return
-	}
-
-	query := c.Args().First()
-	for _, pkg := range packages {
-		if strings.HasPrefix(pkg.String(), query) {
-			fmt.Println(pkg)
-		}
-	}
+	completePackageList(c)
 }
