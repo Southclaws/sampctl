@@ -176,18 +176,7 @@ func (pcx *PackageContext) installPackageResources(meta versioning.DependencyMet
 
 // ensureURLSchemeDependency handles dependencies with URL-like schemes (plugin://, includes://, filterscript://)
 func (pcx *PackageContext) ensureURLSchemeDependency(meta versioning.DependencyMeta) error {
-	switch meta.Scheme {
-	case "plugin":
-		return pcx.ensurePluginDependency(meta)
-	case "component":
-		return pcx.ensureComponentDependency(meta)
-	case "includes":
-		return pcx.ensureIncludesDependency(meta)
-	case "filterscript":
-		return pcx.ensureFilterscriptDependency(meta)
-	default:
-		return errors.Errorf("unsupported URL scheme: %s", meta.Scheme)
-	}
+	return ensureURLSchemeWithHandler(pcx, meta)
 }
 
 // ensurePluginDependency handles plugin:// scheme dependencies
