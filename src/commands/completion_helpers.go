@@ -8,17 +8,16 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 )
 
 func completePackageList(c *cli.Context) {
-	cacheDir, err := fs.ConfigDir()
+	env, err := getCommandEnv(c)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Failed to get config dir:", err)
 		return
 	}
 
-	packages, err := download.GetPackageList(cacheDir)
+	packages, err := download.GetPackageList(env.CacheDir)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Failed to get package list:", err)
 		return

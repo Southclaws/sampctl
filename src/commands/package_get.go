@@ -13,16 +13,12 @@ import (
 var packageGetFlags = []cli.Flag{}
 
 func packageGet(c *cli.Context) error {
-	if c.Bool("verbose") {
-		print.SetVerbose()
-	}
-
 	if len(c.Args()) == 0 {
 		cli.ShowCommandHelpAndExit(c, "get", 0)
 		return nil
 	}
 
-	cacheDir, err := fs.ConfigDir()
+	env, err := getCommandEnv(c)
 	if err != nil {
 		return err
 	}
@@ -37,7 +33,7 @@ func packageGet(c *cli.Context) error {
 		dir = fs.MustAbs(".")
 	}
 
-	err = rook.Get(context.Background(), gh, dep, dir, gitAuth, platform(c), cacheDir)
+	err = rook.Get(context.Background(), gh, dep, dir, gitAuth, env.Platform, env.CacheDir)
 	if err != nil {
 		return err
 	}

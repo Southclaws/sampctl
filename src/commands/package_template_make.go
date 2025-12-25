@@ -28,10 +28,6 @@ var packageTemplateMakeFlags = []cli.Flag{
 }
 
 func packageTemplateMake(c *cli.Context) (err error) {
-	if c.Bool("verbose") {
-		print.SetVerbose()
-	}
-
 	forceUpdate := c.Bool("update")
 
 	if len(c.Args()) != 1 {
@@ -39,13 +35,13 @@ func packageTemplateMake(c *cli.Context) (err error) {
 		return nil
 	}
 
-	cacheDir, err := fs.ConfigDir()
+	env, err := getCommandEnv(c)
 	if err != nil {
 		return err
 	}
 	name := c.Args().First()
 
-	templatePath := filepath.Join(cacheDir, "templates", name)
+	templatePath := filepath.Join(env.CacheDir, "templates", name)
 	if fs.Exists(templatePath) {
 		return errors.New("A template with that name already exists")
 	}
@@ -68,7 +64,7 @@ func packageTemplateMake(c *cli.Context) (err error) {
 	}
 
 	pcx, err := pkgcontext.NewPackageContext(
-		gh, nil, true, templatePath, platform(c), cacheDir, "", false)
+		gh, nil, true, templatePath, env.Platform, env.CacheDir, "", false)
 	if err != nil {
 		return errors.Wrap(err, "failed to create package context")
 	}

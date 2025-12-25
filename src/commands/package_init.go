@@ -26,10 +26,6 @@ var packageInitFlags = []cli.Flag{
 }
 
 func packageInit(c *cli.Context) error {
-	if c.Bool("verbose") {
-		print.SetVerbose()
-	}
-
 	dir := fs.MustAbs(c.String("dir"))
 	preset := c.String("preset")
 
@@ -38,17 +34,17 @@ func packageInit(c *cli.Context) error {
 		preset = "samp"
 	}
 
-	cacheDir, err := fs.ConfigDir()
+	env, err := getCommandEnv(c)
 	if err != nil {
-		return errors.Wrap(err, "failed to get config dir")
+		return err
 	}
 
-	_, err = pkgcontext.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "", true)
+	_, err = pkgcontext.NewPackageContext(gh, gitAuth, true, dir, env.Platform, env.CacheDir, "", true)
 	if err != nil {
 		return errors.New("Directory already appears to be a package")
 	}
 
-	err = rook.Init(context.Background(), gh, dir, cfg, gitAuth, platform(c), cacheDir, preset)
+	err = rook.Init(context.Background(), gh, dir, cfg, gitAuth, env.Platform, env.CacheDir, preset)
 
 	return err
 }

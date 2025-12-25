@@ -30,10 +30,6 @@ var packageTemplateRunFlags = []cli.Flag{
 }
 
 func packageTemplateRun(c *cli.Context) (err error) {
-	if c.Bool("verbose") {
-		print.SetVerbose()
-	}
-
 	version := c.String("version")
 	mode := c.String("mode")
 
@@ -42,14 +38,14 @@ func packageTemplateRun(c *cli.Context) (err error) {
 		return nil
 	}
 
-	cacheDir, err := fs.ConfigDir()
+	env, err := getCommandEnv(c)
 	if err != nil {
 		return err
 	}
 	template := c.Args().Get(0)
 	filename := c.Args().Get(1)
 
-	templatePath := filepath.Join(cacheDir, "templates", template)
+	templatePath := filepath.Join(env.CacheDir, "templates", template)
 	if !fs.Exists(templatePath) {
 		return errors.Errorf("template '%s' does not exist", template)
 	}
@@ -58,7 +54,7 @@ func packageTemplateRun(c *cli.Context) (err error) {
 		return errors.Errorf("no such file or directory: %s", filename)
 	}
 
-	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, templatePath, platform(c), cacheDir, "", false)
+	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, templatePath, env.Platform, env.CacheDir, "", false)
 	if err != nil {
 		return errors.Wrap(err, "template package is invalid")
 	}
@@ -93,7 +89,7 @@ func packageTemplateRun(c *cli.Context) (err error) {
 	pcx.Runtime = ""
 	pcx.Container = false
 	pcx.AppVersion = c.App.Version
-	pcx.CacheDir = cacheDir
+	pcx.CacheDir = env.CacheDir
 	pcx.BuildName = ""
 	pcx.ForceBuild = false
 	pcx.ForceEnsure = false

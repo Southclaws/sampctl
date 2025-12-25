@@ -19,16 +19,12 @@ var packageTemplateBuildFlags = []cli.Flag{
 }
 
 func packageTemplateBuild(c *cli.Context) (err error) {
-	if c.Bool("verbose") {
-		print.SetVerbose()
-	}
-
 	if len(c.Args()) != 2 {
 		cli.ShowCommandHelpAndExit(c, "build", 0)
 		return nil
 	}
 
-	cacheDir, err := fs.ConfigDir()
+	env, err := getCommandEnv(c)
 	if err != nil {
 		return err
 	}
@@ -36,7 +32,7 @@ func packageTemplateBuild(c *cli.Context) (err error) {
 	template := c.Args().Get(0)
 	filename := c.Args().Get(1)
 
-	templatePath := filepath.Join(cacheDir, "templates", template)
+	templatePath := filepath.Join(env.CacheDir, "templates", template)
 	if !fs.Exists(templatePath) {
 		return errors.Errorf("template '%s' does not exist", template)
 	}
@@ -45,7 +41,7 @@ func packageTemplateBuild(c *cli.Context) (err error) {
 		return errors.Errorf("no such file or directory: %s", filename)
 	}
 
-	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, templatePath, platform(c), cacheDir, "", false)
+	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, templatePath, env.Platform, env.CacheDir, "", false)
 	if err != nil {
 		return errors.Wrap(err, "template package is invalid")
 	}
