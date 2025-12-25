@@ -89,6 +89,7 @@ loop:
 		switch {
 		// if no more files are found return
 		case err == io.EOF:
+			err = nil
 			break loop
 
 		// return any other error
@@ -140,7 +141,7 @@ loop:
 			}
 
 			var file *os.File
-			file, err = os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
+			file, err = os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(header.Mode))
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to open extract target file")
 			}
