@@ -261,9 +261,9 @@ func Init(
 
 			buf.WriteString("\n")
 			buf.WriteString("\nmain() \n{\n")
-			buf.WriteString(`\t// write code here and run "sampctl build" to compile`)
+			buf.WriteString(`  // write code here and run "sampctl build" to compile`)
 			buf.WriteString("\n")
-			buf.WriteString(`\t// then run "sampctl run" to run it`)
+			buf.WriteString(`  // then run "sampctl run" to run it`)
 			buf.WriteString("\n}\n")
 			err := os.WriteFile(file, buf.Bytes(), 0o600)
 			if err != nil {
