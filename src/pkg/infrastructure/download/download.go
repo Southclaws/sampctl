@@ -121,9 +121,14 @@ func FromCache(cacheDir, filename, dir string, method ExtractFunc, paths map[str
 }
 
 func FromNet(ctx context.Context, location, cachePath string) (result string, err error) {
-	print.Verb("attempting to download package from", location, "to", cachePath)
+	return FromNetWithClient(ctx, fromNetClientFactory(), location, cachePath)
+}
 
-	client := fromNetClientFactory()
+func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath string) (result string, err error) {
+	print.Verb("attempting to download package from", location, "to", cachePath)
+	if client == nil {
+		client = fromNetClientFactory()
+	}
 	maxAttempts := fromNetMaxAttempts
 	backoff := fromNetBackoff
 

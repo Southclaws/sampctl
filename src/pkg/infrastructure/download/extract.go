@@ -52,8 +52,8 @@ func UntarWithIgnore(src, dst string, paths map[string]string, ignorePatterns []
 		return nil, errors.Wrap(err, "failed to open archive")
 	}
 	defer func() {
-		if errClose := reader.Close(); errClose != nil {
-			panic(errClose)
+		if errClose := reader.Close(); errClose != nil && err == nil {
+			err = errClose
 		}
 	}()
 
@@ -67,15 +67,15 @@ func UntarWithIgnore(src, dst string, paths map[string]string, ignorePatterns []
 			return nil, errors.Wrap(err, "failed to create new zlib reader after failed attempt at gzip")
 		}
 		defer func() {
-			if err = zl.Close(); err != nil {
-				panic(err)
+			if errClose := zl.Close(); errClose != nil && err == nil {
+				err = errClose
 			}
 		}()
 		tr = tar.NewReader(zl)
 	} else {
 		defer func() {
-			if err = gz.Close(); err != nil {
-				panic(err)
+			if errClose := gz.Close(); errClose != nil && err == nil {
+				err = errClose
 			}
 		}()
 		tr = tar.NewReader(gz)
@@ -144,15 +144,12 @@ loop:
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to open extract target file")
 			}
-
-			defer func() {
-				if err = file.Close(); err != nil {
-					panic(err)
-				}
-			}()
-
 			if _, err = io.Copy(file, tr); err != nil {
+				_ = file.Close()
 				return nil, errors.Wrap(err, "failed to copy archive file to destination")
+			}
+			if errClose := file.Close(); errClose != nil {
+				return nil, errors.Wrap(errClose, "failed to close extract target file")
 			}
 
 			files[source] = target
@@ -177,8 +174,8 @@ func UnzipWithIgnore(src, dst string, paths map[string]string, ignorePatterns []
 		return nil, err
 	}
 	defer func() {
-		if errClose := reader.Close(); errClose != nil {
-			panic(errClose)
+		if errClose := reader.Close(); errClose != nil && err == nil {
+			err = errClose
 		}
 	}()
 
@@ -223,26 +220,26 @@ func UnzipWithIgnore(src, dst string, paths map[string]string, ignorePatterns []
 			if err != nil {
 				return nil, err
 			}
-			defer func() {
-				if err = archivedFile.Close(); err != nil {
-					panic(err)
-				}
-			}()
 
 			var file *os.File
 			file, err = os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, header.Mode())
 			if err != nil {
+				_ = archivedFile.Close()
 				return nil, errors.Wrap(err, "failed to open extract target file")
 			}
-			defer func() {
-				if err = file.Close(); err != nil {
-					panic(err)
-				}
-			}()
 
 			_, err = io.Copy(file, archivedFile)
 			if err != nil {
+				_ = file.Close()
+				_ = archivedFile.Close()
 				return nil, errors.Wrap(err, "failed to copy archive file to destination")
+			}
+			if errClose := file.Close(); errClose != nil {
+				_ = archivedFile.Close()
+				return nil, errors.Wrap(errClose, "failed to close extract target file")
+			}
+			if errClose := archivedFile.Close(); errClose != nil {
+				return nil, errors.Wrap(errClose, "failed to close archived file")
 			}
 
 			files[source] = target
