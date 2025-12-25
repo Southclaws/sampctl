@@ -231,6 +231,18 @@ func ReleaseAssetByPattern(
 	outputFile,
 	cacheDir string,
 ) (filename, tag string, err error) {
+	return ReleaseAssetByPatternWithAPI(ctx, githubClientReleasesAdapter{client: gh}, meta, matcher, dir, outputFile, cacheDir)
+}
+
+func ReleaseAssetByPatternWithAPI(
+	ctx context.Context,
+	gh GitHubReleasesAPI,
+	meta versioning.DependencyMeta,
+	matcher *regexp.Regexp,
+	dir,
+	outputFile,
+	cacheDir string,
+) (filename, tag string, err error) {
 	var (
 		asset  *github.ReleaseAsset
 		assets = make([]string, 1)
@@ -240,7 +252,7 @@ func ReleaseAssetByPattern(
 	if meta.Tag == "" {
 		release, err = getLatestReleaseOrPreRelease(ctx, gh, meta.User, meta.Repo)
 	} else {
-		release, _, err = gh.Repositories.GetReleaseByTag(ctx, meta.User, meta.Repo, meta.Tag)
+		release, _, err = gh.GetReleaseByTag(ctx, meta.User, meta.Repo, meta.Tag)
 	}
 	if err != nil {
 		return
@@ -291,11 +303,11 @@ func ReleaseAssetByPattern(
 
 func getLatestReleaseOrPreRelease(
 	ctx context.Context,
-	gh *github.Client,
+	gh GitHubReleasesAPI,
 	owner string,
 	repo string,
 ) (release *github.RepositoryRelease, err error) {
-	releases, _, err := gh.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{})
+	releases, _, err := gh.ListReleases(ctx, owner, repo, &github.ListOptions{})
 	if err != nil {
 		err = errors.Wrap(err, "failed to list releases")
 		return
