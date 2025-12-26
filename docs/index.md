@@ -16,6 +16,7 @@ This documentation is for people using `sampctl` to manage SA:MP servers and Paw
 ## Guides
 
 - [Dependencies and version pinning](dependencies.md)
+- [Library creator guide (includes + plugins)](library-creator-guide.md)
 - [Testing (watch mode, runtime modes)](testing.md)
 - [Containers (Docker)](containers.md)
 - [Continuous integration (CI)](ci.md)
