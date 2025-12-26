@@ -90,6 +90,8 @@ sampctl run --container
 See also:
 
 - [Dependencies and version pinning](dependencies.md)
+- [Dependency schemes (plugins, components, includes)](dependency-schemes.md)
+- [Library creator guide (includes + plugins)](library-creator-guide.md)
 - [Testing (watch mode, runtime modes)](testing.md)
 - [Containers (Docker)](containers.md)
 

@@ -126,110 +126,18 @@ If your library depends on a server plugin, you have two goals:
 1) Make it easy for users to get the `.inc`.
 2) Make it easy for `sampctl` to download the correct `.dll`/`.so` for the user’s platform.
 
-### Recommended: declare `resources`
+### Plugin packaging (single source of truth)
 
-Add a `resources` section to your `pawn.json` describing how to find and extract plugin binaries from your GitHub release assets.
+Plugin libraries should declare `resources` in `pawn.json` so `sampctl` can download the right binaries from GitHub release assets.
 
-A minimal example for a plugin that ships two archives (Windows + Linux):
+To avoid repeating (and keeping this guide focused on getting started), the detailed `resources` reference and examples live here:
 
-```json
-{
-  "entry": "test.pwn",
-  "output": "test.amx",
-  "dependencies": ["pawn-lang/samp-stdlib"],
-  "resources": [
-    {
-      "name": "^my-plugin-(.*)\\.zip$",
-      "platform": "windows",
-      "archive": true,
-      "includes": ["pawno/include"],
-      "plugins": ["plugins/my-plugin.dll"]
-    },
-    {
-      "name": "^my-plugin-(.*)\\.tar\\.gz$",
-      "platform": "linux",
-      "archive": true,
-      "includes": ["pawno/include"],
-      "plugins": ["plugins/my-plugin.so"]
-    }
-  ]
-}
-```
+- [Plugin resources (for plugin library authors)](plugin-resources.md)
 
-### Matching different release assets per runtime (SA:MP vs open.mp)
+Related user-facing docs:
 
-If you ship different binaries for SA:MP and open.mp, you typically need **two resources per platform**.
-
-For example, if you publish both of these assets for the same plugin version:
-
-- `my-plugin-1.2.3.zip` (SA:MP)
-- `my-plugin-1.2.3-omp.zip` (open.mp)
-
-…you can disambiguate them by using **different `resources[].name` patterns** and a **different `resources[].version`** for each runtime.
-
-Example (Windows shown; mirror it for Linux):
-
-```json
-{
-  "entry": "test.pwn",
-  "output": "test.amx",
-  "dependencies": ["pawn-lang/samp-stdlib"],
-  "resources": [
-    {
-      "name": "^my-plugin-(.*)\\.zip$",
-      "platform": "windows",
-      "version": "0.3.7",
-      "archive": true,
-      "plugins": ["plugins/my-plugin.dll"],
-      "includes": ["pawno/include"]
-    },
-    {
-      "name": "^my-plugin-(.*)-omp\\.zip$",
-      "platform": "windows",
-      "version": "openmp",
-      "archive": true,
-      "plugins": ["components/my-plugin.dll"],
-      "includes": ["pawno/include"]
-    }
-  ]
-}
-```
-
-Important details:
-
-- `resources[].version` is matched **exactly** against your runtime `version` string.
-- `runtime_type` (SA:MP vs open.mp) does **not** affect resource selection; only `version` and `platform` do.
-- If no exact `(platform, version)` match exists, `sampctl` falls back to the first resource with the same `platform` and an **empty** `resources[].version`.
-
-So for open.mp, set your runtime `version` to something that includes `openmp` / `open.mp` (e.g. `v1.2.0-openmp`) and set the open.mp resource `version` to the **same** string.
-
-### Resource `version` in practice
-
-Use `resources[].version` when you ship:
-
-- different binaries for `0.3.7` vs `0.3DL`, or
-- different binaries for SA:MP vs open.mp.
-
-If your binaries work for any server version for a platform, omit `resources[].version` and let the platform-only fallback handle it.
-
-Conventions that make this work well:
-
-- Release assets should have consistent names so the `name` regex matches.
-- If the release asset is an archive, keep plugin files under `plugins/` and includes under `pawno/include/` inside that archive.
-- If your plugin needs extra shared libraries, use `files` to map paths inside the archive to extraction paths.
-
-See also: `docs/package-definition-reference.md` (the `resources` and `extract_ignore_patterns` fields).
-
-### User install
-
-Users can either:
-
-- Add your repo as a normal dependency (recommended if you provide `resources`).
-- Or use `plugin://user/repo` for “plugin-only” dependencies.
-
-For open.mp components, users can use `component://user/repo`.
-
-See: `docs/dependencies.md`.
+- [Dependency schemes (plugins, components, includes)](dependency-schemes.md)
+- [Dependencies](dependencies.md)
 
 ## 7) Common pitfalls
 

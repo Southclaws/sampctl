@@ -37,6 +37,31 @@ Some dependencies are “installed” into special places instead of `./dependen
 - `includes://user/repo` adds additional include paths
 - `filterscript://user/repo` installs a filterscript
 
+See also: [Dependency schemes](dependency-schemes.md)
+
+## Plugins/components: what actually happens
+
+When a dependency is treated as a plugin/component, `sampctl`:
+
+1) Ensures the repo (like a normal dependency).
+2) Reads the dependency’s `resources` metadata.
+3) Picks a single resource by matching `(platform, runtime.version)`.
+4) Downloads the matching GitHub release asset and extracts binaries to:
+
+- `./plugins/` for SA:MP runtimes
+- `./components/` for open.mp runtimes
+
+Then it auto-adds the plugin/component name to the runtime config that is generated for the run.
+
+### Runtime version strings (resource matching)
+
+Resource selection is an **exact string match** against `runtime.version`.
+
+- If there’s no exact match, `sampctl` falls back to a resource with the same `platform` and an empty resource `version`.
+- open.mp detection is based on the runtime `version` string containing `openmp` or `open.mp`.
+
+If you’re a plugin author, see: [Plugin resources](plugin-resources.md)
+
 After changing dependencies:
 
 ```bash
