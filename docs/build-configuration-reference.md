@@ -23,26 +23,73 @@ sampctl build <build-name>
 }
 ```
 
-## Common fields
+## Fields
 
-- `name`: build name (used with `sampctl build <name>`).
-- `input`: override the input `.pwn` file for this build.
-- `output`: override the output `.amx` file for this build.
-- `workingDir`: working directory passed to the compiler.
-- `includes`: extra include paths/files.
-- `constants`: key/value constants passed to the compiler.
+All fields below are supported under a build entry (e.g. `builds.<name>`).
 
-## Compiler selection
+- `name` (string): build name (usually set implicitly by the `builds` map key).
+- `version` (string): optional version label.
+- `workingDir` (string): working directory for compilation.
+- `input` (string): source file to compile.
+- `output` (string): output `.amx` path.
+- `includes` (string[]): include directories passed as `-i` flags.
+- `constants` (object map): constant definitions passed as `-D` flags (key/value).
 
-Under `compiler`:
+### Args and options
 
-- `preset`: `samp` or `openmp` (recommended).
-- `site`/`user`/`repo`/`version`: use a compiler from a Git repo.
-- `path`: use a locally installed compiler.
+You can provide raw arguments and/or structured options:
 
-## Hooks
+- `args` (string[]): raw arguments passed to the compiler (**deprecated**, prefer `options`).
+- `options` (object): structured compiler options (see below).
 
-- `prebuild`: commands to run before compilation.
-- `postbuild`: commands to run after compilation.
+### Plugins (pre-compile commands)
 
-Note: `args` exists for older configs but `options` is preferred.
+- `plugins` (array of string arrays): commands to run before compilation.
+
+Example:
+
+```yaml
+build:
+  plugins:
+    - ["echo", "hello"]
+```
+
+### Compiler selection
+
+- `compiler` (string or object):
+  - string: a preset name (e.g. `samp`, `openmp`).
+  - object: a compiler configuration (see **Compiler config** below).
+
+### Hooks
+
+- `prebuild` (array of string arrays): commands run before compilation.
+- `postbuild` (array of string arrays): commands run after compilation.
+
+## Compiler options (`options`)
+
+These map to Pawn compiler flags:
+
+- `debug_level` (int): `-d<level>`
+- `require_semicolons` (bool): `-;+` / `-;-`
+- `require_parentheses` (bool): `-(+` / `-(-`
+- `require_escape_sequences` (bool): `-\\+` / `-\\-`
+- `compatibility_mode` (bool): `-Z+` / `-Z-`
+- `optimization_level` (int): `-O<level>`
+- `show_listing` (bool): `-l` / `-l-`
+- `show_annotated_assembly` (bool): `-a` / `-a-`
+- `show_error_file` (string): `-e<filename>`
+- `show_warnings` (bool): `-w+` / `-w-`
+- `compact_encoding` (bool): `-C+` / `-C-`
+- `tab_size` (int): `-t<spaces>`
+
+## Compiler config (`compiler` as an object)
+
+If `compiler` is an object, these fields are supported:
+
+- `preset` (string): `samp` or `openmp`.
+- `path` (string): local path to a compiler.
+- `site` / `user` / `repo` / `version` (strings): use a compiler from a Git repo.
+
+## Compiler presets
+
+`sampctl` ships with built-in compiler presets: `samp` and `openmp`.

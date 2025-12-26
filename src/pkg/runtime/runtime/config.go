@@ -277,6 +277,16 @@ func (o *OpenMPConfig) Generate(cfg *run.Runtime) error {
 		Extra:       make(map[string]interface{}),
 	}
 
+	if cfg.MaxBots != nil {
+		config.MaxBots = *cfg.MaxBots
+	}
+	if cfg.UseDynTicks != nil {
+		config.UseDynTicks = *cfg.UseDynTicks
+	}
+	if cfg.Logo != nil {
+		config.Logo = *cfg.Logo
+	}
+
 	if cfg.Hostname != nil {
 		config.Name = *cfg.Hostname
 	}
@@ -466,6 +476,15 @@ func (o *OpenMPConfig) Generate(cfg *run.Runtime) error {
 		jsonData[key] = value
 	}
 
+	deepMergeJSONIntoKey(jsonData, "game", cfg.Game)
+	deepMergeJSONIntoKey(jsonData, "network", cfg.Network)
+	deepMergeJSONIntoKey(jsonData, "logging", cfg.Logging)
+	deepMergeJSONIntoKey(jsonData, "pawn", cfg.Pawn)
+	deepMergeJSONIntoKey(jsonData, "discord", cfg.Discord)
+	deepMergeJSONIntoKey(jsonData, "banners", cfg.Banners)
+	deepMergeJSONIntoKey(jsonData, "artwork", cfg.Artwork)
+	deepMergeJSONIntoKey(jsonData, "rcon", cfg.RCONConfig)
+
 	file, err := os.Create(filepath.Join(o.workingDir, "config.json"))
 	if err != nil {
 		return err
@@ -491,6 +510,71 @@ func (o *OpenMPConfig) Generate(cfg *run.Runtime) error {
 	}
 
 	return nil
+}
+
+func deepMergeJSONIntoKey(dst map[string]interface{}, key string, src map[string]interface{}) {
+	if src == nil {
+		return
+	}
+
+	existing, ok := dst[key]
+	if !ok || existing == nil {
+		newMap := make(map[string]interface{}, len(src))
+		deepMergeJSON(newMap, src)
+		dst[key] = newMap
+		return
+	}
+
+	if existingMap, ok := existing.(map[string]interface{}); ok {
+		deepMergeJSON(existingMap, src)
+		dst[key] = existingMap
+		return
+	}
+
+	newMap := make(map[string]interface{}, len(src))
+	deepMergeJSON(newMap, src)
+	dst[key] = newMap
+}
+
+func deepMergeJSON(dst map[string]interface{}, src map[string]interface{}) {
+	for key, srcValue := range src {
+		if srcValue == nil {
+			dst[key] = nil
+			continue
+		}
+
+		srcMap, srcIsMap := srcValue.(map[string]interface{})
+		if !srcIsMap {
+			// yaml.v3 can sometimes decode nested maps as map[interface{}]interface{}.
+			if legacy, ok := srcValue.(map[interface{}]interface{}); ok {
+				srcMap = make(map[string]interface{}, len(legacy))
+				for k, v := range legacy {
+					ks, ok := k.(string)
+					if !ok {
+						continue
+					}
+					srcMap[ks] = v
+				}
+				srcIsMap = true
+			}
+		}
+
+		if srcIsMap {
+			if existing, ok := dst[key].(map[string]interface{}); ok {
+				deepMergeJSON(existing, srcMap)
+				dst[key] = existing
+				continue
+			}
+
+			// If destination isn't a map, replace it with a map and continue merging.
+			newMap := make(map[string]interface{}, len(srcMap))
+			deepMergeJSON(newMap, srcMap)
+			dst[key] = newMap
+			continue
+		}
+
+		dst[key] = srcValue
+	}
 }
 
 // generateLegacyServerCfg creates a server.cfg file with extras for legacy plugin compatibility
