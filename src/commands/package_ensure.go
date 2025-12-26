@@ -25,19 +25,15 @@ var packageEnsureFlags = []cli.Flag{
 }
 
 func packageEnsure(c *cli.Context) error {
-	if c.Bool("verbose") {
-		print.SetVerbose()
-	}
-
-	cacheDir, err := fs.ConfigDir()
+	env, err := getCommandEnv(c)
 	if err != nil {
-		return errors.Wrap(err, "failed to get config dir")
+		return err
 	}
 	dir := fs.MustAbs(c.String("dir"))
 	forceUpdate := c.Bool("update")
 
 	pcx, err := pkgcontext.NewPackageContext(
-		gh, nil, true, dir, platform(c), cacheDir, "", false)
+		gh, nil, true, dir, env.Platform, env.CacheDir, "", false)
 	if err != nil {
 		return errors.Wrap(err, "failed to create package context")
 	}

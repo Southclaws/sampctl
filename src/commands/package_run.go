@@ -8,7 +8,6 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
@@ -55,10 +54,6 @@ var packageRunFlags = []cli.Flag{
 }
 
 func packageRun(c *cli.Context) error {
-	if c.Bool("verbose") {
-		print.SetVerbose()
-	}
-
 	dir := fs.MustAbs(c.String("dir"))
 	container := c.Bool("container")
 	build := c.String("build")
@@ -71,12 +66,12 @@ func packageRun(c *cli.Context) error {
 
 	runtimeName := c.Args().Get(0)
 
-	cacheDir, err := fs.ConfigDir()
+	env, err := getCommandEnv(c)
 	if err != nil {
-		return errors.Wrap(err, "failed to get config dir")
+		return err
 	}
 
-	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "", false)
+	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, env.Platform, env.CacheDir, "", false)
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
@@ -84,7 +79,7 @@ func packageRun(c *cli.Context) error {
 	pcx.Runtime = runtimeName
 	pcx.Container = container
 	pcx.AppVersion = c.App.Version
-	pcx.CacheDir = cacheDir
+	pcx.CacheDir = env.CacheDir
 	pcx.BuildName = build
 	pcx.ForceBuild = forceBuild
 	pcx.ForceEnsure = forceEnsure

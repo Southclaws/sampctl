@@ -3,7 +3,6 @@ package commands
 import (
 	"context"
 	"fmt"
-	"runtime"
 
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
@@ -43,10 +42,6 @@ var packageBuildFlags = []cli.Flag{
 }
 
 func packageBuild(c *cli.Context) error {
-	if c.Bool("verbose") {
-		print.SetVerbose()
-	}
-
 	dir := fs.MustAbs(c.String("dir"))
 	forceEnsure := c.Bool("forceEnsure")
 	dryRun := c.Bool("dryRun")
@@ -56,12 +51,12 @@ func packageBuild(c *cli.Context) error {
 
 	build := c.Args().Get(0)
 
-	cacheDir, err := fs.ConfigDir()
+	env, err := getCommandEnv(c)
 	if err != nil {
-		return errors.Wrap(err, "failed to get config dir")
+		return err
 	}
 
-	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "", false)
+	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, env.Platform, env.CacheDir, "", false)
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
@@ -107,13 +102,12 @@ func packageBuild(c *cli.Context) error {
 
 func packageBuildBash(c *cli.Context) {
 	dir := fs.MustAbs(c.String("dir"))
-
-	cacheDir, err := fs.ConfigDir()
+	env, err := getCommandEnv(c)
 	if err != nil {
 		return
 	}
 
-	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, cacheDir, "", false)
+	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, env.Platform, env.CacheDir, "", false)
 	if err != nil {
 		return
 	}

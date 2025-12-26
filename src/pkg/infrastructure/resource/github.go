@@ -2,8 +2,13 @@ package resource
 
 import (
 	"context"
+	"crypto/md5"
+	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
+	"time"
 
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
@@ -23,6 +28,54 @@ type GitHubReleaseResource struct {
 	extractPaths   map[string]string
 }
 
+// Cached checks if the resource is cached and returns the cached file path if present.
+// Unlike BaseResource, GitHubReleaseResource stores the downloaded asset under its
+// original filename inside a stable cache directory.
+func (ghr *GitHubReleaseResource) Cached(version string) (bool, string) {
+	cacheDir := ghr.getCachePath(version)
+
+	info, err := os.Stat(cacheDir)
+	if err != nil {
+		return false, ""
+	}
+
+	// Backward compatibility: older cache layout stored the downloaded asset directly
+	// at the hash path
+	if !info.IsDir() {
+		if ghr.cacheTTL > 0 && time.Since(info.ModTime()) > ghr.cacheTTL {
+			return false, ""
+		}
+		return true, cacheDir
+	}
+
+	entries, err := os.ReadDir(cacheDir)
+	if err != nil {
+		return false, ""
+	}
+
+	var cachedFile string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		cachedFile = filepath.Join(cacheDir, entry.Name())
+		break
+	}
+	if cachedFile == "" {
+		return false, ""
+	}
+
+	fileInfo, err := os.Stat(cachedFile)
+	if err != nil {
+		return false, ""
+	}
+	if ghr.cacheTTL > 0 && time.Since(fileInfo.ModTime()) > ghr.cacheTTL {
+		return false, ""
+	}
+
+	return true, cachedFile
+}
+
 // NewGitHubReleaseResource creates a new GitHubReleaseResource
 func NewGitHubReleaseResource(
 	depMeta versioning.DependencyMeta,
@@ -30,7 +83,11 @@ func NewGitHubReleaseResource(
 	resourceType ResourceType,
 	ghClient *github.Client,
 ) *GitHubReleaseResource {
-	identifier := depMeta.String()
+	identifier := identifierFromDependencyMeta(depMeta)
+	if assetPattern != nil {
+		sum := md5.Sum([]byte(assetPattern.String()))
+		identifier = fmt.Sprintf("%s-%x", identifier, sum[:4])
+	}
 	version := depMeta.Tag
 	if version == "" {
 		version = "latest"
@@ -56,60 +113,90 @@ func (ghr *GitHubReleaseResource) SetExtractPaths(paths map[string]string) {
 
 // Ensure acquires the GitHub release asset, downloading and extracting as needed
 func (ghr *GitHubReleaseResource) Ensure(ctx context.Context, version, path string) error {
-	cachePath := ghr.getCachePath(version)
-	
+	if version == "" {
+		version = ghr.version
+	}
+	if ghr.ghClient == nil {
+		return errors.New("no GitHub client provided")
+	}
+
+	cacheDirPath := ghr.getCachePath(version)
+
 	// Check if already cached
 	if cached, cachedPath := ghr.Cached(version); cached {
-		// Mark as recently accessed
 		if err := ghr.MarkCached(cachedPath); err != nil {
 			return errors.Wrap(err, "failed to update cache timestamp")
 		}
-		
-		// Copy to target path if different
 		if path != "" && path != cachedPath {
 			return ghr.copyToTarget(cachedPath, path)
 		}
 		return nil
 	}
-	
-	// Ensure cache directory exists
-	if err := ghr.ensureCacheDir(cachePath); err != nil {
-		return errors.Wrap(err, "failed to create cache directory")
+
+	if err := ensureCacheDir(cacheDirPath); err != nil {
+		return err
 	}
-	
-	// Download the release asset
+
+	meta := ghr.dependencyMeta
+	if version == "latest" {
+		meta.Tag = ""
+	} else {
+		meta.Tag = version
+	}
+
+	downloadDir := cacheDirPath
+	if ghr.cacheDir != "" {
+		if rel, relErr := filepath.Rel(ghr.cacheDir, downloadDir); relErr == nil && rel != "" && !filepath.IsAbs(rel) && !strings.HasPrefix(rel, "..") {
+			downloadDir = rel
+		}
+	}
+
 	filename, tag, err := download.ReleaseAssetByPattern(
 		ctx,
 		ghr.ghClient,
-		ghr.dependencyMeta,
+		meta,
 		ghr.assetPattern,
-		filepath.Dir(cachePath),
-		filepath.Base(cachePath),
+		downloadDir,
+		"",
 		ghr.cacheDir,
 	)
 	if err != nil {
 		return errors.Wrap(err, "failed to download GitHub release asset")
 	}
-	
-	// Update version if we got latest
-	if ghr.version == "latest" && tag != "" {
+
+	resolvedVersion := version
+	if resolvedVersion == "latest" && tag != "" {
+		resolvedVersion = tag
 		ghr.version = tag
-		// Recalculate cache path with actual version
-		cachePath = ghr.getCachePath(ghr.version)
 	}
-	
-	// If it's an archive and we have extraction settings, extract it
+
+	// If we resolved "latest" to an actual tag, move the downloaded asset to the tagged cache path.
+	if resolvedVersion != version {
+		newCacheDirPath := ghr.getCachePath(resolvedVersion)
+		if err := ensureCacheDir(newCacheDirPath); err != nil {
+			return err
+		}
+		newFilename := filepath.Join(newCacheDirPath, filepath.Base(filename))
+		if filename != newFilename {
+			if err := os.Rename(filename, newFilename); err != nil {
+				if copyErr := util.CopyFile(filename, newFilename); copyErr != nil {
+					return errors.Wrap(err, "failed to move downloaded asset")
+				}
+				_ = os.Remove(filename)
+			}
+			filename = newFilename
+		}
+		cacheDirPath = newCacheDirPath
+	}
+
 	if ghr.extractFunc != nil && ghr.extractPaths != nil {
-		extractedFiles, err := ghr.extractFunc(filename, filepath.Dir(cachePath), ghr.extractPaths)
+		extractedFiles, err := ghr.extractFunc(filename, filepath.Dir(filename), ghr.extractPaths)
 		if err != nil {
 			return errors.Wrap(err, "failed to extract archive")
 		}
-		
-		// The extracted files are now in the cache directory
-		// If we have a target path, copy the extracted files there
 		if path != "" {
 			for _, extractedFile := range extractedFiles {
-				relPath, err := filepath.Rel(filepath.Dir(cachePath), extractedFile)
+				relPath, err := filepath.Rel(filepath.Dir(filename), extractedFile)
 				if err != nil {
 					continue
 				}
@@ -119,15 +206,15 @@ func (ghr *GitHubReleaseResource) Ensure(ctx context.Context, version, path stri
 				}
 			}
 		}
-	} else {
-		// Single file, copy to target if specified
-		if path != "" && path != cachePath {
-			if err := ghr.copyToTarget(cachePath, path); err != nil {
-				return errors.Wrap(err, "failed to copy to target path")
-			}
+		return nil
+	}
+
+	if path != "" && path != filename {
+		if err := ghr.copyToTarget(filename, path); err != nil {
+			return errors.Wrap(err, "failed to copy to target path")
 		}
 	}
-	
+
 	return nil
 }
 

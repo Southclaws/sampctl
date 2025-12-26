@@ -2,18 +2,13 @@ package commands
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"strings"
 
-	"github.com/pkg/errors"
-	"gopkg.in/urfave/cli.v1"
-
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
+	"github.com/pkg/errors"
+	"gopkg.in/urfave/cli.v1"
 )
 
 var packageInstallFlags = []cli.Flag{
@@ -30,10 +25,6 @@ var packageInstallFlags = []cli.Flag{
 
 //nolint:dupl
 func packageInstall(c *cli.Context) error {
-	if c.Bool("verbose") {
-		print.SetVerbose()
-	}
-
 	dir := fs.MustAbs(c.String("dir"))
 	development := c.Bool("dev")
 
@@ -42,9 +33,9 @@ func packageInstall(c *cli.Context) error {
 		return nil
 	}
 
-	cacheDir, err := fs.ConfigDir()
+	env, err := getCommandEnv(c)
 	if err != nil {
-		return errors.Wrap(err, "failed to get config dir")
+		return err
 	}
 
 	deps := []versioning.DependencyString{}
@@ -52,7 +43,7 @@ func packageInstall(c *cli.Context) error {
 		deps = append(deps, versioning.DependencyString(dep))
 	}
 
-	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, platform(c), cacheDir, "", false)
+	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, env.Platform, env.CacheDir, "", false)
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
@@ -68,22 +59,5 @@ func packageInstall(c *cli.Context) error {
 }
 
 func packageInstallBash(c *cli.Context) {
-	cacheDir, err := fs.ConfigDir()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to get config dir:", err)
-		return
-	}
-
-	packages, err := download.GetPackageList(cacheDir)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to get package list:", err)
-		return
-	}
-
-	query := c.Args().First()
-	for _, pkg := range packages {
-		if strings.HasPrefix(pkg.String(), query) {
-			fmt.Println(pkg)
-		}
-	}
+	completePackageList(c)
 }

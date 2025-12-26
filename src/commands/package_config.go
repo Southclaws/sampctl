@@ -10,7 +10,6 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/src/config"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 )
 
@@ -19,8 +18,9 @@ var packageConfigFlags = []cli.Flag{
 }
 
 func packageConfig(c *cli.Context) error {
-	if c.Bool("verbose") {
-		print.SetVerbose()
+	env, err := getCommandEnv(c)
+	if err != nil {
+		return err
 	}
 
 	field := c.Args().Get(0) // the name of the config field
@@ -75,11 +75,7 @@ func packageConfig(c *cli.Context) error {
 		}
 	}
 
-	cacheDir, err := fs.ConfigDir()
-	if err != nil {
-		return err
-	}
-	config.WriteConfig(cacheDir, *cnf)
+	config.WriteConfig(env.CacheDir, *cnf)
 	print.Info("successfully set config field", field, "to", value)
 
 	return nil

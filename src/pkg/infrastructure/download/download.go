@@ -107,23 +107,26 @@ func FromCache(cacheDir, filename, dir string, method ExtractFunc, paths map[str
 		return
 	}
 
-	if platform == "linux" || platform == "darwin" {
+	if fs.IsPosixPlatform(platform) {
 		print.Verb("setting permissions for binaries")
-		for _, file := range files {
-			err = os.Chmod(file, 0o700)
-			if err != nil {
-				return
-			}
-		}
+	}
+	if err := fs.ChmodAllIfPosix(platform, files, fs.PermFileExec); err != nil {
+		hit = false
+		return false, err
 	}
 
 	return true, nil
 }
 
 func FromNet(ctx context.Context, location, cachePath string) (result string, err error) {
-	print.Verb("attempting to download package from", location, "to", cachePath)
+	return FromNetWithClient(ctx, fromNetClientFactory(), location, cachePath)
+}
 
-	client := fromNetClientFactory()
+func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath string) (result string, err error) {
+	print.Verb("attempting to download package from", location, "to", cachePath)
+	if client == nil {
+		client = fromNetClientFactory()
+	}
 	maxAttempts := fromNetMaxAttempts
 	backoff := fromNetBackoff
 
@@ -198,16 +201,7 @@ func FromNet(ctx context.Context, location, cachePath string) (result string, er
 			return "", err
 		}
 		_ = resp.Body.Close()
-		err = nil
-
-		if err == nil {
-			return cachePath, nil
-		}
-		if attempt < maxAttempts {
-			fromNetSleep(backoff(attempt))
-			continue
-		}
-		return "", err
+		return cachePath, nil
 	}
 
 	if lastErr == nil {
@@ -226,6 +220,18 @@ func ReleaseAssetByPattern(
 	outputFile,
 	cacheDir string,
 ) (filename, tag string, err error) {
+	return ReleaseAssetByPatternWithAPI(ctx, githubClientReleasesAdapter{client: gh}, meta, matcher, dir, outputFile, cacheDir)
+}
+
+func ReleaseAssetByPatternWithAPI(
+	ctx context.Context,
+	gh GitHubReleasesAPI,
+	meta versioning.DependencyMeta,
+	matcher *regexp.Regexp,
+	dir,
+	outputFile,
+	cacheDir string,
+) (filename, tag string, err error) {
 	var (
 		asset  *github.ReleaseAsset
 		assets = make([]string, 1)
@@ -235,7 +241,7 @@ func ReleaseAssetByPattern(
 	if meta.Tag == "" {
 		release, err = getLatestReleaseOrPreRelease(ctx, gh, meta.User, meta.Repo)
 	} else {
-		release, _, err = gh.Repositories.GetReleaseByTag(ctx, meta.User, meta.Repo, meta.Tag)
+		release, _, err = gh.GetReleaseByTag(ctx, meta.User, meta.Repo, meta.Tag)
 	}
 	if err != nil {
 		return
@@ -286,11 +292,11 @@ func ReleaseAssetByPattern(
 
 func getLatestReleaseOrPreRelease(
 	ctx context.Context,
-	gh *github.Client,
+	gh GitHubReleasesAPI,
 	owner string,
 	repo string,
 ) (release *github.RepositoryRelease, err error) {
-	releases, _, err := gh.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{})
+	releases, _, err := gh.ListReleases(ctx, owner, repo, &github.ListOptions{})
 	if err != nil {
 		err = errors.Wrap(err, "failed to list releases")
 		return

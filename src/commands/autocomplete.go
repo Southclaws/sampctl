@@ -38,12 +38,12 @@ func autoComplete(c *cli.Context) (err error) {
 		return
 	}
 
-	cacheDir, err := fs.ConfigDir()
+	env, err := getCommandEnv(c)
 	if err != nil {
 		return err
 	}
 
-	completionFile := filepath.Join(cacheDir, "autocomplete")
+	completionFile := filepath.Join(env.CacheDir, "autocomplete")
 
 	err = os.WriteFile(completionFile, contents, fs.PermFileExec)
 	if err != nil {

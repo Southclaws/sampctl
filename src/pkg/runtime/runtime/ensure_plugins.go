@@ -13,11 +13,12 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
+	infraresource "github.com/Southclaws/sampctl/src/pkg/infrastructure/resource"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
-	"github.com/Southclaws/sampctl/src/resource"
+	pkgresource "github.com/Southclaws/sampctl/src/resource"
 )
 
 // getPluginDirectory returns the appropriate plugin directory based on runtime type
@@ -106,6 +107,9 @@ func EnsureVersionedPlugin(
 	if resource.Archive {
 		print.Verb(meta, "plugin resource is an archive")
 		ext := filepath.Ext(filename)
+		if ext == "" {
+			ext = detectArchiveExt(filename)
+		}
 
 		paths := make(map[string]string)
 
@@ -194,6 +198,30 @@ func EnsureVersionedPlugin(
 	return files, err
 }
 
+func detectArchiveExt(filename string) string {
+	f, err := os.Open(filename)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+
+	var b [4]byte
+	_, err = f.Read(b[:])
+	if err != nil {
+		return ""
+	}
+
+	if b[0] == 'P' && b[1] == 'K' {
+		return ".zip"
+	}
+
+	if b[0] == 0x1f && b[1] == 0x8b {
+		return ".gz"
+	}
+
+	return ""
+}
+
 // EnsureVersionedPluginCached ensures that a plugin exists in the cache
 func EnsureVersionedPluginCached(
 	ctx context.Context,
@@ -205,7 +233,7 @@ func EnsureVersionedPluginCached(
 	gh *github.Client,
 ) (
 	filename string,
-	resource *resource.Resource,
+	resource *pkgresource.Resource,
 	err error,
 ) {
 	hit := false
@@ -239,9 +267,8 @@ func PluginFromCache(
 	platform string,
 	version string,
 	cacheDir string,
-) (hit bool, filename string, resource *resource.Resource, err error) {
-	resourcePath := filepath.Join(cacheDir, GetResourcePath(meta))
-	print.Verb("getting plugin resource from cache", meta, resourcePath)
+) (hit bool, filename string, resource *pkgresource.Resource, err error) {
+	print.Verb("getting plugin resource from cache", meta)
 
 	pkg, err := pawnpackage.GetCachedPackage(meta, cacheDir)
 	if err != nil {
@@ -251,14 +278,6 @@ func PluginFromCache(
 		return
 	}
 	if pkg.Format == "" {
-		return
-	}
-
-	files, err := os.ReadDir(resourcePath)
-	if err != nil {
-		print.Verb("cache hit failed while trying to read cached plugin folder:", err)
-		err = nil
-		hit = false
 		return
 	}
 
@@ -273,21 +292,16 @@ func PluginFromCache(
 		return
 	}
 
-	found := false
-	name := ""
-	for _, file := range files {
-		name = file.Name()
-		if matcher.MatchString(name) {
-			found = true
-			break
-		}
-	}
-	if !found {
+	ghr := infraresource.NewGitHubReleaseResource(meta, matcher, infraresource.ResourceTypePlugin, nil)
+	ghr.SetCacheDir(cacheDir)
+
+	var ok bool
+	ok, filename = ghr.Cached(meta.Tag)
+	if !ok {
 		return
 	}
 
 	hit = true
-	filename = filepath.Join(resourcePath, name)
 
 	return hit, filename, resource, nil
 }
@@ -300,17 +314,8 @@ func PluginFromNet(
 	platform string,
 	version string,
 	cacheDir string,
-) (filename string, resource *resource.Resource, err error) {
+) (filename string, resource *pkgresource.Resource, err error) {
 	print.Info(meta, "downloading plugin resource for", platform)
-
-	resourcePathOnly := GetResourcePath(meta)
-	resourcePath := filepath.Join(cacheDir, resourcePathOnly)
-
-	err = os.MkdirAll(resourcePath, 0o700)
-	if err != nil {
-		err = errors.Wrap(err, "failed to create cache directory for package resources")
-		return
-	}
 
 	pkg, err := pawnpackage.GetRemotePackage(ctx, gh, meta)
 	if err != nil {
@@ -329,8 +334,24 @@ func PluginFromNet(
 		return
 	}
 
-	filename, _, err = download.ReleaseAssetByPattern(ctx, gh, meta, matcher, resourcePathOnly, "", cacheDir)
-	if err != nil {
+	downloader := infraresource.NewGitHubReleaseResource(meta, matcher, infraresource.ResourceTypePlugin, gh)
+	downloader.SetCacheDir(cacheDir)
+
+	requestedVersion := meta.Tag
+	if requestedVersion == "" {
+		requestedVersion = "latest"
+	}
+	if err = downloader.Ensure(ctx, requestedVersion, ""); err != nil {
+		return
+	}
+
+	actualVersion := requestedVersion
+	if actualVersion == "latest" {
+		actualVersion = downloader.Version()
+	}
+	_, filename = downloader.Cached(actualVersion)
+	if filename == "" {
+		err = errors.New("failed to locate downloaded asset")
 		return
 	}
 
@@ -340,13 +361,13 @@ func PluginFromNet(
 }
 
 // GetResource searches a list of resources for one that matches the given platform
-func GetResource(resources []resource.Resource, platform string, version string) (*resource.Resource, error) {
+func GetResource(resources []pkgresource.Resource, platform string, version string) (*pkgresource.Resource, error) {
 	if version == "" {
 		version = "0.3.7"
 	}
 
 	found := false
-	var tmp *resource.Resource
+	var tmp *pkgresource.Resource
 	for _, resource := range resources {
 		res := resource
 		if res.Platform == platform {

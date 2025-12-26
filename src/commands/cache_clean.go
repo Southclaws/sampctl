@@ -19,9 +19,7 @@ var cacheCleanFlags = []cli.Flag{
 }
 
 func CacheClean(c *cli.Context) error {
-	if c.Bool("verbose") {
-		print.SetVerbose()
-	}
+	applyVerboseFlag(c)
 
 	if !c.Bool("yes") {
 		print.Info("This will remove expired cached resources (older than 7 days)")
@@ -40,7 +38,7 @@ func CacheClean(c *cli.Context) error {
 	manager := resource.NewDefaultResourceManager(factory)
 
 	print.Info("Cleaning expired cache entries...")
-	
+
 	err := manager.CleanCache()
 	if err != nil {
 		return errors.Wrap(err, "failed to clean cache")

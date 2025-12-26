@@ -18,6 +18,13 @@ import (
 // GetPackageList gets a list of known packages from the sampctl package service, if the list does
 // not exist locally, it is downloaded and cached for future use.
 func GetPackageList(cacheDir string) (packages []pawnpackage.Package, err error) {
+	return GetPackageListWithClient(cacheDir, http.DefaultClient)
+}
+
+func GetPackageListWithClient(cacheDir string, client HTTPDoer) (packages []pawnpackage.Package, err error) {
+	if client == nil {
+		client = http.DefaultClient
+	}
 	packageFile := fs.Join(cacheDir, "packages.json")
 	packages, refreshed, err := cache.GetOrRefreshJSON[[]pawnpackage.Package](
 		context.Background(),
@@ -30,7 +37,7 @@ func GetPackageList(cacheDir string) (packages []pawnpackage.Package, err error)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to create request")
 			}
-			resp, err := http.DefaultClient.Do(req)
+			resp, err := client.Do(req)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to download package list")
 			}
@@ -56,6 +63,13 @@ func GetPackageList(cacheDir string) (packages []pawnpackage.Package, err error)
 
 // UpdatePackageList downloads a list of all packages to a file in the cache directory
 func UpdatePackageList(cacheDir string) (err error) {
+	return UpdatePackageListWithClient(cacheDir, http.DefaultClient)
+}
+
+func UpdatePackageListWithClient(cacheDir string, client HTTPDoer) (err error) {
+	if client == nil {
+		client = http.DefaultClient
+	}
 	packageFile := fs.Join(cacheDir, "packages.json")
 	_, _, err = cache.GetOrRefreshJSON[[]pawnpackage.Package](
 		context.Background(),
@@ -68,7 +82,7 @@ func UpdatePackageList(cacheDir string) (err error) {
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to create request")
 			}
-			resp, err := http.DefaultClient.Do(req)
+			resp, err := client.Do(req)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to download package list")
 			}

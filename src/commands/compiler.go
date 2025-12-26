@@ -15,9 +15,7 @@ var compilerFlags = []cli.Flag{
 }
 
 func compilerList(c *cli.Context) error {
-	if c.Bool("verbose") {
-		print.SetVerbose()
-	}
+	applyVerboseFlag(c)
 
 	presets := build.GetPredefinedCompilers()
 
