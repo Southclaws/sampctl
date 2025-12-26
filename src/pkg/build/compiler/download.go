@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
 
 	"github.com/google/go-github/github"
@@ -14,6 +13,7 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
+	infraresource "github.com/Southclaws/sampctl/src/pkg/infrastructure/resource"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
 
@@ -48,7 +48,6 @@ func FromNet(
 }
 
 // GetCompilerPackage downloads and installs a Pawn compiler to a user directory
-
 func GetCompilerPackage(
 	ctx context.Context,
 	gh *github.Client,
@@ -106,24 +105,40 @@ func newCompilerPackageFetcher(meta versioning.DependencyMeta, platform, cacheDi
 	}, nil
 }
 
-func (f *compilerPackageFetcher) archiveName() string {
-	return filepath.Join(
-		"assets",
-		f.meta.User,
-		f.meta.Repo,
-		f.meta.Tag,
-		GetCompilerFilename(f.meta.Tag, f.platform, f.compiler.Method),
-	)
-}
-
 func (f *compilerPackageFetcher) fromCache(dir string) (download.Compiler, bool, error) {
-	filename := f.archiveName()
-	print.Verb("Checking for cached package", filename, "in", f.cacheDir)
-	hit, err := download.FromCache(f.cacheDir, filename, dir, f.extract, f.compiler.Paths, f.platform)
-	if !hit || err != nil {
-		return download.Compiler{}, hit, err
+	if f.meta.Tag == "" {
+		return download.Compiler{}, false, nil
 	}
-	print.Verb("Using cached package", filename)
+	if !fs.Exists(dir) {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return download.Compiler{}, false, errors.Wrapf(err, "failed to create dir %s", dir)
+		}
+	}
+
+	matcher := regexp.MustCompile(f.compiler.Match)
+	res := infraresource.NewGitHubReleaseResource(f.meta, matcher, infraresource.ResourceTypeCompiler, nil)
+	res.SetCacheDir(f.cacheDir)
+	res.SetCacheTTL(0)
+
+	print.Verb("Checking for cached compiler package", f.meta.Tag, "in", f.cacheDir)
+	hit, assetPath := res.Cached(f.meta.Tag)
+	if !hit {
+		return download.Compiler{}, false, nil
+	}
+
+	files, err := f.extract(assetPath, dir, f.compiler.Paths)
+	if err != nil {
+		return download.Compiler{}, false, errors.Wrapf(err, "failed to extract package %s", assetPath)
+	}
+
+	if fs.IsPosixPlatform(f.platform) {
+		print.Verb("setting permissions for binaries")
+	}
+	if err := fs.ChmodAllIfPosix(f.platform, files, fs.PermFileExec); err != nil {
+		return download.Compiler{}, false, err
+	}
+
+	print.Verb("Using cached compiler package", f.meta.Tag)
 	return f.compiler, true, nil
 }
 
@@ -139,21 +154,40 @@ func (f *compilerPackageFetcher) fromNetwork(
 		}
 	}
 
-	assetPath, _, err := download.ReleaseAssetByPattern(
-		ctx,
-		gh,
-		f.meta,
-		regexp.MustCompile(f.compiler.Match),
-		"",
-		f.archiveName(),
-		f.cacheDir,
-	)
-	if err != nil {
+	matcher := regexp.MustCompile(f.compiler.Match)
+	res := infraresource.NewGitHubReleaseResource(f.meta, matcher, infraresource.ResourceTypeCompiler, gh)
+	res.SetCacheDir(f.cacheDir)
+	res.SetCacheTTL(0)
+
+	requestedVersion := f.meta.Tag
+	if requestedVersion == "" {
+		requestedVersion = "latest"
+	}
+
+	if err := res.Ensure(ctx, requestedVersion, ""); err != nil {
 		return download.Compiler{}, err
 	}
 
-	if _, err = f.extract(assetPath, dir, f.compiler.Paths); err != nil {
-		return download.Compiler{}, errors.Wrapf(err, "failed to unzip package %s", assetPath)
+	actualVersion := requestedVersion
+	if actualVersion == "latest" {
+		actualVersion = res.Version()
+	}
+
+	_, assetPath := res.Cached(actualVersion)
+	if assetPath == "" {
+		return download.Compiler{}, errors.New("failed to locate downloaded compiler asset")
+	}
+
+	files, err := f.extract(assetPath, dir, f.compiler.Paths)
+	if err != nil {
+		return download.Compiler{}, errors.Wrapf(err, "failed to extract package %s", assetPath)
+	}
+
+	if fs.IsPosixPlatform(f.platform) {
+		print.Verb("setting permissions for binaries")
+	}
+	if err := fs.ChmodAllIfPosix(f.platform, files, fs.PermFileExec); err != nil {
+		return download.Compiler{}, err
 	}
 
 	return f.compiler, nil

@@ -11,6 +11,7 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
+	infraresource "github.com/Southclaws/sampctl/src/pkg/infrastructure/resource"
 	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 )
 
@@ -43,7 +44,7 @@ func FromCache(cacheDir, version, dir, platform string) (hit bool, err error) {
 	if err != nil {
 		return
 	}
-	_, filename, method, paths, err := infoForPlatform(pkg, platform)
+	location, _, method, paths, err := infoForPlatform(pkg, platform)
 	if err != nil {
 		return
 	}
@@ -57,9 +58,32 @@ func FromCache(cacheDir, version, dir, platform string) (hit bool, err error) {
 		}
 	}
 
-	hit, err = download.FromCache(cacheDir, filename, dir, method, paths, platform)
-	if !hit || err != nil {
+	hr, resErr := infraresource.NewHTTPFileResource(location, version, infraresource.ResourceTypeServerBinary)
+	if resErr != nil {
+		err = resErr
 		return
+	}
+	hr.SetCacheDir(cacheDir)
+	hr.SetCacheTTL(0)
+
+	hit, archivePath := hr.Cached(version)
+	if !hit {
+		hit = false
+		return
+	}
+
+	files, extractErr := method(archivePath, dir, paths)
+	if extractErr != nil {
+		hit = false
+		err = errors.Wrapf(extractErr, "failed to extract package %s", archivePath)
+		return
+	}
+
+	if fs.IsPosixPlatform(platform) {
+		print.Verb("setting permissions for binaries")
+	}
+	if err := fs.ChmodAllIfPosix(platform, files, fs.PermFileExec); err != nil {
+		return false, err
 	}
 
 	print.Verb("Using cached package for", version)
@@ -75,7 +99,7 @@ func FromNet(cacheDir, version, dir, platform string) (err error) {
 	if err != nil {
 		return
 	}
-	location, filename, method, paths, err := infoForPlatform(pkg, platform)
+	location, _, method, paths, err := infoForPlatform(pkg, platform)
 	if err != nil {
 		return
 	}
@@ -88,9 +112,20 @@ func FromNet(cacheDir, version, dir, platform string) (err error) {
 		}
 	}
 
-	fullPath, err := download.FromNet(context.Background(), location, filepath.Join(cacheDir, filename))
+	hr, err := infraresource.NewHTTPFileResource(location, version, infraresource.ResourceTypeServerBinary)
 	if err != nil {
+		return
+	}
+	hr.SetCacheDir(cacheDir)
+	hr.SetCacheTTL(0)
+
+	if err := hr.Ensure(context.Background(), version, ""); err != nil {
 		return errors.Wrap(err, "failed to download package")
+	}
+
+	_, fullPath := hr.Cached(version)
+	if fullPath == "" {
+		return errors.New("failed to locate downloaded server package")
 	}
 
 	ok, err := MatchesChecksum(fullPath, platform, cacheDir, version)
@@ -108,9 +143,16 @@ func FromNet(cacheDir, version, dir, platform string) (err error) {
 		return errors.Errorf("server binary does not match checksum for version %s", version)
 	}
 
-	_, err = method(fullPath, dir, paths)
+	files, err := method(fullPath, dir, paths)
 	if err != nil {
-		return errors.Wrapf(err, "failed to unzip package %s", filename)
+		return errors.Wrapf(err, "failed to extract package %s", fullPath)
+	}
+
+	if fs.IsPosixPlatform(platform) {
+		print.Verb("setting permissions for binaries")
+	}
+	if err := fs.ChmodAllIfPosix(platform, files, fs.PermFileExec); err != nil {
+		return err
 	}
 
 	return nil

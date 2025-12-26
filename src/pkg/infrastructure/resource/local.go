@@ -19,7 +19,7 @@ type LocalResource struct {
 // NewLocalResource creates a new LocalResource
 func NewLocalResource(localPath string, resourceType ResourceType) *LocalResource {
 	identifier := localPath
-	
+
 	// For local resources, use the file modification time as version
 	version := "local"
 	if stat, err := os.Stat(localPath); err == nil {
@@ -30,7 +30,7 @@ func NewLocalResource(localPath string, resourceType ResourceType) *LocalResourc
 		BaseResource: NewBaseResource(identifier, version, resourceType),
 		localPath:    localPath,
 	}
-	
+
 	lr.SetLocalPath(localPath)
 	return lr
 }
@@ -39,22 +39,22 @@ func NewLocalResource(localPath string, resourceType ResourceType) *LocalResourc
 func (lr *LocalResource) Ensure(ctx context.Context, version, path string) error {
 	// For local resources, we can just copy directly without caching
 	// unless a cache is specifically requested
-	
+
 	if path == "" {
 		// No target path specified, resource is already "ensured" at its local path
 		return nil
 	}
-	
+
 	// Check if source exists
 	if _, err := os.Stat(lr.localPath); err != nil {
 		return errors.Wrapf(err, "local resource not found: %s", lr.localPath)
 	}
-	
+
 	// Copy to target path
 	if err := util.CopyFile(lr.localPath, path); err != nil {
 		return errors.Wrap(err, "failed to copy local resource to target path")
 	}
-	
+
 	return nil
 }
 

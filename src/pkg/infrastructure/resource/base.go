@@ -67,6 +67,10 @@ func (br *BaseResource) Cached(version string) (bool, string) {
 		return false, ""
 	}
 
+	if br.cacheTTL <= 0 {
+		return true, cachePath
+	}
+
 	if time.Since(info.ModTime()) > br.cacheTTL {
 		return false, ""
 	}

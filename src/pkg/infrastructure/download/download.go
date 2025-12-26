@@ -107,14 +107,12 @@ func FromCache(cacheDir, filename, dir string, method ExtractFunc, paths map[str
 		return
 	}
 
-	if platform == "linux" || platform == "darwin" {
+	if fs.IsPosixPlatform(platform) {
 		print.Verb("setting permissions for binaries")
-		for _, file := range files {
-			err = os.Chmod(file, 0o700)
-			if err != nil {
-				return
-			}
-		}
+	}
+	if err := fs.ChmodAllIfPosix(platform, files, fs.PermFileExec); err != nil {
+		hit = false
+		return false, err
 	}
 
 	return true, nil
@@ -203,16 +201,7 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 			return "", err
 		}
 		_ = resp.Body.Close()
-		err = nil
-
-		if err == nil {
-			return cachePath, nil
-		}
-		if attempt < maxAttempts {
-			fromNetSleep(backoff(attempt))
-			continue
-		}
-		return "", err
+		return cachePath, nil
 	}
 
 	if lastErr == nil {
