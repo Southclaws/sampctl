@@ -216,6 +216,61 @@ func TestExtraFieldsSupport(t *testing.T) {
 	assert.Equal(t, "another_value", config["another_setting"])
 }
 
+func TestOpenMPFieldsSupport(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "openmp_fields_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	useDynTicks := false
+	maxBots := 123
+
+	cfg := &run.Runtime{
+		WorkingDir:  tmpDir,
+		Platform:    "linux",
+		Version:     "1.2.0-openmp",
+		Mode:        run.Server,
+		UseDynTicks: &useDynTicks,
+		MaxBots:     &maxBots,
+		Discord: map[string]interface{}{
+			"invite": "https://discord.gg/example",
+		},
+		Network: map[string]interface{}{
+			"public_addr": "127.0.0.1",
+		},
+		RCONConfig: map[string]interface{}{
+			"allow_teleport": true,
+		},
+	}
+
+	err = GenerateConfig(cfg)
+	require.NoError(t, err)
+
+	configJSONPath := filepath.Join(tmpDir, "config.json")
+	content, err := os.ReadFile(configJSONPath)
+	require.NoError(t, err)
+
+	var config map[string]interface{}
+	err = json.Unmarshal(content, &config)
+	require.NoError(t, err)
+
+	// Scalars
+	assert.Equal(t, false, config["use_dyn_ticks"])
+	assert.Equal(t, float64(123), config["max_bots"])
+
+	// Nested
+	discord, ok := config["discord"].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, "https://discord.gg/example", discord["invite"])
+
+	network, ok := config["network"].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, "127.0.0.1", network["public_addr"])
+
+	rcon, ok := config["rcon"].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, true, rcon["allow_teleport"])
+}
+
 func TestOpenMPConfigGenerateWithExtraServerCfg(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "openmp_config_test")
 	require.NoError(t, err)

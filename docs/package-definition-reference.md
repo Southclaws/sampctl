@@ -2,15 +2,7 @@
 
 This page lists the common fields you can use in a `pawn.json` / `pawn.yaml` file.
 
-A minimal example:
-
-```json
-{
-  "entry": "gamemodes/main.pwn",
-  "output": "gamemodes/main.amx",
-  "dependencies": ["pawn-lang/samp-stdlib"]
-}
-```
+For an introduction and a minimal example, see: [Packages](packages.md)
 
 ## Common fields
 

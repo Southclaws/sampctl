@@ -84,6 +84,23 @@ type Runtime struct {
 
 	// Extra properties for plugins etc
 	Extra map[string]string `required:"0" json:"extra,omitempty" yaml:"extra,omitempty"`
+
+	// open.mp specific properties
+	MaxBots     *int    `ignore:"1" required:"0" json:"max_bots,omitempty"     yaml:"max_bots,omitempty"`
+	UseDynTicks *bool   `ignore:"1" required:"0" json:"use_dyn_ticks,omitempty" yaml:"use_dyn_ticks,omitempty"`
+	Logo        *string `ignore:"1" required:"0" json:"logo,omitempty"         yaml:"logo,omitempty"`
+
+	Game    map[string]any `ignore:"1" required:"0" json:"game,omitempty"     yaml:"game,omitempty"`
+	Network map[string]any `ignore:"1" required:"0" json:"network,omitempty"  yaml:"network,omitempty"`
+	Logging map[string]any `ignore:"1" required:"0" json:"logging,omitempty"  yaml:"logging,omitempty"`
+	Pawn    map[string]any `ignore:"1" required:"0" json:"pawn,omitempty"     yaml:"pawn,omitempty"`
+	Discord map[string]any `ignore:"1" required:"0" json:"discord,omitempty"  yaml:"discord,omitempty"`
+	Banners map[string]any `ignore:"1" required:"0" json:"banners,omitempty"  yaml:"banners,omitempty"`
+	Artwork map[string]any `ignore:"1" required:"0" json:"artwork,omitempty"  yaml:"artwork,omitempty"`
+
+	// rcon is already used by SA:MP as a boolean. this allows setting open.mp-only
+	// `config.json` rcon fields.
+	RCONConfig map[string]any `ignore:"1" required:"0" json:"rcon_config,omitempty" yaml:"rcon_config,omitempty"`
 }
 
 // ContainerConfig is used if the runtime is specified to run inside a container
