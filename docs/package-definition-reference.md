@@ -56,3 +56,9 @@ See also: [Build configuration reference](build-configuration-reference.md)
 - `resources`: advanced extra resources for a package (per-platform files, archives).
 - `extract_ignore_patterns`: patterns to skip when extracting plugin archives.
 - `contributors`, `website`: optional metadata (useful for published packages).
+
+See also:
+
+- [Library creator guide (includes + plugins)](library-creator-guide.md)
+- [Plugin resources (for plugin library authors)](plugin-resources.md)
+- [Dependency schemes](dependency-schemes.md)
