@@ -13,7 +13,7 @@ import (
 func adjustForOS(dir, os string, cfg *run.Runtime) {
 	if os == "linux" || os == "darwin" {
 		if len(cfg.Plugins) > 0 {
-			actualPlugins := getPlugins(filepath.Join(dir, getPluginDirectory(cfg)), cfg.Platform)
+			actualPlugins := getPlugins(filepath.Join(dir, getPluginDirectory()), cfg.Platform)
 
 			for i, declared := range cfg.Plugins {
 				ext := filepath.Ext(string(declared))

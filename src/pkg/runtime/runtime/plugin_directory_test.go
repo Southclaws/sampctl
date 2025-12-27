@@ -26,7 +26,7 @@ func TestGetPluginDirectory(t *testing.T) {
 			name:        "open.mp runtime auto-detect",
 			version:     "v1.0.0-openmp",
 			runtimeType: run.RuntimeTypeAuto,
-			expectedDir: "components",
+			expectedDir: "plugins",
 		},
 		{
 			name:        "Explicit SA-MP runtime",
@@ -38,7 +38,7 @@ func TestGetPluginDirectory(t *testing.T) {
 			name:        "Explicit open.mp runtime",
 			version:     "custom-version",
 			runtimeType: run.RuntimeTypeOpenMP,
-			expectedDir: "components",
+			expectedDir: "plugins",
 		},
 	}
 
@@ -50,7 +50,7 @@ func TestGetPluginDirectory(t *testing.T) {
 				WorkingDir:  "/test/dir",
 			}
 
-			result := getPluginDirectory(cfg)
+			result := getPluginDirectory()
 			assert.Equal(t, tt.expectedDir, result)
 
 			// Also test the full path
