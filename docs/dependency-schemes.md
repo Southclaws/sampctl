@@ -35,7 +35,7 @@ What happens:
 
 - The plugin package is ensured like a normal repo dependency.
 - `sampctl` downloads a matching plugin release asset (based on the dependency’s `resources` metadata).
-- The plugin binary is extracted into `./plugins/` (SA:MP) or `./components/` (open.mp runtimes).
+- The plugin binary is extracted into `./plugins/`.
 - The plugin is automatically added to the runtime plugin list.
 
 ## Components (open.mp): `component://user/repo`

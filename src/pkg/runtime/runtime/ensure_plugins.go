@@ -21,11 +21,8 @@ import (
 	pkgresource "github.com/Southclaws/sampctl/src/resource"
 )
 
-// getPluginDirectory returns the appropriate plugin directory based on runtime type
-func getPluginDirectory(cfg *run.Runtime) string {
-	if cfg.IsOpenMP() {
-		return "components"
-	}
+// getPluginDirectory returns the directory used for plugins
+func getPluginDirectory() string {
 	return "plugins"
 }
 
@@ -49,17 +46,19 @@ func EnsurePlugins(
 	addedComponents := make(map[run.Plugin]struct{})
 
 	for _, plugin := range cfg.PluginDeps {
-		destDir := getPluginDirectory(cfg)
+		destDir := getPluginDirectory()
 		if plugin.Scheme == "component" {
 			destDir = "components"
 		}
+
 		files, err = EnsureVersionedPlugin(ctx, gh, plugin, cfg.WorkingDir, cfg.Platform, cfg.Version, cacheDir, destDir, true, false, noCache, nil)
 		if err != nil {
-			return
+			return err
 		}
 
 		for _, file := range files {
 			name := run.Plugin(strings.TrimSuffix(string(file), fileExt))
+
 			if plugin.Scheme == "component" {
 				if _, ok := addedComponents[name]; ok {
 					continue
@@ -79,7 +78,7 @@ func EnsurePlugins(
 		}
 	}
 
-	return err
+	return nil
 }
 
 // EnsureVersionedPlugin automatically downloads a plugin binary from its github releases page
@@ -135,6 +134,10 @@ func EnsureVersionedPlugin(
 
 		// get additional files
 		for src, dest := range resource.Files {
+			if _, ok := paths[src]; ok {
+				// Don't override plugin/include destinations.
+				continue
+			}
 			print.Verb(meta, "marking misc file path", src, "for extraction to", dest)
 			paths[src] = dest
 		}

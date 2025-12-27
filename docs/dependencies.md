@@ -48,8 +48,8 @@ When a dependency is treated as a plugin/component, `sampctl`:
 3) Picks a single resource by matching `(platform, runtime.version)`.
 4) Downloads the matching GitHub release asset and extracts binaries to:
 
-- `./plugins/` for SA:MP runtimes
-- `./components/` for open.mp runtimes
+- `./plugins/` for `plugin://` dependencies
+- `./components/` for `component://` dependencies
 
 Then it auto-adds the plugin/component name to the runtime config that is generated for the run.
 
