@@ -340,6 +340,30 @@ func (pcx *PackageContext) buildPrepare(
 		}
 	}
 
+	for _, pluginMeta := range pcx.AllPlugins {
+		if !pluginMeta.IsLocalScheme() {
+			continue
+		}
+		if pluginMeta.Scheme != "plugin" && pluginMeta.Scheme != "component" {
+			continue
+		}
+
+		localDepDir := filepath.Join(pcx.Package.LocalPath, pluginMeta.Local)
+		if !fs.Exists(localDepDir) {
+			err = errors.Errorf("local %s dependency path does not exist: %s", pluginMeta.Scheme, localDepDir)
+			return
+		}
+
+		includeDir := localDepDir
+		if pkgInner, errInner := pawnpackage.PackageFromDir(localDepDir); errInner == nil {
+			if pkgInner.IncludePath != "" {
+				includeDir = filepath.Join(localDepDir, pkgInner.IncludePath)
+			}
+		}
+
+		config.Includes = append(config.Includes, includeDir)
+	}
+
 	config.Includes = append(config.Includes, pcx.AllIncludePaths...)
 
 	return config, err
