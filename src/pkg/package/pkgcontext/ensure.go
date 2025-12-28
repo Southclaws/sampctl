@@ -142,14 +142,31 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 
 // installPackageResources handles resource installation from cached package
 func (pcx *PackageContext) installPackageResources(meta versioning.DependencyMeta) error {
-	// cloned copy of the package that resides in `dependencies/` because that repository may be
-	// checked out to a commit that existed before a `pawn.json` file was added that describes where
-	// resources can be downloaded from. Therefore, we instead instantiate a new pawnpackage.Package from
-	// the cached version of the package because the cached copy is always at the latest version, or
-	// at least guaranteed to be either later or equal to the local dependency version.
+	// NOTE: Resource installation needs a package definition (`pawn.json`/`pawn.yaml`).
+	// We prefer the cached copy because it is typically the newest, but some repos may not have a
+	// definition on their default branch (e.g. definition only exists on another branch), or a user may
+	// have an older cached clone on a branch that used to exist.
+	// To avoid regressions where resource include paths silently disappear, fall back to the checked-out
+	// dependency copy and finally the remote package definition.
 	pkg, err := pawnpackage.GetCachedPackage(meta, pcx.CacheDir)
 	if err != nil {
-		return err
+		print.Verb(meta, "failed to read cached package definition:", err)
+	}
+	if err != nil || pkg.Format == "" {
+		depDir := filepath.Join(pcx.Package.Vendor, meta.Repo)
+		pkgLocal, errLocal := pawnpackage.PackageFromDir(depDir)
+		if errLocal == nil && pkgLocal.Format != "" {
+			pkg = pkgLocal
+			err = nil
+			print.Verb(meta, "using local dependency package definition for resources")
+		} else if pcx.GitHub != nil {
+			pkgRemote, errRemote := pawnpackage.GetRemotePackage(context.Background(), pcx.GitHub, meta)
+			if errRemote == nil {
+				pkg = pkgRemote
+				err = nil
+				print.Verb(meta, "using remote package definition for resources")
+			}
+		}
 	}
 
 	// But the cached copy will have the latest tag assigned to it, so before ensuring it, apply the

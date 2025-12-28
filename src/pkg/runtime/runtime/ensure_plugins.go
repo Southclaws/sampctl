@@ -46,6 +46,29 @@ func EnsurePlugins(
 	addedComponents := make(map[run.Plugin]struct{})
 
 	for _, plugin := range cfg.PluginDeps {
+		// Local scheme dependencies (plugin://local/... / component://local/...) are already present
+		// in the workspace; they should not be downloaded from the network.
+		if plugin.IsLocalScheme() {
+			name := run.Plugin(plugin.Repo)
+			if plugin.Scheme == "component" {
+				if _, ok := addedComponents[name]; ok {
+					continue
+				}
+				print.Verb("adding local component", name)
+				cfg.Components = append(cfg.Components, name)
+				addedComponents[name] = struct{}{}
+				continue
+			}
+
+			if _, ok := addedPlugins[name]; ok {
+				continue
+			}
+			print.Verb("adding local plugin", name)
+			cfg.Plugins = append(cfg.Plugins, name)
+			addedPlugins[name] = struct{}{}
+			continue
+		}
+
 		destDir := getPluginDirectory()
 		if plugin.Scheme == "component" {
 			destDir = "components"
