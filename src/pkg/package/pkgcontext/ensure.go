@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/go-git/go-git/v5"
 	"github.com/pkg/errors"
 	"gopkg.in/eapache/go-resiliency.v1/retrier"
 
@@ -98,23 +99,30 @@ func (pcx *PackageContext) GatherPlugins() (pluginDeps []versioning.DependencyMe
 
 // EnsurePackage will make sure a vendor directory contains the specified package.
 // If the package is not present, it will clone it at the correct version tag, sha1 or HEAD
-// If the package is present, it will ensure the directory contains the correct version
+// If the package is present, it will ensure the directory contains the correct version.
+// When lockfile support is enabled, it uses locked versions for reproducibility.
 func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUpdate bool) error {
 	// Handle URL-like schemes differently
 	if meta.IsURLScheme() {
 		return pcx.ensureURLSchemeDependency(meta)
 	}
 
-	dependencyPath := filepath.Join(pcx.Package.Vendor, meta.Repo)
+	// Apply locked version if lockfile is enabled and not forcing update
+	effectiveMeta := meta
+	if pcx.LockfileResolver != nil && !forceUpdate {
+		effectiveMeta = pcx.LockfileResolver.GetLockedVersion(meta)
+	}
+
+	dependencyPath := filepath.Join(pcx.Package.Vendor, effectiveMeta.Repo)
 
 	if fs.Exists(dependencyPath) {
 		valid, validationErr := ValidateRepository(dependencyPath)
 		if validationErr != nil || !valid {
-			print.Verb(meta, "existing repository is invalid or corrupted")
+			print.Verb(effectiveMeta, "existing repository is invalid or corrupted")
 			if validationErr != nil {
-				print.Verb(meta, "validation error:", validationErr)
+				print.Verb(effectiveMeta, "validation error:", validationErr)
 			}
-			print.Verb(meta, "removing invalid repository for fresh clone")
+			print.Verb(effectiveMeta, "removing invalid repository for fresh clone")
 			err := os.RemoveAll(dependencyPath)
 			if err != nil {
 				return errors.Wrap(err, "failed to remove invalid dependency repo")
@@ -122,22 +130,96 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 		}
 	}
 
-	repo, err := pcx.ensureDependencyRepository(meta, dependencyPath, forceUpdate)
+	repo, err := pcx.ensureDependencyRepository(effectiveMeta, dependencyPath, forceUpdate)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure dependency repository")
 	}
 
-	err = pcx.updateRepoStateWithRecovery(repo, meta, dependencyPath, forceUpdate)
+	err = pcx.updateRepoStateWithRecovery(repo, effectiveMeta, dependencyPath, forceUpdate)
 	if err != nil {
 		return errors.Wrap(err, "failed to update repository state")
 	}
 
-	err = pcx.installPackageResources(meta)
+	// Record the resolution to lockfile
+	if pcx.LockfileResolver != nil {
+		if recordErr := pcx.LockfileResolver.RecordResolution(meta, repo, false, ""); recordErr != nil {
+			print.Warn("failed to record dependency resolution to lockfile:", recordErr)
+		}
+	}
+
+	err = pcx.installPackageResources(effectiveMeta)
 	if err != nil {
 		return errors.Wrap(err, "failed to install package resources")
 	}
 
 	return nil
+}
+
+// EnsurePackageWithParent ensures a package and records it as a transitive dependency
+func (pcx *PackageContext) EnsurePackageWithParent(meta versioning.DependencyMeta, forceUpdate bool, parentRepo string) error {
+	// Handle URL-like schemes differently
+	if meta.IsURLScheme() {
+		return pcx.ensureURLSchemeDependency(meta)
+	}
+
+	// Apply locked version if lockfile is enabled and not forcing update
+	effectiveMeta := meta
+	if pcx.LockfileResolver != nil && !forceUpdate {
+		effectiveMeta = pcx.LockfileResolver.GetLockedVersion(meta)
+	}
+
+	dependencyPath := filepath.Join(pcx.Package.Vendor, effectiveMeta.Repo)
+
+	if util.Exists(dependencyPath) {
+		valid, validationErr := ValidateRepository(dependencyPath)
+		if validationErr != nil || !valid {
+			print.Verb(effectiveMeta, "existing repository is invalid or corrupted")
+			err := os.RemoveAll(dependencyPath)
+			if err != nil {
+				return errors.Wrap(err, "failed to remove invalid dependency repo")
+			}
+		}
+	}
+
+	repo, err := pcx.ensureDependencyRepository(effectiveMeta, dependencyPath, forceUpdate)
+	if err != nil {
+		return errors.Wrap(err, "failed to ensure dependency repository")
+	}
+
+	err = pcx.updateRepoStateWithRecovery(repo, effectiveMeta, dependencyPath, forceUpdate)
+	if err != nil {
+		return errors.Wrap(err, "failed to update repository state")
+	}
+
+	// Record the resolution to lockfile as transitive dependency
+	if pcx.LockfileResolver != nil {
+		isTransitive := parentRepo != "" && parentRepo != pcx.Package.Repo
+		if recordErr := pcx.LockfileResolver.RecordResolution(meta, repo, isTransitive, parentRepo); recordErr != nil {
+			print.Warn("failed to record dependency resolution to lockfile:", recordErr)
+		}
+	}
+
+	err = pcx.installPackageResources(effectiveMeta)
+	if err != nil {
+		return errors.Wrap(err, "failed to install package resources")
+	}
+
+	return nil
+}
+
+// GetResolvedCommit returns the resolved commit SHA for a dependency path
+func (pcx *PackageContext) GetResolvedCommit(dependencyPath string) (string, error) {
+	repo, err := git.PlainOpen(dependencyPath)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to open repository")
+	}
+
+	head, err := repo.Head()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get HEAD")
+	}
+
+	return head.Hash().String(), nil
 }
 
 // installPackageResources handles resource installation from cached package
