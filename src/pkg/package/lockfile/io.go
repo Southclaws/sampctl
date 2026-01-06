@@ -7,13 +7,13 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 )
 
 func Load(dir string) (*Lockfile, error) {
 	path := filepath.Join(dir, Filename)
-	if !util.Exists(path) {
+	if !fs.Exists(path) {
 		return nil, nil
 	}
 	return loadFromFile(path)
@@ -63,12 +63,12 @@ func Save(dir string, lockfile *Lockfile) error {
 
 func Exists(dir string) bool {
 	path := filepath.Join(dir, Filename)
-	return util.Exists(path)
+	return fs.Exists(path)
 }
 
 func GetPath(dir string) string {
 	path := filepath.Join(dir, Filename)
-	if util.Exists(path) {
+	if fs.Exists(path) {
 		return path
 	}
 	return ""
@@ -76,7 +76,7 @@ func GetPath(dir string) string {
 
 func Delete(dir string) error {
 	path := filepath.Join(dir, Filename)
-	if !util.Exists(path) {
+	if !fs.Exists(path) {
 		return nil
 	}
 	if err := os.Remove(path); err != nil {

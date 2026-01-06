@@ -179,7 +179,7 @@ func (pcx *PackageContext) EnsurePackageWithParent(meta versioning.DependencyMet
 
 	dependencyPath := filepath.Join(pcx.Package.Vendor, effectiveMeta.Repo)
 
-	if util.Exists(dependencyPath) {
+	if fs.Exists(dependencyPath) {
 		valid, validationErr := ValidateRepository(dependencyPath)
 		if validationErr != nil || !valid {
 			print.Verb(effectiveMeta, "existing repository is invalid or corrupted")
@@ -535,7 +535,7 @@ func (pcx *PackageContext) RecordBuildToLockfile(compilerVersion, compilerPreset
 	}
 
 	outputHash := ""
-	if output != "" && util.Exists(output) {
+	if output != "" && fs.Exists(output) {
 		hash, err := hashOutputFile(output)
 		if err != nil {
 			print.Warn("failed to hash output file:", err)

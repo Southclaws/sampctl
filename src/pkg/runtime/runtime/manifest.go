@@ -265,7 +265,7 @@ type RuntimeManifestInfo struct {
 
 func GetRuntimeManifestInfo(workingDir string) (*RuntimeManifestInfo, error) {
 	manifestPath := runtimeManifestPath(workingDir)
-	if !util.Exists(manifestPath) {
+	if !fs.Exists(manifestPath) {
 		return nil, nil
 	}
 
