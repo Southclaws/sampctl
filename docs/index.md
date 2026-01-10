@@ -16,6 +16,7 @@ This documentation is for people using `sampctl` to manage SA:MP servers and Paw
 ## Guides
 
 - [Dependencies and version pinning](dependencies.md)
+- [Migrating from SA:MP to open.mp](migrating-samp-to-openmp.md)
 - [Dependency schemes (plugins, components, includes)](dependency-schemes.md)
 - [Library creator guide (includes + plugins)](library-creator-guide.md)
 - [Plugin resources (for plugin library authors)](plugin-resources.md)
