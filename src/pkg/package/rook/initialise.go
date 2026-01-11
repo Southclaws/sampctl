@@ -56,7 +56,8 @@ func Init(
 	auth transport.AuthMethod,
 	platform,
 	cacheDir,
-	preset string,
+	preset,
+	version string,
 ) (err error) {
 	var (
 		pwnFiles []string
@@ -407,9 +408,19 @@ func Init(
 	if err != nil {
 		return
 	}
+	err = pcx.InitLockfileResolver(version)
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize lockfile resolver")
+	}
+
 	err = pcx.EnsureDependencies(ctx, true)
 	if err != nil {
 		return
+	}
+
+	err = pcx.SaveLockfile()
+	if err != nil {
+		print.Warn("failed to save lockfile:", err)
 	}
 
 	return nil
