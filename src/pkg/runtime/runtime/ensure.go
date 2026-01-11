@@ -68,6 +68,9 @@ func EnsureBinaries(cacheDir string, cfg run.Runtime) error {
 				verifyErr := verifyRuntimeManifest(existingManifest, cfg.WorkingDir)
 				if verifyErr == nil {
 					print.Verb("runtime binaries already up to date")
+					if err = writeRuntimeManifest(installManifestPath, manifest); err != nil {
+						print.Warn("failed to update runtime manifest:", err)
+					}
 					return nil
 				}
 				print.Warn("installed runtime verification failed, reinstalling:", verifyErr)

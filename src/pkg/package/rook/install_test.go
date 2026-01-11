@@ -30,14 +30,14 @@ func Test_PackageInstall(t *testing.T) {
 			"entry": "gamemodes/test.pwn",
 			"output": "gamemodes/test.amx",
 			"dependencies": ["pawn-lang/samp-stdlib"]
-		}`), args{[]versioning.DependencyString{"thecodeah/pawn-humanize:v1.1.1"}, false}, false},
+		}`), args{[]versioning.DependencyString{"Southclaws/pawn-errors:1.2.3"}, false}, false},
 		{"dev", []byte(`{
 			"user": "Southclaws",
 			"repo": "install-test",
 			"entry": "gamemodes/test.pwn",
 			"output": "gamemodes/test.amx",
 			"dependencies": ["pawn-lang/samp-stdlib"]
-		}`), args{[]versioning.DependencyString{"thecodeah/pawn-humanize:v1.1.1"}, true}, false},
+		}`), args{[]versioning.DependencyString{"Southclaws/pawn-errors:1.2.3"}, true}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -87,8 +87,8 @@ func Test_PackageGet(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{"direct", args{versioning.DependencyMeta{Site: "github.com", User: "thecodeah", Repo: "pawn-humanize", Tag: "v1.1.1"}, "./tests/get/direct"}, false},
-		{"get-auto", args{versioning.DependencyMeta{Site: "github.com", User: "thecodeah", Repo: "pawn-humanize", Tag: "v1.1.1"}, "./tests/get"}, false},
+		{"direct", args{versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-errors", Tag: "1.2.3"}, "./tests/get/direct"}, false},
+		{"get-auto", args{versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-errors", Tag: "1.2.3"}, "./tests/get"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

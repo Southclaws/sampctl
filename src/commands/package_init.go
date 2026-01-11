@@ -44,7 +44,7 @@ func packageInit(c *cli.Context) error {
 		return errors.New("Directory already appears to be a package")
 	}
 
-	err = rook.Init(context.Background(), gh, dir, cfg, gitAuth, env.Platform, env.CacheDir, preset)
+	err = rook.Init(context.Background(), gh, dir, cfg, gitAuth, env.Platform, env.CacheDir, preset, c.App.Version)
 
 	return err
 }
