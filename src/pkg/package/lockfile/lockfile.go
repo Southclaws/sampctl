@@ -12,50 +12,50 @@ const Version = 1
 const Filename = "pawn.lock"
 
 type Lockfile struct {
-	Version        int                          `json:"version" yaml:"version"`
-	Generated      time.Time                    `json:"generated" yaml:"generated"`
-	SampctlVersion string                       `json:"sampctl_version" yaml:"sampctl_version"`
-	Dependencies   map[string]LockedDependency  `json:"dependencies" yaml:"dependencies"`
-	Runtime        *LockedRuntime               `json:"runtime,omitempty" yaml:"runtime,omitempty"`
-	Build          *LockedBuild                 `json:"build,omitempty" yaml:"build,omitempty"`
+	Version        int                         `json:"version"`
+	Generated      time.Time                   `json:"generated"`
+	SampctlVersion string                      `json:"sampctl_version"`
+	Dependencies   map[string]LockedDependency `json:"dependencies"`
+	Runtime        *LockedRuntime              `json:"runtime,omitempty"`
+	Build          *LockedBuild                `json:"build,omitempty"`
 }
 
 type LockedRuntime struct {
-	Version     string            `json:"version" yaml:"version"`
-	Platform    string            `json:"platform" yaml:"platform"`
-	RuntimeType string            `json:"runtime_type" yaml:"runtime_type"`
-	Files       []LockedFileInfo  `json:"files,omitempty" yaml:"files,omitempty"`
+	Version     string           `json:"version"`
+	Platform    string           `json:"platform"`
+	RuntimeType string           `json:"runtime_type"`
+	Files       []LockedFileInfo `json:"files,omitempty"`
 }
 
 type LockedFileInfo struct {
-	Path string `json:"path" yaml:"path"`
-	Size int64  `json:"size" yaml:"size"`
-	Hash string `json:"hash" yaml:"hash"`
-	Mode uint32 `json:"mode" yaml:"mode"`
+	Path string `json:"path"`
+	Size int64  `json:"size"`
+	Hash string `json:"hash"`
+	Mode uint32 `json:"mode"`
 }
 
 type LockedBuild struct {
-	CompilerVersion string `json:"compiler_version,omitempty" yaml:"compiler_version,omitempty"`
-	CompilerPreset  string `json:"compiler_preset,omitempty" yaml:"compiler_preset,omitempty"`
-	Entry           string `json:"entry,omitempty" yaml:"entry,omitempty"`
-	Output          string `json:"output,omitempty" yaml:"output,omitempty"`
-	OutputHash      string `json:"output_hash,omitempty" yaml:"output_hash,omitempty"`
+	CompilerVersion string `json:"compiler_version,omitempty"`
+	CompilerPreset  string `json:"compiler_preset,omitempty"`
+	Entry           string `json:"entry,omitempty"`
+	Output          string `json:"output,omitempty"`
+	OutputHash      string `json:"output_hash,omitempty"`
 }
 
 type LockedDependency struct {
-	Constraint string   `json:"constraint" yaml:"constraint"`
-	Resolved   string   `json:"resolved" yaml:"resolved"`
-	Commit     string   `json:"commit" yaml:"commit"`
-	Integrity  string   `json:"integrity,omitempty" yaml:"integrity,omitempty"`
-	Site       string   `json:"site,omitempty" yaml:"site,omitempty"`
-	User       string   `json:"user" yaml:"user"`
-	Repo       string   `json:"repo" yaml:"repo"`
-	Path       string   `json:"path,omitempty" yaml:"path,omitempty"`
-	Branch     string   `json:"branch,omitempty" yaml:"branch,omitempty"`
-	Transitive bool     `json:"transitive,omitempty" yaml:"transitive,omitempty"`
-	RequiredBy []string `json:"required_by,omitempty" yaml:"required_by,omitempty"`
-	Scheme     string   `json:"scheme,omitempty" yaml:"scheme,omitempty"`
-	Local      string   `json:"local,omitempty" yaml:"local,omitempty"`
+	Constraint string   `json:"constraint"`
+	Resolved   string   `json:"resolved"`
+	Commit     string   `json:"commit"`
+	Integrity  string   `json:"integrity,omitempty"`
+	Site       string   `json:"site,omitempty"`
+	User       string   `json:"user"`
+	Repo       string   `json:"repo"`
+	Path       string   `json:"path,omitempty"`
+	Branch     string   `json:"branch,omitempty"`
+	Transitive bool     `json:"transitive,omitempty"`
+	RequiredBy []string `json:"required_by,omitempty"`
+	Scheme     string   `json:"scheme,omitempty"`
+	Local      string   `json:"local,omitempty"`
 }
 
 func New(sampctlVersion string) *Lockfile {
