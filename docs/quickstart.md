@@ -19,7 +19,7 @@ sampctl init
 If you want open.mp instead of SA:MP (ideal for CI usage):
 
 ```bash
-sampctl init --preset openmp
+sampctl init --runtime openmp
 ```
 
 2) Add dependencies (example):
