@@ -248,3 +248,47 @@ func manifestsEqual(a, b runtimeManifest) bool {
 func runtimeManifestPath(root string) string {
 	return filepath.Join(root, runtimeManifestRelativePath)
 }
+
+type RuntimeFileInfo struct {
+	Path string
+	Size int64
+	Hash string
+	Mode uint32
+}
+
+type RuntimeManifestInfo struct {
+	Version     string
+	Platform    string
+	RuntimeType string
+	Files       []RuntimeFileInfo
+}
+
+func GetRuntimeManifestInfo(workingDir string) (*RuntimeManifestInfo, error) {
+	manifestPath := runtimeManifestPath(workingDir)
+	if !fs.Exists(manifestPath) {
+		return nil, nil
+	}
+
+	manifest, err := readRuntimeManifest(manifestPath)
+	if err != nil {
+		return nil, err
+	}
+
+	info := &RuntimeManifestInfo{
+		Version:     manifest.Version,
+		Platform:    manifest.Platform,
+		RuntimeType: string(manifest.RuntimeType),
+		Files:       make([]RuntimeFileInfo, len(manifest.Files)),
+	}
+
+	for i, f := range manifest.Files {
+		info.Files[i] = RuntimeFileInfo{
+			Path: f.Path,
+			Size: f.Size,
+			Hash: f.Hash,
+			Mode: f.Mode,
+		}
+	}
+
+	return info, nil
+}

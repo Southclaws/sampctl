@@ -48,9 +48,21 @@ func packageInstall(c *cli.Context) error {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
+	//initialize lockfile support
+	err = pcx.InitLockfileResolver(sampctlVersion)
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize lockfile resolver")
+	}
+
 	err = pcx.Install(context.Background(), deps, development)
 	if err != nil {
 		return err
+	}
+
+	//save lockfile after successful install
+	err = pcx.SaveLockfile()
+	if err != nil {
+		print.Warn("failed to save lockfile:", err)
 	}
 
 	print.Info("successfully added new dependency")

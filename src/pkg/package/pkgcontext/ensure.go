@@ -2,16 +2,21 @@ package pkgcontext
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/go-git/go-git/v5"
 	"github.com/pkg/errors"
 	"gopkg.in/eapache/go-resiliency.v1/retrier"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
+	"github.com/Southclaws/sampctl/src/pkg/package/lockfile"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 	"github.com/Southclaws/sampctl/src/pkg/runtime/runtime"
 	"github.com/Southclaws/sampctl/src/resource"
@@ -80,6 +85,11 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 		if err := runtime.EnsurePlugins(ctx, pcx.GitHub, &pcx.ActualRuntime, pcx.CacheDir, false); err != nil {
 			return errors.Wrap(err, "failed to ensure runtime plugins")
 		}
+
+		pcx.recordRuntimeToLockfileFromConfig()
+		if saveErr := pcx.SaveLockfile(); saveErr != nil {
+			print.Warn("failed to save lockfile after runtime update:", saveErr)
+		}
 	}
 
 	return err
@@ -98,23 +108,30 @@ func (pcx *PackageContext) GatherPlugins() (pluginDeps []versioning.DependencyMe
 
 // EnsurePackage will make sure a vendor directory contains the specified package.
 // If the package is not present, it will clone it at the correct version tag, sha1 or HEAD
-// If the package is present, it will ensure the directory contains the correct version
+// If the package is present, it will ensure the directory contains the correct version.
+// When lockfile support is enabled, it uses locked versions for reproducibility.
 func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUpdate bool) error {
 	// Handle URL-like schemes differently
 	if meta.IsURLScheme() {
 		return pcx.ensureURLSchemeDependency(meta)
 	}
 
-	dependencyPath := filepath.Join(pcx.Package.Vendor, meta.Repo)
+	// Apply locked version if lockfile is enabled and not forcing update
+	effectiveMeta := meta
+	if pcx.LockfileResolver != nil && !forceUpdate {
+		effectiveMeta = pcx.LockfileResolver.GetLockedVersion(meta)
+	}
+
+	dependencyPath := filepath.Join(pcx.Package.Vendor, effectiveMeta.Repo)
 
 	if fs.Exists(dependencyPath) {
 		valid, validationErr := ValidateRepository(dependencyPath)
 		if validationErr != nil || !valid {
-			print.Verb(meta, "existing repository is invalid or corrupted")
+			print.Verb(effectiveMeta, "existing repository is invalid or corrupted")
 			if validationErr != nil {
-				print.Verb(meta, "validation error:", validationErr)
+				print.Verb(effectiveMeta, "validation error:", validationErr)
 			}
-			print.Verb(meta, "removing invalid repository for fresh clone")
+			print.Verb(effectiveMeta, "removing invalid repository for fresh clone")
 			err := os.RemoveAll(dependencyPath)
 			if err != nil {
 				return errors.Wrap(err, "failed to remove invalid dependency repo")
@@ -122,22 +139,96 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 		}
 	}
 
-	repo, err := pcx.ensureDependencyRepository(meta, dependencyPath, forceUpdate)
+	repo, err := pcx.ensureDependencyRepository(effectiveMeta, dependencyPath, forceUpdate)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure dependency repository")
 	}
 
-	err = pcx.updateRepoStateWithRecovery(repo, meta, dependencyPath, forceUpdate)
+	err = pcx.updateRepoStateWithRecovery(repo, effectiveMeta, dependencyPath, forceUpdate)
 	if err != nil {
 		return errors.Wrap(err, "failed to update repository state")
 	}
 
-	err = pcx.installPackageResources(meta)
+	// Record the resolution to lockfile
+	if pcx.LockfileResolver != nil {
+		if recordErr := pcx.LockfileResolver.RecordResolution(meta, repo, false, ""); recordErr != nil {
+			print.Warn("failed to record dependency resolution to lockfile:", recordErr)
+		}
+	}
+
+	err = pcx.installPackageResources(effectiveMeta)
 	if err != nil {
 		return errors.Wrap(err, "failed to install package resources")
 	}
 
 	return nil
+}
+
+// EnsurePackageWithParent ensures a package and records it as a transitive dependency
+func (pcx *PackageContext) EnsurePackageWithParent(meta versioning.DependencyMeta, forceUpdate bool, parentRepo string) error {
+	// Handle URL-like schemes differently
+	if meta.IsURLScheme() {
+		return pcx.ensureURLSchemeDependency(meta)
+	}
+
+	// Apply locked version if lockfile is enabled and not forcing update
+	effectiveMeta := meta
+	if pcx.LockfileResolver != nil && !forceUpdate {
+		effectiveMeta = pcx.LockfileResolver.GetLockedVersion(meta)
+	}
+
+	dependencyPath := filepath.Join(pcx.Package.Vendor, effectiveMeta.Repo)
+
+	if fs.Exists(dependencyPath) {
+		valid, validationErr := ValidateRepository(dependencyPath)
+		if validationErr != nil || !valid {
+			print.Verb(effectiveMeta, "existing repository is invalid or corrupted")
+			err := os.RemoveAll(dependencyPath)
+			if err != nil {
+				return errors.Wrap(err, "failed to remove invalid dependency repo")
+			}
+		}
+	}
+
+	repo, err := pcx.ensureDependencyRepository(effectiveMeta, dependencyPath, forceUpdate)
+	if err != nil {
+		return errors.Wrap(err, "failed to ensure dependency repository")
+	}
+
+	err = pcx.updateRepoStateWithRecovery(repo, effectiveMeta, dependencyPath, forceUpdate)
+	if err != nil {
+		return errors.Wrap(err, "failed to update repository state")
+	}
+
+	// Record the resolution to lockfile as transitive dependency
+	if pcx.LockfileResolver != nil {
+		isTransitive := parentRepo != "" && parentRepo != pcx.Package.Repo
+		if recordErr := pcx.LockfileResolver.RecordResolution(meta, repo, isTransitive, parentRepo); recordErr != nil {
+			print.Warn("failed to record dependency resolution to lockfile:", recordErr)
+		}
+	}
+
+	err = pcx.installPackageResources(effectiveMeta)
+	if err != nil {
+		return errors.Wrap(err, "failed to install package resources")
+	}
+
+	return nil
+}
+
+// GetResolvedCommit returns the resolved commit SHA for a dependency path
+func (pcx *PackageContext) GetResolvedCommit(dependencyPath string) (string, error) {
+	repo, err := git.PlainOpen(dependencyPath)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to open repository")
+	}
+
+	head, err := repo.Head()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get HEAD")
+	}
+
+	return head.Hash().String(), nil
 }
 
 // installPackageResources handles resource installation from cached package
@@ -402,4 +493,71 @@ func (pcx PackageContext) extractResourceDependencies(
 	}
 
 	return dir, nil
+}
+
+func (pcx *PackageContext) recordRuntimeToLockfileFromConfig() {
+	if pcx.LockfileResolver == nil {
+		return
+	}
+
+	manifestInfo, err := runtime.GetRuntimeManifestInfo(pcx.Package.LocalPath)
+	if err != nil {
+		print.Warn("failed to get runtime manifest info:", err)
+		return
+	}
+	if manifestInfo == nil {
+		print.Verb("no runtime manifest found, skipping lockfile runtime record")
+		return
+	}
+
+	files := make([]lockfile.LockedFileInfo, len(manifestInfo.Files))
+	for i, f := range manifestInfo.Files {
+		files[i] = lockfile.LockedFileInfo{
+			Path: f.Path,
+			Size: f.Size,
+			Hash: f.Hash,
+			Mode: f.Mode,
+		}
+	}
+
+	print.Verb("recording runtime to lockfile:", pcx.ActualRuntime.Version, pcx.ActualRuntime.Platform, string(pcx.ActualRuntime.RuntimeType))
+	pcx.LockfileResolver.RecordRuntime(
+		pcx.ActualRuntime.Version,
+		pcx.ActualRuntime.Platform,
+		string(pcx.ActualRuntime.RuntimeType),
+		files,
+	)
+}
+
+func (pcx *PackageContext) RecordBuildToLockfile(compilerVersion, compilerPreset, entry, output string) {
+	if pcx.LockfileResolver == nil {
+		return
+	}
+
+	outputHash := ""
+	if output != "" && fs.Exists(output) {
+		hash, err := hashOutputFile(output)
+		if err != nil {
+			print.Warn("failed to hash output file:", err)
+		} else {
+			outputHash = hash
+		}
+	}
+
+	pcx.LockfileResolver.RecordBuild(compilerVersion, compilerPreset, entry, output, outputHash)
+}
+
+func hashOutputFile(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, file); err != nil {
+		return "", err
+	}
+
+	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
 }
