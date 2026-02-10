@@ -195,7 +195,6 @@ func (pkg Package) GetBuildConfig(name string) (config *build.Config) {
 
 	if config == nil {
 		if pkg.Build != nil {
-			print.Warn("Build doesn't exist, defaulting to main build")
 			config = pkg.Build
 		} else {
 			print.Warn("No build config called:", name, "using default")
