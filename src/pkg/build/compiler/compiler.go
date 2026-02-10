@@ -200,7 +200,7 @@ func compilerFromCustomPath(pathRoot string) (download.Compiler, error) {
 	}
 
 	return download.Compiler{
-		Binary: compilerPath,
+		Binary: filepath.Base(compilerPath),
 		Paths:  map[string]string{},
 	}, nil
 }
