@@ -163,7 +163,7 @@ func resolveCompilerBinary(
 	config build.Config,
 ) (download.Compiler, string, error) {
 	resolved := config.Compiler.ResolveCompilerConfig()
-	runtimeDir := filepath.Join(cacheDir, "pawn", resolved.Version)
+	runtimeDir := compilerRuntimeDir(cacheDir, resolved)
 
 	if config.Compiler.Path == "" {
 		pkg, err := GetCompilerPackage(ctx, gh, resolved, runtimeDir, platform, cacheDir)
@@ -178,6 +178,10 @@ func resolveCompilerBinary(
 		return download.Compiler{}, "", err
 	}
 	return pkg, config.Compiler.Path, nil
+}
+
+func compilerRuntimeDir(cacheDir string, resolved build.CompilerConfig) string {
+	return filepath.Join(cacheDir, "pawn", resolved.User, resolved.Repo, resolved.Version)
 }
 
 func compilerFromCustomPath(pathRoot string) (download.Compiler, error) {
