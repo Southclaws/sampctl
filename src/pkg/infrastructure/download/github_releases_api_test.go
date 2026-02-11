@@ -2,10 +2,12 @@ package download
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/google/go-github/github"
@@ -20,6 +22,11 @@ type fakeReleasesAPI struct {
 
 	listCalls int
 	tagCalls  int
+
+	downloadCalls       int
+	downloadRC          io.ReadCloser
+	downloadRedirectURL string
+	downloadErr         error
 }
 
 func (f *fakeReleasesAPI) ListReleases(ctx context.Context, owner, repo string, opt *github.ListOptions) ([]*github.RepositoryRelease, *github.Response, error) {
@@ -30,6 +37,14 @@ func (f *fakeReleasesAPI) ListReleases(ctx context.Context, owner, repo string, 
 func (f *fakeReleasesAPI) GetReleaseByTag(ctx context.Context, owner, repo, tag string) (*github.RepositoryRelease, *github.Response, error) {
 	f.tagCalls++
 	return f.byTag[tag], nil, nil
+}
+
+func (f *fakeReleasesAPI) DownloadReleaseAsset(ctx context.Context, owner, repo string, id int64) (io.ReadCloser, string, error) {
+	f.downloadCalls++
+	if f.downloadErr != nil {
+		return nil, "", f.downloadErr
+	}
+	return f.downloadRC, f.downloadRedirectURL, nil
 }
 
 func TestReleaseAssetByPatternWithAPI_UsesListReleases_WhenNoTag(t *testing.T) {
@@ -46,10 +61,11 @@ func TestReleaseAssetByPatternWithAPI_UsesListReleases_WhenNoTag(t *testing.T) {
 	rel := &github.RepositoryRelease{
 		TagName: github.String("v1.2.3"),
 		Assets: []github.ReleaseAsset{
-			{Name: github.String(name), BrowserDownloadURL: github.String(url)},
+			{ID: github.Int64(1), Name: github.String(name), BrowserDownloadURL: github.String(url)},
 		},
 	}
 	fake := &fakeReleasesAPI{releases: []*github.RepositoryRelease{rel}, byTag: map[string]*github.RepositoryRelease{}}
+	fake.downloadRC = io.NopCloser(strings.NewReader("ok"))
 
 	filename, tag, err := ReleaseAssetByPatternWithAPI(
 		context.Background(),
@@ -66,6 +82,7 @@ func TestReleaseAssetByPatternWithAPI_UsesListReleases_WhenNoTag(t *testing.T) {
 	require.FileExists(t, filename)
 	require.Equal(t, 1, fake.listCalls)
 	require.Equal(t, 0, fake.tagCalls)
+	require.Equal(t, 1, fake.downloadCalls)
 }
 
 func TestReleaseAssetByPatternWithAPI_UsesGetReleaseByTag_WhenTagProvided(t *testing.T) {
@@ -82,10 +99,11 @@ func TestReleaseAssetByPatternWithAPI_UsesGetReleaseByTag_WhenTagProvided(t *tes
 	rel := &github.RepositoryRelease{
 		TagName: github.String("v9.9.9"),
 		Assets: []github.ReleaseAsset{
-			{Name: github.String(name), BrowserDownloadURL: github.String(url)},
+			{ID: github.Int64(2), Name: github.String(name), BrowserDownloadURL: github.String(url)},
 		},
 	}
 	fake := &fakeReleasesAPI{releases: nil, byTag: map[string]*github.RepositoryRelease{"v9.9.9": rel}}
+	fake.downloadRC = io.NopCloser(strings.NewReader("ok"))
 
 	filename, tag, err := ReleaseAssetByPatternWithAPI(
 		context.Background(),
@@ -102,6 +120,7 @@ func TestReleaseAssetByPatternWithAPI_UsesGetReleaseByTag_WhenTagProvided(t *tes
 	require.FileExists(t, filename)
 	require.Equal(t, 0, fake.listCalls)
 	require.Equal(t, 1, fake.tagCalls)
+	require.Equal(t, 1, fake.downloadCalls)
 }
 
 func TestReleaseAssetByPatternWithAPI_ReturnsError_WhenNoAssetMatches(t *testing.T) {
@@ -116,10 +135,11 @@ func TestReleaseAssetByPatternWithAPI_ReturnsError_WhenNoAssetMatches(t *testing
 	rel := &github.RepositoryRelease{
 		TagName: github.String("v1.0.0"),
 		Assets: []github.ReleaseAsset{
-			{Name: github.String(name), BrowserDownloadURL: github.String(url)},
+			{ID: github.Int64(3), Name: github.String(name), BrowserDownloadURL: github.String(url)},
 		},
 	}
 	fake := &fakeReleasesAPI{releases: []*github.RepositoryRelease{rel}, byTag: map[string]*github.RepositoryRelease{}}
+	fake.downloadRC = io.NopCloser(strings.NewReader("ok"))
 
 	_, _, err := ReleaseAssetByPatternWithAPI(
 		context.Background(),

@@ -270,24 +270,66 @@ func ReleaseAssetByPatternWithAPI(
 	}
 
 	if outputFile == "" {
-		var u *url.URL
-		u, err = url.Parse(*asset.BrowserDownloadURL)
-		if err != nil {
-			err = errors.Wrap(err, "failed to parse download URL from GitHub API")
+		if name := asset.GetName(); name != "" {
+			outputFile = name
+		} else if asset.BrowserDownloadURL != nil && *asset.BrowserDownloadURL != "" {
+			var u *url.URL
+			u, err = url.Parse(*asset.BrowserDownloadURL)
+			if err != nil {
+				err = errors.Wrap(err, "failed to parse download URL from GitHub API")
+				return
+			}
+			outputFile = filepath.Base(u.Path)
+		} else {
+			err = errors.New("release asset has no name or download URL")
 			return
 		}
-		outputFile = filepath.Base(u.Path)
 	} else {
 		outputFile = filepath.Base(outputFile)
 	}
 
 	destination := filepath.Join(baseDir, outputFile)
-	filename, err = FromNet(ctx, *asset.BrowserDownloadURL, destination)
+	filename, err = downloadReleaseAsset(ctx, gh, meta, asset, destination)
 	if err != nil {
 		return
 	}
 
 	return filename, tag, nil
+}
+
+func downloadReleaseAsset(
+	ctx context.Context,
+	gh GitHubReleasesAPI,
+	meta versioning.DependencyMeta,
+	asset *github.ReleaseAsset,
+	destination string,
+) (string, error) {
+	if asset == nil {
+		return "", errors.New("no release asset selected")
+	}
+
+	if gh != nil && asset.GetID() != 0 {
+		rc, redirectURL, err := gh.DownloadReleaseAsset(ctx, meta.User, meta.Repo, asset.GetID())
+		if err != nil {
+			return "", errors.Wrap(err, "failed to download release asset via GitHub API")
+		}
+		if redirectURL != "" {
+			return FromNet(ctx, redirectURL, destination)
+		}
+		if rc == nil {
+			return "", errors.New("empty response body for release asset download")
+		}
+		defer rc.Close()
+		if writeErr := fs.WriteFromReaderAtomic(destination, rc, fs.PermDirPrivate, fs.PermFileShared); writeErr != nil {
+			return "", errors.Wrap(writeErr, "failed to write package to cache")
+		}
+		return destination, nil
+	}
+
+	if asset.BrowserDownloadURL == nil || *asset.BrowserDownloadURL == "" {
+		return "", errors.New("release asset has no download URL")
+	}
+	return FromNet(ctx, *asset.BrowserDownloadURL, destination)
 }
 
 func getLatestReleaseOrPreRelease(
