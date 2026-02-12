@@ -2,6 +2,7 @@ package download
 
 import (
 	"context"
+	"io"
 
 	"github.com/google/go-github/github"
 )
@@ -10,6 +11,7 @@ import (
 type GitHubReleasesAPI interface {
 	ListReleases(ctx context.Context, owner, repo string, opt *github.ListOptions) ([]*github.RepositoryRelease, *github.Response, error)
 	GetReleaseByTag(ctx context.Context, owner, repo, tag string) (*github.RepositoryRelease, *github.Response, error)
+	DownloadReleaseAsset(ctx context.Context, owner, repo string, id int64) (io.ReadCloser, string, error)
 }
 
 type githubClientReleasesAdapter struct {
@@ -22,4 +24,8 @@ func (a githubClientReleasesAdapter) ListReleases(ctx context.Context, owner, re
 
 func (a githubClientReleasesAdapter) GetReleaseByTag(ctx context.Context, owner, repo, tag string) (*github.RepositoryRelease, *github.Response, error) {
 	return a.client.Repositories.GetReleaseByTag(ctx, owner, repo, tag)
+}
+
+func (a githubClientReleasesAdapter) DownloadReleaseAsset(ctx context.Context, owner, repo string, id int64) (io.ReadCloser, string, error) {
+	return a.client.Repositories.DownloadReleaseAsset(ctx, owner, repo, id)
 }
