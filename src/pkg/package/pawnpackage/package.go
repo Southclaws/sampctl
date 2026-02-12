@@ -56,6 +56,7 @@ type Package struct {
 
 	// Functional, set by the package author to declare relevant files and dependencies
 	Preset                string                        `json:"preset,omitempty" yaml:"preset,omitempty"`                                   // package preset controlling default runtime/compiler (samp, openmp)
+	Experimental          *ExperimentalConfig           `json:"experimental,omitempty" yaml:"experimental,omitempty"`                       // experimental feature flags
 	Entry                 string                        `json:"entry,omitempty" yaml:"entry,omitempty"`                                     // entry point script to compile the project
 	Output                string                        `json:"output,omitempty" yaml:"output,omitempty"`                                   // output amx file
 	Dependencies          []versioning.DependencyString `json:"dependencies,omitempty" yaml:"dependencies,omitempty"`                       // list of packages that the package depends on
@@ -68,6 +69,19 @@ type Package struct {
 	IncludePath           string                        `json:"include_path,omitempty" yaml:"include_path,omitempty"`                       // include path within the repository, so users don't need to specify the path explicitly
 	Resources             []resource.Resource           `json:"resources,omitempty" yaml:"resources,omitempty"`                             // list of additional resources associated with the package
 	ExtractIgnorePatterns []string                      `json:"extract_ignore_patterns,omitempty" yaml:"extract_ignore_patterns,omitempty"` // patterns of files to skip when extracting plugin archives
+}
+
+// ExperimentalConfig contains experimental feature flags for package behavior.
+type ExperimentalConfig struct {
+	BuildFile bool `json:"build_file,omitempty" yaml:"build_file,omitempty"` // generate a build-time include file with constants
+}
+
+// ExperimentalFlags resolves experimental config, supporting the legacy misspelled field.
+func (pkg Package) ExperimentalFlags() *ExperimentalConfig {
+	if pkg.Experimental != nil {
+		return pkg.Experimental
+	}
+	return nil
 }
 
 func (pkg Package) effectivePreset() string {
