@@ -52,7 +52,7 @@ See also: [Build configuration reference](build-configuration-reference.md)
 
 ### Experimental build file (`experimental.build_file`)
 
-When `experimental.build_file` is `true`, sampctl generates `sampctl_build_file.inc` in your project root before compilation and adds the project root to the include paths. The legacy spelling `expiremental.build_file` is also accepted.
+When `experimental.build_file` is `true`, sampctl generates `sampctl_build_file.inc` in your project root before compilation and adds the project root to the include paths.
 
 The generated file includes:
 
