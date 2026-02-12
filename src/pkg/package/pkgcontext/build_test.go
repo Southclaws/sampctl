@@ -204,6 +204,83 @@ func TestBuildPrepareKeepsResourceIncludePathsWhenComponentSchemePresent(t *test
 	}
 }
 
+func TestBuildPrepareGeneratesBuildFileWithConstants(t *testing.T) {
+	tempDir := t.TempDir()
+	t.Setenv("BUILD_ENV_VALUE", "from-env")
+
+	pcx := &PackageContext{
+		Package: pawnpackage.Package{
+			LocalPath: tempDir,
+			Entry:     "gamemodes/test.pwn",
+			Output:    "gamemodes/test.amx",
+			Experimental: &pawnpackage.ExperimentalConfig{
+				BuildFile: true,
+			},
+			Build: &build.Config{
+				Constants: map[string]string{
+					"NUM_CONST":    "42",
+					"STR_CONST":    "hello",
+					"ENV_CONST":    "$BUILD_ENV_VALUE",
+					"QUOTED_CONST": "\"already quoted\"",
+					"ESC_CONST":    "hello\"world",
+				},
+			},
+		},
+	}
+
+	_, err := pcx.buildPrepare(context.Background(), "", false, false)
+	require.NoError(t, err)
+
+	buildFilePath := filepath.Join(tempDir, "sampctl_build_file.inc")
+	contents, err := os.ReadFile(buildFilePath)
+	require.NoError(t, err)
+
+	text := string(contents)
+	require.Contains(t, text, "#define NUM_CONST 42")
+	require.Contains(t, text, "#define STR_CONST \"hello\"")
+	require.Contains(t, text, "#define ENV_CONST \"from-env\"")
+	require.Contains(t, text, "#define QUOTED_CONST \"already quoted\"")
+	require.Contains(t, text, "#define ESC_CONST \"hello\\\"world\"")
+}
+
+func TestBuildPrepareBuildFileIncludesGitInfo(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	gitDir := filepath.Join(tempDir, ".git")
+	require.NoError(t, os.MkdirAll(filepath.Join(gitDir, "refs", "heads"), 0o755))
+
+	commit := "0123456789abcdef0123456789abcdef01234567"
+	require.NoError(t, os.WriteFile(filepath.Join(gitDir, "HEAD"), []byte("ref: refs/heads/main\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(gitDir, "refs", "heads", "main"), []byte(commit), 0o644))
+
+	pcx := &PackageContext{
+		Package: pawnpackage.Package{
+			LocalPath: tempDir,
+			Entry:     "gamemodes/test.pwn",
+			Output:    "gamemodes/test.amx",
+			Experimental: &pawnpackage.ExperimentalConfig{
+				BuildFile: true,
+			},
+			Build: &build.Config{
+				Constants: map[string]string{},
+			},
+		},
+	}
+
+	_, err := pcx.buildPrepare(context.Background(), "", false, false)
+	require.NoError(t, err)
+
+	buildFilePath := filepath.Join(tempDir, "sampctl_build_file.inc")
+	contents, err := os.ReadFile(buildFilePath)
+	require.NoError(t, err)
+
+	text := string(contents)
+	require.Contains(t, text, "#define SAMPCTL_BUILD_COMMIT \""+commit+"\"")
+	require.Contains(t, text, "#define SAMPCTL_BUILD_COMMIT_SHORT \""+commit[:7]+"\"")
+	require.Contains(t, text, "#define SAMPCTL_BUILD_BRANCH \"main\"")
+}
+
 func toJSONArray(values []string) string {
 	if len(values) == 0 {
 		return "[]"
