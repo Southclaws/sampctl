@@ -525,14 +525,14 @@ func (pcx PackageContext) authForRemote(from string, ssh bool) transport.AuthMet
 
 	if authBundle, ok := pcx.GitAuth.(*GitMultiAuth); ok {
 		if ssh || isSSHRemote(from) {
-			if authBundle.SSH != nil && strings.HasPrefix(authBundle.SSH.Name(), "ssh-") {
+			if authBundle.SSH != nil {
 				return authBundle.SSH
 			}
 			return nil
 		}
 
 		if strings.HasPrefix(from, "https://") || strings.HasPrefix(from, "http://") {
-			if authBundle.HTTP != nil && strings.HasPrefix(authBundle.HTTP.Name(), "http-") {
+			if authBundle.HTTP != nil {
 				return authBundle.HTTP
 			}
 			return nil

@@ -282,12 +282,7 @@ func GetRuntimeManifestInfo(workingDir string) (*RuntimeManifestInfo, error) {
 	}
 
 	for i, f := range manifest.Files {
-		info.Files[i] = RuntimeFileInfo{
-			Path: f.Path,
-			Size: f.Size,
-			Hash: f.Hash,
-			Mode: f.Mode,
-		}
+		info.Files[i] = RuntimeFileInfo(f)
 	}
 
 	return info, nil

@@ -260,6 +260,8 @@ func (pcx *PackageContext) installPackageResources(meta versioning.DependencyMet
 		}
 	}
 
+	applyDependencyMetaToPackage(&pkg, meta)
+
 	// But the cached copy will have the latest tag assigned to it, so before ensuring it, apply the
 	// tag of the actual package we installed.
 	pkg.Tag = meta.Tag
@@ -280,6 +282,21 @@ func (pcx *PackageContext) installPackageResources(meta versioning.DependencyMet
 	}
 
 	return err
+}
+
+func applyDependencyMetaToPackage(pkg *pawnpackage.Package, meta versioning.DependencyMeta) {
+	if pkg == nil {
+		return
+	}
+
+	pkg.Site = meta.Site
+	pkg.User = meta.User
+	pkg.Repo = meta.Repo
+	pkg.Path = meta.Path
+	pkg.Tag = meta.Tag
+	pkg.Branch = meta.Branch
+	pkg.Commit = meta.Commit
+	pkg.SSH = meta.SSH
 }
 
 // ensureURLSchemeDependency handles dependencies with URL-like schemes (plugin://, includes://, filterscript://)
