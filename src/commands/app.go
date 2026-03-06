@@ -251,6 +251,11 @@ func Run(args []string, version string) error {
 				Username: cfg.GitUsername,
 				Password: cfg.GitPassword,
 			}
+		} else if cfg.GitHubToken != "" {
+			gitAuth = &http.BasicAuth{
+				Username: "x-access-token",
+				Password: cfg.GitHubToken,
+			}
 		} else {
 			gitAuth, err = ssh.DefaultAuthBuilder("git")
 			if err != nil {
