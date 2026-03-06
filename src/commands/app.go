@@ -21,6 +21,7 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
+	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
 var (
@@ -246,21 +247,35 @@ func Run(args []string, version string) error {
 			)
 		}
 
+		var httpAuth transport.AuthMethod
+		var sshAuth transport.AuthMethod
+
 		if cfg.GitUsername != "" && cfg.GitPassword != "" {
-			gitAuth = &http.BasicAuth{
+			httpAuth = &http.BasicAuth{
 				Username: cfg.GitUsername,
 				Password: cfg.GitPassword,
 			}
 		} else if cfg.GitHubToken != "" {
-			gitAuth = &http.BasicAuth{
+			httpAuth = &http.BasicAuth{
 				Username: "x-access-token",
 				Password: cfg.GitHubToken,
 			}
-		} else {
-			gitAuth, err = ssh.DefaultAuthBuilder("git")
-			if err != nil {
-				print.Verb("Failed to set up SSH:", err)
-			}
+		}
+
+		sshAuth, err = ssh.DefaultAuthBuilder("git")
+		if err != nil {
+			print.Verb("Failed to set up SSH:", err)
+		}
+
+		switch {
+		case httpAuth != nil && sshAuth != nil:
+			gitAuth = &pkgcontext.GitMultiAuth{HTTP: httpAuth, SSH: sshAuth}
+		case httpAuth != nil:
+			gitAuth = httpAuth
+		case sshAuth != nil:
+			gitAuth = sshAuth
+		default:
+			gitAuth = nil
 		}
 
 		return nil

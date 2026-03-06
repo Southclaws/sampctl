@@ -488,7 +488,7 @@ func (pcx PackageContext) shouldRetryWithSSH(meta versioning.DependencyMeta, fro
 		return false
 	}
 
-	if !strings.HasPrefix(pcx.GitAuth.Name(), "ssh-") {
+	if pcx.authForRemote(toGitSSHURL(meta), true) == nil {
 		return false
 	}
 
@@ -520,6 +520,24 @@ func isGitAuthenticationError(err error) bool {
 
 func (pcx PackageContext) authForRemote(from string, ssh bool) transport.AuthMethod {
 	if pcx.GitAuth == nil {
+		return nil
+	}
+
+	if authBundle, ok := pcx.GitAuth.(*GitMultiAuth); ok {
+		if ssh || isSSHRemote(from) {
+			if authBundle.SSH != nil && strings.HasPrefix(authBundle.SSH.Name(), "ssh-") {
+				return authBundle.SSH
+			}
+			return nil
+		}
+
+		if strings.HasPrefix(from, "https://") || strings.HasPrefix(from, "http://") {
+			if authBundle.HTTP != nil && strings.HasPrefix(authBundle.HTTP.Name(), "http-") {
+				return authBundle.HTTP
+			}
+			return nil
+		}
+
 		return nil
 	}
 

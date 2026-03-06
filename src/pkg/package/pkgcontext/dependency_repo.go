@@ -106,6 +106,7 @@ func (pcx *PackageContext) updateRepoState(
 	forcePull bool,
 ) error {
 	print.Verb(meta, "updating repository state with", pcx.GitAuth, "authentication method")
+	remoteURL := getRepositoryOriginURL(repo)
 
 	var (
 		wt  *git.Worktree
@@ -118,12 +119,17 @@ func (pcx *PackageContext) updateRepoState(
 		if err != nil {
 			return errors.Wrap(err, "failed to ensure dependency in cache")
 		}
+		remoteURL = getRepositoryOriginURL(repo)
 		wt, err = repo.Worktree()
 		if err != nil {
 			return errors.Wrap(err, "failed to get repo worktree")
 		}
+		forcePullOpts := &git.PullOptions{Depth: 1000}
+		if auth := pcx.authForRemote(remoteURL, meta.SSH != ""); auth != nil {
+			forcePullOpts.Auth = auth
+		}
 
-		if err = wt.Pull(&git.PullOptions{Depth: 1000}); err != nil && err != git.NoErrAlreadyUpToDate {
+		if err = wt.Pull(forcePullOpts); err != nil && err != git.NoErrAlreadyUpToDate {
 			return errors.Wrap(err, "failed to force pull for full update")
 		}
 	} else {
@@ -134,8 +140,8 @@ func (pcx *PackageContext) updateRepoState(
 	}
 
 	pullOpts := &git.PullOptions{}
-	if meta.SSH != "" {
-		pullOpts.Auth = pcx.GitAuth
+	if auth := pcx.authForRemote(remoteURL, meta.SSH != ""); auth != nil {
+		pullOpts.Auth = auth
 	}
 
 	var ref *plumbing.Reference
@@ -185,4 +191,15 @@ func (pcx *PackageContext) updateRepoState(
 	}
 
 	return nil
+}
+
+func getRepositoryOriginURL(repo *git.Repository) string {
+	remote, err := repo.Remote("origin")
+	if err != nil {
+		return ""
+	}
+	if remote == nil || remote.Config() == nil || len(remote.Config().URLs) == 0 {
+		return ""
+	}
+	return remote.Config().URLs[0]
 }
