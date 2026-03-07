@@ -185,11 +185,17 @@ func (pcx *PackageContext) BuildWatch(
 		debounceCh       <-chan time.Time
 	)
 
-	defer cancel()
+	defer func() {
+		if debounceTimer != nil {
+			debounceTimer.Stop()
+		}
+		cancel()
+	}()
 
 	watcherColour := color.New(color.FgBlack, color.BgGreen).SprintFunc()
 
 	startBuild := func(eventName string) {
+		cancel()
 		buildRunning = true
 		pendingEvent = ""
 		buildRun := atomic.AddUint32(&buildNumber, 1)
@@ -267,6 +273,7 @@ loop:
 
 		case result := <-resultCh:
 			buildRunning = false
+			cancel()
 
 			if result.err != nil {
 				if result.err.Error() == "signal: killed" || result.err.Error() == "context canceled" {
