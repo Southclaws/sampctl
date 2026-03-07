@@ -25,6 +25,15 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
 
+const buildWatchDebounce = 750 * time.Millisecond
+
+type buildWatchResult struct {
+	problems    build.Problems
+	err         error
+	eventName   string
+	buildNumber uint32
+}
+
 // Build compiles a package, dependencies are ensured and a list of paths are sent to the compiler.
 func (pcx *PackageContext) Build(
 	ctx context.Context,
@@ -132,13 +141,14 @@ func (pcx *PackageContext) BuildWatch(
 	if err != nil {
 		return errors.Wrap(err, "failed to create new filesystem watcher")
 	}
+	defer watcher.Close()
 
-	path := path.Dir(pcx.Package.Entry)
-	if path == "" {
-		path = pcx.Package.LocalPath
+	watchPath := path.Dir(pcx.Package.Entry)
+	if watchPath == "" {
+		watchPath = pcx.Package.LocalPath
 	}
 
-	err = filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(watchPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			print.Warn(err)
 			return nil
@@ -160,27 +170,73 @@ func (pcx *PackageContext) BuildWatch(
 		return errors.Wrap(err, "failed to add paths to filesystem watcher")
 	}
 
-	print.Verb("watching directory for changes", path)
+	print.Verb("watching directory for changes", watchPath)
 
 	signals := make(chan os.Signal, 1)
-	errorCh := make(chan error)
+	resultCh := make(chan buildWatchResult, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(signals)
 
 	var (
-		running          atomic.Value
 		ctxInner, cancel = context.WithCancel(ctx)
-		problems         []build.Problem
-		lastEvent        time.Time
+		buildRunning     bool
+		pendingEvent     string
+		debounceTimer    *time.Timer
+		debounceCh       <-chan time.Time
 	)
 
 	defer cancel()
 
-	running.Store(false)
-
 	watcherColour := color.New(color.FgBlack, color.BgGreen).SprintFunc()
 
-	// send a fake first event to trigger an initial build
-	go func() { watcher.Events <- fsnotify.Event{Name: pcx.Package.Entry, Op: fsnotify.Write} }()
+	startBuild := func(eventName string) {
+		buildRunning = true
+		pendingEvent = ""
+		buildRun := atomic.AddUint32(&buildNumber, 1)
+		ctxInner, cancel = context.WithCancel(ctx)
+
+		fmt.Printf("%s found modified file: %s\n", watcherColour("WATCHER:"), eventName)
+		fmt.Printf("%s compiling %s with compiler version %s [%d]\n", watcherColour("WATCHER:"), config.Input, config.Compiler.Version, buildRun)
+
+		go func(run uint32, changedFile string, buildCtx context.Context) {
+			problems, _, buildErr := compiler.CompileSource(
+				buildCtx,
+				pcx.GitHub,
+				pcx.Package.LocalPath,
+				pcx.Package.LocalPath,
+				pcx.CacheDir,
+				pcx.Platform,
+				*config,
+				relative,
+			)
+			resultCh <- buildWatchResult{
+				problems:    problems,
+				err:         buildErr,
+				eventName:   changedFile,
+				buildNumber: run,
+			}
+		}(buildRun, eventName, ctxInner)
+	}
+
+	queueBuild := func(eventName string) {
+		pendingEvent = eventName
+		if debounceTimer == nil {
+			debounceTimer = time.NewTimer(buildWatchDebounce)
+			debounceCh = debounceTimer.C
+			return
+		}
+
+		if !debounceTimer.Stop() {
+			select {
+			case <-debounceTimer.C:
+			default:
+			}
+		}
+		debounceTimer.Reset(buildWatchDebounce)
+		debounceCh = debounceTimer.C
+	}
+
+	startBuild(pcx.Package.Entry)
 
 loop:
 	for {
@@ -188,77 +244,68 @@ loop:
 		case sig := <-signals:
 			fmt.Println("") // insert newline after the ^C
 			print.Verb("signal received", sig, "stopping build watcher...")
+			cancel()
 			break loop
-		case errInner := <-errorCh:
-			print.Erro("Error encountered during build:", errInner)
-			break loop
+		case errInner := <-watcher.Errors:
+			print.Warn("filesystem watcher error:", errInner)
 
-		case event := <-watcher.Events:
-			ext := filepath.Ext(event.Name)
-			if ext != ".pwn" && ext != ".inc" {
+		case event, ok := <-watcher.Events:
+			if !ok {
+				break loop
+			}
+			if !shouldWatchBuildEvent(event) {
 				continue
 			}
-			if event.Op != fsnotify.Write && event.Op != fsnotify.Create {
+			queueBuild(event.Name)
+
+		case <-debounceCh:
+			debounceCh = nil
+			if pendingEvent == "" || buildRunning {
 				continue
 			}
+			startBuild(pendingEvent)
 
-			if time.Since(lastEvent) < time.Millisecond*500 {
-				print.Verb("skipping duplicate write", time.Since(lastEvent), "since last file change")
-				continue
-			}
-			lastEvent = time.Now()
+		case result := <-resultCh:
+			buildRunning = false
 
-			go func() {
-				if running.Load().(bool) {
-					print.Verb("Build interrupted by file change")
-					cancel()
-					ctxInner, cancel = context.WithCancel(ctx)
+			if result.err != nil {
+				if result.err.Error() == "signal: killed" || result.err.Error() == "context canceled" {
+					print.Verb("non-fatal error occurred:", result.err)
+				} else {
+					print.Erro("Error encountered during build:", errors.Wrapf(result.err, "failed to compile package, run: %d", result.buildNumber))
 				}
-
-				atomic.AddUint32(&buildNumber, 1)
-				fmt.Printf("%s found modified file: %s\n", watcherColour("WATCHER:"), event.Name)
-				fmt.Printf("%s compiling %s with compiler version %s [%d]\n", watcherColour("WATCHER:"), config.Input, config.Compiler.Version, buildNumber)
-
-				running.Store(true)
-				problems, _, err = compiler.CompileSource(
-					ctxInner,
-					pcx.GitHub,
-					pcx.Package.LocalPath,
-					pcx.Package.LocalPath,
-					pcx.CacheDir,
-					pcx.Platform,
-					*config,
-					relative,
-				)
-				running.Store(false)
-
-				if err != nil {
-					if err.Error() == "signal: killed" || err.Error() == "context canceled" {
-						print.Verb("non-fatal error occurred:", err)
-						return
-					}
-
-					errorCh <- errors.Wrapf(err, "failed to compile package, run: %d", buildNumber)
-				}
-				fmt.Printf("%s finished building: %s [%d]\n", watcherColour("WATCHER:"), event.Name, buildNumber)
+			} else {
+				fmt.Printf("%s finished building: %s [%d]\n", watcherColour("WATCHER:"), result.eventName, result.buildNumber)
 
 				if trigger != nil {
-					trigger <- problems
+					trigger <- result.problems
 				}
 
 				if buildFile != "" {
-					err2 := os.WriteFile(buildFile, []byte(fmt.Sprint(buildNumber)), 0o700)
+					err2 := os.WriteFile(buildFile, []byte(fmt.Sprint(result.buildNumber)), 0o700)
 					if err2 != nil {
 						print.Erro("Failed to write buildfile:", err2)
 					}
 				}
-			}()
+			}
+
+			if pendingEvent != "" && debounceCh == nil {
+				startBuild(pendingEvent)
+			}
 		}
 	}
 
 	fmt.Printf("%s finished watching all builds\n", watcherColour("WATCHER:"))
 
 	return err
+}
+
+func shouldWatchBuildEvent(event fsnotify.Event) bool {
+	ext := filepath.Ext(event.Name)
+	if ext != ".pwn" && ext != ".inc" {
+		return false
+	}
+	return event.Op&(fsnotify.Write|fsnotify.Create) != 0
 }
 
 func (pcx *PackageContext) buildPrepare(
