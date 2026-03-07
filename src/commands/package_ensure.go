@@ -46,7 +46,7 @@ func packageEnsure(c *cli.Context) error {
 
 	// Create package context
 	pcx, err := pkgcontext.NewPackageContext(
-		gh, nil, true, dir, env.Platform, env.CacheDir, "", false)
+		gh, gitAuth, true, dir, env.Platform, env.CacheDir, "", false)
 	if err != nil {
 		return errors.Wrap(err, "failed to create package context")
 	}

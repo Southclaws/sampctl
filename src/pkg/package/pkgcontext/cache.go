@@ -1,12 +1,14 @@
 package pkgcontext
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
@@ -365,8 +367,8 @@ func (pcx PackageContext) cloneRepository(from, to, branch string, ssh bool) (*g
 	if branch != "" {
 		cloneOpts.ReferenceName = plumbing.ReferenceName("refs/heads/" + branch)
 	}
-	if ssh {
-		cloneOpts.Auth = pcx.GitAuth
+	if auth := pcx.authForRemote(from, ssh); auth != nil {
+		cloneOpts.Auth = auth
 	}
 
 	print.Verb("executing clone with options:", cloneOpts)
@@ -407,8 +409,8 @@ func (pcx PackageContext) updateRepository(repo *git.Repository, to, branch stri
 	if branch != "" {
 		pullOpts.ReferenceName = plumbing.ReferenceName("refs/heads/" + branch)
 	}
-	if ssh {
-		pullOpts.Auth = pcx.GitAuth
+	if auth := pcx.authForRemote(from, ssh); auth != nil {
+		pullOpts.Auth = auth
 	}
 
 	print.Verb("pulling latest changes")
@@ -454,8 +456,113 @@ func (pcx PackageContext) ensureRepoExistsWithMeta(
 	forceUpdate bool,
 ) (repo *git.Repository, err error) {
 	repo, err = pcx.ensureRepoExists(from, to, branch, ssh, forceUpdate)
+	if err != nil && pcx.shouldRetryWithSSH(meta, from, ssh, err) {
+		fallbackFrom := toGitSSHURL(meta)
+		print.Verb(meta, "HTTPS git operation failed, retrying with SSH:", fallbackFrom)
+		repo, err = pcx.ensureRepoExists(fallbackFrom, to, branch, true, forceUpdate)
+	}
 	if err != nil {
 		err = WrapGitError(err, meta)
 	}
 	return repo, err
+}
+
+func (pcx PackageContext) shouldRetryWithSSH(meta versioning.DependencyMeta, from string, ssh bool, err error) bool {
+	if err == nil || ssh || pcx.GitAuth == nil {
+		return false
+	}
+
+	if !strings.HasPrefix(from, "https://") && !strings.HasPrefix(from, "http://") {
+		return false
+	}
+
+	site := meta.Site
+	if site == "" {
+		site = "github.com"
+	}
+	if site != "github.com" {
+		return false
+	}
+
+	if meta.User == "" || meta.Repo == "" {
+		return false
+	}
+
+	if pcx.authForRemote(toGitSSHURL(meta), true) == nil {
+		return false
+	}
+
+	return isGitAuthenticationError(err)
+}
+
+func toGitSSHURL(meta versioning.DependencyMeta) string {
+	site := meta.Site
+	if site == "" {
+		site = "github.com"
+	}
+	user := meta.SSH
+	if user == "" {
+		user = "git"
+	}
+	return fmt.Sprintf("%s@%s:%s/%s", user, site, meta.User, meta.Repo)
+}
+
+func isGitAuthenticationError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := strings.ToLower(err.Error())
+	return strings.Contains(errStr, "authentication required") ||
+		strings.Contains(errStr, "repository not found") ||
+		strings.Contains(errStr, "could not read from remote repository") ||
+		strings.Contains(errStr, "permission denied")
+}
+
+func (pcx PackageContext) authForRemote(from string, ssh bool) transport.AuthMethod {
+	if pcx.GitAuth == nil {
+		return nil
+	}
+
+	if authBundle, ok := pcx.GitAuth.(*GitMultiAuth); ok {
+		if ssh || isSSHRemote(from) {
+			if authBundle.SSH != nil {
+				return authBundle.SSH
+			}
+			return nil
+		}
+
+		if strings.HasPrefix(from, "https://") || strings.HasPrefix(from, "http://") {
+			if authBundle.HTTP != nil {
+				return authBundle.HTTP
+			}
+			return nil
+		}
+
+		return nil
+	}
+
+	authName := pcx.GitAuth.Name()
+
+	if ssh || isSSHRemote(from) {
+		if strings.HasPrefix(authName, "ssh-") {
+			return pcx.GitAuth
+		}
+		return nil
+	}
+
+	if strings.HasPrefix(from, "https://") || strings.HasPrefix(from, "http://") {
+		if strings.HasPrefix(authName, "http-") {
+			return pcx.GitAuth
+		}
+		return nil
+	}
+
+	return nil
+}
+
+func isSSHRemote(from string) bool {
+	if strings.HasPrefix(from, "ssh://") || strings.HasPrefix(from, "git@") {
+		return true
+	}
+	return strings.Contains(from, "@") && strings.Contains(from, ":")
 }

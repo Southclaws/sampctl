@@ -2,10 +2,12 @@ package pawnpackage
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
@@ -71,9 +73,10 @@ func GetRemotePackage(
 	client *github.Client,
 	meta versioning.DependencyMeta,
 ) (pkg Package, err error) {
-	pkg, err = PackageFromOfficialRepo(ctx, client, meta)
+	pkg, err = PackageFromRepo(ctx, client, meta)
 	if err != nil {
-		return PackageFromRepo(ctx, client, meta)
+		print.Verb(meta, "failed to get package definition from repository:", err)
+		return PackageFromOfficialRepo(ctx, client, meta)
 	}
 	return
 }
@@ -84,36 +87,121 @@ func PackageFromRepo(
 	client *github.Client,
 	meta versioning.DependencyMeta,
 ) (pkg Package, err error) {
-	repo, _, err := client.Repositories.Get(ctx, meta.User, meta.Repo)
-	if err != nil {
-		return
-	}
+	refs := remoteDefinitionRefs(meta)
+	paths := []string{"pawn.json", "pawn.yaml"}
 
-	branch := "master"
-	if repo.DefaultBranch != nil && *repo.DefaultBranch != "" {
-		branch = *repo.DefaultBranch
-	}
-
-	jsonURL := fmt.Sprintf(
-		"https://raw.githubusercontent.com/%s/%s/%s/pawn.json",
-		meta.User, meta.Repo, branch,
-	)
-	yamlURL := fmt.Sprintf(
-		"https://raw.githubusercontent.com/%s/%s/%s/pawn.yaml",
-		meta.User, meta.Repo, branch,
-	)
-
-	candidates := []remoteCandidate{
-		{url: jsonURL, format: "json"},
-		{url: yamlURL, format: "yaml"},
-	}
-
-	pkg, err = fetchRemoteDefinition(ctx, candidates)
+	pkg, err = fetchRemoteDefinitionFromGitHub(ctx, client, meta.User, meta.Repo, refs, paths)
 	if err != nil {
 		return pkg, errors.Wrap(err, "package does not point to a valid remote package")
 	}
 
 	return pkg, nil
+}
+
+func remoteDefinitionRefs(meta versioning.DependencyMeta) []string {
+	refs := make([]string, 0, 3)
+	seen := make(map[string]struct{})
+
+	add := func(ref string) {
+		if _, ok := seen[ref]; ok {
+			return
+		}
+		seen[ref] = struct{}{}
+		refs = append(refs, ref)
+	}
+
+	if meta.Tag != "" {
+		add(meta.Tag)
+	}
+	if meta.Branch != "" {
+		add(meta.Branch)
+	}
+	add("") // default branch
+
+	return refs
+}
+
+func fetchRemoteDefinitionFromGitHub(
+	ctx context.Context,
+	client *github.Client,
+	owner string,
+	repo string,
+	refs []string,
+	paths []string,
+) (Package, error) {
+	var lastErr error
+
+	for _, ref := range refs {
+		for _, path := range paths {
+			opt := &github.RepositoryContentGetOptions{}
+			if ref != "" {
+				opt.Ref = ref
+			}
+
+			fileContent, _, _, err := client.Repositories.GetContents(ctx, owner, repo, path, opt)
+			if err != nil {
+				lastErr = err
+				continue
+			}
+			if fileContent == nil {
+				lastErr = errors.Errorf("empty response for %s/%s (%s)", owner, repo, path)
+				continue
+			}
+
+			rawContent, err := decodeRepositoryContent(fileContent)
+			if err != nil {
+				lastErr = errors.Wrapf(err, "failed to decode %s/%s (%s)", owner, repo, path)
+				continue
+			}
+
+			var pkg Package
+			switch path {
+			case "pawn.json":
+				err = json.Unmarshal(rawContent, &pkg)
+			case "pawn.yaml":
+				err = yaml.Unmarshal(rawContent, &pkg)
+			default:
+				err = errors.Errorf("unsupported remote definition format for %s", path)
+			}
+			if err != nil {
+				lastErr = errors.Wrapf(err, "failed to parse %s/%s (%s)", owner, repo, path)
+				continue
+			}
+
+			return pkg, nil
+		}
+	}
+
+	if lastErr == nil {
+		lastErr = errors.New("failed to load remote package definition")
+	}
+
+	return Package{}, lastErr
+}
+
+func decodeRepositoryContent(fileContent *github.RepositoryContent) ([]byte, error) {
+	if fileContent == nil {
+		return nil, errors.New("nil file content")
+	}
+
+	content, err := fileContent.GetContent()
+	if err == nil && content != "" {
+		return []byte(content), nil
+	}
+
+	if fileContent.Content == nil || *fileContent.Content == "" {
+		if err != nil {
+			return nil, err
+		}
+		return nil, errors.New("missing repository content")
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(strings.ReplaceAll(*fileContent.Content, "\n", ""))
+	if err != nil {
+		return nil, err
+	}
+
+	return decoded, nil
 }
 
 // PackageFromOfficialRepo attempts to get a package from the sampctl/plugins official repository
