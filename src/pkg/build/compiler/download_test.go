@@ -7,7 +7,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
@@ -89,4 +91,23 @@ func Test_CompilerFromCache(t *testing.T) {
 			assert.Equal(t, gotHit, tt.wantHit)
 		})
 	}
+}
+
+func TestCompilerPackageInstalled(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	pkg := download.Compiler{
+		Binary: "pawncc",
+		Paths: map[string]string{
+			"pawncc":    "pawncc",
+			"pawnc.dll": "pawnc.dll",
+		},
+	}
+
+	require.False(t, compilerPackageInstalled(dir, pkg))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "pawncc"), []byte("bin"), 0o755))
+	require.False(t, compilerPackageInstalled(dir, pkg))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "pawnc.dll"), []byte("dll"), 0o644))
+	require.True(t, compilerPackageInstalled(dir, pkg))
 }

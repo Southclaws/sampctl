@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 
 	"github.com/google/go-github/github"
@@ -114,6 +115,10 @@ func (f *compilerPackageFetcher) fromCache(dir string) (download.Compiler, bool,
 			return download.Compiler{}, false, errors.Wrapf(err, "failed to create dir %s", dir)
 		}
 	}
+	if compilerPackageInstalled(dir, f.compiler) {
+		print.Verb("Using existing extracted compiler package", f.meta.Tag)
+		return f.compiler, true, nil
+	}
 
 	matcher := regexp.MustCompile(f.compiler.Match)
 	res := infraresource.NewGitHubReleaseResource(f.meta, matcher, infraresource.ResourceTypeCompiler, nil)
@@ -153,6 +158,10 @@ func (f *compilerPackageFetcher) fromNetwork(
 			return download.Compiler{}, errors.Wrapf(err, "failed to create dir %s", dir)
 		}
 	}
+	if compilerPackageInstalled(dir, f.compiler) {
+		print.Verb("Using existing extracted compiler package", f.meta.Tag)
+		return f.compiler, nil
+	}
 
 	matcher := regexp.MustCompile(f.compiler.Match)
 	res := infraresource.NewGitHubReleaseResource(f.meta, matcher, infraresource.ResourceTypeCompiler, gh)
@@ -191,6 +200,27 @@ func (f *compilerPackageFetcher) fromNetwork(
 	}
 
 	return f.compiler, nil
+}
+
+func compilerPackageInstalled(dir string, pkg download.Compiler) bool {
+	if !fs.Exists(dir) {
+		return false
+	}
+
+	if pkg.Binary == "" || !fs.Exists(filepath.Join(dir, pkg.Binary)) {
+		return false
+	}
+
+	for _, target := range pkg.Paths {
+		if target == "" {
+			continue
+		}
+		if !fs.Exists(filepath.Join(dir, target)) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // GetCompilerPackageInfo returns the URL for a specific compiler version

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Southclaws/sampctl/src/pkg/build/build"
@@ -307,4 +308,13 @@ func filterIncludes(includes []string, keep func(string) bool) []string {
 		}
 	}
 	return out
+}
+
+func TestShouldWatchBuildEvent(t *testing.T) {
+	t.Parallel()
+
+	require.True(t, shouldWatchBuildEvent(fsnotify.Event{Name: "gamemodes/test.pwn", Op: fsnotify.Write}))
+	require.True(t, shouldWatchBuildEvent(fsnotify.Event{Name: "include/foo.inc", Op: fsnotify.Create}))
+	require.False(t, shouldWatchBuildEvent(fsnotify.Event{Name: "README.md", Op: fsnotify.Write}))
+	require.False(t, shouldWatchBuildEvent(fsnotify.Event{Name: "gamemodes/test.pwn", Op: fsnotify.Remove}))
 }
