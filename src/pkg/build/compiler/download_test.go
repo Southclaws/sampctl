@@ -5,9 +5,12 @@ import (
 	"archive/zip"
 	"compress/gzip"
 	"context"
+	"crypto/md5"
+	"fmt"
 	iofs "io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"testing"
 
@@ -16,6 +19,7 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
+	infraresource "github.com/Southclaws/sampctl/src/pkg/infrastructure/resource"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
@@ -75,7 +79,8 @@ func Test_CompilerFromCache(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
-			cacheDir := prepareCompilerTestCache(t, true)
+			cacheDir := prepareCompilerTestCache(t, false)
+			require.NoError(t, seedCompilerCacheAsset(t, cacheDir, tt.args.meta, tt.args.platform))
 
 			_, gotHit, err := FromCache(tt.args.meta, dir, tt.args.platform, cacheDir)
 			if tt.wantErr {
@@ -148,6 +153,52 @@ func prepareCompilerTestCache(t *testing.T, withAssets bool) string {
 	}
 
 	return cacheDir
+}
+
+func seedCompilerCacheAsset(t *testing.T, cacheDir string, meta versioning.DependencyMeta, platform string) error {
+	t.Helper()
+
+	compiler, err := GetCompilerPackageInfo(cacheDir, platform)
+	if err != nil {
+		return err
+	}
+
+	matcher := regexp.MustCompile(compiler.Match)
+	cachePath := compilerAssetCachePath(cacheDir, meta, matcher)
+	if err := os.MkdirAll(cachePath, 0o755); err != nil {
+		return err
+	}
+
+	archivePath := filepath.Join(cachePath, fmt.Sprintf("fixture.%s", compiler.Method))
+	switch platform {
+	case "linux":
+		return writeTarGzArchive(archivePath, map[string]string{
+			"pawnc-v1-linux/bin/pawncc":      "exe",
+			"pawnc-v1-linux/lib/libpawnc.so": "lib",
+		})
+	case "darwin":
+		return writeZipArchive(archivePath, map[string]string{
+			"pawnc-v1-darwin/bin/pawncc":         "exe",
+			"pawnc-v1-darwin/lib/libpawnc.dylib": "lib",
+		})
+	case "windows":
+		return writeZipArchive(archivePath, map[string]string{
+			"pawnc-v1-windows/bin/pawncc.exe": "exe",
+			"pawnc-v1-windows/bin/pawnc.dll":  "dll",
+		})
+	default:
+		return fmt.Errorf("unsupported platform %s", platform)
+	}
+}
+
+func compilerAssetCachePath(cacheDir string, meta versioning.DependencyMeta, matcher *regexp.Regexp) string {
+	identifier := filepath.Join("github.com", meta.User, meta.Repo)
+	if matcher != nil {
+		sum := md5.Sum([]byte(matcher.String()))
+		identifier = fmt.Sprintf("%s-%x", identifier, sum[:4])
+	}
+	cacheSum := md5.Sum([]byte(identifier + ":" + meta.Tag))
+	return filepath.Join(cacheDir, string(infraresource.ResourceTypeCompiler), identifier, meta.Tag, fmt.Sprintf("%x", cacheSum[:8]))
 }
 
 func copyDir(src, dst string) error {
