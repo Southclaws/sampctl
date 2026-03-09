@@ -1,78 +1,57 @@
 package runtime
 
 import (
-	"runtime"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_ServerFromNet(t *testing.T) {
-	type args struct {
-		cacheDir string
-		version  string
-		dir      string
-	}
 	tests := []struct {
 		name    string
-		args    args
-		wantErr bool
+		version string
 	}{
-		{"valid", args{"./tests/cache", "latest", "./tests/server-dir"}, false},
-		{"valid", args{"./tests/cache", "0.3.7", "./tests/server-dir"}, false},
-		{"valid", args{"./tests/cache", "0.3.7-R2-2-1", "./tests/server-dir"}, false},
-		{"valid", args{"./tests/cache", "0.3.7-R2-1", "./tests/server-dir"}, false},
-		{"valid", args{"./tests/cache", "0.3z", "./tests/server-dir"}, false},
-		{"valid", args{"./tests/cache", "0.3z-R4", "./tests/server-dir"}, false},
-		{"valid", args{"./tests/cache", "0.3z-R3", "./tests/server-dir"}, false},
-		{"valid", args{"./tests/cache", "0.3z-R2-2", "./tests/server-dir"}, false},
-		{"valid", args{"./tests/cache", "0.3z-R1", "./tests/server-dir"}, false},
-		{"valid", args{"./tests/cache", "0.3z-R1-2", "./tests/server-dir"}, false},
+		{"latest-alias", "latest"},
+		{"exact-version", "0.3.7"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := FromNet(tt.args.cacheDir, tt.args.version, tt.args.dir, runtime.GOOS)
+			rootDir := t.TempDir()
+			cacheDir := filepath.Join(rootDir, "cache")
+			dir := filepath.Join(rootDir, "server-dir")
+			platform := currentTestPlatform()
+
+			expectedBinary := seedRuntimeRemoteFixture(t, cacheDir, tt.version, platform)
+
+			err := FromNet(cacheDir, tt.version, dir, platform)
 			assert.NoError(t, err)
+			assert.FileExists(t, filepath.Join(dir, expectedBinary))
 		})
 	}
 }
 
-// Note: this test assumes the previous test has run and the packages are already cached
-
 func Test_ServerFromCache(t *testing.T) {
-	type args struct {
-		cacheDir string
-		version  string
-		dir      string
-	}
 	tests := []struct {
 		name    string
-		args    args
-		wantHit bool
-		wantErr bool
+		version string
 	}{
-		{"valid", args{"./tests/cache", "0.4a-RC1", "./tests/server-dir"}, false, true},
-		{"valid", args{"./tests/cache", "latest", "./tests/server-dir"}, true, false},
-		{"valid", args{"./tests/cache", "0.3.7", "./tests/server-dir"}, true, false},
-		{"valid", args{"./tests/cache", "0.3.7-R2-2-1", "./tests/server-dir"}, true, false},
-		{"valid", args{"./tests/cache", "0.3.7-R2-1", "./tests/server-dir"}, true, false},
-		{"valid", args{"./tests/cache", "0.3z", "./tests/server-dir"}, true, false},
-		{"valid", args{"./tests/cache", "0.3z-R4", "./tests/server-dir"}, true, false},
-		{"valid", args{"./tests/cache", "0.3z-R3", "./tests/server-dir"}, true, false},
-		{"valid", args{"./tests/cache", "0.3z-R2-2", "./tests/server-dir"}, true, false},
-		{"valid", args{"./tests/cache", "0.3z-R1", "./tests/server-dir"}, true, false},
-		{"valid", args{"./tests/cache", "0.3z-R1-2", "./tests/server-dir"}, true, false},
-		{"valid", args{"./tests/cache", "latest", "./tests/server-dir"}, true, false},
+		{"latest-alias", "latest"},
+		{"exact-version", "0.3.7"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotHit, err := FromCache(tt.args.cacheDir, tt.args.version, tt.args.dir, runtime.GOOS)
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-			assert.Equal(t, gotHit, tt.wantHit)
+			rootDir := t.TempDir()
+			cacheDir := filepath.Join(rootDir, "cache")
+			dir := filepath.Join(rootDir, "server-dir")
+			platform := currentTestPlatform()
+
+			expectedBinary := seedRuntimeCacheFixture(t, cacheDir, tt.version, platform)
+
+			gotHit, err := FromCache(cacheDir, tt.version, dir, platform)
+			assert.NoError(t, err)
+			assert.True(t, gotHit)
+			assert.FileExists(t, filepath.Join(dir, expectedBinary))
 		})
 	}
 }

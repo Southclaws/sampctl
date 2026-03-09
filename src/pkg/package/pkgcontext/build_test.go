@@ -150,10 +150,6 @@ func TestBuildPrepareKeepsLegacyDependencyIncludePathsWhenComponentSchemePresent
 }
 
 func TestBuildPrepareKeepsResourceIncludePathsWhenComponentSchemePresent(t *testing.T) {
-	if gh == nil {
-		t.Skip("no GitHub client configured (FULL_ACCESS_GITHUB_TOKEN unset)")
-	}
-
 	cacheDir := t.TempDir()
 
 	writePkg := func(dir string, deps []string) {

@@ -18,6 +18,11 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
 
+var (
+	packageDefinitionHTTPClient = http.DefaultClient
+	officialPackageRepoBaseURL  = "https://raw.githubusercontent.com/sampctl/plugins/master"
+)
+
 // PackageFromDir attempts to parse a pawn.json or pawn.yaml file from a directory
 func PackageFromDir(dir string) (pkg Package, err error) {
 	jsonPath := filepath.Join(dir, "pawn.json")
@@ -129,6 +134,10 @@ func fetchRemoteDefinitionFromGitHub(
 	refs []string,
 	paths []string,
 ) (Package, error) {
+	if client == nil {
+		return Package{}, errors.New("no GitHub client provided")
+	}
+
 	var lastErr error
 
 	for _, ref := range refs {
@@ -212,7 +221,8 @@ func PackageFromOfficialRepo(
 	meta versioning.DependencyMeta,
 ) (pkg Package, err error) {
 	officialURL := fmt.Sprintf(
-		"https://raw.githubusercontent.com/sampctl/plugins/master/%s-%s.json",
+		"%s/%s-%s.json",
+		strings.TrimRight(officialPackageRepoBaseURL, "/"),
 		meta.User, meta.Repo,
 	)
 
@@ -257,7 +267,7 @@ func fetchCandidate(ctx context.Context, candidate remoteCandidate) (Package, er
 		return Package{}, errors.Wrap(err, "failed to build remote definition request")
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := packageDefinitionHTTPClient.Do(req)
 	if err != nil {
 		return Package{}, errors.Wrap(err, "failed to fetch remote definition")
 	}
