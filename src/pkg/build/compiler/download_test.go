@@ -5,6 +5,7 @@ import (
 	"archive/zip"
 	"compress/gzip"
 	"context"
+	iofs "io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -15,8 +16,11 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
+
+const compilerTestCacheFixtureDir = "tests/cache"
 
 func Test_CompilerFromNet(t *testing.T) {
 	type args struct {
@@ -39,11 +43,10 @@ func Test_CompilerFromNet(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
-			err := os.MkdirAll(tt.args.cacheDir, 0o700)
-			assert.NoError(t, err)
+			cacheDir := prepareCompilerTestCache(t, false)
 
-			_, err = FromNet(context.Background(), gh, tt.args.meta, dir, tt.args.platform, tt.args.cacheDir)
-			assert.NoError(t, err)
+			_, err := FromNet(context.Background(), gh, tt.args.meta, dir, tt.args.platform, cacheDir)
+			require.NoError(t, err)
 
 			assertCompilerLayout(t, dir, tt.args.platform)
 		})
@@ -72,14 +75,13 @@ func Test_CompilerFromCache(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
-			err := os.MkdirAll(tt.args.cacheDir, 0o700)
-			assert.NoError(t, err)
+			cacheDir := prepareCompilerTestCache(t, true)
 
-			_, gotHit, err := FromCache(tt.args.meta, dir, tt.args.platform, tt.args.cacheDir)
+			_, gotHit, err := FromCache(tt.args.meta, dir, tt.args.platform, cacheDir)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 
 			assert.Equal(t, gotHit, tt.wantHit)
@@ -91,19 +93,88 @@ func Test_CompilerFromCache(t *testing.T) {
 func assertCompilerLayout(t *testing.T, dir, platform string) {
 	t.Helper()
 
+	var pkg download.Compiler
 	switch platform {
 	case "linux":
-		assert.True(t, fs.Exists(filepath.Join(dir, "bin", "pawncc")))
-		assert.True(t, fs.Exists(filepath.Join(dir, "lib", "libpawnc.so")))
+		pkg = download.Compiler{
+			Binary: "bin/pawncc",
+			Paths: map[string]string{
+				"bin/pawncc":      "bin/pawncc",
+				"lib/libpawnc.so": "lib/libpawnc.so",
+			},
+			PreserveLayout: true,
+		}
+		assert.True(t, compilerPathExists(dir, "bin/pawncc"))
+		assert.True(t, compilerPathExists(dir, "lib/libpawnc.so"))
 	case "darwin":
-		assert.True(t, fs.Exists(filepath.Join(dir, "bin", "pawncc")))
-		assert.True(t, fs.Exists(filepath.Join(dir, "lib", "libpawnc.dylib")))
+		pkg = download.Compiler{
+			Binary: "bin/pawncc",
+			Paths: map[string]string{
+				"bin/pawncc":           "bin/pawncc",
+				"lib/libpawnc.dylib":   "lib/libpawnc.dylib",
+			},
+			PreserveLayout: true,
+		}
+		assert.True(t, compilerPathExists(dir, "bin/pawncc"))
+		assert.True(t, compilerPathExists(dir, "lib/libpawnc.dylib"))
 	case "windows":
-		assert.True(t, fs.Exists(filepath.Join(dir, "bin", "pawncc.exe")))
-		assert.True(t, fs.Exists(filepath.Join(dir, "bin", "pawnc.dll")))
+		pkg = download.Compiler{
+			Binary: "bin/pawncc.exe",
+			Paths: map[string]string{
+				"bin/pawncc.exe": "bin/pawncc.exe",
+				"bin/pawnc.dll":  "bin/pawnc.dll",
+			},
+			PreserveLayout: true,
+		}
+		assert.True(t, compilerPathExists(dir, "bin/pawncc.exe"))
+		assert.True(t, compilerPathExists(dir, "bin/pawnc.dll"))
 	default:
 		t.Fatalf("unsupported platform %s", platform)
 	}
+
+	assert.True(t, compilerPackageInstalled(dir, pkg))
+}
+
+func prepareCompilerTestCache(t *testing.T, withAssets bool) string {
+	t.Helper()
+
+	cacheDir := t.TempDir()
+	compilerList, err := os.ReadFile(filepath.Join(compilerTestCacheFixtureDir, "compilers.json"))
+	require.NoError(t, err)
+	require.NoError(t, download.WriteCompilerCacheFile(cacheDir, compilerList))
+
+	if withAssets {
+		require.NoError(t, copyDir(filepath.Join(compilerTestCacheFixtureDir, "compiler"), filepath.Join(cacheDir, "compiler")))
+	}
+
+	return cacheDir
+}
+
+func copyDir(src, dst string) error {
+	return filepath.WalkDir(src, func(path string, d iofs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		if rel == "." {
+			return os.MkdirAll(dst, 0o755)
+		}
+
+		target := filepath.Join(dst, rel)
+		if d.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return err
+		}
+
+		return util.CopyFile(path, target)
+	})
 }
 
 func TestCompilerPackageInstalled(t *testing.T) {

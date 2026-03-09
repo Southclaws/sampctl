@@ -17,7 +17,7 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
-func TestTagTaglessDependencies_RollsBackOnCacheRefreshFailure(t *testing.T) {
+func TestTagTaglessDependencies_DoesNotRefreshDependencyTreeWhileTagging(t *testing.T) {
 	cacheDir := t.TempDir()
 	projectDir := t.TempDir()
 
@@ -49,8 +49,6 @@ func TestTagTaglessDependencies_RollsBackOnCacheRefreshFailure(t *testing.T) {
 	_, err = repo.CreateTag("1.2.3", head.Hash(), nil)
 	require.NoError(t, err)
 
-	require.NoError(t, os.Chmod(cacheDir, 0o555))
-
 	cfg := map[string]any{
 		"entry":        "test.pwn",
 		"output":       "test.amx",
@@ -69,8 +67,8 @@ func TestTagTaglessDependencies_RollsBackOnCacheRefreshFailure(t *testing.T) {
 	pcx := pkgcontext.PackageContext{Package: pkg, CacheDir: cacheDir, Platform: "linux"}
 
 	updated, err := pcx.TagTaglessDependencies(context.Background(), false)
-	require.Error(t, err)
-	require.False(t, updated)
+	require.NoError(t, err)
+	require.True(t, updated)
 
 	finalBytes, err := os.ReadFile(filepath.Join(projectDir, "pawn.json"))
 	require.NoError(t, err)
@@ -79,5 +77,5 @@ func TestTagTaglessDependencies_RollsBackOnCacheRefreshFailure(t *testing.T) {
 	require.NoError(t, json.Unmarshal(finalBytes, &final))
 
 	depsAny := final["dependencies"].([]any)
-	require.Equal(t, []any{depUser + "/" + depRepo}, depsAny)
+	require.Equal(t, []any{depUser + "/" + depRepo + ":1.2.3"}, depsAny)
 }

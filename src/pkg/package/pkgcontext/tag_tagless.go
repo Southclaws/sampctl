@@ -2,7 +2,6 @@ package pkgcontext
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -28,14 +27,6 @@ func (pcx *PackageContext) TagTaglessDependencies(ctx context.Context, forceUpda
 		return false, errors.New("package has no local path")
 	}
 
-	definitionPath, definitionPerm, originalDefinition, err := pcx.readDefinitionSnapshot()
-	if err != nil {
-		return false, errors.Wrap(err, "failed to read package definition")
-	}
-
-	originalDeps := append([]versioning.DependencyString(nil), pcx.Package.Dependencies...)
-	originalDev := append([]versioning.DependencyString(nil), pcx.Package.Development...)
-
 	changedDeps, err := pcx.tagTaglessDependencyList(ctx, pcx.Package.Dependencies, forceUpdate)
 	if err != nil {
 		return false, err
@@ -57,46 +48,8 @@ func (pcx *PackageContext) TagTaglessDependencies(ctx context.Context, forceUpda
 		return false, errors.Wrap(err, "failed to write updated package definition")
 	}
 
-	if err := pcx.EnsureDependenciesCached(); err != nil {
-		pcx.Package.Dependencies = originalDeps
-		pcx.Package.Development = originalDev
-		restoreErr := fs.WriteFileAtomic(definitionPath, originalDefinition, fs.PermDirPrivate, definitionPerm)
-		if restoreErr != nil {
-			return false, errors.Wrapf(err, "failed to refresh dependency tree after tagging, rollback failed: %v", restoreErr)
-		}
-		return false, errors.Wrap(err, "failed to refresh dependency tree after tagging, rolling back changes")
-	}
-
 	return true, nil
 }
-
-func (pcx *PackageContext) readDefinitionSnapshot() (path string, perm os.FileMode, contents []byte, err error) {
-	var name string
-	switch pcx.Package.Format {
-	case "json":
-		name = "pawn.json"
-	case "yaml":
-		name = "pawn.yaml"
-	default:
-		err = errors.New("package has no format associated with it")
-		return
-	}
-
-	path = filepath.Join(pcx.Package.LocalPath, name)
-	stat, statErr := os.Stat(path)
-	if statErr != nil {
-		err = statErr
-		return
-	}
-	perm = stat.Mode().Perm()
-
-	contents, err = os.ReadFile(path)
-	if err != nil {
-		return
-	}
-	return
-}
-
 type tagListResult struct {
 	updated []versioning.DependencyString
 	changed bool
