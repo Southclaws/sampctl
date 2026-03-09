@@ -130,6 +130,7 @@ func fetchRemoteDefinitionFromGitHub(
 	paths []string,
 ) (Package, error) {
 	var lastErr error
+	attemptErrors := make([]string, 0, len(refs)*len(paths))
 
 	for _, ref := range refs {
 		for _, path := range paths {
@@ -141,16 +142,19 @@ func fetchRemoteDefinitionFromGitHub(
 			fileContent, _, _, err := client.Repositories.GetContents(ctx, owner, repo, path, opt)
 			if err != nil {
 				lastErr = err
+				attemptErrors = append(attemptErrors, formatRemoteDefinitionAttemptError(owner, repo, ref, path, err))
 				continue
 			}
 			if fileContent == nil {
 				lastErr = errors.Errorf("empty response for %s/%s (%s)", owner, repo, path)
+				attemptErrors = append(attemptErrors, formatRemoteDefinitionAttemptError(owner, repo, ref, path, lastErr))
 				continue
 			}
 
 			rawContent, err := decodeRepositoryContent(fileContent)
 			if err != nil {
 				lastErr = errors.Wrapf(err, "failed to decode %s/%s (%s)", owner, repo, path)
+				attemptErrors = append(attemptErrors, formatRemoteDefinitionAttemptError(owner, repo, ref, path, lastErr))
 				continue
 			}
 
@@ -165,6 +169,7 @@ func fetchRemoteDefinitionFromGitHub(
 			}
 			if err != nil {
 				lastErr = errors.Wrapf(err, "failed to parse %s/%s (%s)", owner, repo, path)
+				attemptErrors = append(attemptErrors, formatRemoteDefinitionAttemptError(owner, repo, ref, path, lastErr))
 				continue
 			}
 
@@ -172,11 +177,23 @@ func fetchRemoteDefinitionFromGitHub(
 		}
 	}
 
+	if len(attemptErrors) > 0 {
+		return Package{}, errors.Errorf("failed to load remote package definition after trying %s", strings.Join(attemptErrors, "; "))
+	}
+
 	if lastErr == nil {
 		lastErr = errors.New("failed to load remote package definition")
 	}
 
 	return Package{}, lastErr
+}
+
+func formatRemoteDefinitionAttemptError(owner, repo, ref, path string, err error) string {
+	location := fmt.Sprintf("%s/%s:%s", owner, repo, path)
+	if ref != "" {
+		location = fmt.Sprintf("%s@%s", location, ref)
+	}
+	return fmt.Sprintf("%s (%v)", location, err)
 }
 
 func decodeRepositoryContent(fileContent *github.RepositoryContent) ([]byte, error) {
