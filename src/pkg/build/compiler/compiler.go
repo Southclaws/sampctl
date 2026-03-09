@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -122,11 +121,8 @@ func PrepareCommand(
 	constantArgs := buildConstantArgs(config.Constants)
 	args = append(args, constantArgs...)
 
-	cmd = exec.CommandContext(ctx, filepath.Join(runtimeDir, pkg.Binary), args...) //nolint:gas
-	cmd.Env = []string{
-		fmt.Sprintf("LD_LIBRARY_PATH=%s", runtimeDir),
-		fmt.Sprintf("DYLD_LIBRARY_PATH=%s", runtimeDir),
-	}
+	cmd = exec.CommandContext(ctx, compilerExecutablePath(runtimeDir, pkg.Binary), args...) //nolint:gas
+	cmd.Env = compilerEnvironment(runtimeDir)
 
 	return cmd, nil
 }
@@ -203,17 +199,115 @@ func compilerFromCustomPath(pathRoot string) (download.Compiler, error) {
 		return download.Compiler{}, errors.New("compiler path does not contain a valid pawn compiler executable")
 	}
 
+	relCompilerPath, err := filepath.Rel(pathRoot, compilerPath)
+	if err != nil {
+		return download.Compiler{}, errors.Wrap(err, "failed to determine compiler binary path")
+	}
+
 	return download.Compiler{
-		Binary: filepath.Base(compilerPath),
+		Binary: relCompilerPath,
 		Paths:  map[string]string{},
 	}, nil
 }
 
 func customCompilerBinary(pathRoot string) string {
-	if runtime.GOOS == "windows" {
-		return path.Join(pathRoot, "pawncc.exe")
+	for _, candidate := range compilerBinaryCandidates(pathRoot) {
+		if fs.Exists(candidate) {
+			return candidate
+		}
 	}
-	return path.Join(pathRoot, "pawncc")
+
+	if runtime.GOOS == "windows" {
+		return filepath.Join(pathRoot, "pawncc.exe")
+	}
+	return filepath.Join(pathRoot, "pawncc")
+}
+
+func compilerBinaryCandidates(pathRoot string) []string {
+	if runtime.GOOS == "windows" {
+		return []string{
+			filepath.Join(pathRoot, "pawncc.exe"),
+			filepath.Join(pathRoot, "bin", "pawncc.exe"),
+		}
+	}
+
+	return []string{
+		filepath.Join(pathRoot, "pawncc"),
+		filepath.Join(pathRoot, "bin", "pawncc"),
+	}
+}
+
+func compilerExecutablePath(runtimeDir, binary string) string {
+	for _, candidate := range compilerPathCandidates(runtimeDir, binary) {
+		if fs.Exists(candidate) {
+			return candidate
+		}
+	}
+
+	return filepath.Join(runtimeDir, binary)
+}
+
+func compilerEnvironment(runtimeDir string) []string {
+	env := append([]string{}, os.Environ()...)
+	paths := make([]string, 0, 3)
+	for _, candidate := range []string{
+		filepath.Join(runtimeDir, "lib"),
+		filepath.Join(runtimeDir, "bin"),
+		runtimeDir,
+	} {
+		if fs.Exists(candidate) {
+			paths = append(paths, candidate)
+		}
+	}
+
+	env = mergeLibraryPath(env, "LD_LIBRARY_PATH", paths)
+	env = mergeLibraryPath(env, "DYLD_LIBRARY_PATH", paths)
+
+	return env
+}
+
+func mergeLibraryPath(env []string, key string, values []string) []string {
+	if len(values) == 0 {
+		return env
+	}
+
+	prefix := key + "="
+	merged := strings.Join(values, string(os.PathListSeparator))
+
+	for i, entry := range env {
+		if !strings.HasPrefix(entry, prefix) {
+			continue
+		}
+
+		existing := strings.TrimPrefix(entry, prefix)
+		if existing != "" {
+			merged = merged + string(os.PathListSeparator) + existing
+		}
+		env[i] = prefix + merged
+		return env
+	}
+
+	return append(env, prefix+merged)
+}
+
+func compilerDebugEnv(env []string) []string {
+	keys := map[string]struct{}{
+		"LD_LIBRARY_PATH":   {},
+		"DYLD_LIBRARY_PATH": {},
+	}
+
+	filtered := make([]string, 0, len(keys))
+	for _, entry := range env {
+		parts := strings.SplitN(entry, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		if _, ok := keys[parts[0]]; ok {
+			filtered = append(filtered, entry)
+		}
+	}
+
+	return filtered
 }
 
 func baseCompilerArgs(input, workingDir, output string) []string {
@@ -340,7 +434,7 @@ func CompileWithCommand(
 	parser := newCompilerOutputParser(outputReader, workingDir, errorDir, relative)
 	go parser.Run()
 
-	print.Verb("executing compiler in", workingDir, "as", cmd.Env, cmd.Args)
+	print.Verb("executing compiler in", workingDir, "with env", compilerDebugEnv(cmd.Env), "as", cmd.Args)
 	cmdError := cmd.Run()
 
 	err = outputWriter.Close()

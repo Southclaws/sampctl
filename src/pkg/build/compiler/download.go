@@ -131,7 +131,7 @@ func (f *compilerPackageFetcher) fromCache(dir string) (download.Compiler, bool,
 		return download.Compiler{}, false, nil
 	}
 
-	files, err := f.extract(assetPath, dir, f.compiler.Paths)
+	files, err := f.extractCompilerPackage(assetPath, dir)
 	if err != nil {
 		return download.Compiler{}, false, errors.Wrapf(err, "failed to extract package %s", assetPath)
 	}
@@ -187,7 +187,7 @@ func (f *compilerPackageFetcher) fromNetwork(
 		return download.Compiler{}, errors.New("failed to locate downloaded compiler asset")
 	}
 
-	files, err := f.extract(assetPath, dir, f.compiler.Paths)
+	files, err := f.extractCompilerPackage(assetPath, dir)
 	if err != nil {
 		return download.Compiler{}, errors.Wrapf(err, "failed to extract package %s", assetPath)
 	}
@@ -207,7 +207,7 @@ func compilerPackageInstalled(dir string, pkg download.Compiler) bool {
 		return false
 	}
 
-	if pkg.Binary == "" || !fs.Exists(filepath.Join(dir, pkg.Binary)) {
+	if pkg.Binary == "" || !compilerPathExists(dir, pkg.Binary) {
 		return false
 	}
 
@@ -215,12 +215,52 @@ func compilerPackageInstalled(dir string, pkg download.Compiler) bool {
 		if target == "" {
 			continue
 		}
-		if !fs.Exists(filepath.Join(dir, target)) {
+		if !compilerPathExists(dir, target) {
 			return false
 		}
 	}
 
 	return true
+}
+
+func (f *compilerPackageFetcher) extractCompilerPackage(assetPath, dir string) (map[string]string, error) {
+	if f.compiler.PreserveLayout {
+		switch f.compiler.Method {
+		case download.ExtractZip:
+			return download.UnzipAllPreserveLayout(assetPath, dir)
+		case download.ExtractTgz:
+			return download.UntarAllPreserveLayout(assetPath, dir)
+		default:
+			return nil, errors.Errorf("invalid extract type: %s", f.compiler.Method)
+		}
+	}
+
+	return f.extract(assetPath, dir, f.compiler.Paths)
+}
+
+func compilerPathExists(dir, target string) bool {
+	for _, candidate := range compilerPathCandidates(dir, target) {
+		if fs.Exists(candidate) {
+			return true
+		}
+	}
+	return false
+}
+
+func compilerPathCandidates(dir, target string) []string {
+	seen := make(map[string]struct{}, 2)
+	candidates := make([]string, 0, 2)
+	for _, candidate := range []string{
+		filepath.Join(dir, target),
+		filepath.Join(dir, filepath.Base(target)),
+	} {
+		if _, ok := seen[candidate]; ok {
+			continue
+		}
+		seen[candidate] = struct{}{}
+		candidates = append(candidates, candidate)
+	}
+	return candidates
 }
 
 // GetCompilerPackageInfo returns the URL for a specific compiler version

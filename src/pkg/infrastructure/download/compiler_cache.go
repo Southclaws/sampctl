@@ -20,10 +20,11 @@ type Compilers map[string]Compiler
 
 // Compiler represents a compiler package for a specific OS
 type Compiler struct {
-	Match  string            `json:"match"`  // the release asset name pattern
-	Method string            `json:"method"` // the extraction method
-	Binary string            `json:"binary"` // execution binary
-	Paths  map[string]string `json:"paths"`  // map of files to their target locations
+	Match          string            `json:"match"`                     // the release asset name pattern
+	Method         string            `json:"method"`                    // the extraction method
+	Binary         string            `json:"binary"`                    // execution binary
+	Paths          map[string]string `json:"paths"`                     // map of files to their target locations
+	PreserveLayout bool              `json:"preserve_layout,omitempty"` // preserve archive directory layout when extracting
 }
 
 // GetCompilerList gets a list of known compiler packages from the sampctl repo, if the list does not
