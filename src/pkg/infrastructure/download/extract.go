@@ -3,6 +3,7 @@ package download
 import (
 	"archive/tar"
 	"archive/zip"
+	"bytes"
 	"compress/gzip"
 	"compress/zlib"
 	"io"
@@ -59,29 +60,17 @@ func UntarWithIgnore(src, dst string, paths map[string]string, ignorePatterns []
 		}
 	}()
 
-	var tr *tar.Reader
-
-	gz, err := gzip.NewReader(reader)
+	tr, closer, err := newTarReader(reader)
 	if err != nil {
-		var zl io.ReadCloser
-		zl, err = zlib.NewReader(reader)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to create new zlib reader after failed attempt at gzip")
-		}
-		defer func() {
-			if errClose := zl.Close(); errClose != nil && err == nil {
-				err = errClose
-			}
-		}()
-		tr = tar.NewReader(zl)
-	} else {
-		defer func() {
-			if errClose := gz.Close(); errClose != nil && err == nil {
-				err = errClose
-			}
-		}()
-		tr = tar.NewReader(gz)
+		return nil, err
 	}
+	defer func() {
+		if closer != nil {
+			if errClose := closer.Close(); errClose != nil && err == nil {
+				err = errClose
+			}
+		}
+	}()
 
 	files = make(map[string]string)
 	var header *tar.Header
@@ -421,12 +410,17 @@ func nameInPaths(name string, paths map[string]string) (found bool, source, targ
 }
 
 func newTarReader(reader io.Reader) (*tar.Reader, io.Closer, error) {
-	gz, err := gzip.NewReader(reader)
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to read archive")
+	}
+
+	gz, err := gzip.NewReader(bytes.NewReader(data))
 	if err == nil {
 		return tar.NewReader(gz), gz, nil
 	}
 
-	zl, zErr := zlib.NewReader(reader)
+	zl, zErr := zlib.NewReader(bytes.NewReader(data))
 	if zErr != nil {
 		return nil, nil, errors.Wrap(zErr, "failed to create new zlib reader after failed attempt at gzip")
 	}
@@ -439,8 +433,12 @@ func cleanArchivePath(name string) (string, bool) {
 	if trimmed == "" {
 		return "", false
 	}
+	if hasWindowsVolumePrefix(trimmed) || strings.HasPrefix(trimmed, `\\`) || strings.HasPrefix(trimmed, "//") {
+		return "", false
+	}
 
-	cleaned := path.Clean(strings.TrimPrefix(strings.ReplaceAll(trimmed, `\\`, "/"), "/"))
+	normalized := strings.ReplaceAll(trimmed, `\`, "/")
+	cleaned := path.Clean(strings.TrimPrefix(normalized, "/"))
 	if cleaned == "." || cleaned == "" || cleaned == "/" {
 		return "", false
 	}
@@ -452,6 +450,10 @@ func cleanArchivePath(name string) (string, bool) {
 	}
 
 	return cleaned, true
+}
+
+func hasWindowsVolumePrefix(name string) bool {
+	return len(name) >= 2 && ((name[0] >= 'A' && name[0] <= 'Z') || (name[0] >= 'a' && name[0] <= 'z')) && name[1] == ':'
 }
 
 func isArchiveMetadataPath(cleaned string) bool {

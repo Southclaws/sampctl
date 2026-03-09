@@ -3,6 +3,7 @@ package download
 import (
 	"archive/tar"
 	"compress/gzip"
+	"compress/zlib"
 	"os"
 	"path/filepath"
 	"testing"
@@ -40,6 +41,41 @@ func TestUntarAllPreserveLayout_IgnoresAppleDoubleMetadata(t *testing.T) {
 	assert.Equal(t, filepath.Join(dir, "bin", "pawncc"), files["pawnc-3.10.8-linux/bin/pawncc"])
 }
 
+func TestUntarAllPreserveLayout_SupportsZlibCompressedTar(t *testing.T) {
+	t.Parallel()
+
+	archive := filepath.Join(t.TempDir(), "compiler.tar.zlib")
+	require.NoError(t, writeTarZlibArchiveForTest(archive, map[string]string{
+		"pawnc/bin/pawncc":      "exe",
+		"pawnc/lib/libpawnc.so": "lib",
+	}))
+
+	dir := t.TempDir()
+	files, err := UntarAllPreserveLayout(archive, dir)
+	require.NoError(t, err)
+
+	assert.True(t, fs.Exists(filepath.Join(dir, "bin", "pawncc")))
+	assert.True(t, fs.Exists(filepath.Join(dir, "lib", "libpawnc.so")))
+	assert.Equal(t, filepath.Join(dir, "bin", "pawncc"), files["pawnc/bin/pawncc"])
+}
+
+func TestCleanArchivePath_NormalizesWindowsPaths(t *testing.T) {
+	t.Parallel()
+
+	cleaned, ok := cleanArchivePath(`bin\pawncc`)
+	require.True(t, ok)
+	assert.Equal(t, "bin/pawncc", cleaned)
+
+	_, ok = cleanArchivePath(`..\evil`)
+	assert.False(t, ok)
+
+	_, ok = cleanArchivePath(`C:\pawncc`)
+	assert.False(t, ok)
+
+	_, ok = cleanArchivePath(`\\server\share\pawncc`)
+	assert.False(t, ok)
+}
+
 func writeTarGzArchiveForTest(filename string, files map[string]string) error {
 	out, err := os.Create(filename)
 	if err != nil {
@@ -51,6 +87,36 @@ func writeTarGzArchiveForTest(filename string, files map[string]string) error {
 	defer gzw.Close()
 
 	tw := tar.NewWriter(gzw)
+	defer tw.Close()
+
+	for name, content := range files {
+		header := &tar.Header{
+			Name: name,
+			Mode: 0o755,
+			Size: int64(len(content)),
+		}
+		if err := tw.WriteHeader(header); err != nil {
+			return err
+		}
+		if _, err := tw.Write([]byte(content)); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func writeTarZlibArchiveForTest(filename string, files map[string]string) error {
+	out, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	zw := zlib.NewWriter(out)
+	defer zw.Close()
+
+	tw := tar.NewWriter(zw)
 	defer tw.Close()
 
 	for name, content := range files {
