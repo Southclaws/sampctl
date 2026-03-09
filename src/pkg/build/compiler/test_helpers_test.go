@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/google/go-github/github"
@@ -24,6 +25,46 @@ import (
 	infraresource "github.com/Southclaws/sampctl/src/pkg/infrastructure/resource"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
+
+var compilerFixtureOnce sync.Once
+
+func ensureCompilerSourceFixtures(t *testing.T) {
+	t.Helper()
+
+	compilerFixtureOnce.Do(func() {
+		fixtures := map[string]map[string]string{
+			"build-simple-pass": {
+				"script.pwn": "main() {}\n",
+			},
+			"build-simple-fail": {
+				"script.pwn": "broken\n",
+			},
+			"build-local-include-pass": {
+				"script.pwn":  `#include "library"` + "\nmain() {}\n",
+				"library.inc": "stock lib() { return 1; }\n",
+			},
+			"build-local-include-warn": {
+				"script.pwn":  `#include "library"` + "\nmain() {}\n",
+				"library.inc": "stock lib() { new b; return b; }\n",
+			},
+			"build-fatal": {
+				"script.pwn": `#include "idonotexist"` + "\nmain() {}\n",
+			},
+		}
+
+		for dir, files := range fixtures {
+			base := filepath.Join("tests", dir)
+			if err := os.MkdirAll(base, 0o700); err != nil {
+				t.Fatalf("create fixture dir %s: %v", base, err)
+			}
+			for name, body := range files {
+				if err := os.WriteFile(filepath.Join(base, name), []byte(body), 0o644); err != nil {
+					t.Fatalf("write fixture file %s/%s: %v", base, name, err)
+				}
+			}
+		}
+	})
+}
 
 func seedCompilerCacheFixture(t *testing.T, cacheDir string, meta versioning.DependencyMeta, platform string) download.Compiler {
 	t.Helper()

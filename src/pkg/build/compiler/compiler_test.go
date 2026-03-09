@@ -14,6 +14,8 @@ import (
 )
 
 func TestCompileSource(t *testing.T) {
+	ensureCompilerSourceFixtures(t)
+
 	type args struct {
 		cacheDir string
 		config   build.Config

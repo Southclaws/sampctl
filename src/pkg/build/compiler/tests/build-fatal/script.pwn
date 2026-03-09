@@ -1,5 +1,2 @@
-#include <idonotexist>
-
-main() {
-    //
-}
+#include "idonotexist"
+main() {}

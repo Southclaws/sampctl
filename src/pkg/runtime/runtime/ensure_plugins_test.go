@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
@@ -106,4 +107,25 @@ func TestEnsurePlugins(t *testing.T) {
 			assert.Equal(t, tt.wantComponents, tt.cfg.Components)
 		})
 	}
+}
+
+func TestGetResourceAndPath(t *testing.T) {
+	t.Parallel()
+
+	resource, err := GetResource([]res.Resource{
+		{Name: `linux-default`, Platform: "linux", Archive: true, Plugins: []string{"plugins/test.so"}},
+		{Name: `linux-openmp`, Platform: "linux", Version: "v1.0.0-openmp", Archive: true, Plugins: []string{"plugins/test.so"}},
+	}, "linux", "v1.0.0-openmp")
+	require.NoError(t, err)
+	assert.Equal(t, "linux-openmp", resource.Name)
+
+	resource, err = GetResource([]res.Resource{{Name: `linux-default`, Platform: "linux", Archive: true, Plugins: []string{"plugins/test.so"}}}, "linux", "0.3.7")
+	require.NoError(t, err)
+	assert.Equal(t, "linux-default", resource.Name)
+
+	_, err = GetResource([]res.Resource{{Name: `linux-default`, Platform: "linux"}}, "windows", "0.3.7")
+	require.Error(t, err)
+
+	assert.Equal(t, filepath.Join("plugins", "streamer", "latest"), GetResourcePath(versioning.DependencyMeta{Repo: "streamer"}))
+	assert.Equal(t, filepath.Join("plugins", "streamer", "v1.0.0"), GetResourcePath(versioning.DependencyMeta{Repo: "streamer", Tag: "v1.0.0"}))
 }

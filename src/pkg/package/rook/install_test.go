@@ -14,6 +14,8 @@ import (
 )
 
 func Test_PackageInstall(t *testing.T) {
+	ensureOfflineFixtures(t, "./tests/cache")
+
 	type args struct {
 		targets     []versioning.DependencyString
 		development bool
@@ -78,6 +80,8 @@ func Test_PackageInstall(t *testing.T) {
 }
 
 func Test_PackageGet(t *testing.T) {
+	ensureOfflineFixtures(t, "./tests/cache")
+
 	type args struct {
 		dep versioning.DependencyMeta
 		dir string

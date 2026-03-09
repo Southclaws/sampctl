@@ -288,10 +288,22 @@ func (pcx PackageContext) EnsureDependencyFromCache(
 		err = errors.Wrap(err, "failed to make canonical path to cached copy")
 		return
 	}
-	if !fs.Exists(filepath.Join(from, ".git")) || forceUpdate {
-		_, err = pcx.EnsureDependencyCached(meta, forceUpdate)
-		if err != nil {
-			return
+	cacheRepoExists := fs.Exists(filepath.Join(from, ".git"))
+	if !cacheRepoExists || forceUpdate {
+		if forceUpdate && cacheRepoExists {
+			if cacheRepo, openErr := git.PlainOpen(from); openErr == nil && getRepositoryOriginURL(cacheRepo) == "" {
+				print.Verb(meta, "cached repository has no origin remote, skipping cache refresh")
+			} else {
+				_, err = pcx.EnsureDependencyCached(meta, forceUpdate)
+				if err != nil {
+					return
+				}
+			}
+		} else {
+			_, err = pcx.EnsureDependencyCached(meta, forceUpdate)
+			if err != nil {
+				return
+			}
 		}
 	}
 
