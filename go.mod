@@ -1,6 +1,6 @@
 module github.com/Southclaws/sampctl
 
-go 1.24.0
+go 1.25.0
 
 require (
 	dario.cat/mergo v1.0.2
@@ -23,7 +23,7 @@ require (
 	github.com/sampctl/configor v0.0.0-20200702165352-24e52bc67e97
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/oauth2 v0.35.0
-	golang.org/x/sys v0.41.0
+	golang.org/x/sys v0.42.0
 	golang.org/x/text v0.34.0
 	gopkg.in/AlecAivazis/survey.v1 v1.8.8
 	gopkg.in/eapache/go-resiliency.v1 v1.2.0
