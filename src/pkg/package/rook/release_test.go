@@ -3,6 +3,10 @@ package rook
 import (
 	"archive/zip"
 	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,6 +18,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/storer"
+	"github.com/google/go-github/github"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -253,6 +258,49 @@ func TestGitPushRefSpecs(t *testing.T) {
 
 	assert.Equal(t, "refs/heads/main:refs/heads/main", string(expectedCommitRefSpec))
 	assert.Equal(t, "refs/tags/*:refs/tags/*", string(expectedTagsRefSpec))
+}
+
+func TestUploadReleaseAsset(t *testing.T) {
+	tmpDir := t.TempDir()
+	archivePath := filepath.Join(tmpDir, "fixture.zip")
+	require.NoError(t, os.WriteFile(archivePath, []byte("archive-data"), 0o644))
+
+	var (
+		gotMethod string
+		gotPath   string
+		gotName   string
+		gotBody   []byte
+	)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		gotPath = r.URL.Path
+		gotName = r.URL.Query().Get("name")
+		var err error
+		gotBody, err = io.ReadAll(r.Body)
+		require.NoError(t, err)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"name":"fixture.zip","state":"uploaded"}`))
+	}))
+	defer server.Close()
+
+	client := github.NewClient(server.Client())
+	baseURL, err := url.Parse(server.URL + "/")
+	require.NoError(t, err)
+	client.BaseURL = baseURL
+	client.UploadURL = baseURL
+
+	releaseID := int64(42)
+	release := &github.RepositoryRelease{ID: &releaseID}
+	pkg := pawnpackage.Package{}
+	pkg.User = "owner"
+	pkg.Repo = "repo"
+
+	require.NoError(t, uploadReleaseAsset(t.Context(), client, pkg, release, archivePath))
+	assert.Equal(t, http.MethodPost, gotMethod)
+	assert.Equal(t, "/repos/owner/repo/releases/42/assets", gotPath)
+	assert.Equal(t, "fixture.zip", gotName)
+	assert.Equal(t, []byte("archive-data"), gotBody)
 }
 
 type MockGitHubClient struct {

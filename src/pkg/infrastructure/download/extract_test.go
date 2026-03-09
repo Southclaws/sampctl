@@ -90,6 +90,54 @@ func TestUnzipWithIgnore(t *testing.T) {
 	}, files)
 }
 
+func TestUntarWithIgnore_InvalidArchive(t *testing.T) {
+	t.Parallel()
+
+	archivePath := filepath.Join(t.TempDir(), "bad.tar")
+	require.NoError(t, os.WriteFile(archivePath, []byte("not-an-archive"), 0o644))
+
+	_, err := UntarWithIgnore(archivePath, t.TempDir(), map[string]string{"file.txt": "file.txt"}, nil)
+	require.Error(t, err)
+}
+
+func TestUnzipWithIgnore_DirectoryAndIgnoredFile(t *testing.T) {
+	t.Parallel()
+
+	archivePath := filepath.Join(t.TempDir(), "with-dir.zip")
+	createZipArchiveWithDir(t, archivePath,
+		[]string{"pkg/plugins/"},
+		map[string]string{
+			"pkg/plugins/mysql.dll": "new-dll",
+		},
+	)
+
+	destDir := t.TempDir()
+	ignoredTarget := filepath.Join(destDir, "plugins", "mysql.dll")
+	require.NoError(t, os.MkdirAll(filepath.Dir(ignoredTarget), 0o755))
+	require.NoError(t, os.WriteFile(ignoredTarget, []byte("existing"), 0o644))
+
+	files, err := UnzipWithIgnore(archivePath, destDir, map[string]string{
+		`^pkg/plugins/$`:         "plugins-dir",
+		`pkg/plugins/mysql\.dll`: "plugins/",
+	}, []string{"*.dll"})
+	require.NoError(t, err)
+	assert.DirExists(t, filepath.Join(destDir, "plugins-dir"))
+	data, err := os.ReadFile(ignoredTarget)
+	require.NoError(t, err)
+	assert.Equal(t, "existing", string(data))
+	assert.Empty(t, files)
+}
+
+func TestUnzipWithIgnore_InvalidArchive(t *testing.T) {
+	t.Parallel()
+
+	archivePath := filepath.Join(t.TempDir(), "bad.zip")
+	require.NoError(t, os.WriteFile(archivePath, []byte("not-a-zip"), 0o644))
+
+	_, err := UnzipWithIgnore(archivePath, t.TempDir(), map[string]string{"file.txt": "file.txt"}, nil)
+	require.Error(t, err)
+}
+
 func TestNameInPaths(t *testing.T) {
 	t.Parallel()
 
@@ -142,6 +190,29 @@ func createZipArchive(t *testing.T, archivePath string, files map[string]string)
 	defer f.Close() //nolint:errcheck
 
 	zw := zip.NewWriter(f)
+	for name, body := range files {
+		w, err := zw.Create(name)
+		require.NoError(t, err)
+		_, err = w.Write([]byte(body))
+		require.NoError(t, err)
+	}
+	require.NoError(t, zw.Close())
+}
+
+func createZipArchiveWithDir(t *testing.T, archivePath string, dirs []string, files map[string]string) {
+	t.Helper()
+
+	f, err := os.Create(archivePath)
+	require.NoError(t, err)
+	defer f.Close() //nolint:errcheck
+
+	zw := zip.NewWriter(f)
+	for _, name := range dirs {
+		h := &zip.FileHeader{Name: name}
+		h.SetMode(os.ModeDir | 0o755)
+		_, err := zw.CreateHeader(h)
+		require.NoError(t, err)
+	}
 	for name, body := range files {
 		w, err := zw.Create(name)
 		require.NoError(t, err)
