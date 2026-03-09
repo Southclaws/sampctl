@@ -84,7 +84,7 @@ func Test_CompilerFromCache(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			assert.Equal(t, gotHit, tt.wantHit)
+			assert.Equal(t, tt.wantHit, gotHit)
 			assertCompilerLayout(t, dir, tt.args.platform)
 		})
 	}
@@ -110,8 +110,8 @@ func assertCompilerLayout(t *testing.T, dir, platform string) {
 		pkg = download.Compiler{
 			Binary: "bin/pawncc",
 			Paths: map[string]string{
-				"bin/pawncc":           "bin/pawncc",
-				"lib/libpawnc.dylib":   "lib/libpawnc.dylib",
+				"bin/pawncc":         "bin/pawncc",
+				"lib/libpawnc.dylib": "lib/libpawnc.dylib",
 			},
 			PreserveLayout: true,
 		}

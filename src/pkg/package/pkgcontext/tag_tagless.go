@@ -50,6 +50,7 @@ func (pcx *PackageContext) TagTaglessDependencies(ctx context.Context, forceUpda
 
 	return true, nil
 }
+
 type tagListResult struct {
 	updated []versioning.DependencyString
 	changed bool
