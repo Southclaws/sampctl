@@ -78,7 +78,8 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 			return errors.Wrap(err, "failed to ensure package layout")
 		}
 
-		if err := runtime.EnsureBinaries(pcx.CacheDir, cfg); err != nil {
+		runtimeInfo, err := runtime.EnsureBinaries(pcx.CacheDir, cfg)
+		if err != nil {
 			return errors.Wrap(err, "failed to ensure runtime binaries")
 		}
 
@@ -86,7 +87,7 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 			return errors.Wrap(err, "failed to ensure runtime plugins")
 		}
 
-		pcx.recordRuntimeToLockfileFromConfig()
+		pcx.recordRuntimeToLockfile(runtimeInfo)
 		if saveErr := pcx.SaveLockfile(); saveErr != nil {
 			print.Warn("failed to save lockfile after runtime update:", saveErr)
 		}
@@ -512,18 +513,13 @@ func (pcx PackageContext) extractResourceDependencies(
 	return dir, nil
 }
 
-func (pcx *PackageContext) recordRuntimeToLockfileFromConfig() {
+func (pcx *PackageContext) recordRuntimeToLockfile(manifestInfo *runtime.RuntimeManifestInfo) {
 	if pcx.LockfileResolver == nil {
 		return
 	}
 
-	manifestInfo, err := runtime.GetRuntimeManifestInfo(pcx.Package.LocalPath)
-	if err != nil {
-		print.Warn("failed to get runtime manifest info:", err)
-		return
-	}
 	if manifestInfo == nil {
-		print.Verb("no runtime manifest found, skipping lockfile runtime record")
+		print.Verb("no runtime info available, skipping lockfile runtime record")
 		return
 	}
 

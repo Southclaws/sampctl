@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/Southclaws/sampctl/src/pkg/package/lockfile"
 	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 )
 
@@ -20,8 +21,6 @@ func TestRuntimeManifestLifecycle(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "plugins"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "plugins", "mysql.so"), []byte("plugin"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "server.cfg"), []byte("echo test"), 0o644))
-	require.NoError(t, os.MkdirAll(filepath.Join(root, runtimeManifestDirName), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(root, runtimeManifestRelativePath), []byte("ignore me"), 0o600))
 
 	manifest, err := buildRuntimeManifest(root, cfg)
 	require.NoError(t, err)
@@ -41,6 +40,14 @@ func TestRuntimeManifestLifecycle(t *testing.T) {
 	require.NoError(t, copyRuntimeFiles(loaded, root, dest))
 	assert.FileExists(t, filepath.Join(dest, "plugins", "mysql.so"))
 	assert.FileExists(t, filepath.Join(dest, "server.cfg"))
+
+	lf := lockfile.New("1.0.0")
+	files := make([]lockfile.LockedFileInfo, len(manifest.Files))
+	for i, f := range manifest.Files {
+		files[i] = lockfile.LockedFileInfo(f)
+	}
+	lf.SetRuntime(cfg.Version, cfg.Platform, string(cfg.GetEffectiveRuntimeType()), files)
+	require.NoError(t, lockfile.Save(root, lf))
 
 	info, err := GetRuntimeManifestInfo(root)
 	require.NoError(t, err)

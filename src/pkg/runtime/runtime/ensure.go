@@ -31,7 +31,7 @@ func Ensure(ctx context.Context, gh *github.Client, cfg *run.Runtime, noCache bo
 	}
 
 	print.Verb("ensuring server binaries")
-	err = EnsureBinaries(cacheDir, *cfg)
+	_, err = EnsureBinaries(cacheDir, *cfg)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure runtime binaries")
 	}
@@ -52,45 +52,39 @@ func Ensure(ctx context.Context, gh *github.Client, cfg *run.Runtime, noCache bo
 }
 
 // EnsureBinaries ensures the dir has all the necessary files to run a server
-func EnsureBinaries(cacheDir string, cfg run.Runtime) error {
+func EnsureBinaries(cacheDir string, cfg run.Runtime) (*RuntimeManifestInfo, error) {
 	manifest, stageDir, err := ensureStagedRuntime(cacheDir, cfg)
 	if err != nil {
-		return errors.Wrap(err, "failed to prepare runtime files")
+		return nil, errors.Wrap(err, "failed to prepare runtime files")
 	}
+	manifestInfo := runtimeManifestToInfo(manifest)
 
-	installManifestPath := runtimeManifestPath(cfg.WorkingDir)
-	if fs.Exists(installManifestPath) {
-		existingManifest, readErr := readRuntimeManifest(installManifestPath)
-		if readErr != nil {
-			print.Warn("failed to read installed runtime manifest:", readErr)
-		} else {
-			if existingManifest.matchesRuntime(cfg) {
-				verifyErr := verifyRuntimeManifest(existingManifest, cfg.WorkingDir)
-				if verifyErr == nil {
-					print.Verb("runtime binaries already up to date")
-					if err = writeRuntimeManifest(installManifestPath, manifest); err != nil {
-						print.Warn("failed to update runtime manifest:", err)
-					}
-					return nil
-				}
-				print.Warn("installed runtime verification failed, reinstalling:", verifyErr)
+	existingManifest, readErr := loadInstalledRuntimeManifest(cfg.WorkingDir)
+	if readErr != nil {
+		print.Warn("failed to read installed runtime state:", readErr)
+	} else if existingManifest != nil {
+		if existingManifest.matchesRuntime(cfg) {
+			verifyErr := verifyRuntimeManifest(*existingManifest, cfg.WorkingDir)
+			if verifyErr == nil {
+				print.Verb("runtime binaries already up to date")
+				return manifestInfo, nil
 			}
-
-			if removeErr := removeRuntimeFiles(existingManifest, cfg.WorkingDir); removeErr != nil {
-				print.Warn("failed to remove previous runtime binaries:", removeErr)
-			}
+			print.Warn("installed runtime verification failed, reinstalling:", verifyErr)
 		}
+
+		if removeErr := removeRuntimeFiles(*existingManifest, cfg.WorkingDir); removeErr != nil {
+			print.Warn("failed to remove previous runtime binaries:", removeErr)
+		}
+	} else if verifyErr := verifyRuntimeManifest(manifest, cfg.WorkingDir); verifyErr == nil {
+		print.Verb("runtime binaries already up to date")
+		return manifestInfo, nil
 	}
 
 	if err = copyRuntimeFiles(manifest, stageDir, cfg.WorkingDir); err != nil {
-		return errors.Wrap(err, "failed to install runtime binaries")
+		return nil, errors.Wrap(err, "failed to install runtime binaries")
 	}
 
-	if err = writeRuntimeManifest(installManifestPath, manifest); err != nil {
-		print.Warn("failed to write runtime manifest:", err)
-	}
-
-	return nil
+	return manifestInfo, nil
 }
 
 // EnsureScripts checks that all the declared scripts are present
