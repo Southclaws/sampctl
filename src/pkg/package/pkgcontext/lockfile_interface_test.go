@@ -3,7 +3,6 @@ package pkgcontext
 import (
 	"testing"
 
-	git "github.com/go-git/go-git/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -22,7 +21,7 @@ func (f *fakeDependencyLock) GetLockedVersion(meta versioning.DependencyMeta) ve
 	return meta
 }
 
-func (f *fakeDependencyLock) RecordResolution(versioning.DependencyMeta, *git.Repository, bool, string) error {
+func (f *fakeDependencyLock) RecordResolution(versioning.DependencyMeta, lockfile.DependencyResolution, bool, string) error {
 	return nil
 }
 

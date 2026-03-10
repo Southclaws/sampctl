@@ -172,7 +172,10 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 
 	// Record the resolution to lockfile
 	if pcx.lockfileResolver != nil {
-		if recordErr := pcx.lockfileResolver.RecordResolution(meta, repo, false, ""); recordErr != nil {
+		resolution, resolutionErr := resolveDependencyLock(meta, repo)
+		if resolutionErr != nil {
+			print.Warn("failed to resolve dependency lock data:", resolutionErr)
+		} else if recordErr := pcx.lockfileResolver.RecordResolution(meta, resolution, false, ""); recordErr != nil {
 			print.Warn("failed to record dependency resolution to lockfile:", recordErr)
 		}
 	}
@@ -224,7 +227,10 @@ func (pcx *PackageContext) EnsurePackageWithParent(meta versioning.DependencyMet
 	// Record the resolution to lockfile as transitive dependency
 	if pcx.lockfileResolver != nil {
 		isTransitive := parentRepo != "" && parentRepo != pcx.Package.Repo
-		if recordErr := pcx.lockfileResolver.RecordResolution(meta, repo, isTransitive, parentRepo); recordErr != nil {
+		resolution, resolutionErr := resolveDependencyLock(meta, repo)
+		if resolutionErr != nil {
+			print.Warn("failed to resolve dependency lock data:", resolutionErr)
+		} else if recordErr := pcx.lockfileResolver.RecordResolution(meta, resolution, isTransitive, parentRepo); recordErr != nil {
 			print.Warn("failed to record dependency resolution to lockfile:", recordErr)
 		}
 	}

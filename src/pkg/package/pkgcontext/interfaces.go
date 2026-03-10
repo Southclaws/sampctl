@@ -10,7 +10,7 @@ import (
 // DependencyLock abstracts lockfile-aware dependency resolution for package flows.
 type DependencyLock interface {
 	GetLockedVersion(meta versioning.DependencyMeta) versioning.DependencyMeta
-	RecordResolution(meta versioning.DependencyMeta, repo *git.Repository, transitive bool, requiredBy string) error
+	RecordResolution(meta versioning.DependencyMeta, resolution lockfile.DependencyResolution, transitive bool, requiredBy string) error
 	RecordLocalDependency(meta versioning.DependencyMeta) error
 	RecordRuntime(version, platform, runtimeType string, files []lockfile.LockedFileInfo)
 	RecordBuild(compilerVersion, compilerPreset, entry, output, outputHash string)

@@ -85,9 +85,9 @@ func TestResolverLifecycle(t *testing.T) {
 	assert.False(t, resolver.HasLockfile())
 
 	meta := versioning.DependencyMeta{User: "u", Repo: "r", Tag: "1.2.3"}
-	repo, commit := seedGitRepo(t, map[string]string{"pawn.json": "{}"}, "1.2.3")
+	_, commit := seedGitRepo(t, map[string]string{"pawn.json": "{}"}, "1.2.3")
 
-	require.NoError(t, resolver.RecordResolution(meta, repo, true, "github.com/root/pkg"))
+	require.NoError(t, resolver.RecordResolution(meta, DependencyResolution{Commit: commit, Resolved: "1.2.3"}, true, "github.com/root/pkg"))
 	assert.True(t, resolver.IsLocked(meta))
 	assert.True(t, resolver.HasLockfile())
 
@@ -128,25 +128,22 @@ func TestResolverLifecycle(t *testing.T) {
 	assert.True(t, resolver.modified)
 }
 
-func TestResolverResolvedVersionFallbacks(t *testing.T) {
-	t.Run("uses repo tag when present", func(t *testing.T) {
-		repo, _ := seedGitRepo(t, map[string]string{"pawn.json": "{}"}, "1.2.3")
-		assert.Equal(t, "1.2.3", getResolvedVersion(versioning.DependencyMeta{User: "u", Repo: "r"}, repo))
+func TestDefaultResolvedVersionFallbacks(t *testing.T) {
+	t.Run("uses tag", func(t *testing.T) {
+		assert.Equal(t, "1.2.3", defaultResolvedVersion(versioning.DependencyMeta{User: "u", Repo: "r", Tag: "1.2.3"}, "abcdef"))
 	})
 
 	t.Run("falls back to branch", func(t *testing.T) {
-		repo, _ := seedGitRepo(t, map[string]string{"pawn.json": "{}"}, "")
-		assert.Equal(t, "main", getResolvedVersion(versioning.DependencyMeta{User: "u", Repo: "r", Branch: "main"}, repo))
+		assert.Equal(t, "main", defaultResolvedVersion(versioning.DependencyMeta{User: "u", Repo: "r", Branch: "main"}, "abcdef"))
 	})
 
 	t.Run("falls back to commit prefix", func(t *testing.T) {
-		repo, commit := seedGitRepo(t, map[string]string{"pawn.json": "{}"}, "")
-		assert.Equal(t, commit[:8], getResolvedVersion(versioning.DependencyMeta{User: "u", Repo: "r", Commit: commit}, repo))
+		commit := "1234567890abcdef"
+		assert.Equal(t, commit[:8], defaultResolvedVersion(versioning.DependencyMeta{User: "u", Repo: "r", Commit: commit}, commit))
 	})
 
 	t.Run("defaults to HEAD", func(t *testing.T) {
-		repo, _ := seedGitRepo(t, map[string]string{"pawn.json": "{}"}, "")
-		assert.Equal(t, "HEAD", getResolvedVersion(versioning.DependencyMeta{User: "u", Repo: "r"}, repo))
+		assert.Equal(t, "HEAD", defaultResolvedVersion(versioning.DependencyMeta{User: "u", Repo: "r"}, "abcdef"))
 	})
 }
 

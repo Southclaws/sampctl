@@ -3,7 +3,6 @@ package lockfile
 import (
 	"path/filepath"
 
-	"github.com/go-git/go-git/v5"
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
@@ -67,17 +66,19 @@ func (r *Resolver) GetLockedVersion(meta versioning.DependencyMeta) versioning.D
 	return meta
 }
 
-func (r *Resolver) RecordResolution(meta versioning.DependencyMeta, repo *git.Repository, transitive bool, requiredBy string) error {
+func (r *Resolver) RecordResolution(meta versioning.DependencyMeta, resolution DependencyResolution, transitive bool, requiredBy string) error {
 	if !r.useLockfile || r.lockfile == nil {
 		return nil
 	}
 
-	head, err := repo.Head()
-	if err != nil {
-		return errors.Wrap(err, "failed to get repository HEAD")
+	commitSHA := resolution.Commit
+	if commitSHA == "" {
+		return errors.New("resolved dependency commit is empty")
 	}
-
-	commitSHA := head.Hash().String()
+	resolvedVersion := resolution.Resolved
+	if resolvedVersion == "" {
+		resolvedVersion = defaultResolvedVersion(meta, commitSHA)
+	}
 	key := DependencyKey(meta)
 
 	existing, exists := r.lockfile.Dependencies[key]
@@ -101,7 +102,7 @@ func (r *Resolver) RecordResolution(meta versioning.DependencyMeta, repo *git.Re
 
 	locked := LockedDependency{
 		Constraint: getConstraint(meta),
-		Resolved:   getResolvedVersion(meta, repo),
+		Resolved:   resolvedVersion,
 		Commit:     commitSHA,
 		Site:       meta.Site,
 		User:       meta.User,
@@ -188,24 +189,6 @@ func (r *Resolver) IsLocked(meta versioning.DependencyMeta) bool {
 	}
 	key := DependencyKey(meta)
 	return r.lockfile.HasDependency(key)
-}
-
-func getResolvedVersion(meta versioning.DependencyMeta, repo *git.Repository) string {
-	tag, err := versioning.GetRepoCurrentVersionedTag(repo)
-	if err == nil && tag != nil {
-		return tag.Name
-	}
-
-	switch {
-	case meta.Tag != "":
-		return meta.Tag
-	case meta.Branch != "":
-		return meta.Branch
-	case meta.Commit != "":
-		return meta.Commit[:8]
-	default:
-		return "HEAD"
-	}
 }
 
 func (r *Resolver) PruneMissing(currentDeps []versioning.DependencyMeta) {
