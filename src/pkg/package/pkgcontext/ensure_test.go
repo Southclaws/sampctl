@@ -64,6 +64,11 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 }
 
 func TestPackageContext_EnsurePackage(t *testing.T) {
+	commitMeta := versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib", Commit: fixturePawnStdlibCommit}
+	tagMeta := versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib", Tag: "0.3z-R4"}
+	branchMeta := versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-errors", Branch: "v2"}
+	resourceMeta := versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "package-resource-test"}
+
 	type args struct {
 		meta        versioning.DependencyMeta
 		forceUpdate bool
@@ -77,22 +82,22 @@ func TestPackageContext_EnsurePackage(t *testing.T) {
 	}{
 		{
 			"commit",
-			args{versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib", Commit: "7a13c662e619a478b0e8d1d6d113e3aa41cb6d37"}, false},
-			"7a13c662e619a478b0e8d1d6d113e3aa41cb6d37", nil, false,
+			args{commitMeta, false},
+			fixturePawnStdlibCommit, nil, false,
 		},
 		{
 			"tag",
-			args{versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib", Tag: "0.3z-R4"}, false},
-			"de2ed6d59f0304dab726588afd3b6f6df77ca87d", nil, false,
+			args{tagMeta, false},
+			fixtureSampStdlibCommit, nil, false,
 		},
 		{
 			"branch",
-			args{versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-errors", Branch: "v2"}, false},
+			args{branchMeta, false},
 			"", nil, false,
 		},
 		{
 			"resource",
-			args{versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "package-resource-test"}, false},
+			args{resourceMeta, false},
 			"",
 			[]string{"package-resource-test-07ad0b/include.inc"},
 			false,
@@ -100,7 +105,7 @@ func TestPackageContext_EnsurePackage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pcxWorkspace := fs.MustAbs("./tests/deps-" + tt.name)
+			pcxWorkspace := t.TempDir()
 			pcxVendor := filepath.Join(pcxWorkspace, "dependencies")
 			pcx := PackageContext{
 				CacheDir: "./tests/cache",

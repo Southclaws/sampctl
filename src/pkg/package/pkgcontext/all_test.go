@@ -22,6 +22,9 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
+	if err := seedPkgContextFixtures(filepath.Clean("./tests/cache")); err != nil {
+		panic(err)
+	}
 	if err := stripPkgContextFixtureCacheRemotes(filepath.Clean("./tests/cache")); err != nil {
 		panic(err)
 	}
