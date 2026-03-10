@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"os"
 	"testing"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
@@ -8,5 +9,5 @@ import (
 
 func TestMain(m *testing.M) {
 	print.SetVerbose()
-	m.Run()
+	os.Exit(m.Run())
 }

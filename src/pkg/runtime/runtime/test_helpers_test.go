@@ -218,7 +218,7 @@ func sortedRuntimeKeys(m map[string]string) []string {
 
 func currentTestPlatform() string {
 	if runtime.GOOS == "darwin" {
-		return "darwin"
+		return "linux"
 	}
 	return runtime.GOOS
 }

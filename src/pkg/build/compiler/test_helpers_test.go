@@ -11,8 +11,10 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -54,12 +56,14 @@ func ensureCompilerSourceFixtures(t *testing.T) {
 
 		for dir, files := range fixtures {
 			base := filepath.Join("tests", dir)
-			if err := os.MkdirAll(base, 0o700); err != nil {
-				t.Fatalf("create fixture dir %s: %v", base, err)
-			}
 			for name, body := range files {
-				if err := os.WriteFile(filepath.Join(base, name), []byte(body), 0o644); err != nil {
-					t.Fatalf("write fixture file %s/%s: %v", base, name, err)
+				path := filepath.Join(base, name)
+				data, err := os.ReadFile(path)
+				if err != nil {
+					t.Fatalf("read fixture file %s: %v", path, err)
+				}
+				if string(data) != body {
+					t.Fatalf("fixture file %s has unexpected contents", path)
 				}
 			}
 		}
@@ -94,76 +98,129 @@ func newFakeCompilerDir(t *testing.T) string {
 	t.Helper()
 
 	dir := t.TempDir()
-	scriptPath := filepath.Join(dir, "pawncc")
-	script := `#!/bin/sh
-input="$1"
-output=""
-debug=0
+	binaryPath := filepath.Join(dir, fakeCompilerBinaryName())
+	sourcePath := filepath.Join(dir, "fake_pawncc.go")
+	source := `package main
 
-for arg in "$@"
-do
-	case "$arg" in
-		-o*) output="${arg#-o}" ;;
-		-d3) debug=1 ;;
-	esac
-done
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+)
 
-write_output() {
-	if [ -n "$output" ]; then
-		mkdir -p "$(dirname "$output")"
-		: > "$output"
-	fi
+func writeOutput(output string) error {
+	if output == "" {
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(output), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(output, nil, 0o644)
 }
 
-print_stats() {
-	echo "Header size:             60 bytes"
-	echo "Code size:              $1 bytes"
-	echo "Data size:                0 bytes"
-	echo "Stack/heap size:      16384 bytes; estimated max. usage=8 cells ($2 bytes)"
-	echo "Total requirements:   $3 bytes"
+func printStats(code, estimate, total int) {
+	fmt.Printf("Header size:             60 bytes\n")
+	fmt.Printf("Code size:              %d bytes\n", code)
+	fmt.Printf("Data size:                0 bytes\n")
+	fmt.Printf("Stack/heap size:      16384 bytes; estimated max. usage=8 cells (%d bytes)\n", estimate)
+	fmt.Printf("Total requirements:   %d bytes\n", total)
 }
 
-case "$input" in
-	*build-simple-pass/script.pwn)
-		write_output
-		if [ "$debug" -eq 1 ]; then
-			print_stats 184 20 16628
-		fi
-		exit 0
-		;;
-	*build-local-include-pass/script.pwn)
-		write_output
-		print_stats 220 32 16664
-		exit 0
-		;;
-	*build-local-include-warn/script.pwn)
-		write_output
-		echo "library.inc(6) : warning 203: symbol is never used: \"b\""
-		echo "script.pwn(5) : warning 203: symbol is never used: \"a\""
-		print_stats 276 32 16720
-		exit 0
-		;;
-	*build-simple-fail/script.pwn)
-		echo "script.pwn(1) : error 001: invalid function or declaration"
-		echo "script.pwn(3) : error 001: invalid function or declaration"
-		echo "script.pwn(2) : warning 203: symbol is never used: \"a\""
-		echo "script.pwn(2) : error 013: no entry point (no public functions)"
-		exit 1
-		;;
-	*build-fatal/script.pwn)
-		echo "script.pwn(1) : fatal error 100: cannot read from file: \"idonotexist\""
-		exit 1
-		;;
-esac
+func main() {
+	args := os.Args[1:]
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "missing input")
+		os.Exit(2)
+	}
 
-echo "unexpected input: $input" >&2
-exit 2
+	input := filepath.ToSlash(args[0])
+	output := ""
+	debug := false
+	for _, arg := range args {
+		switch {
+		case strings.HasPrefix(arg, "-o"):
+			output = arg[2:]
+		case arg == "-d3":
+			debug = true
+		}
+	}
+
+	if strings.Contains(input, "/build-simple-pass/script.pwn") {
+		if err := writeOutput(output); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		if debug {
+			printStats(184, 20, 16628)
+		}
+		return
+	}
+
+	if strings.Contains(input, "/build-local-include-pass/script.pwn") {
+		if err := writeOutput(output); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		printStats(220, 32, 16664)
+		return
+	}
+
+	if strings.Contains(input, "/build-local-include-warn/script.pwn") {
+		if err := writeOutput(output); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		fmt.Println("library.inc(6) : warning 203: symbol is never used: \"b\"")
+		fmt.Println("script.pwn(5) : warning 203: symbol is never used: \"a\"")
+		printStats(276, 32, 16720)
+		return
+	}
+
+	if strings.Contains(input, "/build-simple-fail/script.pwn") {
+		fmt.Println("script.pwn(1) : error 001: invalid function or declaration")
+		fmt.Println("script.pwn(3) : error 001: invalid function or declaration")
+		fmt.Println("script.pwn(2) : warning 203: symbol is never used: \"a\"")
+		fmt.Println("script.pwn(2) : error 013: no entry point (no public functions)")
+		os.Exit(1)
+	}
+
+	if strings.Contains(input, "/build-fatal/script.pwn") {
+		fmt.Println("script.pwn(1) : fatal error 100: cannot read from file: \"idonotexist\"")
+		os.Exit(1)
+	}
+
+	fmt.Fprintf(os.Stderr, "unexpected input: %s\n", input)
+	os.Exit(2)
+}
 `
 
-	require.NoError(t, os.WriteFile(scriptPath, []byte(script), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "libpawnc.so"), []byte("fixture"), 0o644))
+	require.NoError(t, os.WriteFile(sourcePath, []byte(source), 0o644))
+	cmd := exec.Command("go", "build", "-o", binaryPath, sourcePath)
+	cmd.Env = os.Environ()
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, string(output))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, fakeCompilerLibraryName()), []byte("fixture"), 0o644))
 
 	return dir
+}
+
+func fakeCompilerBinaryName() string {
+	if runtime.GOOS == "windows" {
+		return "pawncc.exe"
+	}
+	return "pawncc"
+}
+
+func fakeCompilerLibraryName() string {
+	switch runtime.GOOS {
+	case "darwin":
+		return "libpawnc.dylib"
+	case "windows":
+		return "pawnc.dll"
+	default:
+		return "libpawnc.so"
+	}
 }
 
 func offlineCompilerManifest() download.Compilers {
