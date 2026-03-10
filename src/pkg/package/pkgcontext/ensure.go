@@ -146,7 +146,7 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 	dependencyPath := filepath.Join(pcx.Package.Vendor, effectiveMeta.Repo)
 
 	if fs.Exists(dependencyPath) {
-		valid, validationErr := ValidateRepository(dependencyPath)
+		valid, validationErr := pcx.repositoryHealth().Validate(dependencyPath)
 		if validationErr != nil || !valid {
 			print.Verb(effectiveMeta, "existing repository is invalid or corrupted")
 			if validationErr != nil {
@@ -204,7 +204,7 @@ func (pcx *PackageContext) EnsurePackageWithParent(meta versioning.DependencyMet
 	dependencyPath := filepath.Join(pcx.Package.Vendor, effectiveMeta.Repo)
 
 	if fs.Exists(dependencyPath) {
-		valid, validationErr := ValidateRepository(dependencyPath)
+		valid, validationErr := pcx.repositoryHealth().Validate(dependencyPath)
 		if validationErr != nil || !valid {
 			print.Verb(effectiveMeta, "existing repository is invalid or corrupted")
 			err := os.RemoveAll(dependencyPath)

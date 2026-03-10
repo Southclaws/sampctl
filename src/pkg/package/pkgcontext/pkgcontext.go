@@ -29,6 +29,17 @@ func (GitRepositoryStore) Clone(path string, isBare bool, opts *git.CloneOptions
 	return git.PlainClone(path, isBare, opts)
 }
 
+// GitRepositoryHealth is the default repository health checker backed by package helpers.
+type GitRepositoryHealth struct{}
+
+func (GitRepositoryHealth) Validate(path string) (bool, error) {
+	return ValidateRepository(path)
+}
+
+func (GitRepositoryHealth) Repair(path string) error {
+	return RepairRepository(path)
+}
+
 // PackageContext stores state for a package during its lifecycle.
 type PackageContext struct {
 	Package         pawnpackage.Package         // the package this context wraps
@@ -43,6 +54,7 @@ type PackageContext struct {
 	ActualBuild     build.Config                // actual build configuration to use for running the package
 	RemotePackages  pawnpackage.RemotePackageFetcher
 	RepoStore       RepositoryStore
+	RepoHealth      RepositoryHealth
 
 	// Runtime specific fields
 	Runtime     string // the runtime config to use, defaults to `default`
@@ -81,6 +93,7 @@ func NewPackageContext(
 		CacheDir:       cacheDir,
 		RemotePackages: pawnpackage.NewRemotePackageFetcher(gh),
 		RepoStore:      GitRepositoryStore{},
+		RepoHealth:     GitRepositoryHealth{},
 	}
 	pcx.Package, err = pawnpackage.PackageFromDir(dir)
 	if err != nil {
@@ -240,6 +253,13 @@ func (pcx PackageContext) repositoryStore() RepositoryStore {
 		return pcx.RepoStore
 	}
 	return GitRepositoryStore{}
+}
+
+func (pcx PackageContext) repositoryHealth() RepositoryHealth {
+	if pcx.RepoHealth != nil {
+		return pcx.RepoHealth
+	}
+	return GitRepositoryHealth{}
 }
 
 func getPackageTag(dir string) (tag string) {

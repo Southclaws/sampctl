@@ -41,7 +41,7 @@ func (pcx *PackageContext) cloneDependencyFromCache(meta versioning.DependencyMe
 		return nil, errors.Wrap(err, "failed to clone dependency from cache")
 	}
 
-	valid, validationErr := ValidateRepository(dependencyPath)
+	valid, validationErr := pcx.repositoryHealth().Validate(dependencyPath)
 	if validationErr != nil || !valid {
 		print.Verb(meta, "cloned repository failed validation")
 		os.RemoveAll(dependencyPath)
@@ -72,7 +72,7 @@ func (pcx *PackageContext) updateRepoStateWithRecovery(repo *git.Repository, met
 
 	print.Verb(meta, "first update attempt failed:", err)
 
-	if repairErr := RepairRepository(dependencyPath); repairErr == nil {
+	if repairErr := pcx.repositoryHealth().Repair(dependencyPath); repairErr == nil {
 		print.Verb(meta, "repository repaired, retrying update")
 		if repo, openErr := pcx.repositoryStore().Open(dependencyPath); openErr == nil {
 			if err = pcx.updateRepoState(repo, meta, true); err == nil {

@@ -25,3 +25,9 @@ type RepositoryStore interface {
 	Open(path string) (*git.Repository, error)
 	Clone(path string, isBare bool, opts *git.CloneOptions) (*git.Repository, error)
 }
+
+// RepositoryHealth abstracts repository validation and repair operations.
+type RepositoryHealth interface {
+	Validate(path string) (bool, error)
+	Repair(path string) error
+}
