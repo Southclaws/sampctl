@@ -16,6 +16,21 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 )
 
+// DependencyLock abstracts lockfile-aware dependency resolution for package flows.
+type DependencyLock interface {
+	GetLockedVersion(meta versioning.DependencyMeta) versioning.DependencyMeta
+	RecordResolution(meta versioning.DependencyMeta, repo *git.Repository, transitive bool, requiredBy string) error
+	RecordLocalDependency(meta versioning.DependencyMeta) error
+	RecordRuntime(version, platform, runtimeType string, files []lockfile.LockedFileInfo)
+	RecordBuild(compilerVersion, compilerPreset, entry, output, outputHash string)
+	Save() error
+	ForceUpdate()
+	HasLockfile() bool
+	GetLockfile() *lockfile.Lockfile
+}
+
+var _ DependencyLock = (*lockfile.Resolver)(nil)
+
 // PackageContext stores state for a package during its lifecycle.
 type PackageContext struct {
 	Package         pawnpackage.Package         // the package this context wraps
@@ -41,8 +56,8 @@ type PackageContext struct {
 	Relative    bool   // Show output as relative paths
 
 	// Lockfile support
-	LockfileResolver *lockfile.Resolver // resolver for lockfile-aware dependency resolution
-	UseLockfile      bool               // whether to use lockfile for reproducible builds
+	lockfileResolver DependencyLock // resolver for lockfile-aware dependency resolution
+	UseLockfile      bool           // whether to use lockfile for reproducible builds
 }
 
 // NewPackageContext attempts to parse a directory as a Package by looking for a
@@ -153,11 +168,7 @@ func NewPackageContextWithLockfile(
 	pcx.AppVersion = sampctlVersion
 
 	if useLockfile && parent {
-		pcx.LockfileResolver, err = lockfile.NewResolver(
-			dir,
-			sampctlVersion,
-			true,
-		)
+		pcx.lockfileResolver, err = newDependencyLock(dir, sampctlVersion)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to initialize lockfile resolver")
 		}
@@ -174,11 +185,7 @@ func (pcx *PackageContext) InitLockfileResolver(sampctlVersion string) error {
 	}
 
 	var err error
-	pcx.LockfileResolver, err = lockfile.NewResolver(
-		pcx.Package.LocalPath,
-		sampctlVersion,
-		true,
-	)
+	pcx.lockfileResolver, err = newDependencyLock(pcx.Package.LocalPath, sampctlVersion)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize lockfile resolver")
 	}
@@ -190,15 +197,40 @@ func (pcx *PackageContext) InitLockfileResolver(sampctlVersion string) error {
 
 // SaveLockfile saves the lockfile if it was modified during dependency resolution
 func (pcx *PackageContext) SaveLockfile() error {
-	if pcx.LockfileResolver == nil {
+	if pcx.lockfileResolver == nil {
 		return nil
 	}
-	return pcx.LockfileResolver.Save()
+	return pcx.lockfileResolver.Save()
 }
 
 // HasLockfile returns true if the package has a lockfile
 func (pcx *PackageContext) HasLockfile() bool {
-	return pcx.LockfileResolver != nil && pcx.LockfileResolver.HasLockfile()
+	return pcx.lockfileResolver != nil && pcx.lockfileResolver.HasLockfile()
+}
+
+// ForceUpdateLockfile resets the lockfile state so fresh versions are resolved.
+func (pcx *PackageContext) ForceUpdateLockfile() {
+	if pcx.lockfileResolver == nil {
+		return
+	}
+	pcx.lockfileResolver.ForceUpdate()
+}
+
+// HasLockfileResolver reports whether lockfile support is enabled for the package context.
+func (pcx *PackageContext) HasLockfileResolver() bool {
+	return pcx.lockfileResolver != nil
+}
+
+// GetLockfile returns the current in-memory lockfile, if one is active.
+func (pcx *PackageContext) GetLockfile() *lockfile.Lockfile {
+	if pcx.lockfileResolver == nil {
+		return nil
+	}
+	return pcx.lockfileResolver.GetLockfile()
+}
+
+func newDependencyLock(dir, sampctlVersion string) (DependencyLock, error) {
+	return lockfile.NewResolver(dir, sampctlVersion, true)
 }
 
 func getPackageTag(dir string) (tag string) {

@@ -58,8 +58,8 @@ func packageEnsure(c *cli.Context) error {
 		}
 
 		// If forcing update, clear the lockfile to resolve fresh versions
-		if forceUpdate && pcx.LockfileResolver != nil {
-			pcx.LockfileResolver.ForceUpdate()
+		if forceUpdate {
+			pcx.ForceUpdateLockfile()
 			print.Verb("lockfile cleared, resolving fresh dependency versions")
 		}
 
@@ -73,7 +73,7 @@ func packageEnsure(c *cli.Context) error {
 
 	// If lock-only mode, just save the lockfile without ensuring dependencies
 	if lockOnly {
-		if pcx.LockfileResolver == nil {
+		if !pcx.HasLockfileResolver() {
 			return errors.New("cannot use --lock-only without lockfile support")
 		}
 		err = pcx.SaveLockfile()
@@ -95,8 +95,8 @@ func packageEnsure(c *cli.Context) error {
 		print.Verb("updated package dependencies with latest tags")
 	}
 
-	if useLockfile && pcx.LockfileResolver != nil {
-		lf := pcx.LockfileResolver.GetLockfile()
+	if useLockfile {
+		lf := pcx.GetLockfile()
 		if lf != nil {
 			print.Verb("lockfile saved with", lf.DependencyCount(), "dependencies")
 		}

@@ -139,8 +139,8 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 
 	// Apply locked version if lockfile is enabled and not forcing update
 	effectiveMeta := meta
-	if pcx.LockfileResolver != nil && !forceUpdate {
-		effectiveMeta = pcx.LockfileResolver.GetLockedVersion(meta)
+	if pcx.lockfileResolver != nil && !forceUpdate {
+		effectiveMeta = pcx.lockfileResolver.GetLockedVersion(meta)
 	}
 
 	dependencyPath := filepath.Join(pcx.Package.Vendor, effectiveMeta.Repo)
@@ -171,8 +171,8 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 	}
 
 	// Record the resolution to lockfile
-	if pcx.LockfileResolver != nil {
-		if recordErr := pcx.LockfileResolver.RecordResolution(meta, repo, false, ""); recordErr != nil {
+	if pcx.lockfileResolver != nil {
+		if recordErr := pcx.lockfileResolver.RecordResolution(meta, repo, false, ""); recordErr != nil {
 			print.Warn("failed to record dependency resolution to lockfile:", recordErr)
 		}
 	}
@@ -194,8 +194,8 @@ func (pcx *PackageContext) EnsurePackageWithParent(meta versioning.DependencyMet
 
 	// Apply locked version if lockfile is enabled and not forcing update
 	effectiveMeta := meta
-	if pcx.LockfileResolver != nil && !forceUpdate {
-		effectiveMeta = pcx.LockfileResolver.GetLockedVersion(meta)
+	if pcx.lockfileResolver != nil && !forceUpdate {
+		effectiveMeta = pcx.lockfileResolver.GetLockedVersion(meta)
 	}
 
 	dependencyPath := filepath.Join(pcx.Package.Vendor, effectiveMeta.Repo)
@@ -222,9 +222,9 @@ func (pcx *PackageContext) EnsurePackageWithParent(meta versioning.DependencyMet
 	}
 
 	// Record the resolution to lockfile as transitive dependency
-	if pcx.LockfileResolver != nil {
+	if pcx.lockfileResolver != nil {
 		isTransitive := parentRepo != "" && parentRepo != pcx.Package.Repo
-		if recordErr := pcx.LockfileResolver.RecordResolution(meta, repo, isTransitive, parentRepo); recordErr != nil {
+		if recordErr := pcx.lockfileResolver.RecordResolution(meta, repo, isTransitive, parentRepo); recordErr != nil {
 			print.Warn("failed to record dependency resolution to lockfile:", recordErr)
 		}
 	}
@@ -534,7 +534,7 @@ func (pcx PackageContext) extractResourceDependencies(
 }
 
 func (pcx *PackageContext) recordRuntimeToLockfile(manifestInfo *runtime.RuntimeManifestInfo) {
-	if pcx.LockfileResolver == nil {
+	if pcx.lockfileResolver == nil {
 		return
 	}
 
@@ -554,7 +554,7 @@ func (pcx *PackageContext) recordRuntimeToLockfile(manifestInfo *runtime.Runtime
 	}
 
 	print.Verb("recording runtime to lockfile:", pcx.ActualRuntime.Version, pcx.ActualRuntime.Platform, string(pcx.ActualRuntime.RuntimeType))
-	pcx.LockfileResolver.RecordRuntime(
+	pcx.lockfileResolver.RecordRuntime(
 		pcx.ActualRuntime.Version,
 		pcx.ActualRuntime.Platform,
 		string(pcx.ActualRuntime.RuntimeType),
@@ -563,7 +563,7 @@ func (pcx *PackageContext) recordRuntimeToLockfile(manifestInfo *runtime.Runtime
 }
 
 func (pcx *PackageContext) RecordBuildToLockfile(compilerVersion, compilerPreset, entry, output string) {
-	if pcx.LockfileResolver == nil {
+	if pcx.lockfileResolver == nil {
 		return
 	}
 
@@ -577,7 +577,7 @@ func (pcx *PackageContext) RecordBuildToLockfile(compilerVersion, compilerPreset
 		}
 	}
 
-	pcx.LockfileResolver.RecordBuild(compilerVersion, compilerPreset, entry, output, outputHash)
+	pcx.lockfileResolver.RecordBuild(compilerVersion, compilerPreset, entry, output, outputHash)
 }
 
 func hashOutputFile(path string) (string, error) {
