@@ -78,7 +78,8 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 			return errors.Wrap(err, "failed to ensure package layout")
 		}
 
-		if err := runtime.EnsureBinaries(pcx.CacheDir, cfg); err != nil {
+		runtimeInfo, err := runtime.EnsureBinaries(pcx.CacheDir, cfg)
+		if err != nil {
 			return errors.Wrap(err, "failed to ensure runtime binaries")
 		}
 
@@ -86,13 +87,33 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 			return errors.Wrap(err, "failed to ensure runtime plugins")
 		}
 
-		pcx.recordRuntimeToLockfileFromConfig()
+		pcx.recordRuntimeToLockfile(runtimeInfo)
 		if saveErr := pcx.SaveLockfile(); saveErr != nil {
 			print.Warn("failed to save lockfile after runtime update:", saveErr)
 		}
 	}
 
 	return err
+}
+
+// EnsureProject applies the full project ensure flow used by user-facing commands.
+// It pins tagless dependencies where possible, ensures dependency/runtime files,
+// and persists the lockfile when lockfile support is enabled.
+func (pcx *PackageContext) EnsureProject(ctx context.Context, forceUpdate bool) (bool, error) {
+	updated, err := pcx.TagTaglessDependencies(ctx, forceUpdate)
+	if err != nil {
+		return false, err
+	}
+
+	if err := pcx.EnsureDependencies(ctx, forceUpdate); err != nil {
+		return updated, err
+	}
+
+	if err := pcx.SaveLockfile(); err != nil {
+		return updated, err
+	}
+
+	return updated, nil
 }
 
 // GatherPlugins iterates the AllPlugins list and appends them to the runtime dependencies list
@@ -118,14 +139,14 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 
 	// Apply locked version if lockfile is enabled and not forcing update
 	effectiveMeta := meta
-	if pcx.LockfileResolver != nil && !forceUpdate {
-		effectiveMeta = pcx.LockfileResolver.GetLockedVersion(meta)
+	if pcx.lockfileResolver != nil && !forceUpdate {
+		effectiveMeta = pcx.lockfileResolver.GetLockedVersion(meta)
 	}
 
 	dependencyPath := filepath.Join(pcx.Package.Vendor, effectiveMeta.Repo)
 
 	if fs.Exists(dependencyPath) {
-		valid, validationErr := ValidateRepository(dependencyPath)
+		valid, validationErr := pcx.repositoryHealth().Validate(dependencyPath)
 		if validationErr != nil || !valid {
 			print.Verb(effectiveMeta, "existing repository is invalid or corrupted")
 			if validationErr != nil {
@@ -139,7 +160,7 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 		}
 	}
 
-	repo, err := pcx.ensureDependencyRepository(effectiveMeta, dependencyPath, forceUpdate)
+	repo, err := pcx.ensureDependencyRepository(effectiveMeta, dependencyPath)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure dependency repository")
 	}
@@ -150,8 +171,11 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 	}
 
 	// Record the resolution to lockfile
-	if pcx.LockfileResolver != nil {
-		if recordErr := pcx.LockfileResolver.RecordResolution(meta, repo, false, ""); recordErr != nil {
+	if pcx.lockfileResolver != nil {
+		resolution, resolutionErr := resolveDependencyLock(meta, repo)
+		if resolutionErr != nil {
+			print.Warn("failed to resolve dependency lock data:", resolutionErr)
+		} else if recordErr := pcx.lockfileResolver.RecordResolution(meta, resolution, false, ""); recordErr != nil {
 			print.Warn("failed to record dependency resolution to lockfile:", recordErr)
 		}
 	}
@@ -173,14 +197,14 @@ func (pcx *PackageContext) EnsurePackageWithParent(meta versioning.DependencyMet
 
 	// Apply locked version if lockfile is enabled and not forcing update
 	effectiveMeta := meta
-	if pcx.LockfileResolver != nil && !forceUpdate {
-		effectiveMeta = pcx.LockfileResolver.GetLockedVersion(meta)
+	if pcx.lockfileResolver != nil && !forceUpdate {
+		effectiveMeta = pcx.lockfileResolver.GetLockedVersion(meta)
 	}
 
 	dependencyPath := filepath.Join(pcx.Package.Vendor, effectiveMeta.Repo)
 
 	if fs.Exists(dependencyPath) {
-		valid, validationErr := ValidateRepository(dependencyPath)
+		valid, validationErr := pcx.repositoryHealth().Validate(dependencyPath)
 		if validationErr != nil || !valid {
 			print.Verb(effectiveMeta, "existing repository is invalid or corrupted")
 			err := os.RemoveAll(dependencyPath)
@@ -190,7 +214,7 @@ func (pcx *PackageContext) EnsurePackageWithParent(meta versioning.DependencyMet
 		}
 	}
 
-	repo, err := pcx.ensureDependencyRepository(effectiveMeta, dependencyPath, forceUpdate)
+	repo, err := pcx.ensureDependencyRepository(effectiveMeta, dependencyPath)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure dependency repository")
 	}
@@ -201,9 +225,12 @@ func (pcx *PackageContext) EnsurePackageWithParent(meta versioning.DependencyMet
 	}
 
 	// Record the resolution to lockfile as transitive dependency
-	if pcx.LockfileResolver != nil {
+	if pcx.lockfileResolver != nil {
 		isTransitive := parentRepo != "" && parentRepo != pcx.Package.Repo
-		if recordErr := pcx.LockfileResolver.RecordResolution(meta, repo, isTransitive, parentRepo); recordErr != nil {
+		resolution, resolutionErr := resolveDependencyLock(meta, repo)
+		if resolutionErr != nil {
+			print.Warn("failed to resolve dependency lock data:", resolutionErr)
+		} else if recordErr := pcx.lockfileResolver.RecordResolution(meta, resolution, isTransitive, parentRepo); recordErr != nil {
 			print.Warn("failed to record dependency resolution to lockfile:", recordErr)
 		}
 	}
@@ -250,8 +277,8 @@ func (pcx *PackageContext) installPackageResources(meta versioning.DependencyMet
 			pkg = pkgLocal
 			err = nil
 			print.Verb(meta, "using local dependency package definition for resources")
-		} else if pcx.GitHub != nil {
-			pkgRemote, errRemote := pawnpackage.GetRemotePackage(context.Background(), pcx.GitHub, meta)
+		} else if pcx.RemotePackages != nil {
+			pkgRemote, errRemote := pcx.RemotePackages.Fetch(context.Background(), meta)
 			if errRemote == nil {
 				pkg = pkgRemote
 				err = nil
@@ -512,18 +539,13 @@ func (pcx PackageContext) extractResourceDependencies(
 	return dir, nil
 }
 
-func (pcx *PackageContext) recordRuntimeToLockfileFromConfig() {
-	if pcx.LockfileResolver == nil {
+func (pcx *PackageContext) recordRuntimeToLockfile(manifestInfo *runtime.RuntimeManifestInfo) {
+	if pcx.lockfileResolver == nil {
 		return
 	}
 
-	manifestInfo, err := runtime.GetRuntimeManifestInfo(pcx.Package.LocalPath)
-	if err != nil {
-		print.Warn("failed to get runtime manifest info:", err)
-		return
-	}
 	if manifestInfo == nil {
-		print.Verb("no runtime manifest found, skipping lockfile runtime record")
+		print.Verb("no runtime info available, skipping lockfile runtime record")
 		return
 	}
 
@@ -538,7 +560,7 @@ func (pcx *PackageContext) recordRuntimeToLockfileFromConfig() {
 	}
 
 	print.Verb("recording runtime to lockfile:", pcx.ActualRuntime.Version, pcx.ActualRuntime.Platform, string(pcx.ActualRuntime.RuntimeType))
-	pcx.LockfileResolver.RecordRuntime(
+	pcx.lockfileResolver.RecordRuntime(
 		pcx.ActualRuntime.Version,
 		pcx.ActualRuntime.Platform,
 		string(pcx.ActualRuntime.RuntimeType),
@@ -547,7 +569,7 @@ func (pcx *PackageContext) recordRuntimeToLockfileFromConfig() {
 }
 
 func (pcx *PackageContext) RecordBuildToLockfile(compilerVersion, compilerPreset, entry, output string) {
-	if pcx.LockfileResolver == nil {
+	if pcx.lockfileResolver == nil {
 		return
 	}
 
@@ -561,7 +583,7 @@ func (pcx *PackageContext) RecordBuildToLockfile(compilerVersion, compilerPreset
 		}
 	}
 
-	pcx.LockfileResolver.RecordBuild(compilerVersion, compilerPreset, entry, output, outputHash)
+	pcx.lockfileResolver.RecordBuild(compilerVersion, compilerPreset, entry, output, outputHash)
 }
 
 func hashOutputFile(path string) (string, error) {

@@ -11,9 +11,11 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
+	res "github.com/Southclaws/sampctl/src/resource"
 )
 
 func TestEnsureComponentsExtractToComponentsDir(t *testing.T) {
+	cacheDir := filepath.Join(t.TempDir(), "cache")
 	cfg := run.Runtime{
 		Platform:    "linux",
 		Version:     "v1.0.0-openmp",
@@ -26,10 +28,16 @@ func TestEnsureComponentsExtractToComponentsDir(t *testing.T) {
 		}},
 	}
 
-	cfg.WorkingDir = filepath.Join("./tests/ensure", "Pawn.RakNet-component-linux-openmp")
-	_ = os.MkdirAll(cfg.WorkingDir, 0o700)
+	seedCachedPluginPackage(t, cacheDir, cfg.PluginDeps[0], pluginFixturePackage(cfg.PluginDeps[0], []res.Resource{{
+		Name:     `^pawnraknet-1\.6\.0-omp\.tar\.gz$`,
+		Platform: "linux",
+		Archive:  true,
+		Plugins:  []string{"plugins/Pawn.RakNet.so"},
+	}}), "pawnraknet-1.6.0-omp.tar.gz", map[string]string{"plugins/Pawn.RakNet.so": "fixture"})
 
-	err := EnsurePlugins(context.Background(), gh, &cfg, "./tests/cache", true)
+	cfg.WorkingDir = filepath.Join(t.TempDir(), "Pawn.RakNet-component-linux-openmp")
+
+	err := EnsurePlugins(context.Background(), nil, &cfg, cacheDir, false)
 	assert.NoError(t, err)
 
 	// It should install binaries into ./components

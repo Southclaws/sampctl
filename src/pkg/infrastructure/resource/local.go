@@ -36,7 +36,7 @@ func NewLocalResource(localPath string, resourceType ResourceType) *LocalResourc
 }
 
 // Ensure acquires the local resource, copying it if necessary
-func (lr *LocalResource) Ensure(ctx context.Context, version, path string) error {
+func (lr *LocalResource) Ensure(_ context.Context, _ string, path string) error {
 	// For local resources, we can just copy directly without caching
 	// unless a cache is specifically requested
 
@@ -59,7 +59,7 @@ func (lr *LocalResource) Ensure(ctx context.Context, version, path string) error
 }
 
 // Cached always returns true for local resources since they don't need caching
-func (lr *LocalResource) Cached(version string) (bool, string) {
+func (lr *LocalResource) Cached(_ string) (bool, string) {
 	// Local resources are always "cached" at their original location
 	if _, err := os.Stat(lr.localPath); err == nil {
 		return true, lr.localPath

@@ -1,6 +1,1 @@
-function() {
-    new a;
-    for(new i; i < 10; ++i) {
-        a++;
-    }
-}
+stock lib() { return 1; }

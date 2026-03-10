@@ -2,7 +2,6 @@ package pawnpackage_test
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -10,9 +9,7 @@ import (
 
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/google/go-github/github"
-	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/oauth2"
 
 	"github.com/Southclaws/sampctl/src/pkg/build/build"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
@@ -28,15 +25,6 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	_ = godotenv.Load("../.env", "../../.env")
-
-	token := os.Getenv("FULL_ACCESS_GITHUB_TOKEN")
-	if len(token) == 0 {
-		fmt.Println("No token in `FULL_ACCESS_GITHUB_TOKEN`, skipping tests.")
-		return
-	}
-	gh = github.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})))
-
 	err := os.MkdirAll("./tests/cache", 0o700)
 	if err != nil {
 		panic(err)
@@ -120,33 +108,37 @@ func TestPackage_Build(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		pcxWorkspace := fs.MustAbs("./tests/build-auto-" + tt.name)
-		pcxVendor := filepath.Join(pcxWorkspace, "dependencies")
-
-		err := os.MkdirAll(filepath.Join(pcxWorkspace, "gamemodes"), 0o700)
-		if err != nil {
-			panic(err)
-		}
-
-		err = os.WriteFile(filepath.Join(pcxWorkspace, tt.args.pkg.Entry), tt.sourceCode, 0o700)
-		if err != nil {
-			panic(err)
-		}
-
-		pcx := pkgcontext.PackageContext{
-			CacheDir:        "./tests/cache",
-			GitHub:          gh,
-			GitAuth:         gitAuth,
-			Platform:        runtime.GOOS,
-			Package:         tt.args.pkg,
-			AllDependencies: tt.args.dependencies,
-		}
-
-		pcx.Package.LocalPath = pcxWorkspace
-		pcx.Package.Vendor = pcxVendor
-		pcx.Package.DependencyMeta = versioning.DependencyMeta{User: "local", Repo: "local"}
-
 		t.Run(tt.name, func(t *testing.T) {
+			cacheDir := seedPawnPackageFixtureCache(t)
+			pcxWorkspace := t.TempDir()
+			pcxVendor := filepath.Join(pcxWorkspace, "dependencies")
+			compilerDir := newPackageTestCompilerDir(t)
+
+			err := os.MkdirAll(filepath.Join(pcxWorkspace, "gamemodes"), 0o700)
+			if err != nil {
+				t.Fatalf("create gamemodes dir: %v", err)
+			}
+
+			err = os.WriteFile(filepath.Join(pcxWorkspace, tt.args.pkg.Entry), tt.sourceCode, 0o700)
+			if err != nil {
+				t.Fatalf("write source file: %v", err)
+			}
+
+			pcx := pkgcontext.PackageContext{
+				CacheDir:        cacheDir,
+				GitHub:          gh,
+				GitAuth:         gitAuth,
+				Platform:        runtime.GOOS,
+				Package:         tt.args.pkg,
+				AllDependencies: tt.args.dependencies,
+			}
+
+			pcx.Package.Parent = false
+			pcx.Package.LocalPath = pcxWorkspace
+			pcx.Package.Vendor = pcxVendor
+			pcx.Package.DependencyMeta = versioning.DependencyMeta{User: "local", Repo: "local"}
+			pcx.Package.Build = &build.Config{Compiler: build.CompilerConfig{Path: compilerDir}}
+
 			gotProblems, _, err := pcx.Build(context.Background(), tt.args.build, tt.args.ensure, false, false, "")
 			if tt.wantErr {
 				assert.Error(t, err)

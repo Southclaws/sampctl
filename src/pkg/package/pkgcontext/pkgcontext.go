@@ -16,6 +16,30 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 )
 
+var _ DependencyLock = (*lockfile.Resolver)(nil)
+
+// GitRepositoryStore is the default repository store backed by go-git.
+type GitRepositoryStore struct{}
+
+func (GitRepositoryStore) Open(path string) (*git.Repository, error) {
+	return git.PlainOpen(path)
+}
+
+func (GitRepositoryStore) Clone(path string, isBare bool, opts *git.CloneOptions) (*git.Repository, error) {
+	return git.PlainClone(path, isBare, opts)
+}
+
+// GitRepositoryHealth is the default repository health checker backed by package helpers.
+type GitRepositoryHealth struct{}
+
+func (GitRepositoryHealth) Validate(path string) (bool, error) {
+	return ValidateRepository(path)
+}
+
+func (GitRepositoryHealth) Repair(path string) error {
+	return RepairRepository(path)
+}
+
 // PackageContext stores state for a package during its lifecycle.
 type PackageContext struct {
 	Package         pawnpackage.Package         // the package this context wraps
@@ -28,6 +52,10 @@ type PackageContext struct {
 	AllIncludePaths []string                    // any additional include paths specified by resources
 	ActualRuntime   run.Runtime                 // actual runtime configuration to use for running the package
 	ActualBuild     build.Config                // actual build configuration to use for running the package
+	RemotePackages  pawnpackage.RemotePackageFetcher
+	RepoStore       RepositoryStore
+	RepoHealth      RepositoryHealth
+	RuntimeEnv      RuntimeEnvironment
 
 	// Runtime specific fields
 	Runtime     string // the runtime config to use, defaults to `default`
@@ -41,8 +69,8 @@ type PackageContext struct {
 	Relative    bool   // Show output as relative paths
 
 	// Lockfile support
-	LockfileResolver *lockfile.Resolver // resolver for lockfile-aware dependency resolution
-	UseLockfile      bool               // whether to use lockfile for reproducible builds
+	lockfileResolver DependencyLock // resolver for lockfile-aware dependency resolution
+	UseLockfile      bool           // whether to use lockfile for reproducible builds
 }
 
 // NewPackageContext attempts to parse a directory as a Package by looking for a
@@ -60,10 +88,14 @@ func NewPackageContext(
 	init bool,
 ) (pcx *PackageContext, err error) {
 	pcx = &PackageContext{
-		GitHub:   gh,
-		GitAuth:  auth,
-		Platform: platform,
-		CacheDir: cacheDir,
+		GitHub:         gh,
+		GitAuth:        auth,
+		Platform:       platform,
+		CacheDir:       cacheDir,
+		RemotePackages: pawnpackage.NewRemotePackageFetcher(gh),
+		RepoStore:      GitRepositoryStore{},
+		RepoHealth:     GitRepositoryHealth{},
+		RuntimeEnv:     runtimeEnvironmentAdapter{},
 	}
 	pcx.Package, err = pawnpackage.PackageFromDir(dir)
 	if err != nil {
@@ -153,11 +185,7 @@ func NewPackageContextWithLockfile(
 	pcx.AppVersion = sampctlVersion
 
 	if useLockfile && parent {
-		pcx.LockfileResolver, err = lockfile.NewResolver(
-			dir,
-			sampctlVersion,
-			true,
-		)
+		pcx.lockfileResolver, err = newDependencyLock(dir, sampctlVersion)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to initialize lockfile resolver")
 		}
@@ -174,11 +202,7 @@ func (pcx *PackageContext) InitLockfileResolver(sampctlVersion string) error {
 	}
 
 	var err error
-	pcx.LockfileResolver, err = lockfile.NewResolver(
-		pcx.Package.LocalPath,
-		sampctlVersion,
-		true,
-	)
+	pcx.lockfileResolver, err = newDependencyLock(pcx.Package.LocalPath, sampctlVersion)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize lockfile resolver")
 	}
@@ -190,15 +214,61 @@ func (pcx *PackageContext) InitLockfileResolver(sampctlVersion string) error {
 
 // SaveLockfile saves the lockfile if it was modified during dependency resolution
 func (pcx *PackageContext) SaveLockfile() error {
-	if pcx.LockfileResolver == nil {
+	if pcx.lockfileResolver == nil {
 		return nil
 	}
-	return pcx.LockfileResolver.Save()
+	return pcx.lockfileResolver.Save()
 }
 
 // HasLockfile returns true if the package has a lockfile
 func (pcx *PackageContext) HasLockfile() bool {
-	return pcx.LockfileResolver != nil && pcx.LockfileResolver.HasLockfile()
+	return pcx.lockfileResolver != nil && pcx.lockfileResolver.HasLockfile()
+}
+
+// ForceUpdateLockfile resets the lockfile state so fresh versions are resolved.
+func (pcx *PackageContext) ForceUpdateLockfile() {
+	if pcx.lockfileResolver == nil {
+		return
+	}
+	pcx.lockfileResolver.ForceUpdate()
+}
+
+// HasLockfileResolver reports whether lockfile support is enabled for the package context.
+func (pcx *PackageContext) HasLockfileResolver() bool {
+	return pcx.lockfileResolver != nil
+}
+
+// GetLockfile returns the current in-memory lockfile, if one is active.
+func (pcx *PackageContext) GetLockfile() *lockfile.Lockfile {
+	if pcx.lockfileResolver == nil {
+		return nil
+	}
+	return pcx.lockfileResolver.GetLockfile()
+}
+
+func newDependencyLock(dir, sampctlVersion string) (DependencyLock, error) {
+	return lockfile.NewResolver(dir, sampctlVersion, true)
+}
+
+func (pcx PackageContext) repositoryStore() RepositoryStore {
+	if pcx.RepoStore != nil {
+		return pcx.RepoStore
+	}
+	return GitRepositoryStore{}
+}
+
+func (pcx PackageContext) repositoryHealth() RepositoryHealth {
+	if pcx.RepoHealth != nil {
+		return pcx.RepoHealth
+	}
+	return GitRepositoryHealth{}
+}
+
+func (pcx PackageContext) runtimeEnvironment() RuntimeEnvironment {
+	if pcx.RuntimeEnv != nil {
+		return pcx.RuntimeEnv
+	}
+	return runtimeEnvironmentAdapter{}
 }
 
 func getPackageTag(dir string) (tag string) {

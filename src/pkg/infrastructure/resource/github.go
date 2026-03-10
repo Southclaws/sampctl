@@ -186,7 +186,6 @@ func (ghr *GitHubReleaseResource) Ensure(ctx context.Context, version, path stri
 			}
 			filename = newFilename
 		}
-		cacheDirPath = newCacheDirPath
 	}
 
 	if ghr.extractFunc != nil && ghr.extractPaths != nil {

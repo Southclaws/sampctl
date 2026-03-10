@@ -135,7 +135,7 @@ func (br *BaseResource) MarkCached(cachePath string) error {
 }
 
 // EnsureFromLocal copies a local file/directory to the cache
-func (br *BaseResource) EnsureFromLocal(ctx context.Context, version, targetPath string) error {
+func (br *BaseResource) EnsureFromLocal(_ context.Context, version, targetPath string) error {
 	if br.localPath == "" {
 		return errors.New("no local path specified for resource")
 	}

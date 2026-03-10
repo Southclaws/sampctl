@@ -14,16 +14,16 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
+	"github.com/Southclaws/sampctl/src/pkg/package/lockfile"
 	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 )
 
 const (
-	runtimeManifestDirName  = ".sampctl"
 	runtimeManifestFileName = "sampctl-runtime-manifest.json"
 	runtimeStagingDir       = "runtime_staging"
 )
 
-var runtimeManifestRelativePath = filepath.Join(runtimeManifestDirName, runtimeManifestFileName)
+var runtimeManifestRelativePath = runtimeManifestFileName
 
 type runtimeManifest struct {
 	Version     string            `json:"version"`
@@ -53,7 +53,6 @@ func buildRuntimeManifest(root string, cfg run.Runtime) (runtimeManifest, error)
 	}
 
 	manifestRel := filepath.ToSlash(runtimeManifestRelativePath)
-	manifestDir := filepath.ToSlash(runtimeManifestDirName)
 
 	err := filepath.WalkDir(root, func(path string, d iofs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -68,9 +67,6 @@ func buildRuntimeManifest(root string, cfg run.Runtime) (runtimeManifest, error)
 			relPath = ""
 		}
 		if d.IsDir() {
-			if relPath != "" && strings.EqualFold(relPath, manifestDir) {
-				return iofs.SkipDir
-			}
 			return nil
 		}
 		if strings.EqualFold(relPath, manifestRel) {
@@ -249,6 +245,19 @@ func runtimeManifestPath(root string) string {
 	return filepath.Join(root, runtimeManifestRelativePath)
 }
 
+func loadInstalledRuntimeManifest(root string) (*runtimeManifest, error) {
+	lf, err := lockfile.Load(root)
+	if err != nil {
+		return nil, err
+	}
+	if lf != nil && lf.Runtime != nil {
+		manifest := runtimeManifestFromLockedRuntime(lf.Runtime)
+		return &manifest, nil
+	}
+
+	return nil, nil
+}
+
 type RuntimeFileInfo struct {
 	Path string
 	Size int64
@@ -264,16 +273,17 @@ type RuntimeManifestInfo struct {
 }
 
 func GetRuntimeManifestInfo(workingDir string) (*RuntimeManifestInfo, error) {
-	manifestPath := runtimeManifestPath(workingDir)
-	if !fs.Exists(manifestPath) {
-		return nil, nil
-	}
-
-	manifest, err := readRuntimeManifest(manifestPath)
+	manifest, err := loadInstalledRuntimeManifest(workingDir)
 	if err != nil {
 		return nil, err
 	}
+	if manifest == nil {
+		return nil, nil
+	}
+	return runtimeManifestToInfo(*manifest), nil
+}
 
+func runtimeManifestToInfo(manifest runtimeManifest) *RuntimeManifestInfo {
 	info := &RuntimeManifestInfo{
 		Version:     manifest.Version,
 		Platform:    manifest.Platform,
@@ -285,5 +295,18 @@ func GetRuntimeManifestInfo(workingDir string) (*RuntimeManifestInfo, error) {
 		info.Files[i] = RuntimeFileInfo(f)
 	}
 
-	return info, nil
+	return info
+}
+
+func runtimeManifestFromLockedRuntime(runtimeInfo *lockfile.LockedRuntime) runtimeManifest {
+	manifest := runtimeManifest{
+		Version:     runtimeInfo.Version,
+		Platform:    runtimeInfo.Platform,
+		RuntimeType: run.RuntimeType(runtimeInfo.RuntimeType),
+		Files:       make([]runtimeFileInfo, len(runtimeInfo.Files)),
+	}
+	for i, f := range runtimeInfo.Files {
+		manifest.Files[i] = runtimeFileInfo(f)
+	}
+	return manifest
 }

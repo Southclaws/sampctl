@@ -9,86 +9,115 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/Southclaws/sampctl/src/pkg/build/build"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
 
+func TestGetCompilerPackage(t *testing.T) {
+	t.Run("uses cached compiler package", func(t *testing.T) {
+		meta := versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.8"}
+		rootDir := t.TempDir()
+		cacheDir := filepath.Join(rootDir, "cache")
+		dir := filepath.Join(rootDir, "compiler")
+		seedCompilerCacheFixture(t, cacheDir, meta, "linux")
+
+		compiler, err := GetCompilerPackage(context.Background(), nil, build.CompilerConfig{
+			Site:    "github.com",
+			User:    meta.User,
+			Repo:    meta.Repo,
+			Version: meta.Tag,
+		}, dir, "linux", cacheDir)
+		require.NoError(t, err)
+		assert.Equal(t, "pawncc", compiler.Binary)
+		assert.FileExists(t, filepath.Join(dir, "pawncc"))
+	})
+
+	t.Run("downloads compiler package when cache misses", func(t *testing.T) {
+		meta := versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.8"}
+		rootDir := t.TempDir()
+		cacheDir := filepath.Join(rootDir, "cache")
+		dir := filepath.Join(rootDir, "compiler")
+		pkg := seedCompilerCacheFixture(t, cacheDir, meta, "windows")
+		assetName := offlineCompilerArchiveName("windows", meta.Tag)
+		assetBody, err := os.ReadFile(cachedCompilerAssetPath(t, cacheDir, meta, pkg))
+		require.NoError(t, err)
+		client := newCompilerReleaseClient(t, meta, assetName, assetBody)
+
+		// remove cached asset and manifest rewrite so network path is required
+		require.NoError(t, os.Remove(cachedCompilerAssetPath(t, cacheDir, meta, pkg)))
+
+		compiler, err := GetCompilerPackage(context.Background(), client, build.CompilerConfig{
+			Site:    "github.com",
+			User:    meta.User,
+			Repo:    meta.Repo,
+			Version: meta.Tag,
+		}, dir, "windows", cacheDir)
+		require.NoError(t, err)
+		assert.Equal(t, "pawncc.exe", compiler.Binary)
+		assert.FileExists(t, filepath.Join(dir, "pawncc.exe"))
+	})
+}
+
 func Test_CompilerFromNet(t *testing.T) {
-	type args struct {
-		meta     versioning.DependencyMeta
-		dir      string
-		platform string
-		cacheDir string
-	}
 	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
+		name          string
+		meta          versioning.DependencyMeta
+		platform      string
+		expectedFiles []string
 	}{
-		{"linux-v3.10.4", args{versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.4"}, "tests/compiler-linux-v3.10.4", "linux", "tests/cache"}, false},
-		{"darwin-v3.10.4", args{versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.4"}, "tests/compiler-darwin-v3.10.4", "darwin", "tests/cache"}, false},
-		{"windows-v3.10.4", args{versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.4"}, "tests/compiler-windows-v3.10.4", "windows", "tests/cache"}, false},
-		{"linux-v3.10.8", args{versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.8"}, "tests/compiler-linux-v3.10.8", "linux", "tests/cache"}, false},
-		{"darwin-v3.10.8", args{versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.8"}, "tests/compiler-darwin-v3.10.8", "darwin", "tests/cache"}, false},
-		{"windows-v3.10.8", args{versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.8"}, "tests/compiler-windows-v3.10.8", "windows", "tests/cache"}, false},
+		{"linux-v3.10.8", versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.8"}, "linux", []string{"pawncc", "libpawnc.so"}},
+		{"darwin-v3.10.8", versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.8"}, "darwin", []string{"pawncc", "libpawnc.dylib"}},
+		{"windows-v3.10.8", versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.8"}, "windows", []string{"pawncc.exe", "pawnc.dll"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := os.MkdirAll(tt.args.cacheDir, 0o700)
+			rootDir := t.TempDir()
+			cacheDir := filepath.Join(rootDir, "cache")
+			dir := filepath.Join(rootDir, "compiler")
+			pkg := seedCompilerCacheFixture(t, cacheDir, tt.meta, tt.platform)
+			assetName := offlineCompilerArchiveName(tt.platform, tt.meta.Tag)
+			assetBody, err := os.ReadFile(cachedCompilerAssetPath(t, cacheDir, tt.meta, pkg))
 			assert.NoError(t, err)
 
-			_, err = FromNet(context.Background(), gh, tt.args.meta, tt.args.dir, tt.args.platform, tt.args.cacheDir)
+			client := newCompilerReleaseClient(t, tt.meta, assetName, assetBody)
+			_, err = FromNet(context.Background(), client, tt.meta, dir, tt.platform, cacheDir)
 			assert.NoError(t, err)
 
-			switch tt.args.platform {
-			case "linux":
-				assert.True(t, fs.Exists(filepath.Join(tt.args.dir, "pawncc")))
-				assert.True(t, fs.Exists(filepath.Join(tt.args.dir, "libpawnc.so")))
-			case "darwin":
-				assert.True(t, fs.Exists(filepath.Join(tt.args.dir, "pawncc")))
-				assert.True(t, fs.Exists(filepath.Join(tt.args.dir, "libpawnc.dylib")))
-			case "windows":
-				assert.True(t, fs.Exists(filepath.Join(tt.args.dir, "pawncc.exe")))
-				assert.True(t, fs.Exists(filepath.Join(tt.args.dir, "pawnc.dll")))
+			for _, name := range tt.expectedFiles {
+				assert.True(t, fs.Exists(filepath.Join(dir, name)))
 			}
 		})
 	}
 }
 
 func Test_CompilerFromCache(t *testing.T) {
-	type args struct {
-		meta     versioning.DependencyMeta
-		dir      string
-		platform string
-		cacheDir string
-	}
 	tests := []struct {
-		name    string
-		args    args
-		wantHit bool
-		wantErr bool
+		name          string
+		meta          versioning.DependencyMeta
+		platform      string
+		expectedFiles []string
 	}{
-		{"linux-v3.10.4", args{versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.4"}, "tests/compiler-linux-v3.10.4", "linux", "tests/cache"}, true, false},
-		{"darwin-v3.10.4", args{versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.4"}, "tests/compiler-darwin-v3.10.4", "darwin", "tests/cache"}, true, false},
-		{"windows-v3.10.4", args{versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.4"}, "tests/compiler-windows-v3.10.4", "windows", "tests/cache"}, true, false},
-		{"linux-v3.10.8", args{versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.8"}, "tests/compiler-linux-v3.10.8", "linux", "tests/cache"}, true, false},
-		{"darwin-v3.10.8", args{versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.8"}, "tests/compiler-darwin-v3.10.8", "darwin", "tests/cache"}, true, false},
-		{"windows-v3.10.8", args{versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.8"}, "tests/compiler-windows-v3.10.8", "windows", "tests/cache"}, true, false},
+		{"linux-v3.10.8", versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.8"}, "linux", []string{"pawncc", "libpawnc.so"}},
+		{"darwin-v3.10.8", versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.8"}, "darwin", []string{"pawncc", "libpawnc.dylib"}},
+		{"windows-v3.10.8", versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.8"}, "windows", []string{"pawncc.exe", "pawnc.dll"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := os.MkdirAll(tt.args.cacheDir, 0o700)
+			rootDir := t.TempDir()
+			cacheDir := filepath.Join(rootDir, "cache")
+			dir := filepath.Join(rootDir, "compiler")
+
+			seedCompilerCacheFixture(t, cacheDir, tt.meta, tt.platform)
+
+			_, gotHit, err := FromCache(tt.meta, dir, tt.platform, cacheDir)
 			assert.NoError(t, err)
+			assert.True(t, gotHit)
 
-			_, gotHit, err := FromCache(tt.args.meta, tt.args.dir, tt.args.platform, tt.args.cacheDir)
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
+			for _, name := range tt.expectedFiles {
+				assert.True(t, fs.Exists(filepath.Join(dir, name)))
 			}
-
-			assert.Equal(t, gotHit, tt.wantHit)
 		})
 	}
 }
@@ -110,4 +139,28 @@ func TestCompilerPackageInstalled(t *testing.T) {
 	require.False(t, compilerPackageInstalled(dir, pkg))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "pawnc.dll"), []byte("dll"), 0o644))
 	require.True(t, compilerPackageInstalled(dir, pkg))
+}
+
+func TestCompilerPackageHelpers(t *testing.T) {
+	t.Run("newCompilerPackageFetcher rejects invalid extract method", func(t *testing.T) {
+		cacheDir := t.TempDir()
+		manifest := download.Compilers{
+			"linux": {Match: `compiler\.bin`, Method: "bogus", Binary: "pawncc", Paths: map[string]string{"pawncc": "pawncc"}},
+		}
+		require.NoError(t, download.WriteCompilerCacheFile(cacheDir, mustJSON(t, manifest)))
+
+		_, err := newCompilerPackageFetcher(versioning.DependencyMeta{User: "u", Repo: "r", Tag: "v1"}, "linux", cacheDir)
+		require.ErrorContains(t, err, "invalid extract type")
+	})
+
+	t.Run("GetCompilerPackageInfo returns platform error", func(t *testing.T) {
+		cacheDir := t.TempDir()
+		require.NoError(t, download.WriteCompilerCacheFile(cacheDir, mustJSON(t, download.Compilers{"linux": {Binary: "pawncc"}})))
+		_, err := GetCompilerPackageInfo(cacheDir, "plan9")
+		require.ErrorContains(t, err, "no compiler for platform")
+	})
+
+	t.Run("GetCompilerFilename formats filename", func(t *testing.T) {
+		assert.Equal(t, "pawn-v3.10.11-linux.tgz", GetCompilerFilename("v3.10.11", "linux", "tgz"))
+	})
 }

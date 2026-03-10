@@ -61,6 +61,9 @@ func UntarWithIgnore(src, dst string, paths map[string]string, ignorePatterns []
 
 	gz, err := gzip.NewReader(reader)
 	if err != nil {
+		if _, seekErr := reader.Seek(0, io.SeekStart); seekErr != nil {
+			return nil, errors.Wrap(seekErr, "failed to reset archive reader after failed gzip probe")
+		}
 		var zl io.ReadCloser
 		zl, err = zlib.NewReader(reader)
 		if err != nil {

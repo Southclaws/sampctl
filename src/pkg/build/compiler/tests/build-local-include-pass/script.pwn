@@ -1,5 +1,2 @@
-#include "./library.inc"
-
-main() {
-    function();
-}
+#include "library"
+main() {}

@@ -31,7 +31,7 @@ func RunContainer(
 	cacheDir string,
 	passArgs bool,
 	output io.Writer,
-	input io.Reader,
+	_ io.Reader,
 ) (err error) {
 	cli, err := client.NewClientWithOpts()
 	if err != nil {

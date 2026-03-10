@@ -2,170 +2,130 @@ package runtime
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
-	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
-	"github.com/Southclaws/sampctl/src/resource"
+	res "github.com/Southclaws/sampctl/src/resource"
 )
 
 func TestEnsurePlugins(t *testing.T) {
-	type args struct {
-		cfg run.Runtime
-	}
 	tests := []struct {
 		name           string
-		args           args
+		cfg            run.Runtime
+		meta           versioning.DependencyMeta
+		archiveName    string
+		archiveFiles   map[string]string
+		resources      []res.Resource
 		wantFiles      []string
 		wantPlugins    []run.Plugin
 		wantComponents []run.Plugin
-		wantErr        bool
 	}{
-		{"streamer-linux", args{
-			run.Runtime{
-				Platform:   "linux",
-				PluginDeps: []versioning.DependencyMeta{{User: "samp-incognito", Repo: "samp-streamer-plugin", Tag: "v2.9.2"}},
+		{
+			name:        "plugin-linux",
+			cfg:         run.Runtime{Platform: "linux"},
+			meta:        versioning.DependencyMeta{User: "fixture", Repo: "streamer", Tag: "v1.0.0"},
+			archiveName: "streamer-v1.0.0.tar.gz",
+			archiveFiles: map[string]string{
+				"pawno/include/streamer.inc": "#define STREAMER 1\n",
+				"plugins/streamer.so":        "fixture",
 			},
-		}, []string{"plugins/streamer.so"}, []run.Plugin{"streamer"}, nil, false},
-		{"streamer-linux-openmp", args{
-			run.Runtime{
-				Platform:    "linux",
-				Version:     "v1.0.0-openmp",
-				RuntimeType: run.RuntimeTypeOpenMP,
-				PluginDeps:  []versioning.DependencyMeta{{User: "samp-incognito", Repo: "samp-streamer-plugin", Tag: "v2.9.2"}},
+			resources: []res.Resource{{
+				Name:     `^streamer-v1\.0\.0\.tar\.gz$`,
+				Platform: "linux",
+				Archive:  true,
+				Includes: []string{"pawno/include/streamer.inc"},
+				Plugins:  []string{"plugins/streamer.so"},
+			}},
+			wantFiles:   []string{"plugins/streamer.so"},
+			wantPlugins: []run.Plugin{"streamer"},
+		},
+		{
+			name:        "plugin-windows",
+			cfg:         run.Runtime{Platform: "windows"},
+			meta:        versioning.DependencyMeta{User: "fixture", Repo: "mysql", Tag: "v1.0.0"},
+			archiveName: "mysql-v1.0.0.zip",
+			archiveFiles: map[string]string{
+				"plugins/mysql.dll": "fixture",
 			},
-		}, []string{"plugins/streamer.so"}, []run.Plugin{"streamer"}, nil, false},
-		{"streamer-windows", args{
-			run.Runtime{
-				Platform:   "windows",
-				PluginDeps: []versioning.DependencyMeta{{User: "samp-incognito", Repo: "samp-streamer-plugin", Tag: "v2.9.2"}},
+			resources: []res.Resource{{
+				Name:     `^mysql-v1\.0\.0\.zip$`,
+				Platform: "windows",
+				Archive:  true,
+				Plugins:  []string{"plugins/mysql.dll"},
+			}},
+			wantFiles:   []string{"plugins/mysql.dll"},
+			wantPlugins: []run.Plugin{"mysql"},
+		},
+		{
+			name:        "component-openmp-linux",
+			cfg:         run.Runtime{Platform: "linux", Version: "v1.0.0-openmp", RuntimeType: run.RuntimeTypeOpenMP},
+			meta:        versioning.DependencyMeta{Scheme: "component", User: "fixture", Repo: "pawnraknet", Tag: "v1.0.0"},
+			archiveName: "pawnraknet-v1.0.0.tar.gz",
+			archiveFiles: map[string]string{
+				"plugins/pawnraknet.so": "fixture",
 			},
-		}, []string{"plugins/streamer.dll"}, []run.Plugin{"streamer"}, nil, false},
-		{"mysql-linux", args{
-			run.Runtime{
-				Platform:   "linux",
-				PluginDeps: []versioning.DependencyMeta{{User: "pBlueG", Repo: "SA-MP-MySQL", Tag: "R41-4"}},
-			},
-		}, []string{"plugins/mysql.so"}, []run.Plugin{"mysql"}, nil, false},
-		{"mysql-windows", args{
-			run.Runtime{
-				Platform:   "windows",
-				PluginDeps: []versioning.DependencyMeta{{User: "pBlueG", Repo: "SA-MP-MySQL", Tag: "R41-4"}},
-			},
-		}, []string{"plugins/mysql.dll"}, []run.Plugin{"mysql"}, nil, false},
-		{"bitmapper-linux", args{
-			run.Runtime{
-				Platform:   "linux",
-				PluginDeps: []versioning.DependencyMeta{{User: "Southclaws", Repo: "samp-bitmapper", Tag: "0.2.1"}},
-			},
-		}, []string{"plugins/bitmapper.so"}, []run.Plugin{"bitmapper"}, nil, false},
-		{"bitmapper-windows", args{
-			run.Runtime{
-				Platform:   "windows",
-				PluginDeps: []versioning.DependencyMeta{{User: "Southclaws", Repo: "samp-bitmapper", Tag: "0.2.1"}},
-			},
-		}, []string{"plugins/bitmapper.dll"}, []run.Plugin{"bitmapper"}, nil, false},
-		{"PawnPlus-linux", args{
-			run.Runtime{
-				Platform:   "linux",
-				PluginDeps: []versioning.DependencyMeta{{User: "IllidanS4", Repo: "PawnPlus", Tag: "v0.5"}},
-			},
-		}, []string{"plugins/PawnPlus.so"}, []run.Plugin{"PawnPlus"}, nil, false},
-		{"PawnPlus-windows", args{
-			run.Runtime{
-				Platform:   "windows",
-				PluginDeps: []versioning.DependencyMeta{{User: "IllidanS4", Repo: "PawnPlus", Tag: "v0.5"}},
-			},
-		}, []string{"plugins/PawnPlus.dll"}, []run.Plugin{"PawnPlus"}, nil, false},
+			resources: []res.Resource{{
+				Name:     `^pawnraknet-v1\.0\.0\.tar\.gz$`,
+				Platform: "linux",
+				Archive:  true,
+				Plugins:  []string{"plugins/pawnraknet.so"},
+			}},
+			wantFiles:      []string{"components/pawnraknet.so"},
+			wantComponents: []run.Plugin{"pawnraknet"},
+		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.args.cfg.WorkingDir = filepath.Join("./tests/ensure", tt.name)
-			_ = os.MkdirAll(tt.args.cfg.WorkingDir, 0o700)
+			cacheDir := filepath.Join(t.TempDir(), "cache")
+			workingDir := filepath.Join(t.TempDir(), "work")
+			tt.cfg.WorkingDir = workingDir
+			tt.cfg.PluginDeps = []versioning.DependencyMeta{tt.meta}
 
-			t.Log("First call to Ensure - from internet")
-			err := EnsurePlugins(context.Background(), gh, &tt.args.cfg, "./tests/cache", true)
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
-			}
+			seedCachedPluginPackage(t, cacheDir, tt.meta, pluginFixturePackage(tt.meta, tt.resources), tt.archiveName, tt.archiveFiles)
+
+			err := EnsurePlugins(context.Background(), nil, &tt.cfg, cacheDir, false)
 			assert.NoError(t, err)
 
-			// the first call to EnsurePlugins modifies this list, we don't want duplicates in the next test, so clear it
-			tt.args.cfg.Plugins = []run.Plugin{}
+			tt.cfg.Plugins = nil
+			tt.cfg.Components = nil
 
-			t.Log("Second call to Ensure - from cache")
-			err = EnsurePlugins(context.Background(), gh, &tt.args.cfg, "./tests/cache", false)
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
-			}
+			err = EnsurePlugins(context.Background(), nil, &tt.cfg, cacheDir, false)
 			assert.NoError(t, err)
 
 			for _, file := range tt.wantFiles {
-				assert.True(t, fs.Exists(filepath.Join("./tests/ensure", tt.name, file)))
+				assert.True(t, fs.Exists(filepath.Join(workingDir, file)))
 			}
 
-			assert.Equal(t, tt.wantPlugins, tt.args.cfg.Plugins)
-			assert.Equal(t, tt.wantComponents, tt.args.cfg.Components)
+			assert.Equal(t, tt.wantPlugins, tt.cfg.Plugins)
+			assert.Equal(t, tt.wantComponents, tt.cfg.Components)
 		})
 	}
 }
 
-func TestGetPluginRemotePackage(t *testing.T) {
-	type args struct {
-		meta versioning.DependencyMeta
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantPkg pawnpackage.Package
-		wantErr bool
-	}{
-		{"streamer", args{versioning.DependencyMeta{Site: "github.com", User: "samp-incognito", Repo: "samp-streamer-plugin"}}, pawnpackage.Package{
-			DependencyMeta: versioning.DependencyMeta{
-				User: "samp-incognito",
-				Repo: "samp-streamer-plugin",
-			},
-			Resources: []resource.Resource{
-				{
-					Name:     "^samp-streamer-plugin-(.*).zip$",
-					Platform: "linux",
-					Archive:  true,
-					Includes: []string{"pawno/include"},
-					Plugins:  []string{"plugins/streamer.so"},
-				},
-				{
-					Name:     "^samp-streamer-plugin-(.*).zip$",
-					Platform: "windows",
-					Archive:  true,
-					Includes: []string{"pawno/include"},
-					Plugins:  []string{"plugins/streamer.dll"},
-				},
-			},
-			Runtime: &run.Runtime{
-				Plugins: []run.Plugin{
-					"samp-incognito/samp-streamer-plugin",
-				},
-			},
-		}, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotPkg, err := pawnpackage.GetRemotePackage(context.Background(), gh, tt.args.meta)
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
+func TestGetResourceAndPath(t *testing.T) {
+	t.Parallel()
 
-			assert.Equal(t, tt.wantPkg, gotPkg)
-		})
-	}
+	resource, err := GetResource([]res.Resource{
+		{Name: `linux-default`, Platform: "linux", Archive: true, Plugins: []string{"plugins/test.so"}},
+		{Name: `linux-openmp`, Platform: "linux", Version: "v1.0.0-openmp", Archive: true, Plugins: []string{"plugins/test.so"}},
+	}, "linux", "v1.0.0-openmp")
+	require.NoError(t, err)
+	assert.Equal(t, "linux-openmp", resource.Name)
+
+	resource, err = GetResource([]res.Resource{{Name: `linux-default`, Platform: "linux", Archive: true, Plugins: []string{"plugins/test.so"}}}, "linux", "0.3.7")
+	require.NoError(t, err)
+	assert.Equal(t, "linux-default", resource.Name)
+
+	_, err = GetResource([]res.Resource{{Name: `linux-default`, Platform: "linux"}}, "windows", "0.3.7")
+	require.Error(t, err)
+
+	assert.Equal(t, filepath.Join("plugins", "streamer", "latest"), GetResourcePath(versioning.DependencyMeta{Repo: "streamer"}))
+	assert.Equal(t, filepath.Join("plugins", "streamer", "v1.0.0"), GetResourcePath(versioning.DependencyMeta{Repo: "streamer", Tag: "v1.0.0"}))
 }

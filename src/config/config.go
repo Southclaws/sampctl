@@ -27,7 +27,7 @@ type Config struct {
 }
 
 // LoadOrCreateConfig reads a config file from the given cache directory
-func LoadOrCreateConfig(cacheDir string, verbose bool) (cfg *Config, err error) {
+func LoadOrCreateConfig(cacheDir string) (cfg *Config, err error) {
 	cfg = new(Config)
 
 	err = godotenv.Load(".env")

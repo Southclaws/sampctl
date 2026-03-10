@@ -18,6 +18,28 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
 
+var (
+	packageDefinitionHTTPClient = http.DefaultClient
+	officialPackageRepoBaseURL  = "https://raw.githubusercontent.com/sampctl/plugins/master"
+)
+
+// GitHubRemotePackageFetcher fetches package definitions from GitHub and the
+// official fallback repository.
+type GitHubRemotePackageFetcher struct {
+	GitHub          *github.Client
+	HTTPClient      *http.Client
+	OfficialBaseURL string
+}
+
+// NewRemotePackageFetcher builds the default remote package fetcher.
+func NewRemotePackageFetcher(client *github.Client) RemotePackageFetcher {
+	return &GitHubRemotePackageFetcher{
+		GitHub:          client,
+		HTTPClient:      packageDefinitionHTTPClient,
+		OfficialBaseURL: officialPackageRepoBaseURL,
+	}
+}
+
 // PackageFromDir attempts to parse a pawn.json or pawn.yaml file from a directory
 func PackageFromDir(dir string) (pkg Package, err error) {
 	jsonPath := filepath.Join(dir, "pawn.json")
@@ -73,12 +95,7 @@ func GetRemotePackage(
 	client *github.Client,
 	meta versioning.DependencyMeta,
 ) (pkg Package, err error) {
-	pkg, err = PackageFromRepo(ctx, client, meta)
-	if err != nil {
-		print.Verb(meta, "failed to get package definition from repository:", err)
-		return PackageFromOfficialRepo(ctx, client, meta)
-	}
-	return
+	return NewRemotePackageFetcher(client).Fetch(ctx, meta)
 }
 
 // PackageFromRepo attempts to get a package from the given package definition's public repo
@@ -87,10 +104,26 @@ func PackageFromRepo(
 	client *github.Client,
 	meta versioning.DependencyMeta,
 ) (pkg Package, err error) {
+	return (&GitHubRemotePackageFetcher{GitHub: client}).packageFromRepo(ctx, meta)
+}
+
+func (f *GitHubRemotePackageFetcher) Fetch(ctx context.Context, meta versioning.DependencyMeta) (pkg Package, err error) {
+	pkg, err = f.packageFromRepo(ctx, meta)
+	if err != nil {
+		print.Verb(meta, "failed to get package definition from repository:", err)
+		return f.packageFromOfficialRepo(ctx, meta)
+	}
+	return pkg, nil
+}
+
+func (f *GitHubRemotePackageFetcher) packageFromRepo(
+	ctx context.Context,
+	meta versioning.DependencyMeta,
+) (pkg Package, err error) {
 	refs := remoteDefinitionRefs(meta)
 	paths := []string{"pawn.json", "pawn.yaml"}
 
-	pkg, err = fetchRemoteDefinitionFromGitHub(ctx, client, meta.User, meta.Repo, refs, paths)
+	pkg, err = fetchRemoteDefinitionFromGitHub(ctx, f.GitHub, meta.User, meta.Repo, refs, paths)
 	if err != nil {
 		return pkg, errors.Wrap(err, "package does not point to a valid remote package")
 	}
@@ -129,6 +162,10 @@ func fetchRemoteDefinitionFromGitHub(
 	refs []string,
 	paths []string,
 ) (Package, error) {
+	if client == nil {
+		return Package{}, errors.New("no GitHub client provided")
+	}
+
 	var lastErr error
 
 	for _, ref := range refs {
@@ -208,11 +245,27 @@ func decodeRepositoryContent(fileContent *github.RepositoryContent) ([]byte, err
 // this repo is mainly only used for testing plugins before being PR'd into their respective repos.
 func PackageFromOfficialRepo(
 	ctx context.Context,
-	client *github.Client,
 	meta versioning.DependencyMeta,
 ) (pkg Package, err error) {
+	return (&GitHubRemotePackageFetcher{HTTPClient: packageDefinitionHTTPClient, OfficialBaseURL: officialPackageRepoBaseURL}).packageFromOfficialRepo(ctx, meta)
+}
+
+func (f *GitHubRemotePackageFetcher) packageFromOfficialRepo(
+	ctx context.Context,
+	meta versioning.DependencyMeta,
+) (pkg Package, err error) {
+	baseURL := f.OfficialBaseURL
+	if baseURL == "" {
+		baseURL = officialPackageRepoBaseURL
+	}
+	client := f.HTTPClient
+	if client == nil {
+		client = packageDefinitionHTTPClient
+	}
+
 	officialURL := fmt.Sprintf(
-		"https://raw.githubusercontent.com/sampctl/plugins/master/%s-%s.json",
+		"%s/%s-%s.json",
+		strings.TrimRight(baseURL, "/"),
 		meta.User, meta.Repo,
 	)
 
@@ -227,7 +280,7 @@ func PackageFromOfficialRepo(
 		},
 	}
 
-	return fetchRemoteDefinition(ctx, []remoteCandidate{candidate})
+	return fetchRemoteDefinition(ctx, client, []remoteCandidate{candidate})
 }
 
 type remoteCandidate struct {
@@ -236,10 +289,10 @@ type remoteCandidate struct {
 	onStatusError func(status int) error
 }
 
-func fetchRemoteDefinition(ctx context.Context, candidates []remoteCandidate) (Package, error) {
+func fetchRemoteDefinition(ctx context.Context, client *http.Client, candidates []remoteCandidate) (Package, error) {
 	var lastErr error
 	for _, candidate := range candidates {
-		pkg, err := fetchCandidate(ctx, candidate)
+		pkg, err := fetchCandidate(ctx, client, candidate)
 		if err == nil {
 			return pkg, nil
 		}
@@ -251,13 +304,17 @@ func fetchRemoteDefinition(ctx context.Context, candidates []remoteCandidate) (P
 	return Package{}, lastErr
 }
 
-func fetchCandidate(ctx context.Context, candidate remoteCandidate) (Package, error) {
+func fetchCandidate(ctx context.Context, client *http.Client, candidate remoteCandidate) (Package, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, candidate.url, nil)
 	if err != nil {
 		return Package{}, errors.Wrap(err, "failed to build remote definition request")
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	if client == nil {
+		client = packageDefinitionHTTPClient
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return Package{}, errors.Wrap(err, "failed to fetch remote definition")
 	}

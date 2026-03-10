@@ -12,8 +12,8 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
 
-func (pcx *PackageContext) ensureDependencyRepository(meta versioning.DependencyMeta, dependencyPath string, forceUpdate bool) (*git.Repository, error) {
-	repo, err := git.PlainOpen(dependencyPath)
+func (pcx *PackageContext) ensureDependencyRepository(meta versioning.DependencyMeta, dependencyPath string) (*git.Repository, error) {
+	repo, err := pcx.repositoryStore().Open(dependencyPath)
 	if err == nil {
 		head, headErr := repo.Head()
 		if headErr != nil {
@@ -41,7 +41,7 @@ func (pcx *PackageContext) cloneDependencyFromCache(meta versioning.DependencyMe
 		return nil, errors.Wrap(err, "failed to clone dependency from cache")
 	}
 
-	valid, validationErr := ValidateRepository(dependencyPath)
+	valid, validationErr := pcx.repositoryHealth().Validate(dependencyPath)
 	if validationErr != nil || !valid {
 		print.Verb(meta, "cloned repository failed validation")
 		os.RemoveAll(dependencyPath)
@@ -72,9 +72,9 @@ func (pcx *PackageContext) updateRepoStateWithRecovery(repo *git.Repository, met
 
 	print.Verb(meta, "first update attempt failed:", err)
 
-	if repairErr := RepairRepository(dependencyPath); repairErr == nil {
+	if repairErr := pcx.repositoryHealth().Repair(dependencyPath); repairErr == nil {
 		print.Verb(meta, "repository repaired, retrying update")
-		if repo, openErr := git.PlainOpen(dependencyPath); openErr == nil {
+		if repo, openErr := pcx.repositoryStore().Open(dependencyPath); openErr == nil {
 			if err = pcx.updateRepoState(repo, meta, true); err == nil {
 				return nil
 			}
@@ -92,7 +92,7 @@ func (pcx *PackageContext) updateRepoStateWithRecovery(repo *git.Repository, met
 		return errors.Wrap(cloneErr, "failed to recover by re-cloning")
 	}
 
-	repo, err = git.PlainOpen(dependencyPath)
+	repo, err = pcx.repositoryStore().Open(dependencyPath)
 	if err != nil {
 		return errors.Wrap(err, "failed to open re-cloned repository")
 	}

@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	iofs "io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -263,8 +264,7 @@ func EnsureVersionedPluginCached(
 	err error,
 ) {
 	hit := false
-	// only pull from cache if there is a version tag specified
-	if !noCache && meta.Tag != "" {
+	if !noCache {
 		hit, filename, resource, err = PluginFromCache(meta, platform, version, cacheDir)
 		if err != nil {
 			err = errors.Wrapf(err, "failed to get plugin %s from cache", meta)
@@ -321,6 +321,12 @@ func PluginFromCache(
 	ghr := infraresource.NewGitHubReleaseResource(meta, matcher, infraresource.ResourceTypePlugin, nil)
 	ghr.SetCacheDir(cacheDir)
 
+	localFilename, found := cachedPackageResourceAsset(meta.CachePath(cacheDir), matcher)
+	if found {
+		hit = true
+		return hit, localFilename, resource, nil
+	}
+
 	var ok bool
 	ok, filename = ghr.Cached(meta.Tag)
 	if !ok {
@@ -330,6 +336,35 @@ func PluginFromCache(
 	hit = true
 
 	return hit, filename, resource, nil
+}
+
+func cachedPackageResourceAsset(cachePath string, matcher *regexp.Regexp) (string, bool) {
+	if matcher == nil || !fs.Exists(cachePath) {
+		return "", false
+	}
+
+	var matched string
+	err := filepath.WalkDir(cachePath, func(path string, d iofs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if d.Name() == ".git" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if matcher.MatchString(filepath.Base(path)) {
+			matched = path
+			return iofs.SkipAll
+		}
+		return nil
+	})
+	if err != nil || matched == "" {
+		return "", false
+	}
+
+	return matched, true
 }
 
 // PluginFromNet downloads a plugin from the given metadata to the cache directory

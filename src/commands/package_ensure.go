@@ -9,7 +9,6 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/package/lockfile"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
@@ -59,85 +58,51 @@ func packageEnsure(c *cli.Context) error {
 		}
 
 		// If forcing update, clear the lockfile to resolve fresh versions
-		if forceUpdate && pcx.LockfileResolver != nil {
-			pcx.LockfileResolver.ForceUpdate()
-			print.Info("lockfile cleared, resolving fresh dependency versions")
+		if forceUpdate {
+			pcx.ForceUpdateLockfile()
+			print.Verb("lockfile cleared, resolving fresh dependency versions")
 		}
 
 		// Report lockfile status
 		if pcx.HasLockfile() {
-			print.Info("using lockfile for reproducible dependency resolution")
+			print.Verb("using lockfile for reproducible dependency resolution")
 		} else {
-			print.Info("no lockfile found, will create one after ensuring dependencies")
+			print.Verb("no lockfile found, will create one after ensuring dependencies")
 		}
 	}
 
 	// If lock-only mode, just save the lockfile without ensuring dependencies
 	if lockOnly {
-		if pcx.LockfileResolver == nil {
+		if !pcx.HasLockfileResolver() {
 			return errors.New("cannot use --lock-only without lockfile support")
 		}
 		err = pcx.SaveLockfile()
 		if err != nil {
 			return errors.Wrap(err, "failed to save lockfile")
 		}
-		print.Info("lockfile updated")
+		print.Verb("lockfile updated")
 		return nil
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
 	defer cancel()
 
-	updated, err := pcx.TagTaglessDependencies(ctx, forceUpdate)
-	if err != nil {
-		return errors.Wrap(err, "failed to tag tagless dependencies")
-	}
-	if updated {
-		print.Info("updated package dependencies with latest tags")
-	}
-
-	err = pcx.EnsureDependencies(ctx, forceUpdate)
+	updated, err := pcx.EnsureProject(ctx, forceUpdate)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure dependencies")
 	}
+	if updated {
+		print.Verb("updated package dependencies with latest tags")
+	}
 
-	// Save lockfile after successful ensure
 	if useLockfile {
-		err = pcx.SaveLockfile()
-		if err != nil {
-			print.Warn("failed to save lockfile:", err)
-		} else if pcx.LockfileResolver != nil {
-			lf := pcx.LockfileResolver.GetLockfile()
-			if lf != nil {
-				print.Info("lockfile saved with", lf.DependencyCount(), "dependencies")
-			}
+		lf := pcx.GetLockfile()
+		if lf != nil {
+			print.Verb("lockfile saved with", lf.DependencyCount(), "dependencies")
 		}
 	}
 
-	print.Info("ensured dependencies for package")
-
-	return nil
-}
-
-// packageLockfileStatus displays lockfile status for a package
-func packageLockfileStatus(dir string) error {
-	if !lockfile.Exists(dir) {
-		print.Info("no lockfile found in", dir)
-		return nil
-	}
-
-	lf, err := lockfile.Load(dir)
-	if err != nil {
-		return errors.Wrap(err, "failed to load lockfile")
-	}
-
-	print.Info("lockfile found:", lockfile.GetPath(dir))
-	print.Info("  version:", lf.Version)
-	print.Info("  generated:", lf.Generated.Format(time.RFC3339))
-	print.Info("  sampctl version:", lf.SampctlVersion)
-	print.Info("  total dependencies:", lf.DependencyCount())
-	print.Info("  direct dependencies:", len(lf.DirectDependencies()))
-	print.Info("  transitive dependencies:", len(lf.TransitiveDependencies()))
+	print.Verb("ensured dependencies for package")
 
 	return nil
 }

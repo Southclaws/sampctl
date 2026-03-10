@@ -14,6 +14,8 @@ import (
 )
 
 func TestCompileSource(t *testing.T) {
+	ensureCompilerSourceFixtures(t)
+
 	type args struct {
 		cacheDir string
 		config   build.Config
@@ -189,10 +191,13 @@ func TestCompileSource(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			fakeCompilerDir := newFakeCompilerDir(t)
+			tt.args.config.Compiler = build.CompilerConfig{Path: fakeCompilerDir}
+
 			err := os.MkdirAll(tt.args.cacheDir, 0o700)
 			assert.NoError(t, err)
 
-			gotProblems, gotResult, err := CompileSource(context.Background(), gh, ".", "", tt.args.cacheDir, runtime.GOOS, tt.args.config, tt.args.relative)
+			gotProblems, gotResult, err := CompileSource(context.Background(), nil, ".", "", tt.args.cacheDir, runtime.GOOS, tt.args.config, tt.args.relative)
 
 			if tt.wantErr {
 				assert.Error(t, err)

@@ -28,7 +28,7 @@ func (pcx *PackageContext) Run(ctx context.Context, output io.Writer, input io.R
 		return errors.Wrap(err, "failed to prepare package for running")
 	}
 
-	err = runtime.Run(ctx, pcx.ActualRuntime, pcx.CacheDir, true, false, output, input)
+	err = pcx.runtimeEnvironment().Run(ctx, pcx.ActualRuntime, pcx.CacheDir, true, false, output, input)
 	if err != nil {
 		return errors.Wrap(err, "failed to run package")
 	}
@@ -91,7 +91,7 @@ loop:
 				defer cancel()
 			}
 
-			err = runtime.CopyFileToRuntime(pcx.CacheDir, pcx.ActualRuntime.Version, fs.MustAbs(pcx.Package.Output))
+			err = pcx.runtimeEnvironment().CopyFileToRuntime(pcx.CacheDir, pcx.ActualRuntime.Version, fs.MustAbs(pcx.Package.Output))
 			if err != nil {
 				err = errors.Wrap(err, "failed to copy amx file to temporary runtime directory")
 				print.Erro(err)
@@ -100,7 +100,7 @@ loop:
 			fmt.Println("watch-run: executing package code")
 			go func() {
 				running.Store(true)
-				err = runtime.Run(ctxInner, pcx.ActualRuntime, pcx.CacheDir, true, false, os.Stdout, os.Stdin)
+				err = pcx.runtimeEnvironment().Run(ctxInner, pcx.ActualRuntime, pcx.CacheDir, true, false, os.Stdout, os.Stdin)
 				running.Store(false)
 
 				if err != nil {
@@ -166,7 +166,7 @@ func (pcx *PackageContext) RunPrepare(ctx context.Context) (err error) {
 		if !fs.Exists(scriptfiles) {
 			scriptfiles = ""
 		}
-		err = runtime.PrepareRuntimeDirectory(
+		err = pcx.runtimeEnvironment().PrepareRuntimeDirectory(
 			pcx.CacheDir,
 			pcx.ActualRuntime.Version,
 			pcx.ActualRuntime.Platform,
@@ -176,7 +176,7 @@ func (pcx *PackageContext) RunPrepare(ctx context.Context) (err error) {
 			return
 		}
 
-		err = runtime.CopyFileToRuntime(pcx.CacheDir, pcx.ActualRuntime.Version, filename)
+		err = pcx.runtimeEnvironment().CopyFileToRuntime(pcx.CacheDir, pcx.ActualRuntime.Version, filename)
 		if err != nil {
 			err = errors.Wrap(err, "failed to copy amx file to temporary runtime directory")
 			return
@@ -203,14 +203,14 @@ func (pcx *PackageContext) RunPrepare(ctx context.Context) (err error) {
 	}
 
 	print.Verb(pcx.Package, "ensuring runtime pre-run")
-	err = runtime.Ensure(ctx, pcx.GitHub, &pcx.ActualRuntime, pcx.NoCache)
+	err = pcx.runtimeEnvironment().Ensure(ctx, pcx.GitHub, &pcx.ActualRuntime, pcx.NoCache)
 	if err != nil {
 		err = errors.Wrap(err, "failed to ensure runtime")
 		return
 	}
 
 	print.Verb("generating server configuration file")
-	err = runtime.GenerateConfig(&pcx.ActualRuntime)
+	err = pcx.runtimeEnvironment().GenerateConfig(&pcx.ActualRuntime)
 	if err != nil {
 		return errors.Wrap(err, "failed to generate server configuration")
 	}

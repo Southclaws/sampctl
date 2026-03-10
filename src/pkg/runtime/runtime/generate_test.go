@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -223,14 +224,39 @@ something_else 100
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := GenerateConfig(tt.args.cfg); (err != nil) != tt.wantErr {
+			workingDir := newFakeServerDir(t)
+			cfg := *tt.args.cfg
+			cfg.WorkingDir = workingDir
+
+			if err := GenerateConfig(&cfg); (err != nil) != tt.wantErr {
 				t.Errorf("Config.GenerateConfig() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
-			raw, _ := os.ReadFile("./tests/generate/server.cfg")
+			raw, _ := os.ReadFile(filepath.Join(workingDir, "server.cfg"))
 			gotCfg := string(raw)
 
 			assert.Equal(t, tt.wantCfg, gotCfg)
 		})
 	}
+}
+
+func newFakeServerDir(t *testing.T) string {
+	t.Helper()
+
+	dir := t.TempDir()
+	for _, rel := range []string{
+		filepath.Join("gamemodes", "rivershell.amx"),
+		filepath.Join("filterscripts", "admin.amx"),
+		filepath.Join("plugins", "mysql.amx"),
+	} {
+		path := filepath.Join(dir, rel)
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatalf("create fake server dir %s: %v", path, err)
+		}
+		if err := os.WriteFile(path, nil, 0o644); err != nil {
+			t.Fatalf("create fake runtime file %s: %v", path, err)
+		}
+	}
+
+	return dir
 }
