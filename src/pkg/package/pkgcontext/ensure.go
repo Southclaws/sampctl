@@ -96,6 +96,26 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 	return err
 }
 
+// EnsureProject applies the full project ensure flow used by user-facing commands.
+// It pins tagless dependencies where possible, ensures dependency/runtime files,
+// and persists the lockfile when lockfile support is enabled.
+func (pcx *PackageContext) EnsureProject(ctx context.Context, forceUpdate bool) (bool, error) {
+	updated, err := pcx.TagTaglessDependencies(ctx, forceUpdate)
+	if err != nil {
+		return false, err
+	}
+
+	if err := pcx.EnsureDependencies(ctx, forceUpdate); err != nil {
+		return updated, err
+	}
+
+	if err := pcx.SaveLockfile(); err != nil {
+		return updated, err
+	}
+
+	return updated, nil
+}
+
 // GatherPlugins iterates the AllPlugins list and appends them to the runtime dependencies list
 func (pcx *PackageContext) GatherPlugins() (pluginDeps []versioning.DependencyMeta, err error) {
 	print.Verb(pcx.Package, "gathering", len(pcx.AllPlugins), "plugins from package context")

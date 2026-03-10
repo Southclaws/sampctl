@@ -60,14 +60,14 @@ func packageEnsure(c *cli.Context) error {
 		// If forcing update, clear the lockfile to resolve fresh versions
 		if forceUpdate && pcx.LockfileResolver != nil {
 			pcx.LockfileResolver.ForceUpdate()
-			print.Info("lockfile cleared, resolving fresh dependency versions")
+			print.Verb("lockfile cleared, resolving fresh dependency versions")
 		}
 
 		// Report lockfile status
 		if pcx.HasLockfile() {
-			print.Info("using lockfile for reproducible dependency resolution")
+			print.Verb("using lockfile for reproducible dependency resolution")
 		} else {
-			print.Info("no lockfile found, will create one after ensuring dependencies")
+			print.Verb("no lockfile found, will create one after ensuring dependencies")
 		}
 	}
 
@@ -80,40 +80,29 @@ func packageEnsure(c *cli.Context) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to save lockfile")
 		}
-		print.Info("lockfile updated")
+		print.Verb("lockfile updated")
 		return nil
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
 	defer cancel()
 
-	updated, err := pcx.TagTaglessDependencies(ctx, forceUpdate)
-	if err != nil {
-		return errors.Wrap(err, "failed to tag tagless dependencies")
-	}
-	if updated {
-		print.Info("updated package dependencies with latest tags")
-	}
-
-	err = pcx.EnsureDependencies(ctx, forceUpdate)
+	updated, err := pcx.EnsureProject(ctx, forceUpdate)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure dependencies")
 	}
+	if updated {
+		print.Verb("updated package dependencies with latest tags")
+	}
 
-	// Save lockfile after successful ensure
-	if useLockfile {
-		err = pcx.SaveLockfile()
-		if err != nil {
-			print.Warn("failed to save lockfile:", err)
-		} else if pcx.LockfileResolver != nil {
-			lf := pcx.LockfileResolver.GetLockfile()
-			if lf != nil {
-				print.Info("lockfile saved with", lf.DependencyCount(), "dependencies")
-			}
+	if useLockfile && pcx.LockfileResolver != nil {
+		lf := pcx.LockfileResolver.GetLockfile()
+		if lf != nil {
+			print.Verb("lockfile saved with", lf.DependencyCount(), "dependencies")
 		}
 	}
 
-	print.Info("ensured dependencies for package")
+	print.Verb("ensured dependencies for package")
 
 	return nil
 }

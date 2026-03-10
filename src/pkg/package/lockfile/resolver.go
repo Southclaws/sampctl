@@ -33,7 +33,7 @@ func NewResolver(dir, sampctlVersion string, useLockfile bool) (*Resolver, error
 
 		if lf != nil {
 			resolver.lockfile = lf
-			print.Info("using lockfile with", lf.DependencyCount(), "locked dependencies")
+			print.Verb("using lockfile with", lf.DependencyCount(), "locked dependencies")
 		} else {
 			resolver.lockfile = New(sampctlVersion)
 			resolver.modified = true

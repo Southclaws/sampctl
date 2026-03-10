@@ -413,14 +413,9 @@ func Init(
 		return errors.Wrap(err, "failed to initialize lockfile resolver")
 	}
 
-	err = pcx.EnsureDependencies(ctx, true)
+	_, err = pcx.EnsureProject(ctx, true)
 	if err != nil {
 		return
-	}
-
-	err = pcx.SaveLockfile()
-	if err != nil {
-		print.Warn("failed to save lockfile:", err)
 	}
 
 	return nil
