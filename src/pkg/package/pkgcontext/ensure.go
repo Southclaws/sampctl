@@ -271,8 +271,8 @@ func (pcx *PackageContext) installPackageResources(meta versioning.DependencyMet
 			pkg = pkgLocal
 			err = nil
 			print.Verb(meta, "using local dependency package definition for resources")
-		} else if pcx.GitHub != nil {
-			pkgRemote, errRemote := pawnpackage.GetRemotePackage(context.Background(), pcx.GitHub, meta)
+		} else if pcx.RemotePackages != nil {
+			pkgRemote, errRemote := pcx.RemotePackages.Fetch(context.Background(), meta)
 			if errRemote == nil {
 				pkg = pkgRemote
 				err = nil

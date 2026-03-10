@@ -43,6 +43,7 @@ type PackageContext struct {
 	AllIncludePaths []string                    // any additional include paths specified by resources
 	ActualRuntime   run.Runtime                 // actual runtime configuration to use for running the package
 	ActualBuild     build.Config                // actual build configuration to use for running the package
+	RemotePackages  pawnpackage.RemotePackageFetcher
 
 	// Runtime specific fields
 	Runtime     string // the runtime config to use, defaults to `default`
@@ -75,10 +76,11 @@ func NewPackageContext(
 	init bool,
 ) (pcx *PackageContext, err error) {
 	pcx = &PackageContext{
-		GitHub:   gh,
-		GitAuth:  auth,
-		Platform: platform,
-		CacheDir: cacheDir,
+		GitHub:         gh,
+		GitAuth:        auth,
+		Platform:       platform,
+		CacheDir:       cacheDir,
+		RemotePackages: pawnpackage.NewRemotePackageFetcher(gh),
 	}
 	pcx.Package, err = pawnpackage.PackageFromDir(dir)
 	if err != nil {

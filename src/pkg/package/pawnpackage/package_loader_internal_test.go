@@ -34,20 +34,14 @@ func TestGetRemotePackage_FromRepo_Offline(t *testing.T) {
 	require.NoError(t, err)
 	gh.BaseURL = baseURL
 
-	pkg, err := GetRemotePackage(context.Background(), gh, versioning.DependencyMeta{User: "fixture", Repo: "repo"})
+	fetcher := &GitHubRemotePackageFetcher{GitHub: gh, HTTPClient: server.Client(), OfficialBaseURL: server.URL + "/official"}
+	pkg, err := fetcher.Fetch(context.Background(), versioning.DependencyMeta{User: "fixture", Repo: "repo"})
 	require.NoError(t, err)
 	require.Equal(t, "gamemodes/test.pwn", pkg.Entry)
 	require.Equal(t, "gamemodes/test.amx", pkg.Output)
 }
 
 func TestGetRemotePackage_OfficialFallback_Offline(t *testing.T) {
-	origBaseURL := officialPackageRepoBaseURL
-	origClient := packageDefinitionHTTPClient
-	defer func() {
-		officialPackageRepoBaseURL = origBaseURL
-		packageDefinitionHTTPClient = origClient
-	}()
-
 	fallbackPkg := Package{Entry: "filterscripts/test.pwn", Output: "filterscripts/test.amx"}
 	fallbackJSON, err := json.Marshal(fallbackPkg)
 	require.NoError(t, err)
@@ -69,10 +63,9 @@ func TestGetRemotePackage_OfficialFallback_Offline(t *testing.T) {
 	baseURL, err := url.Parse(server.URL + "/")
 	require.NoError(t, err)
 	gh.BaseURL = baseURL
-	officialPackageRepoBaseURL = server.URL + "/official"
-	packageDefinitionHTTPClient = server.Client()
+	fetcher := &GitHubRemotePackageFetcher{GitHub: gh, HTTPClient: server.Client(), OfficialBaseURL: server.URL + "/official"}
 
-	pkg, err := GetRemotePackage(context.Background(), gh, versioning.DependencyMeta{User: "fixture", Repo: "repo"})
+	pkg, err := fetcher.Fetch(context.Background(), versioning.DependencyMeta{User: "fixture", Repo: "repo"})
 	require.NoError(t, err)
 	require.Equal(t, fallbackPkg.Entry, pkg.Entry)
 	require.Equal(t, fallbackPkg.Output, pkg.Output)
