@@ -104,6 +104,7 @@ func TestBuildPrepareKeepsLegacyDependencyIncludePathsWhenComponentSchemePresent
 	t.Parallel()
 
 	cacheDir := t.TempDir()
+	seedPkgContextBuildCache(t, cacheDir)
 
 	writePkg := func(dir string, deps []string) {
 		require.NoError(t, os.MkdirAll(dir, 0o755))
@@ -151,6 +152,7 @@ func TestBuildPrepareKeepsLegacyDependencyIncludePathsWhenComponentSchemePresent
 
 func TestBuildPrepareKeepsResourceIncludePathsWhenComponentSchemePresent(t *testing.T) {
 	cacheDir := t.TempDir()
+	seedPkgContextBuildCache(t, cacheDir)
 
 	writePkg := func(dir string, deps []string) {
 		require.NoError(t, os.MkdirAll(dir, 0o755))
@@ -199,6 +201,44 @@ func TestBuildPrepareKeepsResourceIncludePathsWhenComponentSchemePresent(t *test
 		require.Contains(t, configMixed.Includes, expected)
 		require.True(t, fs.Exists(expected), "expected resource include dir to exist: %s", expected)
 	}
+}
+
+func seedPkgContextBuildCache(t *testing.T, cacheDir string) {
+	t.Helper()
+	require.NoError(t, copyPkgContextFixtureDir(filepath.Join("tests", "cache", "packages"), filepath.Join(cacheDir, "packages")))
+	require.NoError(t, stripPkgContextFixtureCacheRemotes(cacheDir))
+}
+
+func copyPkgContextFixtureDir(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+
+		if info.IsDir() {
+			return os.MkdirAll(target, info.Mode())
+		}
+
+		if info.Mode()&os.ModeSymlink != 0 {
+			link, err := os.Readlink(path)
+			if err != nil {
+				return err
+			}
+			return os.Symlink(link, target)
+		}
+
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(target, data, info.Mode())
+	})
 }
 
 func TestBuildPrepareGeneratesBuildFileWithConstants(t *testing.T) {

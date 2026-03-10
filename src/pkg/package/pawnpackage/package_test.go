@@ -5,8 +5,10 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
+	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/google/go-github/github"
 	"github.com/stretchr/testify/assert"
@@ -27,6 +29,9 @@ var (
 func TestMain(m *testing.M) {
 	err := os.MkdirAll("./tests/cache", 0o700)
 	if err != nil {
+		panic(err)
+	}
+	if err := stripFixtureCacheRemotes(fs.MustAbs("./tests/cache")); err != nil {
 		panic(err)
 	}
 
@@ -108,33 +113,34 @@ func TestPackage_Build(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		pcxWorkspace := fs.MustAbs("./tests/build-auto-" + tt.name)
-		pcxVendor := filepath.Join(pcxWorkspace, "dependencies")
-
-		err := os.MkdirAll(filepath.Join(pcxWorkspace, "gamemodes"), 0o700)
-		if err != nil {
-			panic(err)
-		}
-
-		err = os.WriteFile(filepath.Join(pcxWorkspace, tt.args.pkg.Entry), tt.sourceCode, 0o700)
-		if err != nil {
-			panic(err)
-		}
-
-		pcx := pkgcontext.PackageContext{
-			CacheDir:        "./tests/cache",
-			GitHub:          gh,
-			GitAuth:         gitAuth,
-			Platform:        runtime.GOOS,
-			Package:         tt.args.pkg,
-			AllDependencies: tt.args.dependencies,
-		}
-
-		pcx.Package.LocalPath = pcxWorkspace
-		pcx.Package.Vendor = pcxVendor
-		pcx.Package.DependencyMeta = versioning.DependencyMeta{User: "local", Repo: "local"}
-
 		t.Run(tt.name, func(t *testing.T) {
+			cacheDir := newOfflineCache(t)
+			pcxWorkspace := t.TempDir()
+			pcxVendor := filepath.Join(pcxWorkspace, "dependencies")
+
+			err := os.MkdirAll(filepath.Join(pcxWorkspace, "gamemodes"), 0o700)
+			if err != nil {
+				t.Fatalf("create gamemodes dir: %v", err)
+			}
+
+			err = os.WriteFile(filepath.Join(pcxWorkspace, tt.args.pkg.Entry), tt.sourceCode, 0o700)
+			if err != nil {
+				t.Fatalf("write source file: %v", err)
+			}
+
+			pcx := pkgcontext.PackageContext{
+				CacheDir:        cacheDir,
+				GitHub:          gh,
+				GitAuth:         gitAuth,
+				Platform:        runtime.GOOS,
+				Package:         tt.args.pkg,
+				AllDependencies: tt.args.dependencies,
+			}
+
+			pcx.Package.LocalPath = pcxWorkspace
+			pcx.Package.Vendor = pcxVendor
+			pcx.Package.DependencyMeta = versioning.DependencyMeta{User: "local", Repo: "local"}
+
 			gotProblems, _, err := pcx.Build(context.Background(), tt.args.build, tt.args.ensure, false, false, "")
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -146,4 +152,71 @@ func TestPackage_Build(t *testing.T) {
 			assert.Equal(t, tt.wantProblems, gotProblems)
 		})
 	}
+}
+
+func newOfflineCache(t *testing.T) string {
+	t.Helper()
+
+	src := fs.MustAbs("./tests/cache")
+	dst := filepath.Join(t.TempDir(), "cache")
+	if err := copyDir(src, dst); err != nil {
+		t.Fatalf("copy fixture cache: %v", err)
+	}
+	if err := stripFixtureCacheRemotes(dst); err != nil {
+		t.Fatalf("strip fixture remotes: %v", err)
+	}
+	return dst
+}
+
+func stripFixtureCacheRemotes(root string) error {
+	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() || info.Name() != ".git" {
+			return nil
+		}
+
+		repo, err := git.PlainOpen(filepath.Dir(path))
+		if err != nil {
+			return err
+		}
+		if err := repo.DeleteRemote("origin"); err != nil && !strings.Contains(err.Error(), "remote not found") {
+			return err
+		}
+
+		return filepath.SkipDir
+	})
+}
+
+func copyDir(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+
+		if info.IsDir() {
+			return os.MkdirAll(target, info.Mode())
+		}
+
+		if info.Mode()&os.ModeSymlink != 0 {
+			link, err := os.Readlink(path)
+			if err != nil {
+				return err
+			}
+			return os.Symlink(link, target)
+		}
+
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(target, data, info.Mode())
+	})
 }
