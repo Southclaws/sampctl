@@ -233,7 +233,7 @@ func Run(args []string, version string) error {
 			print.SetColoured()
 		}
 
-		cfg, err = config.LoadOrCreateConfig(cacheDir, verbose)
+		cfg, err = config.LoadOrCreateConfig(cacheDir)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to load or create sampctl config in %s", cacheDir)
 		}

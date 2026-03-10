@@ -9,7 +9,6 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/package/lockfile"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
@@ -115,29 +114,6 @@ func packageEnsure(c *cli.Context) error {
 	}
 
 	print.Info("ensured dependencies for package")
-
-	return nil
-}
-
-// packageLockfileStatus displays lockfile status for a package
-func packageLockfileStatus(dir string) error {
-	if !lockfile.Exists(dir) {
-		print.Info("no lockfile found in", dir)
-		return nil
-	}
-
-	lf, err := lockfile.Load(dir)
-	if err != nil {
-		return errors.Wrap(err, "failed to load lockfile")
-	}
-
-	print.Info("lockfile found:", lockfile.GetPath(dir))
-	print.Info("  version:", lf.Version)
-	print.Info("  generated:", lf.Generated.Format(time.RFC3339))
-	print.Info("  sampctl version:", lf.SampctlVersion)
-	print.Info("  total dependencies:", lf.DependencyCount())
-	print.Info("  direct dependencies:", len(lf.DirectDependencies()))
-	print.Info("  transitive dependencies:", len(lf.TransitiveDependencies()))
 
 	return nil
 }

@@ -655,8 +655,7 @@ func TestGenerateChangelog(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			newVersion := semver.MustParse("1.1.0")
-			changelog, err := generateChangelog(repo, versionedTags, newVersion)
+			changelog, err := generateChangelog(repo, versionedTags)
 			require.NoError(t, err)
 			assert.NotEmpty(t, changelog)
 
@@ -867,8 +866,7 @@ func TestChangelogExcludesReleaseCommits(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	newVersion := semver.MustParse("2.0.0")
-	changelog, err := generateChangelog(repo, versioning.VersionedTags{}, newVersion)
+	changelog, err := generateChangelog(repo, versioning.VersionedTags{})
 	require.NoError(t, err)
 
 	assert.Contains(t, changelog, "Add feature X")

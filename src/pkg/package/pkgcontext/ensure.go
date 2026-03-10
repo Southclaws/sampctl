@@ -139,7 +139,7 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 		}
 	}
 
-	repo, err := pcx.ensureDependencyRepository(effectiveMeta, dependencyPath, forceUpdate)
+	repo, err := pcx.ensureDependencyRepository(effectiveMeta, dependencyPath)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure dependency repository")
 	}
@@ -190,7 +190,7 @@ func (pcx *PackageContext) EnsurePackageWithParent(meta versioning.DependencyMet
 		}
 	}
 
-	repo, err := pcx.ensureDependencyRepository(effectiveMeta, dependencyPath, forceUpdate)
+	repo, err := pcx.ensureDependencyRepository(effectiveMeta, dependencyPath)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure dependency repository")
 	}

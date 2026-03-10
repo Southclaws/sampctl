@@ -69,5 +69,5 @@ func TestExistsAndDirEmpty(t *testing.T) {
 func TestGetConfigDir(t *testing.T) {
 	dir := GetConfigDir()
 	assert.NotEmpty(t, dir)
-	assert.Equal(t, FOLDER_NAME, filepath.Base(dir))
+	assert.Equal(t, FolderName, filepath.Base(dir))
 }

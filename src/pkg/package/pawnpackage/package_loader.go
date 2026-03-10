@@ -81,7 +81,7 @@ func GetRemotePackage(
 	pkg, err = PackageFromRepo(ctx, client, meta)
 	if err != nil {
 		print.Verb(meta, "failed to get package definition from repository:", err)
-		return PackageFromOfficialRepo(ctx, client, meta)
+		return PackageFromOfficialRepo(ctx, meta)
 	}
 	return
 }
@@ -217,7 +217,6 @@ func decodeRepositoryContent(fileContent *github.RepositoryContent) ([]byte, err
 // this repo is mainly only used for testing plugins before being PR'd into their respective repos.
 func PackageFromOfficialRepo(
 	ctx context.Context,
-	client *github.Client,
 	meta versioning.DependencyMeta,
 ) (pkg Package, err error) {
 	officialURL := fmt.Sprintf(

@@ -241,7 +241,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 			return errors.New("user and repo fields must be set in pawn.json to create GitHub releases\nAdd: \"user\": \"your-github-username\" and \"repo\": \"your-repo-name\"")
 		}
 
-		changelog, err := generateChangelog(repo, tags, newVersion)
+		changelog, err := generateChangelog(repo, tags)
 		if err != nil {
 			print.Warn("Failed to generate changelog:", err)
 			changelog = fmt.Sprintf("Release %s", newVersion.String())
@@ -318,7 +318,7 @@ func packageSlug(name string) (slug string) {
 }
 
 // generateChangelog creates a changelog from git commits between the last tag and HEAD
-func generateChangelog(repo *git.Repository, tags versioning.VersionedTags, newVersion *semver.Version) (string, error) {
+func generateChangelog(repo *git.Repository, tags versioning.VersionedTags) (string, error) {
 	var fromHash plumbing.Hash
 	var fromVersion string
 

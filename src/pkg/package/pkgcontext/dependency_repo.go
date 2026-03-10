@@ -12,7 +12,7 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
 
-func (pcx *PackageContext) ensureDependencyRepository(meta versioning.DependencyMeta, dependencyPath string, forceUpdate bool) (*git.Repository, error) {
+func (pcx *PackageContext) ensureDependencyRepository(meta versioning.DependencyMeta, dependencyPath string) (*git.Repository, error) {
 	repo, err := git.PlainOpen(dependencyPath)
 	if err == nil {
 		head, headErr := repo.Head()
