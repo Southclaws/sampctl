@@ -1,10 +1,14 @@
 package pkgcontext
 
 import (
+	"context"
+	"io"
+
 	git "github.com/go-git/go-git/v5"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/lockfile"
+	runtimecfg "github.com/Southclaws/sampctl/src/pkg/runtime/run"
 )
 
 // DependencyLock abstracts lockfile-aware dependency resolution for package flows.
@@ -30,4 +34,13 @@ type RepositoryStore interface {
 type RepositoryHealth interface {
 	Validate(path string) (bool, error)
 	Repair(path string) error
+}
+
+// RuntimeEnvironment abstracts runtime preparation and execution for package runs.
+type RuntimeEnvironment interface {
+	Run(ctx context.Context, cfg runtimecfg.Runtime, cacheDir string, passArgs, recover bool, output io.Writer, input io.Reader) error
+	PrepareRuntimeDirectory(cacheDir, version, platform, scriptfiles string) error
+	CopyFileToRuntime(cacheDir, version, amxFile string) error
+	Ensure(ctx context.Context, gh interface{}, cfg *runtimecfg.Runtime, noCache bool) error
+	GenerateConfig(cfg *runtimecfg.Runtime) error
 }

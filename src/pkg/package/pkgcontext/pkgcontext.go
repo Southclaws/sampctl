@@ -55,6 +55,7 @@ type PackageContext struct {
 	RemotePackages  pawnpackage.RemotePackageFetcher
 	RepoStore       RepositoryStore
 	RepoHealth      RepositoryHealth
+	RuntimeEnv      RuntimeEnvironment
 
 	// Runtime specific fields
 	Runtime     string // the runtime config to use, defaults to `default`
@@ -94,6 +95,7 @@ func NewPackageContext(
 		RemotePackages: pawnpackage.NewRemotePackageFetcher(gh),
 		RepoStore:      GitRepositoryStore{},
 		RepoHealth:     GitRepositoryHealth{},
+		RuntimeEnv:     runtimeEnvironmentAdapter{},
 	}
 	pcx.Package, err = pawnpackage.PackageFromDir(dir)
 	if err != nil {
@@ -260,6 +262,13 @@ func (pcx PackageContext) repositoryHealth() RepositoryHealth {
 		return pcx.RepoHealth
 	}
 	return GitRepositoryHealth{}
+}
+
+func (pcx PackageContext) runtimeEnvironment() RuntimeEnvironment {
+	if pcx.RuntimeEnv != nil {
+		return pcx.RuntimeEnv
+	}
+	return runtimeEnvironmentAdapter{}
 }
 
 func getPackageTag(dir string) (tag string) {
