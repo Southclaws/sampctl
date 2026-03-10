@@ -23,11 +23,6 @@ var (
 	officialPackageRepoBaseURL  = "https://raw.githubusercontent.com/sampctl/plugins/master"
 )
 
-// RemotePackageFetcher loads package definitions from remote sources.
-type RemotePackageFetcher interface {
-	Fetch(ctx context.Context, meta versioning.DependencyMeta) (Package, error)
-}
-
 // GitHubRemotePackageFetcher fetches package definitions from GitHub and the
 // official fallback repository.
 type GitHubRemotePackageFetcher struct {

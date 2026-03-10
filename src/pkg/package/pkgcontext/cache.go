@@ -291,7 +291,7 @@ func (pcx PackageContext) EnsureDependencyFromCache(
 	cacheRepoExists := fs.Exists(filepath.Join(from, ".git"))
 	if !cacheRepoExists || forceUpdate {
 		if forceUpdate && cacheRepoExists {
-			if cacheRepo, openErr := git.PlainOpen(from); openErr == nil && getRepositoryOriginURL(cacheRepo) == "" {
+			if cacheRepo, openErr := pcx.repositoryStore().Open(from); openErr == nil && getRepositoryOriginURL(cacheRepo) == "" {
 				print.Verb(meta, "cached repository has no origin remote, skipping cache refresh")
 			} else {
 				_, err = pcx.EnsureDependencyCached(meta, forceUpdate)
@@ -341,7 +341,7 @@ func (pcx PackageContext) ensureRepoExists(
 		}
 	}
 
-	repo, err = git.PlainOpen(to)
+	repo, err = pcx.repositoryStore().Open(to)
 	if err != nil {
 		// Repository doesn't exist or can't be opened - clone it
 		return pcx.cloneRepository(from, to, branch, ssh)
@@ -384,7 +384,7 @@ func (pcx PackageContext) cloneRepository(from, to, branch string, ssh bool) (*g
 	}
 
 	print.Verb("executing clone with options:", cloneOpts)
-	repo, err := git.PlainClone(to, false, cloneOpts)
+	repo, err := pcx.repositoryStore().Clone(to, false, cloneOpts)
 	if err != nil {
 		print.Verb("clone failed, cleaning up:", err)
 		os.RemoveAll(to)

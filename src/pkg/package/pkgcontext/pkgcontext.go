@@ -16,20 +16,18 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 )
 
-// DependencyLock abstracts lockfile-aware dependency resolution for package flows.
-type DependencyLock interface {
-	GetLockedVersion(meta versioning.DependencyMeta) versioning.DependencyMeta
-	RecordResolution(meta versioning.DependencyMeta, repo *git.Repository, transitive bool, requiredBy string) error
-	RecordLocalDependency(meta versioning.DependencyMeta) error
-	RecordRuntime(version, platform, runtimeType string, files []lockfile.LockedFileInfo)
-	RecordBuild(compilerVersion, compilerPreset, entry, output, outputHash string)
-	Save() error
-	ForceUpdate()
-	HasLockfile() bool
-	GetLockfile() *lockfile.Lockfile
+var _ DependencyLock = (*lockfile.Resolver)(nil)
+
+// GitRepositoryStore is the default repository store backed by go-git.
+type GitRepositoryStore struct{}
+
+func (GitRepositoryStore) Open(path string) (*git.Repository, error) {
+	return git.PlainOpen(path)
 }
 
-var _ DependencyLock = (*lockfile.Resolver)(nil)
+func (GitRepositoryStore) Clone(path string, isBare bool, opts *git.CloneOptions) (*git.Repository, error) {
+	return git.PlainClone(path, isBare, opts)
+}
 
 // PackageContext stores state for a package during its lifecycle.
 type PackageContext struct {
@@ -44,6 +42,7 @@ type PackageContext struct {
 	ActualRuntime   run.Runtime                 // actual runtime configuration to use for running the package
 	ActualBuild     build.Config                // actual build configuration to use for running the package
 	RemotePackages  pawnpackage.RemotePackageFetcher
+	RepoStore       RepositoryStore
 
 	// Runtime specific fields
 	Runtime     string // the runtime config to use, defaults to `default`
@@ -81,6 +80,7 @@ func NewPackageContext(
 		Platform:       platform,
 		CacheDir:       cacheDir,
 		RemotePackages: pawnpackage.NewRemotePackageFetcher(gh),
+		RepoStore:      GitRepositoryStore{},
 	}
 	pcx.Package, err = pawnpackage.PackageFromDir(dir)
 	if err != nil {
@@ -233,6 +233,13 @@ func (pcx *PackageContext) GetLockfile() *lockfile.Lockfile {
 
 func newDependencyLock(dir, sampctlVersion string) (DependencyLock, error) {
 	return lockfile.NewResolver(dir, sampctlVersion, true)
+}
+
+func (pcx PackageContext) repositoryStore() RepositoryStore {
+	if pcx.RepoStore != nil {
+		return pcx.RepoStore
+	}
+	return GitRepositoryStore{}
 }
 
 func getPackageTag(dir string) (tag string) {

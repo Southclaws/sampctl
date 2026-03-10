@@ -13,7 +13,7 @@ import (
 )
 
 func (pcx *PackageContext) ensureDependencyRepository(meta versioning.DependencyMeta, dependencyPath string) (*git.Repository, error) {
-	repo, err := git.PlainOpen(dependencyPath)
+	repo, err := pcx.repositoryStore().Open(dependencyPath)
 	if err == nil {
 		head, headErr := repo.Head()
 		if headErr != nil {
@@ -74,7 +74,7 @@ func (pcx *PackageContext) updateRepoStateWithRecovery(repo *git.Repository, met
 
 	if repairErr := RepairRepository(dependencyPath); repairErr == nil {
 		print.Verb(meta, "repository repaired, retrying update")
-		if repo, openErr := git.PlainOpen(dependencyPath); openErr == nil {
+		if repo, openErr := pcx.repositoryStore().Open(dependencyPath); openErr == nil {
 			if err = pcx.updateRepoState(repo, meta, true); err == nil {
 				return nil
 			}
@@ -92,7 +92,7 @@ func (pcx *PackageContext) updateRepoStateWithRecovery(repo *git.Repository, met
 		return errors.Wrap(cloneErr, "failed to recover by re-cloning")
 	}
 
-	repo, err = git.PlainOpen(dependencyPath)
+	repo, err = pcx.repositoryStore().Open(dependencyPath)
 	if err != nil {
 		return errors.Wrap(err, "failed to open re-cloned repository")
 	}
