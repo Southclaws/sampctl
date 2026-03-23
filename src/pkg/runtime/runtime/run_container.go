@@ -37,6 +37,15 @@ func RunContainer(
 	if err != nil {
 		return
 	}
+	defer func() {
+		if errClose := cli.Close(); errClose != nil {
+			if err == nil {
+				err = errors.Wrap(errClose, "failed to close docker client")
+				return
+			}
+			print.Warn("failed to close docker client:", errClose)
+		}
+	}()
 
 	args := strslice.StrSlice{"sampctl", "server", "run"}
 	if passArgs {
@@ -139,6 +148,17 @@ func RunContainer(
 			return errors.Wrap(err, "failed to create container")
 		}
 	}
+	defer func() {
+		removeErr := removeContainer(context.Background(), cli, cnt.ID)
+		if removeErr == nil {
+			return
+		}
+		if err == nil {
+			err = errors.Wrap(removeErr, "failed to remove container")
+			return
+		}
+		print.Warn("failed to remove container:", removeErr)
+	}()
 
 	print.Info("Starting container...")
 	err = cli.ContainerStart(ctx, cnt.ID, types.ContainerStartOptions{})
@@ -146,29 +166,12 @@ func RunContainer(
 		return errors.Wrap(err, "failed to start container")
 	}
 
-	finished := make(chan error, 1)
-
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		sig := <-sigs
-		finished <- errors.Errorf("killed: %s", sig)
-	}()
-
-	go func() {
-		wait, errInner := cli.ContainerWait(context.Background(), cnt.ID, container.WaitConditionNotRunning)
-
-		select {
-		case <-wait:
-		case err := <-errInner:
-			print.Erro("container exited:", err)
-			finished <- err
-		}
-	}()
+	runCtx, stopSignals := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer stopSignals()
 
 	// Get logs and wait for exit
 
-	reader, err := cli.ContainerLogs(ctx, cnt.ID, types.ContainerLogsOptions{
+	reader, err := cli.ContainerLogs(runCtx, cnt.ID, types.ContainerLogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 		Follow:     true,
@@ -179,26 +182,88 @@ func RunContainer(
 	}
 	defer func() {
 		if errClose := reader.Close(); errClose != nil {
-			panic(errClose)
+			if err == nil {
+				err = errors.Wrap(errClose, "failed to close container log stream")
+				return
+			}
+			print.Warn("failed to close container log stream:", errClose)
 		}
 	}()
 
 	scanner := bufio.NewScanner(reader)
+	writeFailed := false
 	for scanner.Scan() {
 		_, err = fmt.Fprintln(output, scanner.Text())
 		if err != nil {
+			writeFailed = true
 			break
 		}
 	}
-	if err != nil {
-		print.Erro("Failed to write to output:", err)
+
+	if scanErr := scanner.Err(); scanErr != nil && runCtx.Err() == nil {
+		return errors.Wrap(scanErr, "failed to read container logs")
 	}
 
-	err = cli.ContainerKill(ctx, cnt.ID, "SIGINT")
-	if err != nil {
+	if writeFailed {
+		stopErr := stopContainer(context.Background(), cli, cnt.ID)
+		if stopErr != nil {
+			print.Warn("failed to stop container after output error:", stopErr)
+		}
+		return errors.Wrap(err, "failed to write container output")
+	}
+
+	if runCtx.Err() != nil {
+		stopErr := stopContainer(context.Background(), cli, cnt.ID)
+		if stopErr != nil {
+			return errors.Wrap(stopErr, "failed to stop container after cancellation")
+		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		return errors.New("received signal, stopped container")
+	}
+
+	return nil
+}
+
+type containerStopper interface {
+	ContainerKill(ctx context.Context, containerID, signal string) error
+	ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.ContainerWaitOKBody, <-chan error)
+}
+
+type containerRemover interface {
+	ContainerRemove(ctx context.Context, containerID string, options types.ContainerRemoveOptions) error
+}
+
+func stopContainer(ctx context.Context, cli containerStopper, containerID string) error {
+	stopCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	if err := cli.ContainerKill(stopCtx, containerID, "SIGINT"); err != nil {
 		print.Verb("Failed to kill container:", err)
-		err = nil
 	}
 
-	return err
+	wait, errCh := cli.ContainerWait(stopCtx, containerID, container.WaitConditionNotRunning)
+	select {
+	case <-wait:
+		return nil
+	case err := <-errCh:
+		if err == nil {
+			return nil
+		}
+		return err
+	case <-stopCtx.Done():
+		return stopCtx.Err()
+	}
+}
+
+func removeContainer(ctx context.Context, cli containerRemover, containerID string) error {
+	if containerID == "" {
+		return nil
+	}
+
+	removeCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	return cli.ContainerRemove(removeCtx, containerID, types.ContainerRemoveOptions{Force: true})
 }

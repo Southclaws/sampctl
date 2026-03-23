@@ -35,9 +35,24 @@ type RuntimePackage struct {
 // GetRuntimeList gets a list of known runtime packages from the sampctl repo, if the list does not
 // exist locally, it is downloaded and cached for future use.
 func GetRuntimeList(cacheDir string) (runtimes Runtimes, err error) {
+	return GetRuntimeListContext(context.Background(), cacheDir)
+}
+
+func GetRuntimeListContext(ctx context.Context, cacheDir string) (runtimes Runtimes, err error) {
+	return GetRuntimeListWithClientContext(ctx, cacheDir, http.DefaultClient)
+}
+
+func GetRuntimeListWithClientContext(ctx context.Context, cacheDir string, client HTTPDoer) (runtimes Runtimes, err error) {
+	if client == nil {
+		client = http.DefaultClient
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	runtimesFile := fs.Join(cacheDir, "runtimes.json")
 	runtimes, refreshed, err := cache.GetOrRefreshJSON[Runtimes](
-		context.Background(),
+		ctx,
 		runtimesFile,
 		time.Hour*24*7,
 		fs.PermDirPrivate,
@@ -47,7 +62,7 @@ func GetRuntimeList(cacheDir string) (runtimes Runtimes, err error) {
 			if err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to create request")
 			}
-			resp, err := http.DefaultClient.Do(req)
+			resp, err := client.Do(req)
 			if err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to download package list")
 			}
@@ -73,9 +88,24 @@ func GetRuntimeList(cacheDir string) (runtimes Runtimes, err error) {
 
 // UpdateRuntimeList downloads a list of all runtime packages to a file in the cache directory
 func UpdateRuntimeList(cacheDir string) (err error) {
+	return UpdateRuntimeListContext(context.Background(), cacheDir)
+}
+
+func UpdateRuntimeListContext(ctx context.Context, cacheDir string) (err error) {
+	return UpdateRuntimeListWithClientContext(ctx, cacheDir, http.DefaultClient)
+}
+
+func UpdateRuntimeListWithClientContext(ctx context.Context, cacheDir string, client HTTPDoer) (err error) {
+	if client == nil {
+		client = http.DefaultClient
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	runtimesFile := fs.Join(cacheDir, "runtimes.json")
 	_, _, err = cache.GetOrRefreshJSON[Runtimes](
-		context.Background(),
+		ctx,
 		runtimesFile,
 		-1,
 		fs.PermDirPrivate,
@@ -85,7 +115,7 @@ func UpdateRuntimeList(cacheDir string) (err error) {
 			if err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to create request")
 			}
-			resp, err := http.DefaultClient.Do(req)
+			resp, err := client.Do(req)
 			if err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to download package list")
 			}

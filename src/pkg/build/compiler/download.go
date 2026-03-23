@@ -25,7 +25,17 @@ func FromCache(
 	platform string,
 	cacheDir string,
 ) (download.Compiler, bool, error) {
-	fetcher, err := newCompilerPackageFetcher(meta, platform, cacheDir)
+	return FromCacheContext(context.Background(), meta, dir, platform, cacheDir)
+}
+
+func FromCacheContext(
+	ctx context.Context,
+	meta versioning.DependencyMeta,
+	dir string,
+	platform string,
+	cacheDir string,
+) (download.Compiler, bool, error) {
+	fetcher, err := newCompilerPackageFetcherContext(ctx, meta, platform, cacheDir)
 	if err != nil {
 		return download.Compiler{}, false, err
 	}
@@ -64,7 +74,7 @@ func GetCompilerPackage(
 		Tag:  resolved.Version,
 	}
 
-	compiler, hit, err := FromCache(meta, dir, platform, cacheDir)
+	compiler, hit, err := FromCacheContext(ctx, meta, dir, platform, cacheDir)
 	if err != nil {
 		return download.Compiler{}, errors.Wrapf(err, "failed to get package %s from cache", resolved.Version)
 	}
@@ -89,7 +99,16 @@ type compilerPackageFetcher struct {
 }
 
 func newCompilerPackageFetcher(meta versioning.DependencyMeta, platform, cacheDir string) (*compilerPackageFetcher, error) {
-	compiler, err := GetCompilerPackageInfo(cacheDir, platform)
+	return newCompilerPackageFetcherContext(context.Background(), meta, platform, cacheDir)
+}
+
+func newCompilerPackageFetcherContext(
+	ctx context.Context,
+	meta versioning.DependencyMeta,
+	platform,
+	cacheDir string,
+) (*compilerPackageFetcher, error) {
+	compiler, err := GetCompilerPackageInfoContext(ctx, cacheDir, platform)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +244,11 @@ func compilerPackageInstalled(dir string, pkg download.Compiler) bool {
 
 // GetCompilerPackageInfo returns the URL for a specific compiler version
 func GetCompilerPackageInfo(cacheDir, platform string) (compiler download.Compiler, err error) {
-	compilers, err := download.GetCompilerList(cacheDir)
+	return GetCompilerPackageInfoContext(context.Background(), cacheDir, platform)
+}
+
+func GetCompilerPackageInfoContext(ctx context.Context, cacheDir, platform string) (compiler download.Compiler, err error) {
+	compilers, err := download.GetCompilerListContext(ctx, cacheDir)
 	if err != nil {
 		return
 	}

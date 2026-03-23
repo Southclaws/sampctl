@@ -59,6 +59,7 @@ func (pcx *PackageContext) RunWatch(ctx context.Context) (err error) {
 		errorCh <- pcx.BuildWatch(ctx, pcx.BuildName, pcx.ForceEnsure, pcx.BuildFile, pcx.Relative, trigger)
 	}()
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(signals)
 
 	print.Verb(pcx.Package, "starting run watcher")
 
@@ -91,7 +92,14 @@ loop:
 				defer cancel()
 			}
 
-			err = pcx.runtimeEnvironment().CopyFileToRuntime(pcx.CacheDir, pcx.ActualRuntime.Version, fs.MustAbs(pcx.Package.Output))
+			outputPath, absErr := fs.Abs(packagePath(pcx.Package.LocalPath, pcx.Package.Output))
+			if absErr != nil {
+				err = errors.Wrap(absErr, "failed to resolve package output path")
+				print.Erro(err)
+				continue
+			}
+
+			err = pcx.runtimeEnvironment().CopyFileToRuntime(pcx.CacheDir, pcx.ActualRuntime.Version, outputPath)
 			if err != nil {
 				err = errors.Wrap(err, "failed to copy amx file to temporary runtime directory")
 				print.Erro(err)
@@ -120,10 +128,14 @@ loop:
 // RunPrepare prepares the context directory for executing the server.
 func (pcx *PackageContext) RunPrepare(ctx context.Context) (err error) {
 	var (
-		filename = filepath.Join(pcx.Package.LocalPath, pcx.Package.Output)
+		filename = packagePath(pcx.Package.LocalPath, pcx.Package.Output)
 		problems build.Problems
 		canRun   = true
 	)
+	filename, err = fs.Abs(filename)
+	if err != nil {
+		return errors.Wrap(err, "failed to resolve package output path")
+	}
 	if !fs.Exists(filename) || pcx.ForceBuild {
 		problems, _, err = pcx.Build(ctx, pcx.BuildName, pcx.ForceEnsure, false, pcx.Relative, pcx.BuildFile)
 		if err != nil {

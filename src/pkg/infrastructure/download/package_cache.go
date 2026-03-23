@@ -18,16 +18,27 @@ import (
 // GetPackageList gets a list of known packages from the sampctl package service, if the list does
 // not exist locally, it is downloaded and cached for future use.
 func GetPackageList(cacheDir string) (packages []pawnpackage.Package, err error) {
-	return GetPackageListWithClient(cacheDir, http.DefaultClient)
+	return GetPackageListContext(context.Background(), cacheDir)
+}
+
+func GetPackageListContext(ctx context.Context, cacheDir string) (packages []pawnpackage.Package, err error) {
+	return GetPackageListWithClientContext(ctx, cacheDir, http.DefaultClient)
 }
 
 func GetPackageListWithClient(cacheDir string, client HTTPDoer) (packages []pawnpackage.Package, err error) {
+	return GetPackageListWithClientContext(context.Background(), cacheDir, client)
+}
+
+func GetPackageListWithClientContext(ctx context.Context, cacheDir string, client HTTPDoer) (packages []pawnpackage.Package, err error) {
 	if client == nil {
 		client = http.DefaultClient
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	packageFile := fs.Join(cacheDir, "packages.json")
 	packages, refreshed, err := cache.GetOrRefreshJSON[[]pawnpackage.Package](
-		context.Background(),
+		ctx,
 		packageFile,
 		time.Hour*24*7,
 		fs.PermDirPrivate,
@@ -63,16 +74,27 @@ func GetPackageListWithClient(cacheDir string, client HTTPDoer) (packages []pawn
 
 // UpdatePackageList downloads a list of all packages to a file in the cache directory
 func UpdatePackageList(cacheDir string) (err error) {
-	return UpdatePackageListWithClient(cacheDir, http.DefaultClient)
+	return UpdatePackageListContext(context.Background(), cacheDir)
+}
+
+func UpdatePackageListContext(ctx context.Context, cacheDir string) (err error) {
+	return UpdatePackageListWithClientContext(ctx, cacheDir, http.DefaultClient)
 }
 
 func UpdatePackageListWithClient(cacheDir string, client HTTPDoer) (err error) {
+	return UpdatePackageListWithClientContext(context.Background(), cacheDir, client)
+}
+
+func UpdatePackageListWithClientContext(ctx context.Context, cacheDir string, client HTTPDoer) (err error) {
 	if client == nil {
 		client = http.DefaultClient
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	packageFile := fs.Join(cacheDir, "packages.json")
 	_, _, err = cache.GetOrRefreshJSON[[]pawnpackage.Package](
-		context.Background(),
+		ctx,
 		packageFile,
 		-1,
 		fs.PermDirPrivate,

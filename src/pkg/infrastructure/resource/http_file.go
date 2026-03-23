@@ -50,7 +50,10 @@ func NewHTTPFileResource(rawURL, version string, resourceType ResourceType) (*HT
 }
 
 func (hr *HTTPFileResource) Cached(version string) (bool, string) {
-	cacheDir := hr.getCachePath(version)
+	cacheDir, err := hr.cachePath(version)
+	if err != nil {
+		return false, ""
+	}
 
 	info, err := os.Stat(cacheDir)
 	if err != nil {
@@ -93,7 +96,10 @@ func (hr *HTTPFileResource) Ensure(ctx context.Context, version, path string) er
 		return nil
 	}
 
-	cacheDirPath := hr.getCachePath(version)
+	cacheDirPath, err := hr.cachePath(version)
+	if err != nil {
+		return err
+	}
 
 	// Ensure cache directory exists (remove legacy file if needed)
 	if err := ensureCacheDir(cacheDirPath); err != nil {

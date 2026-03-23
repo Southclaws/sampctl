@@ -66,11 +66,11 @@ func copyFileContents(src, dst string) (err error) {
 	return
 }
 
-// FullPath wraps filepath.Abs and panics on error
+// FullPath returns an absolute path when possible, otherwise it falls back to the input path.
 func FullPath(dir string) string {
 	path, err := filepath.Abs(dir)
 	if err != nil {
-		panic(err)
+		return dir
 	}
 	return path
 }
@@ -84,26 +84,23 @@ func RelPath(dir string) string {
 	return path
 }
 
-// Exists simply checks if a path exists and panics on error
+// Exists reports whether a path can be statted successfully.
 func Exists(path string) bool {
 	_, err := os.Stat(path)
 	if os.IsNotExist(err) {
 		return false
 	}
-	if err != nil {
-		panic(err)
-	}
-	return true
+	return err == nil
 }
 
-// DirEmpty checks if the given directory is empty
+// DirEmpty checks if the given directory is empty.
 func DirEmpty(path string) bool {
 	f, err := os.Open(path)
 	if err != nil {
-		panic(err)
+		return false
 	}
 	defer func() {
-		err = f.Close()
+		_ = f.Close()
 	}()
 	_, err = f.Readdirnames(1)
 	return err == io.EOF

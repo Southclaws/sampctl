@@ -87,6 +87,17 @@ func seedOfflineFixtures(cacheDir string) error {
 	}
 
 	if err := seedCachedPackageRepo(cacheDir,
+		versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "YSI-Includes"},
+		pawnpackage.Package{
+			DependencyMeta: versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "YSI-Includes"},
+		},
+		nil,
+		map[string]string{"YSI_Core/y_utils.inc": "// fixture"},
+	); err != nil {
+		return err
+	}
+
+	if err := seedCachedPackageRepo(cacheDir,
 		versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-errors", Tag: "1.2.3"},
 		pawnpackage.Package{
 			DependencyMeta: versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-errors"},

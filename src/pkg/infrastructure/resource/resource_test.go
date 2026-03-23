@@ -146,6 +146,9 @@ func TestResourceTypes(t *testing.T) {
 }
 
 func TestDefaultResourceManager_CleanCache(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
+
 	// Create mock factory
 	factory := NewDefaultResourceFactory(nil)
 	manager := NewDefaultResourceManager(factory)

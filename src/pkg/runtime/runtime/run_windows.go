@@ -34,9 +34,12 @@ func usePty(cmd *exec.Cmd, w io.Writer, r io.Reader) (err error) {
 	}
 
 	defer func() {
-		errDefer := cpty.Close()
-		if errDefer != nil {
-			panic(errDefer)
+		if errClose := cpty.Close(); errClose != nil {
+			if err == nil {
+				err = errors.Wrap(errClose, "failed to close pty")
+				return
+			}
+			print.Warn("failed to close pty:", errClose)
 		}
 	}()
 

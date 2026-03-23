@@ -5,15 +5,19 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 	"github.com/pkg/errors"
+
+	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 )
 
 // adjustForOS quickly does some tweaks depending on the OS such as .so plugin extension on linux
-func adjustForOS(dir, os string, cfg *run.Runtime) {
-	if os == "linux" || os == "darwin" {
+func adjustForOS(dir, platform string, cfg *run.Runtime) error {
+	if platform == "linux" || platform == "darwin" {
 		if len(cfg.Plugins) > 0 {
-			actualPlugins := getPlugins(filepath.Join(dir, getPluginDirectory()), cfg.Platform)
+			actualPlugins, err := getPlugins(filepath.Join(dir, getPluginDirectory()), cfg.Platform)
+			if err != nil && !os.IsNotExist(err) {
+				return errors.Wrap(err, "failed to detect installed plugins")
+			}
 
 			for i, declared := range cfg.Plugins {
 				ext := filepath.Ext(string(declared))
@@ -33,12 +37,13 @@ func adjustForOS(dir, os string, cfg *run.Runtime) {
 			}
 		}
 	}
+	return nil
 }
 
-func getPlugins(dir, platform string) (result []string) {
+func getPlugins(dir, platform string) (result []string, err error) {
 	files, err := os.ReadDir(dir)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	var ext string
@@ -48,7 +53,7 @@ func getPlugins(dir, platform string) (result []string) {
 	case "linux", "darwin":
 		ext = ".so"
 	default:
-		panic(errors.Errorf("unsupported OS %s", platform))
+		return nil, errors.Errorf("unsupported OS %s", platform)
 	}
 
 	for _, file := range files {
@@ -60,5 +65,5 @@ func getPlugins(dir, platform string) (result []string) {
 			result = append(result, strings.TrimSuffix(file.Name(), filepath.Ext(file.Name())))
 		}
 	}
-	return
+	return result, nil
 }

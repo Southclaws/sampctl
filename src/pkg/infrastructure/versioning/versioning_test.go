@@ -1,6 +1,7 @@
 package versioning
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -189,7 +190,7 @@ func TestLoadRemoteOverrides(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Test loading remote overrides (should gracefully handle failure)
-	overrides := loadRemoteOverrides()
+	overrides := loadRemoteOverrides(context.Background())
 
 	// Since the remote file doesn't exist yet, it should return empty map
 	assert.NotNil(t, overrides)

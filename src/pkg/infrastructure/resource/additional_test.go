@@ -348,7 +348,8 @@ func TestDefaultResourceManagerEnsureAllAndCleanCache(t *testing.T) {
 
 	require.NoError(t, manager.EnsureAll(context.Background(), []Resource{NewLocalResource(localFile, ResourceTypeArbitraryFile)}))
 
-	configDir := fs.MustConfigDir()
+	configDir, err := fs.ConfigDir()
+	require.NoError(t, err)
 	stale := filepath.Join(configDir, string(ResourceTypePlugin), "res1", "v1", "hash1")
 	fresh := filepath.Join(configDir, string(ResourceTypePlugin), "res2", "v1", "hash1")
 	require.NoError(t, os.MkdirAll(stale, 0o755))
@@ -364,7 +365,7 @@ func TestDefaultResourceManagerEnsureAllAndCleanCache(t *testing.T) {
 	assert.NoDirExists(t, stale)
 	assert.DirExists(t, fresh)
 
-	_, err := manager.GetResource("missing")
+	_, err = manager.GetResource("missing")
 	require.Error(t, err)
 }
 

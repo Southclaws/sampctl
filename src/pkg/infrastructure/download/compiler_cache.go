@@ -29,17 +29,37 @@ type Compiler struct {
 // GetCompilerList gets a list of known compiler packages from the sampctl repo, if the list does not
 // exist locally, it is downloaded and cached for future use.
 func GetCompilerList(cacheDir string) (compilers Compilers, err error) {
+	return GetCompilerListContext(context.Background(), cacheDir)
+}
+
+func GetCompilerListContext(ctx context.Context, cacheDir string) (compilers Compilers, err error) {
+	return GetCompilerListWithClientContext(ctx, cacheDir, http.DefaultClient)
+}
+
+func GetCompilerListWithClientContext(ctx context.Context, cacheDir string, client HTTPDoer) (compilers Compilers, err error) {
+	if client == nil {
+		client = http.DefaultClient
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	compilersFile := fs.Join(cacheDir, "compilers.json")
+	var refreshErr error
 
 	if !cache.IsFresh(compilersFile, time.Hour*24*7) {
 		fmt.Fprintln(os.Stderr, "updating compiler list...") // nolint:gas
-		if err := UpdateCompilerList(cacheDir); err != nil {
-			fmt.Fprintln(os.Stderr, errors.Wrap(err, "failed to update compiler list"))
+		refreshErr = UpdateCompilerListWithClientContext(ctx, cacheDir, client)
+		if refreshErr != nil {
+			fmt.Fprintln(os.Stderr, errors.Wrap(refreshErr, "failed to update compiler list"))
 		}
 	}
 
 	compilers, err = cache.ReadJSON[Compilers](compilersFile)
 	if err != nil {
+		if refreshErr != nil {
+			return nil, errors.Wrap(refreshErr, "failed to refresh compiler cache")
+		}
 		return nil, errors.Wrap(err, "failed to read package cache file")
 	}
 	return compilers, nil
@@ -47,11 +67,26 @@ func GetCompilerList(cacheDir string) (compilers Compilers, err error) {
 
 // UpdateCompilerList downloads a list of all runtime packages to a file in the cache directory
 func UpdateCompilerList(cacheDir string) (err error) {
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://raw.githubusercontent.com/sampctl/compilers/master/compilers.json", nil)
+	return UpdateCompilerListContext(context.Background(), cacheDir)
+}
+
+func UpdateCompilerListContext(ctx context.Context, cacheDir string) (err error) {
+	return UpdateCompilerListWithClientContext(ctx, cacheDir, http.DefaultClient)
+}
+
+func UpdateCompilerListWithClientContext(ctx context.Context, cacheDir string, client HTTPDoer) (err error) {
+	if client == nil {
+		client = http.DefaultClient
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://raw.githubusercontent.com/sampctl/compilers/master/compilers.json", nil)
 	if err != nil {
 		return errors.Wrap(err, "failed to create request")
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return errors.Wrap(err, "failed to download package list")
 	}

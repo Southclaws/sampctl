@@ -73,15 +73,24 @@ type Package struct {
 
 // ExperimentalConfig contains experimental feature flags for package behavior.
 type ExperimentalConfig struct {
-	BuildFile bool `json:"build_file,omitempty" yaml:"build_file,omitempty"` // generate a build-time include file with constants
+	BuildFile *bool `json:"build_file,omitempty" yaml:"build_file,omitempty"` // generate a build-time include file with constants
 }
 
-// ExperimentalFlags resolves experimental config, supporting the legacy misspelled field.
+// ExperimentalFlags resolves experimental config, returning an empty config when unset.
 func (pkg Package) ExperimentalFlags() *ExperimentalConfig {
 	if pkg.Experimental != nil {
 		return pkg.Experimental
 	}
-	return nil
+	return &ExperimentalConfig{}
+}
+
+// BuildFileEnabled reports whether the build-time include file feature is enabled.
+func (cfg ExperimentalConfig) BuildFileEnabled() bool {
+	if cfg.BuildFile == nil {
+		return true
+	}
+
+	return *cfg.BuildFile
 }
 
 func (pkg Package) effectivePreset() string {

@@ -98,7 +98,10 @@ func PrepareCommand(
 		return nil, err
 	}
 
-	cacheDir = fs.MustAbs(cacheDir)
+	cacheDir, err = fs.Abs(cacheDir)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to resolve cache directory")
+	}
 
 	if len(config.Plugins) != 0 {
 		print.Warn("The use of `plugins` in the build configuration has been disabled and will be removed in the future")
@@ -132,8 +135,14 @@ func PrepareCommand(
 }
 
 func prepareIOPaths(config build.Config) (input, output, workingDir string, err error) {
-	input = fs.MustAbs(config.Input)
-	output = fs.MustAbs(config.Output)
+	input, err = fs.Abs(config.Input)
+	if err != nil {
+		return "", "", "", errors.Wrap(err, "failed to resolve input path")
+	}
+	output, err = fs.Abs(config.Output)
+	if err != nil {
+		return "", "", "", errors.Wrap(err, "failed to resolve output path")
+	}
 
 	if !fs.Exists(input) {
 		return "", "", "", errors.Errorf("no such file '%s'", input)
@@ -149,7 +158,10 @@ func prepareIOPaths(config build.Config) (input, output, workingDir string, err 
 	if config.WorkingDir == "" {
 		workingDir = filepath.Dir(input)
 	} else {
-		workingDir = fs.MustAbs(config.WorkingDir)
+		workingDir, err = fs.Abs(config.WorkingDir)
+		if err != nil {
+			return "", "", "", errors.Wrap(err, "failed to resolve working directory")
+		}
 	}
 
 	return input, output, workingDir, nil
@@ -329,13 +341,20 @@ func CompileWithCommand(
 	relative bool,
 ) (problems build.Problems, result build.Result, err error) {
 	if errorDir == "" {
-		errorDir = fs.MustAbs(workingDir)
+		errorDir = workingDir
+	}
+	errorDir, err = fs.Abs(errorDir)
+	if err != nil {
+		return nil, build.Result{}, errors.Wrap(err, "failed to resolve error directory")
 	}
 
 	outputReader, outputWriter := io.Pipe()
 	cmd.Stdout = outputWriter
 	cmd.Stderr = outputWriter
-	workingDir = fs.MustAbs(workingDir)
+	workingDir, err = fs.Abs(workingDir)
+	if err != nil {
+		return nil, build.Result{}, errors.Wrap(err, "failed to resolve working directory")
+	}
 
 	parser := newCompilerOutputParser(outputReader, workingDir, errorDir, relative)
 	go parser.Run()

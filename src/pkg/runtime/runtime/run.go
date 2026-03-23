@@ -126,6 +126,7 @@ func dorun(
 	}()
 
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(sigChan)
 
 	var term termination
 loop:

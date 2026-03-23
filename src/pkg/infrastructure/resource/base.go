@@ -28,11 +28,13 @@ type BaseResource struct {
 
 // NewBaseResource creates a new BaseResource
 func NewBaseResource(identifier, version string, resourceType ResourceType) *BaseResource {
+	cacheDir, _ := fs.ConfigDir()
+
 	return &BaseResource{
 		identifier:   identifier,
 		version:      version,
 		resourceType: resourceType,
-		cacheDir:     fs.MustConfigDir(),
+		cacheDir:     cacheDir,
 		cacheTTL:     time.Hour * 24 * 7, // Default 1 week cache
 	}
 }
@@ -54,7 +56,10 @@ func (br *BaseResource) Identifier() string {
 
 // Cached checks if the resource is cached and returns the path if present
 func (br *BaseResource) Cached(version string) (bool, string) {
-	cachePath := br.getCachePath(version)
+	cachePath, err := br.cachePath(version)
+	if err != nil {
+		return false, ""
+	}
 
 	// Check if cached file/directory exists
 	if !fs.Exists(cachePath) {
@@ -80,16 +85,43 @@ func (br *BaseResource) Cached(version string) (bool, string) {
 
 // getCachePath returns the cache path for a specific version
 func (br *BaseResource) getCachePath(version string) string {
+	cachePath, err := br.cachePath(version)
+	if err != nil {
+		return ""
+	}
+	return cachePath
+}
+
+func (br *BaseResource) cachePath(version string) (string, error) {
+	cacheDir, err := br.resolveCacheDir()
+	if err != nil {
+		return "", err
+	}
+
 	// Create a hash of the identifier + version for unique cache paths
 	sum := md5.Sum([]byte(br.identifier + ":" + version))
 
 	return filepath.Join(
-		br.cacheDir,
+		cacheDir,
 		string(br.resourceType),
 		br.identifier,
 		version,
 		fmt.Sprintf("%x", sum[:8]),
-	)
+	), nil
+}
+
+func (br *BaseResource) resolveCacheDir() (string, error) {
+	if br.cacheDir != "" {
+		return br.cacheDir, nil
+	}
+
+	cacheDir, err := fs.ConfigDir()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get config dir")
+	}
+
+	br.cacheDir = cacheDir
+	return cacheDir, nil
 }
 
 // ensureCacheDir creates the cache directory if it doesn't exist
@@ -140,7 +172,10 @@ func (br *BaseResource) EnsureFromLocal(_ context.Context, version, targetPath s
 		return errors.New("no local path specified for resource")
 	}
 
-	cachePath := br.getCachePath(version)
+	cachePath, err := br.cachePath(version)
+	if err != nil {
+		return err
+	}
 
 	// Check if already cached
 	if cached, path := br.Cached(version); cached {
@@ -177,7 +212,10 @@ func (br *BaseResource) EnsureFromURL(ctx context.Context, version, targetPath s
 		return errors.New("no download URL specified for resource")
 	}
 
-	cachePath := br.getCachePath(version)
+	cachePath, err := br.cachePath(version)
+	if err != nil {
+		return err
+	}
 
 	// Check if already cached
 	if cached, path := br.Cached(version); cached {
@@ -196,7 +234,7 @@ func (br *BaseResource) EnsureFromURL(ctx context.Context, version, targetPath s
 		return errors.Wrap(err, "failed to create cache directory")
 	}
 
-	_, err := download.FromNet(ctx, br.downloadURL, cachePath)
+	_, err = download.FromNet(ctx, br.downloadURL, cachePath)
 	if err != nil {
 		return errors.Wrap(err, "failed to download resource")
 	}

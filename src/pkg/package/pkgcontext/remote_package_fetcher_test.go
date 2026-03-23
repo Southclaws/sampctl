@@ -13,12 +13,14 @@ import (
 
 type fakeRemotePackageFetcher struct {
 	called bool
+	ctx    context.Context
 	pkg    pawnpackage.Package
 	err    error
 }
 
-func (f *fakeRemotePackageFetcher) Fetch(_ context.Context, _ versioning.DependencyMeta) (pawnpackage.Package, error) {
+func (f *fakeRemotePackageFetcher) Fetch(ctx context.Context, _ versioning.DependencyMeta) (pawnpackage.Package, error) {
 	f.called = true
+	f.ctx = ctx
 	return f.pkg, f.err
 }
 
@@ -39,7 +41,10 @@ func TestInstallPackageResourcesUsesInjectedRemoteFetcher(t *testing.T) {
 		},
 	}
 
-	err := pcx.installPackageResources(versioning.DependencyMeta{User: "fixture", Repo: "repo"})
+	ctx := context.WithValue(context.Background(), "test-key", "test-value")
+
+	err := pcx.installPackageResources(ctx, versioning.DependencyMeta{User: "fixture", Repo: "repo"})
 	require.NoError(t, err)
 	assert.True(t, fetcher.called)
+	assert.Equal(t, ctx, fetcher.ctx)
 }

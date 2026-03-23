@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/google/go-github/github"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -24,6 +25,8 @@ type fakeRuntimeEnvironment struct {
 	lastCacheDir   string
 	lastBinaryPath string
 }
+
+var _ RuntimeEnvironment = (*fakeRuntimeEnvironment)(nil)
 
 func (f *fakeRuntimeEnvironment) Run(context.Context, runtimecfg.Runtime, string, bool, bool, io.Writer, io.Reader) error {
 	f.runCalled = true
@@ -43,7 +46,7 @@ func (f *fakeRuntimeEnvironment) CopyFileToRuntime(cacheDir, version, amxFile st
 	return nil
 }
 
-func (f *fakeRuntimeEnvironment) Ensure(context.Context, interface{}, *runtimecfg.Runtime, bool) error {
+func (f *fakeRuntimeEnvironment) Ensure(context.Context, *github.Client, *runtimecfg.Runtime, bool) error {
 	f.ensureCalled = true
 	return nil
 }

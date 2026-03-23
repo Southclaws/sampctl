@@ -89,11 +89,11 @@ func (f *DefaultResourceFactory) FromLocal(path string, resourceType ResourceTyp
 // DefaultResourceManager provides a default implementation of ResourceManager
 type DefaultResourceManager struct {
 	resources map[string]Resource
-	factory   ResourceFactory
+	factory   *DefaultResourceFactory
 }
 
 // NewDefaultResourceManager creates a new DefaultResourceManager
-func NewDefaultResourceManager(factory ResourceFactory) *DefaultResourceManager {
+func NewDefaultResourceManager(factory *DefaultResourceFactory) *DefaultResourceManager {
 	return &DefaultResourceManager{
 		resources: make(map[string]Resource),
 		factory:   factory,
@@ -138,7 +138,10 @@ func (m *DefaultResourceManager) EnsureAll(ctx context.Context, resources []Reso
 
 // CleanCache removes unused cached resources
 func (m *DefaultResourceManager) CleanCache() error {
-	cacheDir := fs.MustConfigDir()
+	cacheDir, err := fs.ConfigDir()
+	if err != nil {
+		return errors.Wrap(err, "failed to get config dir")
+	}
 
 	// Walk through all resource type directories in cache
 	resourceTypes := []ResourceType{
@@ -158,7 +161,7 @@ func (m *DefaultResourceManager) CleanCache() error {
 			continue
 		}
 
-		err := m.cleanResourceTypeDir(typeDir)
+		err = m.cleanResourceTypeDir(typeDir)
 		if err != nil {
 			return errors.Wrapf(err, "failed to clean cache for resource type: %s", resourceType)
 		}

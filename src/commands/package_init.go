@@ -20,7 +20,7 @@ var packageInitFlags = []cli.Flag{
 	},
 	cli.StringFlag{
 		Name:  "preset",
-		Value: "samp",
+		Value: "openmp",
 		Usage: "specify the preset to use for the project: 'samp' for SA-MP or 'openmp' for open.mp",
 	},
 }
@@ -30,8 +30,8 @@ func packageInit(c *cli.Context) error {
 	preset := c.String("preset")
 
 	if preset != "samp" && preset != "openmp" {
-		print.Warn("Invalid preset option provided, defaulting to 'samp'.")
-		preset = "samp"
+		print.Warn("Invalid preset option provided, defaulting to 'openmp'.")
+		preset = "openmp"
 	}
 
 	env, err := getCommandEnv(c)

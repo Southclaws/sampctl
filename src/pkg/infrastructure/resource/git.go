@@ -41,7 +41,10 @@ func NewGitResource(depMeta versioning.DependencyMeta, resourceType ResourceType
 
 // Ensure acquires the Git resource, cloning/updating the repository as needed
 func (gr *GitResource) Ensure(ctx context.Context, version, path string) error {
-	cachePath := gr.getCachePath(version)
+	cachePath, err := gr.cachePath(version)
+	if err != nil {
+		return err
+	}
 
 	// Check if already cached
 	if cached, cachedPath := gr.Cached(version); cached {

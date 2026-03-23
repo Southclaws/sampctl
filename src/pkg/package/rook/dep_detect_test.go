@@ -2,6 +2,7 @@ package rook
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -28,5 +29,20 @@ func TestFindIncludes(t *testing.T) {
 			gotIncludes := FindIncludes(tt.args.files)
 			assert.Equal(t, tt.wantIncludes, gotIncludes)
 		})
+	}
+}
+
+func TestFindIncludesMissingFileDoesNotHang(t *testing.T) {
+	done := make(chan []versioning.DependencyString, 1)
+
+	go func() {
+		done <- FindIncludes([]string{"./tests/detect/does-not-exist.pwn"})
+	}()
+
+	select {
+	case got := <-done:
+		assert.Empty(t, got)
+	case <-time.After(time.Second):
+		t.Fatal("FindIncludes hung on missing file")
 	}
 }

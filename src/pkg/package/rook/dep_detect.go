@@ -43,23 +43,31 @@ func FindIncludes(files []string) (includes []versioning.DependencyString) {
 	for _, file := range files {
 		wg.Add(1)
 		go func(innerFile string) {
+			defer wg.Done()
+
 			content, err := os.ReadFile(innerFile)
 			if err != nil {
 				print.Erro(err)
 				return
 			}
 
-			for expr := range IncludesToDependencies {
+			for expr, dep := range IncludesToDependencies {
 				if len(regexp.MustCompile(fmt.Sprintf(`#include\s\<%s\>.*`, expr)).FindAllString(string(content), -1)) > 0 {
-					if _, ok := seen[IncludesToDependencies[expr]]; !ok {
-						mux.Lock()
-						includes = append(includes, IncludesToDependencies[expr])
-						mux.Unlock()
-						print.Info("Discovered include matching:", expr, " resolved to:", IncludesToDependencies[expr])
+					discovered := false
+
+					mux.Lock()
+					if _, ok := seen[dep]; !ok {
+						seen[dep] = struct{}{}
+						includes = append(includes, dep)
+						discovered = true
+					}
+					mux.Unlock()
+
+					if discovered {
+						print.Info("Discovered include matching:", expr, " resolved to:", dep)
 					}
 				}
 			}
-			wg.Done()
 		}(file)
 	}
 	wg.Wait()

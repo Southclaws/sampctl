@@ -1,6 +1,7 @@
 package pkgcontext
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -330,7 +331,7 @@ func TestEnsureURLSchemeDependency(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.pcx.ensureURLSchemeDependency(tt.meta)
+			err := tt.pcx.ensureURLSchemeDependency(context.Background(), tt.meta)
 
 			if tt.wantErr {
 				assert.Error(t, err)

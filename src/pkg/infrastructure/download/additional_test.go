@@ -212,6 +212,53 @@ func TestCompilerAndRuntimeCacheHelpers(t *testing.T) {
 	require.NoError(t, WriteRuntimeCacheFile(runtimeDir, []byte(runtimeBody)))
 }
 
+func TestCacheHelpersHonorCanceledContext(t *testing.T) {
+	t.Run("package cache", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		_, err := GetPackageListWithClientContext(ctx, t.TempDir(), roundTripClient(func(req *http.Request) (*http.Response, error) {
+			return nil, req.Context().Err()
+		}))
+		require.ErrorIs(t, err, context.Canceled)
+
+		err = UpdatePackageListWithClientContext(ctx, t.TempDir(), roundTripClient(func(req *http.Request) (*http.Response, error) {
+			return nil, req.Context().Err()
+		}))
+		require.ErrorIs(t, err, context.Canceled)
+	})
+
+	t.Run("runtime cache", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		_, err := GetRuntimeListWithClientContext(ctx, t.TempDir(), roundTripClient(func(req *http.Request) (*http.Response, error) {
+			return nil, req.Context().Err()
+		}))
+		require.ErrorIs(t, err, context.Canceled)
+
+		err = UpdateRuntimeListWithClientContext(ctx, t.TempDir(), roundTripClient(func(req *http.Request) (*http.Response, error) {
+			return nil, req.Context().Err()
+		}))
+		require.ErrorIs(t, err, context.Canceled)
+	})
+
+	t.Run("compiler cache", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		_, err := GetCompilerListWithClientContext(ctx, t.TempDir(), roundTripClient(func(req *http.Request) (*http.Response, error) {
+			return nil, req.Context().Err()
+		}))
+		require.ErrorIs(t, err, context.Canceled)
+
+		err = UpdateCompilerListWithClientContext(ctx, t.TempDir(), roundTripClient(func(req *http.Request) (*http.Response, error) {
+			return nil, req.Context().Err()
+		}))
+		require.ErrorIs(t, err, context.Canceled)
+	})
+}
+
 func TestGitHubClientReleasesAdapter(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {

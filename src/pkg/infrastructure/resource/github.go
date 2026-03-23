@@ -32,7 +32,10 @@ type GitHubReleaseResource struct {
 // Unlike BaseResource, GitHubReleaseResource stores the downloaded asset under its
 // original filename inside a stable cache directory.
 func (ghr *GitHubReleaseResource) Cached(version string) (bool, string) {
-	cacheDir := ghr.getCachePath(version)
+	cacheDir, err := ghr.cachePath(version)
+	if err != nil {
+		return false, ""
+	}
 
 	info, err := os.Stat(cacheDir)
 	if err != nil {
@@ -120,7 +123,10 @@ func (ghr *GitHubReleaseResource) Ensure(ctx context.Context, version, path stri
 		return errors.New("no GitHub client provided")
 	}
 
-	cacheDirPath := ghr.getCachePath(version)
+	cacheDirPath, err := ghr.cachePath(version)
+	if err != nil {
+		return err
+	}
 
 	// Check if already cached
 	if cached, cachedPath := ghr.Cached(version); cached {
@@ -172,7 +178,10 @@ func (ghr *GitHubReleaseResource) Ensure(ctx context.Context, version, path stri
 
 	// If we resolved "latest" to an actual tag, move the downloaded asset to the tagged cache path.
 	if resolvedVersion != version {
-		newCacheDirPath := ghr.getCachePath(resolvedVersion)
+		newCacheDirPath, err := ghr.cachePath(resolvedVersion)
+		if err != nil {
+			return err
+		}
 		if err := ensureCacheDir(newCacheDirPath); err != nil {
 			return err
 		}

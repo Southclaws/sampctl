@@ -109,7 +109,7 @@ func TestApplyRuntimeDefaults(t *testing.T) {
 	assert.Equal(t, "secret", *custom.RCONPassword)
 	assert.Equal(t, MainOnly, custom.Mode)
 
-	assert.Panics(t, func() { ApplyRuntimeDefaults(nil) })
+	assert.NotPanics(t, func() { ApplyRuntimeDefaults(nil) })
 }
 
 func TestPluginAsDep(t *testing.T) {
