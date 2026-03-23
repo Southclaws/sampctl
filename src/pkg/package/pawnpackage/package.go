@@ -76,7 +76,7 @@ type ExperimentalConfig struct {
 	BuildFile *bool `json:"build_file,omitempty" yaml:"build_file,omitempty"` // generate a build-time include file with constants
 }
 
-// ExperimentalFlags resolves experimental config, supporting the legacy misspelled field.
+// ExperimentalFlags resolves experimental config, returning an empty config when unset.
 func (pkg Package) ExperimentalFlags() *ExperimentalConfig {
 	if pkg.Experimental != nil {
 		return pkg.Experimental

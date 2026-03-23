@@ -46,6 +46,38 @@ func TestBuildPrepareResolvesCompilerPath(t *testing.T) {
 	require.Equal(t, expectedPath, config.Compiler.Path)
 }
 
+func TestBuildPrepareResolvesPathsFromPackageRoot(t *testing.T) {
+	tempDir := t.TempDir()
+	otherDir := t.TempDir()
+
+	previousWD, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(otherDir))
+	t.Cleanup(func() {
+		require.NoError(t, os.Chdir(previousWD))
+	})
+
+	pcx := &PackageContext{
+		Package: pawnpackage.Package{
+			LocalPath: tempDir,
+			Entry:     "gamemodes/test.pwn",
+			Output:    "gamemodes/test.amx",
+			Build: &build.Config{
+				Input:      "filterscripts/custom.pwn",
+				Output:     "artifacts/custom.amx",
+				WorkingDir: "filterscripts",
+			},
+		},
+	}
+
+	config, err := pcx.buildPrepare(context.Background(), "", false, false)
+	require.NoError(t, err)
+
+	require.Equal(t, filepath.Join(tempDir, "filterscripts", "custom.pwn"), config.Input)
+	require.Equal(t, filepath.Join(tempDir, "artifacts", "custom.amx"), config.Output)
+	require.Equal(t, filepath.Join(tempDir, "filterscripts"), config.WorkingDir)
+}
+
 func TestBuildPrepareRejectsMixedCompilerConfig(t *testing.T) {
 	t.Parallel()
 

@@ -148,6 +148,17 @@ func RunContainer(
 			return errors.Wrap(err, "failed to create container")
 		}
 	}
+	defer func() {
+		removeErr := removeContainer(context.Background(), cli, cnt.ID)
+		if removeErr == nil {
+			return
+		}
+		if err == nil {
+			err = errors.Wrap(removeErr, "failed to remove container")
+			return
+		}
+		print.Warn("failed to remove container:", removeErr)
+	}()
 
 	print.Info("Starting container...")
 	err = cli.ContainerStart(ctx, cnt.ID, types.ContainerStartOptions{})
@@ -215,7 +226,16 @@ func RunContainer(
 	return nil
 }
 
-func stopContainer(ctx context.Context, cli *client.Client, containerID string) error {
+type containerStopper interface {
+	ContainerKill(ctx context.Context, containerID, signal string) error
+	ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.ContainerWaitOKBody, <-chan error)
+}
+
+type containerRemover interface {
+	ContainerRemove(ctx context.Context, containerID string, options types.ContainerRemoveOptions) error
+}
+
+func stopContainer(ctx context.Context, cli containerStopper, containerID string) error {
 	stopCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
@@ -235,4 +255,15 @@ func stopContainer(ctx context.Context, cli *client.Client, containerID string) 
 	case <-stopCtx.Done():
 		return stopCtx.Err()
 	}
+}
+
+func removeContainer(ctx context.Context, cli containerRemover, containerID string) error {
+	if containerID == "" {
+		return nil
+	}
+
+	removeCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	return cli.ContainerRemove(removeCtx, containerID, types.ContainerRemoveOptions{Force: true})
 }

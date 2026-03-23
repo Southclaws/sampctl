@@ -92,7 +92,7 @@ loop:
 				defer cancel()
 			}
 
-			outputPath, absErr := fs.Abs(pcx.Package.Output)
+			outputPath, absErr := fs.Abs(packagePath(pcx.Package.LocalPath, pcx.Package.Output))
 			if absErr != nil {
 				err = errors.Wrap(absErr, "failed to resolve package output path")
 				print.Erro(err)
@@ -128,10 +128,14 @@ loop:
 // RunPrepare prepares the context directory for executing the server.
 func (pcx *PackageContext) RunPrepare(ctx context.Context) (err error) {
 	var (
-		filename = filepath.Join(pcx.Package.LocalPath, pcx.Package.Output)
+		filename = packagePath(pcx.Package.LocalPath, pcx.Package.Output)
 		problems build.Problems
 		canRun   = true
 	)
+	filename, err = fs.Abs(filename)
+	if err != nil {
+		return errors.Wrap(err, "failed to resolve package output path")
+	}
 	if !fs.Exists(filename) || pcx.ForceBuild {
 		problems, _, err = pcx.Build(ctx, pcx.BuildName, pcx.ForceEnsure, false, pcx.Relative, pcx.BuildFile)
 		if err != nil {

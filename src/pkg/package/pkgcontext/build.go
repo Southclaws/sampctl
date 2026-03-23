@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -143,9 +142,13 @@ func (pcx *PackageContext) BuildWatch(
 	}
 	defer watcher.Close()
 
-	watchPath := path.Dir(pcx.Package.Entry)
-	if watchPath == "" {
-		watchPath = pcx.Package.LocalPath
+	watchPath := pcx.Package.LocalPath
+	if pcx.Package.Entry != "" {
+		watchPath = filepath.Dir(packagePath(pcx.Package.LocalPath, pcx.Package.Entry))
+	}
+	watchPath, err = fs.Abs(watchPath)
+	if err != nil {
+		return errors.Wrap(err, "failed to resolve build watch path")
 	}
 
 	err = filepath.Walk(watchPath, func(path string, info os.FileInfo, err error) error {
@@ -332,18 +335,46 @@ func (pcx *PackageContext) buildPrepare(
 		return
 	}
 
-	if config.WorkingDir == "" {
-		entryPath, absErr := fs.Abs(pcx.Package.Entry)
-		if absErr != nil {
-			return nil, errors.Wrap(absErr, "failed to resolve package entry path")
+	if config.Input == "" && pcx.Package.Entry != "" {
+		config.Input = packagePath(pcx.Package.LocalPath, pcx.Package.Entry)
+	} else if config.Input != "" {
+		config.Input = packagePath(pcx.Package.LocalPath, config.Input)
+	}
+	if config.Input != "" {
+		config.Input, err = fs.Abs(config.Input)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to resolve build input path")
 		}
-		config.WorkingDir = filepath.Dir(entryPath)
 	}
-	if config.Input == "" {
-		config.Input = filepath.Join(pcx.Package.LocalPath, pcx.Package.Entry)
+
+	if config.WorkingDir == "" {
+		switch {
+		case config.Input != "":
+			config.WorkingDir = filepath.Dir(config.Input)
+		case pcx.Package.Entry != "":
+			entryPath, absErr := fs.Abs(packagePath(pcx.Package.LocalPath, pcx.Package.Entry))
+			if absErr != nil {
+				return nil, errors.Wrap(absErr, "failed to resolve package entry path")
+			}
+			config.WorkingDir = filepath.Dir(entryPath)
+		}
+	} else {
+		config.WorkingDir, err = fs.Abs(packagePath(pcx.Package.LocalPath, config.WorkingDir))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to resolve build working directory")
+		}
 	}
-	if config.Output == "" {
-		config.Output = filepath.Join(pcx.Package.LocalPath, pcx.Package.Output)
+
+	if config.Output == "" && pcx.Package.Output != "" {
+		config.Output = packagePath(pcx.Package.LocalPath, pcx.Package.Output)
+	} else if config.Output != "" {
+		config.Output = packagePath(pcx.Package.LocalPath, config.Output)
+	}
+	if config.Output != "" {
+		config.Output, err = fs.Abs(config.Output)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to resolve build output path")
+		}
 	}
 
 	if config.Compiler.Path != "" {
