@@ -437,7 +437,7 @@ func (pcx *PackageContext) buildPrepare(
 
 func (pcx *PackageContext) ensureBuildFile(config *build.Config) (err error) {
 	exp := pcx.Package.ExperimentalFlags()
-	if exp == nil || !exp.BuildFile {
+	if exp == nil || !exp.BuildFileEnabled() {
 		return nil
 	}
 
@@ -515,6 +515,23 @@ func (pcx *PackageContext) ensureBuildFile(config *build.Config) (err error) {
 		}
 		return commit, branch
 	}
+
+	if _, exists := config.Constants["SAMPCTL_BUILD_FILE"]; !exists {
+		writeDefine("SAMPCTL_BUILD_FILE", "1", false)
+	}
+	if _, exists := config.Constants["SAMPCTL_VERSION"]; !exists {
+		version := strings.TrimSpace(pcx.AppVersion)
+		if version == "" {
+			version = "unknown"
+		}
+		writeDefine("SAMPCTL_VERSION", version, true)
+	}
+	if pcx.Platform != "" {
+		if _, exists := config.Constants["SAMPCTL_PLATFORM"]; !exists {
+			writeDefine("SAMPCTL_PLATFORM", pcx.Platform, true)
+		}
+	}
+	builder.WriteString("\n")
 
 	if commit, branch := readGitInfo(pcx.Package.LocalPath); commit != "" {
 		if _, exists := config.Constants["SAMPCTL_BUILD_COMMIT"]; !exists {

@@ -47,22 +47,28 @@ See also: [Build configuration reference](build-configuration-reference.md)
 - `include_path`: for repos where the Pawn sources are in a subfolder.
 - `resources`: advanced extra resources for a package (per-platform files, archives).
 - `extract_ignore_patterns`: patterns to skip when extracting plugin archives.
-- `experimental.build_file`: generate a build-time include file (`sampctl_build_file.inc`) containing build constants and git metadata (experimental).
+- `experimental.build_file`: control generation of the build-time include file (`sampctl_build_file.inc`) containing build constants and git metadata. This is enabled by default; set it to `false` to disable it.
 - `contributors`, `website`: optional metadata (useful for published packages).
 
 ### Experimental build file (`experimental.build_file`)
 
-When `experimental.build_file` is `true`, sampctl generates `sampctl_build_file.inc` in your project root before compilation and adds the project root to the include paths.
+By default, sampctl generates `sampctl_build_file.inc` in your project root before compilation.
+Set `experimental.build_file: false` if you want to disable it.
 
 The generated file includes:
 
+- Built-in sampctl metadata defines:
+  - `SAMPCTL_BUILD_FILE` as `1`.
+  - `SAMPCTL_VERSION` with the running sampctl version, or `"unknown"` when using dev builds.
+  - `SAMPCTL_PLATFORM` with the active target platform when available.
 - Defines for `build.constants` values.
   - Numeric-looking values are emitted as numbers.
   - Other values are emitted as quoted strings with escaping.
   - Values starting with `$NAME` expand environment variable `NAME`.
 - Git metadata defines if available (unless overridden by your constants): `SAMPCTL_BUILD_COMMIT`, `SAMPCTL_BUILD_COMMIT_SHORT`, `SAMPCTL_BUILD_BRANCH`.
 
-Usage: set `experimental.build_file: true` in `pawn.json` / `pawn.yaml` and include it in your Pawn source with `#include "sampctl_build_file.inc"`.
+Usage: include it in your Pawn source with `#include "sampctl_build_file.inc"`.
+If you need to turn it off, set `experimental.build_file: false` in `pawn.json` / `pawn.yaml`.
 
 See also:
 

@@ -17,6 +17,10 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
 
+func boolPtr(v bool) *bool {
+	return &v
+}
+
 func TestBuildPrepareResolvesCompilerPath(t *testing.T) {
 	t.Parallel()
 
@@ -246,12 +250,14 @@ func TestBuildPrepareGeneratesBuildFileWithConstants(t *testing.T) {
 	t.Setenv("BUILD_ENV_VALUE", "from-env")
 
 	pcx := &PackageContext{
+		AppVersion: "2.3.4",
+		Platform:   "linux",
 		Package: pawnpackage.Package{
 			LocalPath: tempDir,
 			Entry:     "gamemodes/test.pwn",
 			Output:    "gamemodes/test.amx",
 			Experimental: &pawnpackage.ExperimentalConfig{
-				BuildFile: true,
+				BuildFile: boolPtr(true),
 			},
 			Build: &build.Config{
 				Constants: map[string]string{
@@ -273,11 +279,78 @@ func TestBuildPrepareGeneratesBuildFileWithConstants(t *testing.T) {
 	require.NoError(t, err)
 
 	text := string(contents)
+	require.Contains(t, text, "#define SAMPCTL_BUILD_FILE 1")
+	require.Contains(t, text, "#define SAMPCTL_VERSION \"2.3.4\"")
+	require.Contains(t, text, "#define SAMPCTL_PLATFORM \"linux\"")
 	require.Contains(t, text, "#define NUM_CONST 42")
 	require.Contains(t, text, "#define STR_CONST \"hello\"")
 	require.Contains(t, text, "#define ENV_CONST \"from-env\"")
 	require.Contains(t, text, "#define QUOTED_CONST \"already quoted\"")
 	require.Contains(t, text, "#define ESC_CONST \"hello\\\"world\"")
+}
+
+func TestBuildPrepareGeneratesBuildFileByDefault(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+
+	pcx := &PackageContext{
+		AppVersion: "1.2.3",
+		Platform:   "windows",
+		Package: pawnpackage.Package{
+			LocalPath: tempDir,
+			Entry:     "gamemodes/test.pwn",
+			Output:    "gamemodes/test.amx",
+			Build:     &build.Config{},
+		},
+	}
+
+	_, err := pcx.buildPrepare(context.Background(), "", false, false)
+	require.NoError(t, err)
+
+	buildFilePath := filepath.Join(tempDir, "sampctl_build_file.inc")
+	contents, err := os.ReadFile(buildFilePath)
+	require.NoError(t, err)
+
+	text := string(contents)
+	require.Contains(t, text, "#define SAMPCTL_BUILD_FILE 1")
+	require.Contains(t, text, "#define SAMPCTL_VERSION \"1.2.3\"")
+	require.Contains(t, text, "#define SAMPCTL_PLATFORM \"windows\"")
+}
+
+func TestBuildPrepareAllowsBuildFileDefaultsToBeOverridden(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+
+	pcx := &PackageContext{
+		AppVersion: "1.2.3",
+		Platform:   "linux",
+		Package: pawnpackage.Package{
+			LocalPath: tempDir,
+			Entry:     "gamemodes/test.pwn",
+			Output:    "gamemodes/test.amx",
+			Build: &build.Config{
+				Constants: map[string]string{
+					"SAMPCTL_VERSION":  "\"custom-version\"",
+					"SAMPCTL_PLATFORM": "\"custom-platform\"",
+				},
+			},
+		},
+	}
+
+	_, err := pcx.buildPrepare(context.Background(), "", false, false)
+	require.NoError(t, err)
+
+	buildFilePath := filepath.Join(tempDir, "sampctl_build_file.inc")
+	contents, err := os.ReadFile(buildFilePath)
+	require.NoError(t, err)
+
+	text := string(contents)
+	require.Contains(t, text, "#define SAMPCTL_VERSION \"custom-version\"")
+	require.Contains(t, text, "#define SAMPCTL_PLATFORM \"custom-platform\"")
+	require.NotContains(t, text, "#define SAMPCTL_VERSION \"1.2.3\"")
+	require.NotContains(t, text, "#define SAMPCTL_PLATFORM \"linux\"")
 }
 
 func TestBuildPrepareBuildFileIncludesGitInfo(t *testing.T) {
@@ -297,7 +370,7 @@ func TestBuildPrepareBuildFileIncludesGitInfo(t *testing.T) {
 			Entry:     "gamemodes/test.pwn",
 			Output:    "gamemodes/test.amx",
 			Experimental: &pawnpackage.ExperimentalConfig{
-				BuildFile: true,
+				BuildFile: boolPtr(true),
 			},
 			Build: &build.Config{
 				Constants: map[string]string{},
@@ -316,6 +389,35 @@ func TestBuildPrepareBuildFileIncludesGitInfo(t *testing.T) {
 	require.Contains(t, text, "#define SAMPCTL_BUILD_COMMIT \""+commit+"\"")
 	require.Contains(t, text, "#define SAMPCTL_BUILD_COMMIT_SHORT \""+commit[:7]+"\"")
 	require.Contains(t, text, "#define SAMPCTL_BUILD_BRANCH \"main\"")
+}
+
+func TestBuildPrepareSkipsBuildFileWhenExplicitlyDisabled(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+
+	pcx := &PackageContext{
+		Package: pawnpackage.Package{
+			LocalPath: tempDir,
+			Entry:     "gamemodes/test.pwn",
+			Output:    "gamemodes/test.amx",
+			Experimental: &pawnpackage.ExperimentalConfig{
+				BuildFile: boolPtr(false),
+			},
+			Build: &build.Config{
+				Constants: map[string]string{
+					"DISABLED_CONST": "1",
+				},
+			},
+		},
+	}
+
+	_, err := pcx.buildPrepare(context.Background(), "", false, false)
+	require.NoError(t, err)
+
+	buildFilePath := filepath.Join(tempDir, "sampctl_build_file.inc")
+	_, err = os.Stat(buildFilePath)
+	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
 func toJSONArray(values []string) string {
