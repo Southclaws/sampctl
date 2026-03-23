@@ -27,7 +27,7 @@ func GetServerPackageContext(ctx context.Context, version, dir, platform string)
 		return errors.Wrap(err, "failed to get config dir")
 	}
 
-	hit, err := FromCache(cacheDir, version, dir, platform)
+	hit, err := FromCacheContext(ctx, cacheDir, version, dir, platform)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get package %s from cache", version)
 	}
@@ -45,7 +45,11 @@ func GetServerPackageContext(ctx context.Context, version, dir, platform string)
 
 // FromCache tries to grab a server package from cache, `hit` indicates if it was successful
 func FromCache(cacheDir, version, dir, platform string) (hit bool, err error) {
-	pkg, err := FindPackage(cacheDir, version)
+	return FromCacheContext(context.Background(), cacheDir, version, dir, platform)
+}
+
+func FromCacheContext(ctx context.Context, cacheDir, version, dir, platform string) (hit bool, err error) {
+	pkg, err := FindPackageContext(ctx, cacheDir, version)
 	if err != nil {
 		return
 	}
@@ -105,7 +109,7 @@ func FromNet(cacheDir, version, dir, platform string) (err error) {
 func FromNetContext(ctx context.Context, cacheDir, version, dir, platform string) (err error) {
 	print.Info("Downloading package", version, "into", dir)
 
-	pkg, err := FindPackage(cacheDir, version)
+	pkg, err := FindPackageContext(ctx, cacheDir, version)
 	if err != nil {
 		return
 	}

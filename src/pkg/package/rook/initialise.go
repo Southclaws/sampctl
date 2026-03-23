@@ -306,7 +306,7 @@ func Init(
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			errInner := getTemplateFile(dir, ".gitignore", answers)
+			errInner := getTemplateFile(ctx, dir, ".gitignore", answers)
 			if errInner != nil {
 				print.Erro("Failed to get .gitignore template:", errInner)
 			}
@@ -314,7 +314,7 @@ func Init(
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			errInner := getTemplateFile(dir, ".gitattributes", answers)
+			errInner := getTemplateFile(ctx, dir, ".gitattributes", answers)
 			if errInner != nil {
 				print.Erro("Failed to get .gitattributes template:", errInner)
 			}
@@ -325,7 +325,7 @@ func Init(
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			errInner := getTemplateFile(dir, "README.md", answers)
+			errInner := getTemplateFile(ctx, dir, "README.md", answers)
 			if errInner != nil {
 				print.Erro("Failed to get readme template:", errInner)
 			}
@@ -337,7 +337,7 @@ func Init(
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			errInner := getTemplateFile(dir, ".vscode/tasks.json", answers)
+			errInner := getTemplateFile(ctx, dir, ".vscode/tasks.json", answers)
 			if errInner != nil {
 				print.Erro("Failed to get tasks.json template:", errInner)
 			}
@@ -346,7 +346,7 @@ func Init(
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			errInner := getTemplateFile(dir, "{{.Repo}}.sublime-project", answers)
+			errInner := getTemplateFile(ctx, dir, "{{.Repo}}.sublime-project", answers)
 			if errInner != nil {
 				print.Erro("Failed to get tasks.json template:", errInner)
 			}
@@ -381,7 +381,7 @@ func Init(
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			errInner := getTemplateFile(dir, ".editorconfig", answers)
+			errInner := getTemplateFile(ctx, dir, ".editorconfig", answers)
 			if errInner != nil {
 				print.Erro("Failed to get .editorconfig template:", errInner)
 			}
@@ -419,8 +419,13 @@ func Init(
 	return nil
 }
 
-func getTemplateFile(dir, filename string, answers Answers) (err error) {
-	resp, err := http.Get("https://raw.githubusercontent.com/sampctl/pawn-package-template/master/" + filename)
+func getTemplateFile(ctx context.Context, dir, filename string, answers Answers) (err error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://raw.githubusercontent.com/sampctl/pawn-package-template/master/"+filename, nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return
 	}
@@ -433,6 +438,10 @@ func getTemplateFile(dir, filename string, answers Answers) (err error) {
 			print.Warn("failed to close template response body:", errClose)
 		}
 	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return errors.Errorf("failed to download template %s: HTTP %d", filename, resp.StatusCode)
+	}
 
 	contents, err := io.ReadAll(resp.Body)
 	if err != nil {

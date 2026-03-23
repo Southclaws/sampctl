@@ -2,9 +2,7 @@
 // including Pawn libraries, server binaries, plugins, compilers, and arbitrary files.
 package resource
 
-import (
-	"context"
-)
+import "context"
 
 // Resource represents a unified interface for all types of dependencies in sampctl.
 // This interface allows the same dependency resolution algorithm to be used for:
@@ -63,33 +61,3 @@ const (
 	// ResourceTypeLuaScript represents a Lua script
 	ResourceTypeLuaScript ResourceType = "lua-script"
 )
-
-// ResourceManager handles operations on multiple resources
-type ResourceManager interface {
-	// GetResource retrieves a resource by identifier
-	GetResource(identifier string) (Resource, error)
-
-	// AddResource adds a resource to the manager
-	AddResource(resource Resource)
-
-	// ListResources lists all available resources of a given type
-	ListResources(resourceType ResourceType) ([]Resource, error)
-
-	// EnsureAll ensures all resources in a dependency tree
-	EnsureAll(ctx context.Context, resources []Resource) error
-
-	// CleanCache removes unused cached resources
-	CleanCache() error
-}
-
-// ResourceFactory creates Resource instances from various sources
-type ResourceFactory interface {
-	// FromDependencyString creates a resource from a dependency string (e.g., "user/repo:tag")
-	FromDependencyString(depString string, resourceType ResourceType) (Resource, error)
-
-	// FromURL creates a resource from a direct URL
-	FromURL(url string, resourceType ResourceType) (Resource, error)
-
-	// FromLocal creates a resource from a local path
-	FromLocal(path string, resourceType ResourceType) (Resource, error)
-}

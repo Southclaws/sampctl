@@ -1,6 +1,7 @@
 package rook
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"os"
@@ -56,7 +57,7 @@ func TestGetTemplateFile(t *testing.T) {
 	})
 	defer func() { http.DefaultTransport = oldTransport }()
 
-	require.NoError(t, getTemplateFile(tmpDir, "README.md", answers))
+	require.NoError(t, getTemplateFile(context.Background(), tmpDir, "README.md", answers))
 	contents, err := os.ReadFile(filepath.Join(tmpDir, "README.md"))
 	require.NoError(t, err)
 	assert.Equal(t, "repo=my-repo escaped=my--repo", string(contents))
@@ -78,9 +79,27 @@ func TestGetTemplateFileDuplicate(t *testing.T) {
 	})
 	defer func() { http.DefaultTransport = oldTransport }()
 
-	require.NoError(t, getTemplateFile(tmpDir, "README.md", answers))
+	require.NoError(t, getTemplateFile(context.Background(), tmpDir, "README.md", answers))
 	assert.FileExists(t, filepath.Join(tmpDir, "README.md-duplicate"))
 	contents, err := os.ReadFile(filepath.Join(tmpDir, "README.md-duplicate"))
 	require.NoError(t, err)
 	assert.Equal(t, "new-content", string(contents))
+}
+
+func TestGetTemplateFileHonorsContextCancellation(t *testing.T) {
+	tmpDir := t.TempDir()
+	answers := Answers{Repo: "my-repo"}
+
+	oldTransport := http.DefaultTransport
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		<-req.Context().Done()
+		return nil, req.Context().Err()
+	})
+	defer func() { http.DefaultTransport = oldTransport }()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := getTemplateFile(ctx, tmpDir, "README.md", answers)
+	require.ErrorIs(t, err, context.Canceled)
 }

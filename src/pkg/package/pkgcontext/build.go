@@ -333,7 +333,11 @@ func (pcx *PackageContext) buildPrepare(
 	}
 
 	if config.WorkingDir == "" {
-		config.WorkingDir = filepath.Dir(fs.MustAbs(pcx.Package.Entry))
+		entryPath, absErr := fs.Abs(pcx.Package.Entry)
+		if absErr != nil {
+			return nil, errors.Wrap(absErr, "failed to resolve package entry path")
+		}
+		config.WorkingDir = filepath.Dir(entryPath)
 	}
 	if config.Input == "" {
 		config.Input = filepath.Join(pcx.Package.LocalPath, pcx.Package.Entry)
@@ -347,7 +351,10 @@ func (pcx *PackageContext) buildPrepare(
 		if !filepath.IsAbs(compilerPath) {
 			compilerPath = filepath.Join(pcx.Package.LocalPath, compilerPath)
 		}
-		config.Compiler.Path = fs.MustAbs(compilerPath)
+		config.Compiler.Path, err = fs.Abs(compilerPath)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to resolve compiler path")
+		}
 	}
 
 	config.Includes = append(config.Includes, pcx.Package.LocalPath)

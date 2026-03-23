@@ -1,6 +1,7 @@
 package versioning
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,7 +12,7 @@ import (
 
 func TestMain(m *testing.M) {
 	originalLoader := remoteOverridesLoader
-	remoteOverridesLoader = func() map[string]string {
+	remoteOverridesLoader = func(context.Context) map[string]string {
 		return map[string]string{}
 	}
 	ResetDependencyOverrides()
@@ -169,6 +170,24 @@ func TestLoadDependencyOverridesWithNonexistentFile(t *testing.T) {
 	for original, replacement := range DependencyOverrides {
 		assert.Equal(t, replacement, loadedOverrides[original])
 	}
+}
+
+func TestLoadDependencyOverridesContextPassesContextToRemoteLoader(t *testing.T) {
+	originalLoader := remoteOverridesLoader
+	defer func() { remoteOverridesLoader = originalLoader }()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	observedCanceled := false
+	remoteOverridesLoader = func(ctx context.Context) map[string]string {
+		observedCanceled = ctx.Err() == context.Canceled
+		return map[string]string{}
+	}
+
+	got := LoadDependencyOverridesContext(ctx, filepath.Join(t.TempDir(), "dependency-overrides.json"))
+	require.NotNil(t, got)
+	assert.True(t, observedCanceled)
 }
 
 func TestApplyDependencyOverridesWithConfig(t *testing.T) {

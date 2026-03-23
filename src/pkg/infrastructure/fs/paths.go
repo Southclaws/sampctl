@@ -32,13 +32,11 @@ func Rel(path string) string {
 	return rel
 }
 
+// Exists reports whether a path can be statted successfully.
 func Exists(path string) bool {
 	_, err := os.Stat(path)
 	if os.IsNotExist(err) {
 		return false
 	}
-	if err != nil {
-		panic(err)
-	}
-	return true
+	return err == nil
 }

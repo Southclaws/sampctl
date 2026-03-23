@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"os"
@@ -94,11 +95,15 @@ func MatchesChecksum(src, platform, cacheDir, version string) (ok bool, err erro
 
 // FindPackage returns a server resource package for the given version or nil if it's invalid
 func FindPackage(cacheDir, version string) (runtime download.RuntimePackage, err error) {
-	return findPackageRecursive(cacheDir, version, true)
+	return FindPackageContext(context.Background(), cacheDir, version)
 }
 
-func findPackageRecursive(cacheDir, version string, aliases bool) (runtime download.RuntimePackage, err error) {
-	packages, err := download.GetRuntimeList(cacheDir)
+func FindPackageContext(ctx context.Context, cacheDir, version string) (runtime download.RuntimePackage, err error) {
+	return findPackageRecursive(ctx, cacheDir, version, true)
+}
+
+func findPackageRecursive(ctx context.Context, cacheDir, version string, aliases bool) (runtime download.RuntimePackage, err error) {
+	packages, err := download.GetRuntimeListContext(ctx, cacheDir)
 	if err != nil {
 		return
 	}
@@ -111,7 +116,7 @@ func findPackageRecursive(cacheDir, version string, aliases bool) (runtime downl
 	if aliases {
 		for alias, target := range packages.Aliases {
 			if alias == version {
-				return findPackageRecursive(cacheDir, target, false)
+				return findPackageRecursive(ctx, cacheDir, target, false)
 			}
 		}
 	}

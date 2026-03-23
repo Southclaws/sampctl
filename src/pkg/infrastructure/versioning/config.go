@@ -21,19 +21,28 @@ const (
 	// RemoteOverridesURL is the URL to fetch dependency overrides from
 	RemoteOverridesURL = "https://raw.githubusercontent.com/sampctl/plugins/refs/heads/master/dependency-overrides.json"
 	// CacheValidityDuration is how long the cached overrides are valid
-	CacheValidityDuration = 24 * time.Hour
+	CacheValidityDuration         = 24 * time.Hour
+	defaultRemoteOverridesTimeout = 10 * time.Second
 )
 
 var remoteOverridesLoader = defaultRemoteOverridesLoader
 
 // DefaultDependencyOverridesPath returns the default path for the dependency overrides configuration file
 func DefaultDependencyOverridesPath() string {
-	return filepath.Join(fs.MustConfigDir(), "dependency-overrides.json")
+	dir, err := fs.ConfigDir()
+	if err != nil {
+		return filepath.Join(".", "dependency-overrides.json")
+	}
+	return filepath.Join(dir, "dependency-overrides.json")
 }
 
 // DefaultDependencyOverridesCachePath returns the default path for the cached remote dependency overrides
 func DefaultDependencyOverridesCachePath() string {
-	return filepath.Join(fs.MustConfigDir(), "remote-dependency-overrides.json")
+	dir, err := fs.ConfigDir()
+	if err != nil {
+		return filepath.Join(".", "remote-dependency-overrides.json")
+	}
+	return filepath.Join(dir, "remote-dependency-overrides.json")
 }
 
 // isCacheValid checks if the cached file exists and is within the validity period
@@ -45,9 +54,25 @@ func isCacheValid(cachePath string) bool {
 	return time.Since(info.ModTime()) < CacheValidityDuration
 }
 
-// downloadRemoteOverrides downloads dependency overrides from the remote URL
-func downloadRemoteOverrides(url, cachePath string) error {
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+func defaultDependencyOverridesPath() (string, error) {
+	dir, err := fs.ConfigDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get config dir: %w", err)
+	}
+	return filepath.Join(dir, "dependency-overrides.json"), nil
+}
+
+func defaultDependencyOverridesCachePath() (string, error) {
+	dir, err := fs.ConfigDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get config dir: %w", err)
+	}
+	return filepath.Join(dir, "remote-dependency-overrides.json"), nil
+}
+
+// downloadRemoteOverrides downloads dependency overrides from the remote URL.
+func downloadRemoteOverrides(ctx context.Context, url, cachePath string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -65,16 +90,25 @@ func downloadRemoteOverrides(url, cachePath string) error {
 	return nil
 }
 
-func loadRemoteOverrides() map[string]string {
-	return remoteOverridesLoader()
+func loadRemoteOverrides(ctx context.Context) map[string]string {
+	if ctx == nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), defaultRemoteOverridesTimeout)
+		defer cancel()
+	}
+
+	return remoteOverridesLoader(ctx)
 }
 
 // defaultRemoteOverridesLoader downloads dependency overrides from the remote URL with caching.
-func defaultRemoteOverridesLoader() map[string]string {
-	cachePath := DefaultDependencyOverridesCachePath()
+func defaultRemoteOverridesLoader(ctx context.Context) map[string]string {
+	cachePath, err := defaultDependencyOverridesCachePath()
+	if err != nil {
+		return make(map[string]string)
+	}
 
 	if !isCacheValid(cachePath) {
-		if err := downloadRemoteOverrides(RemoteOverridesURL, cachePath); err != nil {
+		if err := downloadRemoteOverrides(ctx, RemoteOverridesURL, cachePath); err != nil {
 			return make(map[string]string)
 		}
 	}
@@ -98,6 +132,20 @@ func defaultRemoteOverridesLoader() map[string]string {
 // 3. Local configuration file
 // Later sources override earlier ones
 func LoadDependencyOverrides(configPath string) map[string]string {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultRemoteOverridesTimeout)
+	defer cancel()
+
+	return LoadDependencyOverridesContext(ctx, configPath)
+}
+
+// LoadDependencyOverridesContext loads dependency overrides with the provided context.
+func LoadDependencyOverridesContext(ctx context.Context, configPath string) map[string]string {
+	if ctx == nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), defaultRemoteOverridesTimeout)
+		defer cancel()
+	}
+
 	// Start with built-in overrides
 	overrides := make(map[string]string)
 	for k, v := range DependencyOverrides {
@@ -105,13 +153,17 @@ func LoadDependencyOverrides(configPath string) map[string]string {
 	}
 
 	// Load and merge remote overrides
-	remoteOverrides := loadRemoteOverrides()
+	remoteOverrides := loadRemoteOverrides(ctx)
 	for original, replacement := range remoteOverrides {
 		overrides[original] = replacement
 	}
 
 	if configPath == "" {
-		configPath = DefaultDependencyOverridesPath()
+		var err error
+		configPath, err = defaultDependencyOverridesPath()
+		if err != nil {
+			return overrides
+		}
 	}
 
 	data, err := os.ReadFile(configPath)
@@ -136,7 +188,11 @@ func LoadDependencyOverrides(configPath string) map[string]string {
 // SaveDependencyOverrides saves dependency overrides to a configuration file
 func SaveDependencyOverrides(overrides map[string]string, configPath string) error {
 	if configPath == "" {
-		configPath = DefaultDependencyOverridesPath()
+		var err error
+		configPath, err = defaultDependencyOverridesPath()
+		if err != nil {
+			return err
+		}
 	}
 
 	// Create directory if it doesn't exist
@@ -160,7 +216,10 @@ func SaveDependencyOverrides(overrides map[string]string, configPath string) err
 // ClearRemoteOverridesCache removes the cached remote overrides file
 // This is useful for testing or when you want to force a fresh download
 func ClearRemoteOverridesCache() error {
-	cachePath := DefaultDependencyOverridesCachePath()
+	cachePath, err := defaultDependencyOverridesCachePath()
+	if err != nil {
+		return err
+	}
 	if _, err := os.Stat(cachePath); os.IsNotExist(err) {
 		return nil // File doesn't exist, nothing to clear
 	}

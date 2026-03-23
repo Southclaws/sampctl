@@ -59,6 +59,7 @@ func (pcx *PackageContext) RunWatch(ctx context.Context) (err error) {
 		errorCh <- pcx.BuildWatch(ctx, pcx.BuildName, pcx.ForceEnsure, pcx.BuildFile, pcx.Relative, trigger)
 	}()
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(signals)
 
 	print.Verb(pcx.Package, "starting run watcher")
 
@@ -91,7 +92,14 @@ loop:
 				defer cancel()
 			}
 
-			err = pcx.runtimeEnvironment().CopyFileToRuntime(pcx.CacheDir, pcx.ActualRuntime.Version, fs.MustAbs(pcx.Package.Output))
+			outputPath, absErr := fs.Abs(pcx.Package.Output)
+			if absErr != nil {
+				err = errors.Wrap(absErr, "failed to resolve package output path")
+				print.Erro(err)
+				continue
+			}
+
+			err = pcx.runtimeEnvironment().CopyFileToRuntime(pcx.CacheDir, pcx.ActualRuntime.Version, outputPath)
 			if err != nil {
 				err = errors.Wrap(err, "failed to copy amx file to temporary runtime directory")
 				print.Erro(err)

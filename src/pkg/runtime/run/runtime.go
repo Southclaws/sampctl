@@ -283,7 +283,7 @@ func GetRuntimeDefault() (config *Runtime) {
 // empty fields
 func ApplyRuntimeDefaults(rt *Runtime) {
 	if rt == nil {
-		panic("cannot apply runtime defaults to nil pointer")
+		return
 	}
 
 	def := GetRuntimeDefault()
@@ -331,7 +331,7 @@ func (cfg Runtime) ToJSON() (err error) {
 
 	if fs.Exists(path) {
 		if err = os.Remove(path); err != nil {
-			panic(err)
+			return errors.Wrap(err, "failed to replace existing samp.json")
 		}
 	}
 
@@ -340,9 +340,9 @@ func (cfg Runtime) ToJSON() (err error) {
 		return
 	}
 	defer func() {
-		err = fh.Close()
-		if err != nil {
-			panic(err)
+		closeErr := fh.Close()
+		if err == nil {
+			err = closeErr
 		}
 	}()
 
@@ -361,7 +361,7 @@ func (cfg Runtime) ToYAML() (err error) {
 
 	if fs.Exists(path) {
 		if err = os.Remove(path); err != nil {
-			panic(err)
+			return errors.Wrap(err, "failed to replace existing samp.yaml")
 		}
 	}
 
@@ -370,8 +370,9 @@ func (cfg Runtime) ToYAML() (err error) {
 		return
 	}
 	defer func() {
-		if err = fh.Close(); err != nil {
-			panic(err)
+		closeErr := fh.Close()
+		if err == nil {
+			err = closeErr
 		}
 	}()
 
