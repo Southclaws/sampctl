@@ -162,21 +162,19 @@ func TestOpenMPConfigGeneration(t *testing.T) {
 }
 
 func TestConfigGeneratorSelection(t *testing.T) {
-	// Test SA-MP generator selection
 	sampCfg := &run.Runtime{
 		WorkingDir: "/tmp",
 		Version:    "0.3.7",
 	}
-	generator := GetConfigGenerator(sampCfg)
-	assert.Equal(t, "server.cfg", generator.GetConfigFilename())
+	generator := newConfigGenerator(sampCfg)
+	assert.Equal(t, "server.cfg", generator.configFilename())
 
-	// Test open.mp generator selection
 	openmpCfg := &run.Runtime{
 		WorkingDir: "/tmp",
 		Version:    "1.2.0-openmp",
 	}
-	generator = GetConfigGenerator(openmpCfg)
-	assert.Equal(t, "config.json", generator.GetConfigFilename())
+	generator = newConfigGenerator(openmpCfg)
+	assert.Equal(t, "config.json", generator.configFilename())
 }
 
 func TestExtraFieldsSupport(t *testing.T) {
@@ -309,8 +307,8 @@ func TestOpenMPConfigGenerateWithExtraServerCfg(t *testing.T) {
 	}
 
 	// Generate the config
-	generator := NewOpenMPConfig(tmpDir)
-	err = generator.Generate(cfg)
+	generator := newOpenMPConfig(tmpDir)
+	err = generator.generate(cfg)
 	require.NoError(t, err)
 
 	// Check that config.json was created
@@ -344,8 +342,8 @@ func TestOpenMPConfigGenerateWithoutExtraServerCfg(t *testing.T) {
 	}
 
 	// Generate the config
-	generator := NewOpenMPConfig(tmpDir)
-	err = generator.Generate(cfg)
+	generator := newOpenMPConfig(tmpDir)
+	err = generator.generate(cfg)
 	require.NoError(t, err)
 
 	// Check that config.json was created

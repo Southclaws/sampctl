@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 )
@@ -259,4 +260,31 @@ func newFakeServerDir(t *testing.T) string {
 	}
 
 	return dir
+}
+
+func TestGenerateConfigMissingPluginDirKeepsDeclaredPlugins(t *testing.T) {
+	t.Parallel()
+
+	rconPassword := "test"
+	cfg := run.Runtime{
+		Platform:     "linux",
+		WorkingDir:   t.TempDir(),
+		Plugins:      []run.Plugin{"mysql"},
+		RCONPassword: &rconPassword,
+	}
+
+	err := GenerateConfig(&cfg)
+	require.NoError(t, err)
+
+	raw, err := os.ReadFile(filepath.Join(cfg.WorkingDir, "server.cfg"))
+	require.NoError(t, err)
+	assert.Contains(t, string(raw), "plugins mysql.so")
+}
+
+func TestGetPluginsReturnsErrorForUnsupportedPlatform(t *testing.T) {
+	t.Parallel()
+
+	_, err := getPlugins(t.TempDir(), "plan9")
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "unsupported OS")
 }

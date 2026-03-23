@@ -10,6 +10,8 @@ import (
 	runtimepkg "github.com/Southclaws/sampctl/src/pkg/runtime/runtime"
 )
 
+var _ RuntimeEnvironment = runtimeEnvironmentAdapter{}
+
 type runtimeEnvironmentAdapter struct{}
 
 func (runtimeEnvironmentAdapter) Run(ctx context.Context, cfg runtimecfg.Runtime, cacheDir string, passArgs, recover bool, output io.Writer, input io.Reader) error {
@@ -24,11 +26,8 @@ func (runtimeEnvironmentAdapter) CopyFileToRuntime(cacheDir, version, amxFile st
 	return runtimepkg.CopyFileToRuntime(cacheDir, version, amxFile)
 }
 
-func (runtimeEnvironmentAdapter) Ensure(ctx context.Context, gh any, cfg *runtimecfg.Runtime, noCache bool) error {
-	if ghClient, ok := gh.(*github.Client); ok {
-		return runtimepkg.Ensure(ctx, ghClient, cfg, noCache)
-	}
-	return runtimepkg.Ensure(ctx, nil, cfg, noCache)
+func (runtimeEnvironmentAdapter) Ensure(ctx context.Context, gh *github.Client, cfg *runtimecfg.Runtime, noCache bool) error {
+	return runtimepkg.Ensure(ctx, gh, cfg, noCache)
 }
 
 func (runtimeEnvironmentAdapter) GenerateConfig(cfg *runtimecfg.Runtime) error {

@@ -1,0 +1,498 @@
+package runtime
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"github.com/pkg/errors"
+	"golang.org/x/text/encoding/charmap"
+	"golang.org/x/text/transform"
+
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
+	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
+)
+
+type openMPConfig struct {
+	workingDir string
+}
+
+type openMPConfigData struct {
+	Name        string  `json:"name,omitempty"`
+	MaxPlayers  int     `json:"max_players,omitempty"`
+	MaxBots     int     `json:"max_bots,omitempty"`
+	Language    string  `json:"language,omitempty"`
+	Password    string  `json:"password,omitempty"`
+	Announce    bool    `json:"announce"`
+	EnableQuery bool    `json:"enable_query"`
+	Website     string  `json:"website,omitempty"`
+	Sleep       float64 `json:"sleep,omitempty"`
+	UseDynTicks bool    `json:"use_dyn_ticks"`
+
+	Game    *openMPGameConfig    `json:"game,omitempty"`
+	Network *openMPNetworkConfig `json:"network,omitempty"`
+	Logging *openMPLoggingConfig `json:"logging,omitempty"`
+	RCON    *openMPRCONConfig    `json:"rcon,omitempty"`
+	Pawn    *openMPPawnConfig    `json:"pawn,omitempty"`
+	Discord *openMPDiscordConfig `json:"discord,omitempty"`
+	Banners *openMPBannersConfig `json:"banners,omitempty"`
+	Logo    string               `json:"logo,omitempty"`
+	Artwork *openMPArtworkConfig `json:"artwork,omitempty"`
+
+	Extra map[string]any `json:"-"`
+}
+
+type openMPGameConfig struct {
+	AllowInteriorWeapons      *bool    `json:"allow_interior_weapons"`
+	ChatRadius                *float64 `json:"chat_radius,omitempty"`
+	DeathDropAmount           *int     `json:"death_drop_amount,omitempty"`
+	Gravity                   *float64 `json:"gravity,omitempty"`
+	GroupPlayerObjects        *bool    `json:"group_player_objects,omitempty"`
+	LagCompensationMode       *int     `json:"lag_compensation_mode,omitempty"`
+	Map                       *string  `json:"map,omitempty"`
+	Mode                      *string  `json:"mode,omitempty"`
+	NametagDrawRadius         *float64 `json:"nametag_draw_radius,omitempty"`
+	PlayerMarkerDrawRadius    *float64 `json:"player_marker_draw_radius,omitempty"`
+	PlayerMarkerMode          *int     `json:"player_marker_mode,omitempty"`
+	Time                      *int     `json:"time,omitempty"`
+	UseAllAnimations          *bool    `json:"use_all_animations,omitempty"`
+	UseChatRadius             *bool    `json:"use_chat_radius,omitempty"`
+	UseEntryExitMarkers       *bool    `json:"use_entry_exit_markers"`
+	UseInstagib               *bool    `json:"use_instagib,omitempty"`
+	UseManualEngineAndLights  *bool    `json:"use_manual_engine_and_lights,omitempty"`
+	UseNametagLOS             *bool    `json:"use_nametag_los"`
+	UseNametags               *bool    `json:"use_nametags"`
+	UsePlayerMarkerDrawRadius *bool    `json:"use_player_marker_draw_radius,omitempty"`
+	UsePlayerPedAnims         *bool    `json:"use_player_ped_anims,omitempty"`
+	UseStuntBonuses           *bool    `json:"use_stunt_bonuses"`
+	UseVehicleFriendlyFire    *bool    `json:"use_vehicle_friendly_fire,omitempty"`
+	UseZoneNames              *bool    `json:"use_zone_names,omitempty"`
+	ValidateAnimations        *bool    `json:"validate_animations"`
+	VehicleRespawnTime        *int     `json:"vehicle_respawn_time,omitempty"`
+	Weather                   *int     `json:"weather,omitempty"`
+}
+
+type openMPNetworkConfig struct {
+	AcksLimit             *int     `json:"acks_limit,omitempty"`
+	AimingSyncRate        *int     `json:"aiming_sync_rate,omitempty"`
+	Allow037Clients       *bool    `json:"allow_037_clients"`
+	UseOMPEncryption      *bool    `json:"use_omp_encryption,omitempty"`
+	Bind                  *string  `json:"bind,omitempty"`
+	CookieReseedTime      *int     `json:"cookie_reseed_time,omitempty"`
+	GracePeriod           *int     `json:"grace_period,omitempty"`
+	HTTPThreads           *int     `json:"http_threads,omitempty"`
+	InVehicleSyncRate     *int     `json:"in_vehicle_sync_rate,omitempty"`
+	LimitsBanTime         *int     `json:"limits_ban_time,omitempty"`
+	MessageHoleLimit      *int     `json:"message_hole_limit,omitempty"`
+	MessagesLimit         *int     `json:"messages_limit,omitempty"`
+	MinimumConnectionTime *int     `json:"minimum_connection_time,omitempty"`
+	MTU                   *int     `json:"mtu,omitempty"`
+	Multiplier            *int     `json:"multiplier,omitempty"`
+	OnFootSyncRate        *int     `json:"on_foot_sync_rate,omitempty"`
+	PlayerMarkerSyncRate  *int     `json:"player_marker_sync_rate,omitempty"`
+	PlayerTimeout         *int     `json:"player_timeout,omitempty"`
+	Port                  *int     `json:"port,omitempty"`
+	PublicAddr            *string  `json:"public_addr,omitempty"`
+	StreamRadius          *float64 `json:"stream_radius,omitempty"`
+	StreamRate            *int     `json:"stream_rate,omitempty"`
+	TimeSyncRate          *int     `json:"time_sync_rate,omitempty"`
+	UseLANMode            *bool    `json:"use_lan_mode,omitempty"`
+}
+
+type openMPLoggingConfig struct {
+	Enable                *bool   `json:"enable"`
+	File                  *string `json:"file,omitempty"`
+	LogChat               *bool   `json:"log_chat"`
+	LogConnectionMessages *bool   `json:"log_connection_messages"`
+	LogCookies            *bool   `json:"log_cookies,omitempty"`
+	LogDeaths             *bool   `json:"log_deaths"`
+	LogQueries            *bool   `json:"log_queries,omitempty"`
+	LogSQLite             *bool   `json:"log_sqlite,omitempty"`
+	LogSQLiteQueries      *bool   `json:"log_sqlite_queries,omitempty"`
+	TimestampFormat       *string `json:"timestamp_format,omitempty"`
+	UsePrefix             *bool   `json:"use_prefix"`
+	UseTimestamp          *bool   `json:"use_timestamp"`
+}
+
+type openMPRCONConfig struct {
+	AllowTeleport *bool   `json:"allow_teleport,omitempty"`
+	Enable        *bool   `json:"enable,omitempty"`
+	Password      *string `json:"password,omitempty"`
+}
+
+type openMPPawnConfig struct {
+	LegacyPlugins []string `json:"legacy_plugins,omitempty"`
+	Components    []string `json:"components,omitempty"`
+	MainScripts   []string `json:"main_scripts,omitempty"`
+	SideScripts   []string `json:"side_scripts,omitempty"`
+}
+
+type openMPDiscordConfig struct {
+	Invite string `json:"invite,omitempty"`
+}
+
+type openMPBannersConfig struct {
+	Light string `json:"light,omitempty"`
+	Dark  string `json:"dark,omitempty"`
+}
+
+type openMPArtworkConfig struct {
+	CDN           *string `json:"cdn,omitempty"`
+	Enable        *bool   `json:"enable"`
+	ModelsPath    *string `json:"models_path,omitempty"`
+	Port          *int    `json:"port,omitempty"`
+	WebServerBind *string `json:"web_server_bind,omitempty"`
+}
+
+func newOpenMPConfig(workingDir string) *openMPConfig {
+	return &openMPConfig{workingDir: workingDir}
+}
+
+func (o *openMPConfig) configFilename() string {
+	return "config.json"
+}
+
+func (o *openMPConfig) generate(cfg *run.Runtime) (err error) {
+	serverCfgPath := filepath.Join(o.workingDir, "server.cfg")
+	if _, err := os.Stat(serverCfgPath); err == nil {
+		print.Verb("Removing existing server.cfg file (open.mp uses config.json)")
+		if removeErr := os.Remove(serverCfgPath); removeErr != nil {
+			return errors.Wrap(removeErr, "failed to remove stale server.cfg")
+		}
+	}
+
+	config := &openMPConfigData{
+		UseDynTicks: true,
+		Extra:       make(map[string]any),
+	}
+
+	if cfg.MaxBots != nil {
+		config.MaxBots = *cfg.MaxBots
+	}
+	if cfg.UseDynTicks != nil {
+		config.UseDynTicks = *cfg.UseDynTicks
+	}
+	if cfg.Logo != nil {
+		config.Logo = *cfg.Logo
+	}
+
+	if cfg.Hostname != nil {
+		config.Name = *cfg.Hostname
+	}
+	if cfg.MaxPlayers != nil {
+		config.MaxPlayers = *cfg.MaxPlayers
+	}
+	if cfg.Language != nil && *cfg.Language != "-" {
+		config.Language = *cfg.Language
+	}
+	if cfg.Password != nil {
+		config.Password = *cfg.Password
+	}
+	if cfg.Announce != nil {
+		config.Announce = *cfg.Announce
+	}
+	if cfg.Query != nil {
+		config.EnableQuery = *cfg.Query
+	}
+	if cfg.Weburl != nil && *cfg.Weburl != "open.mp" {
+		config.Website = *cfg.Weburl
+	}
+	if cfg.Sleep != nil {
+		config.Sleep = float64(*cfg.Sleep)
+	}
+
+	defaultTrue := true
+	config.Game = &openMPGameConfig{
+		AllowInteriorWeapons: &defaultTrue,
+		UseEntryExitMarkers:  &defaultTrue,
+		UseNametagLOS:        &defaultTrue,
+		UseNametags:          &defaultTrue,
+		UseStuntBonuses:      &defaultTrue,
+		ValidateAnimations:   &defaultTrue,
+	}
+	config.Network = &openMPNetworkConfig{
+		Allow037Clients: &defaultTrue,
+	}
+	config.Logging = &openMPLoggingConfig{
+		Enable:                &defaultTrue,
+		LogChat:               &defaultTrue,
+		LogConnectionMessages: &defaultTrue,
+		LogDeaths:             &defaultTrue,
+		UsePrefix:             &defaultTrue,
+		UseTimestamp:          &defaultTrue,
+	}
+	config.RCON = &openMPRCONConfig{}
+	config.Pawn = &openMPPawnConfig{}
+
+	if cfg.LagCompmode != nil {
+		config.Game.LagCompensationMode = cfg.LagCompmode
+	}
+	if cfg.Mapname != nil && *cfg.Mapname != "San Andreas" {
+		config.Game.Map = cfg.Mapname
+	}
+	if cfg.GamemodeText != nil && *cfg.GamemodeText != "Unknown" {
+		config.Game.Mode = cfg.GamemodeText
+	}
+
+	if cfg.Port != nil {
+		config.Network.Port = cfg.Port
+	}
+	if cfg.Bind != nil {
+		config.Network.Bind = cfg.Bind
+	}
+	if cfg.OnFootRate != nil {
+		config.Network.OnFootSyncRate = cfg.OnFootRate
+	}
+	if cfg.InCarRate != nil {
+		config.Network.InVehicleSyncRate = cfg.InCarRate
+	}
+	if cfg.WeaponRate != nil {
+		config.Network.AimingSyncRate = cfg.WeaponRate
+	}
+	if cfg.StreamRate != nil {
+		config.Network.StreamRate = cfg.StreamRate
+	}
+	if cfg.StreamDistance != nil {
+		distance := float64(*cfg.StreamDistance)
+		config.Network.StreamRadius = &distance
+	}
+	if cfg.MessageHoleLimit != nil {
+		config.Network.MessageHoleLimit = cfg.MessageHoleLimit
+	}
+	if cfg.MessagesLimit != nil {
+		config.Network.MessagesLimit = cfg.MessagesLimit
+	}
+	if cfg.AcksLimit != nil {
+		config.Network.AcksLimit = cfg.AcksLimit
+	}
+	if cfg.PlayerTimeout != nil {
+		config.Network.PlayerTimeout = cfg.PlayerTimeout
+	}
+	if cfg.MinConnectionTime != nil {
+		config.Network.MinimumConnectionTime = cfg.MinConnectionTime
+	}
+	if cfg.ConnseedTime != nil {
+		config.Network.CookieReseedTime = cfg.ConnseedTime
+	}
+	if cfg.LANMode != nil {
+		config.Network.UseLANMode = cfg.LANMode
+	}
+
+	if cfg.Output != nil {
+		config.Logging.Enable = cfg.Output
+	}
+	if cfg.ChatLogging != nil {
+		config.Logging.LogChat = cfg.ChatLogging
+	}
+	if cfg.LogQueries != nil {
+		config.Logging.LogQueries = cfg.LogQueries
+	}
+	if cfg.CookieLogging != nil {
+		config.Logging.LogCookies = cfg.CookieLogging
+	}
+	if cfg.DBLogging != nil {
+		config.Logging.LogSQLite = cfg.DBLogging
+	}
+	if cfg.DBLogQueries != nil {
+		config.Logging.LogSQLiteQueries = cfg.DBLogQueries
+	}
+	if cfg.Timestamp != nil {
+		config.Logging.UseTimestamp = cfg.Timestamp
+	}
+	if cfg.LogTimeFormat != nil {
+		config.Logging.TimestampFormat = cfg.LogTimeFormat
+	}
+
+	if cfg.RCON != nil {
+		config.RCON.Enable = cfg.RCON
+	}
+	if cfg.RCONPassword != nil {
+		config.RCON.Password = cfg.RCONPassword
+	}
+
+	if len(cfg.Plugins) > 0 {
+		plugins := make([]string, len(cfg.Plugins))
+		for i, plugin := range cfg.Plugins {
+			pluginStr := string(plugin)
+			if strings.HasSuffix(pluginStr, ".so") || strings.HasSuffix(pluginStr, ".dll") {
+				pluginStr = strings.TrimSuffix(pluginStr, filepath.Ext(pluginStr))
+			}
+			plugins[i] = pluginStr
+		}
+		config.Pawn.LegacyPlugins = plugins
+	}
+
+	if len(cfg.Components) > 0 {
+		components := make([]string, len(cfg.Components))
+		for i, component := range cfg.Components {
+			componentStr := string(component)
+			if strings.HasSuffix(componentStr, ".so") || strings.HasSuffix(componentStr, ".dll") {
+				componentStr = strings.TrimSuffix(componentStr, filepath.Ext(componentStr))
+			}
+			components[i] = componentStr
+		}
+		config.Pawn.Components = components
+	}
+
+	if len(cfg.Gamemodes) > 0 {
+		config.Pawn.MainScripts = cfg.Gamemodes
+	}
+	if len(cfg.Filterscripts) > 0 {
+		config.Pawn.SideScripts = cfg.Filterscripts
+	}
+
+	if cfg.Extra != nil {
+		for key, value := range cfg.Extra {
+			config.Extra[key] = value
+		}
+	}
+
+	jsonData := make(map[string]any)
+
+	structuredBytes, err := json.Marshal(config)
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal structured config")
+	}
+	if err := json.Unmarshal(structuredBytes, &jsonData); err != nil {
+		return errors.Wrap(err, "failed to unmarshal structured config")
+	}
+
+	for key, value := range config.Extra {
+		jsonData[key] = value
+	}
+
+	deepMergeJSONIntoKey(jsonData, "game", cfg.Game)
+	deepMergeJSONIntoKey(jsonData, "network", cfg.Network)
+	deepMergeJSONIntoKey(jsonData, "logging", cfg.Logging)
+	deepMergeJSONIntoKey(jsonData, "pawn", cfg.Pawn)
+	deepMergeJSONIntoKey(jsonData, "discord", cfg.Discord)
+	deepMergeJSONIntoKey(jsonData, "banners", cfg.Banners)
+	deepMergeJSONIntoKey(jsonData, "artwork", cfg.Artwork)
+	deepMergeJSONIntoKey(jsonData, "rcon", cfg.RCONConfig)
+
+	file, err := os.Create(filepath.Join(o.workingDir, o.configFilename()))
+	if err != nil {
+		return err
+	}
+	defer closeConfigResource(&err, file, "failed to close config.json")
+
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(jsonData); err != nil {
+		return errors.Wrap(err, "failed to write config.json")
+	}
+
+	if err := o.generateLegacyServerCfg(cfg); err != nil {
+		return errors.Wrap(err, "failed to generate legacy server.cfg")
+	}
+
+	return nil
+}
+
+func (o *openMPConfig) generateLegacyServerCfg(cfg *run.Runtime) (err error) {
+	serverCfgPath := filepath.Join(o.workingDir, "server.cfg")
+	if len(cfg.Extra) == 0 {
+		print.Verb("No extra configuration found, skipping server.cfg generation")
+		return nil
+	}
+
+	print.Verb("Generating server.cfg for legacy plugin compatibility")
+
+	file, err := os.Create(serverCfgPath)
+	if err != nil {
+		return errors.Wrap(err, "failed to create server.cfg")
+	}
+	defer closeConfigResource(&err, file, "failed to close legacy server.cfg")
+
+	encoder := charmap.Windows1252.NewEncoder()
+	writer := transform.NewWriter(file, encoder)
+	defer closeConfigResource(&err, writer, "failed to flush legacy server.cfg")
+
+	if _, err = io.WriteString(writer, "# server.cfg generated by sampctl for legacy plugin compatibility\n"); err != nil {
+		return errors.Wrap(err, "failed to write header to server.cfg")
+	}
+
+	keys := make([]string, 0, len(cfg.Extra))
+	for key := range cfg.Extra {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		line := fmt.Sprintf("%s %s\n", key, cfg.Extra[key])
+		if _, err = io.WriteString(writer, line); err != nil {
+			return errors.Wrapf(err, "failed to write config line %q to server.cfg", key)
+		}
+	}
+
+	print.Verb("Generated server.cfg with", len(cfg.Extra), "extra configuration values")
+	return nil
+}
+
+func deepMergeJSONIntoKey(dst map[string]any, key string, src map[string]any) {
+	if src == nil {
+		return
+	}
+
+	existing, ok := dst[key]
+	if !ok || existing == nil {
+		newMap := make(map[string]any, len(src))
+		deepMergeJSON(newMap, src)
+		dst[key] = newMap
+		return
+	}
+
+	if existingMap, ok := existing.(map[string]any); ok {
+		deepMergeJSON(existingMap, src)
+		dst[key] = existingMap
+		return
+	}
+
+	newMap := make(map[string]any, len(src))
+	deepMergeJSON(newMap, src)
+	dst[key] = newMap
+}
+
+func deepMergeJSON(dst map[string]any, src map[string]any) {
+	for key, srcValue := range src {
+		if srcValue == nil {
+			dst[key] = nil
+			continue
+		}
+
+		srcMap, srcIsMap := srcValue.(map[string]any)
+		if !srcIsMap {
+			// yaml.v3 can sometimes decode nested maps as map[any]any.
+			if legacy, ok := srcValue.(map[any]any); ok {
+				srcMap = make(map[string]any, len(legacy))
+				for k, v := range legacy {
+					ks, ok := k.(string)
+					if !ok {
+						continue
+					}
+					srcMap[ks] = v
+				}
+				srcIsMap = true
+			}
+		}
+
+		if srcIsMap {
+			if existing, ok := dst[key].(map[string]any); ok {
+				deepMergeJSON(existing, srcMap)
+				dst[key] = existing
+				continue
+			}
+
+			newMap := make(map[string]any, len(srcMap))
+			deepMergeJSON(newMap, srcMap)
+			dst[key] = newMap
+			continue
+		}
+
+		dst[key] = srcValue
+	}
+}
