@@ -291,12 +291,12 @@ func TestUpdateTimestamp(t *testing.T) {
 
 func TestDependencyKeyWithOverride(t *testing.T) {
 	tests := []struct {
-		name            string
-		original        string
-		meta            versioning.DependencyMeta
-		expectedKey     string
-		lockfileHasOld  bool
-		shouldMatchOld  bool
+		name           string
+		original       string
+		meta           versioning.DependencyMeta
+		expectedKey    string
+		lockfileHasOld bool
+		shouldMatchOld bool
 	}{
 		{
 			name:     "overridden dependency uses new key",
@@ -430,13 +430,13 @@ func TestLockfileTransitiveDependencyWithOverride(t *testing.T) {
 	})
 
 	lf.AddDependency("github.com/AmyrAhmady/samp-plugin-crashdetect", LockedDependency{
-		Constraint:  ":4.x",
-		Resolved:    "4.2.2",
-		Commit:      "crash234567890123456789012345678901234",
-		User:        "AmyrAhmady",
-		Repo:        "samp-plugin-crashdetect",
-		Transitive:  true,
-		RequiredBy:  []string{"github.com/user/lib-a"},
+		Constraint: ":4.x",
+		Resolved:   "4.2.2",
+		Commit:     "crash234567890123456789012345678901234",
+		User:       "AmyrAhmady",
+		Repo:       "samp-plugin-crashdetect",
+		Transitive: true,
+		RequiredBy: []string{"github.com/user/lib-a"},
 	})
 
 	transitive := lf.TransitiveDependencies()

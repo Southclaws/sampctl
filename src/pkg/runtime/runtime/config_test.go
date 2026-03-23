@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -116,7 +117,7 @@ func TestOpenMPConfigGeneration(t *testing.T) {
 	content, err := os.ReadFile(configJSONPath)
 	require.NoError(t, err)
 
-	var config map[string]interface{}
+	var config map[string]any
 	err = json.Unmarshal(content, &config)
 	require.NoError(t, err)
 
@@ -125,34 +126,34 @@ func TestOpenMPConfigGeneration(t *testing.T) {
 	assert.Equal(t, float64(100), config["max_players"])
 
 	// Check network settings
-	network, ok := config["network"].(map[string]interface{})
+	network, ok := config["network"].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, float64(7777), network["port"])
 
 	// Check RCON settings
-	rcon, ok := config["rcon"].(map[string]interface{})
+	rcon, ok := config["rcon"].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, "testpass123", rcon["password"])
 
 	// Check Pawn settings
-	pawn, ok := config["pawn"].(map[string]interface{})
+	pawn, ok := config["pawn"].(map[string]any)
 	require.True(t, ok)
 
-	mainScripts, ok := pawn["main_scripts"].([]interface{})
+	mainScripts, ok := pawn["main_scripts"].([]any)
 	require.True(t, ok)
 	assert.Contains(t, mainScripts, "test")
 
-	sideScripts, ok := pawn["side_scripts"].([]interface{})
+	sideScripts, ok := pawn["side_scripts"].([]any)
 	require.True(t, ok)
 	assert.Contains(t, sideScripts, "admin")
 
-	legacyPlugins, ok := pawn["legacy_plugins"].([]interface{})
+	legacyPlugins, ok := pawn["legacy_plugins"].([]any)
 	require.True(t, ok)
 	assert.Contains(t, legacyPlugins, "mysql")
 	assert.Contains(t, legacyPlugins, "streamer")
 	assert.NotContains(t, legacyPlugins, "pawnraknet")
 
-	components, ok := pawn["components"].([]interface{})
+	components, ok := pawn["components"].([]any)
 	require.True(t, ok)
 	assert.Contains(t, components, "pawnraknet")
 	announceValue, ok := config["announce"].(bool)
@@ -207,7 +208,7 @@ func TestExtraFieldsSupport(t *testing.T) {
 	content, err := os.ReadFile(configJSONPath)
 	require.NoError(t, err)
 
-	var config map[string]interface{}
+	var config map[string]any
 	err = json.Unmarshal(content, &config)
 	require.NoError(t, err)
 
@@ -231,13 +232,13 @@ func TestOpenMPFieldsSupport(t *testing.T) {
 		Mode:        run.Server,
 		UseDynTicks: &useDynTicks,
 		MaxBots:     &maxBots,
-		Discord: map[string]interface{}{
+		Discord: map[string]any{
 			"invite": "https://discord.gg/example",
 		},
-		Network: map[string]interface{}{
+		Network: map[string]any{
 			"public_addr": "127.0.0.1",
 		},
-		RCONConfig: map[string]interface{}{
+		RCONConfig: map[string]any{
 			"allow_teleport": true,
 		},
 	}
@@ -249,7 +250,7 @@ func TestOpenMPFieldsSupport(t *testing.T) {
 	content, err := os.ReadFile(configJSONPath)
 	require.NoError(t, err)
 
-	var config map[string]interface{}
+	var config map[string]any
 	err = json.Unmarshal(content, &config)
 	require.NoError(t, err)
 
@@ -258,17 +259,39 @@ func TestOpenMPFieldsSupport(t *testing.T) {
 	assert.Equal(t, float64(123), config["max_bots"])
 
 	// Nested
-	discord, ok := config["discord"].(map[string]interface{})
+	discord, ok := config["discord"].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, "https://discord.gg/example", discord["invite"])
 
-	network, ok := config["network"].(map[string]interface{})
+	network, ok := config["network"].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, "127.0.0.1", network["public_addr"])
 
-	rcon, ok := config["rcon"].(map[string]interface{})
+	rcon, ok := config["rcon"].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, true, rcon["allow_teleport"])
+}
+
+func TestScalarConfigDefaultsReturnErrorsInsteadOfPanicking(t *testing.T) {
+	t.Parallel()
+
+	var (
+		boolValue  *bool
+		intValue   *int
+		floatValue *float32
+	)
+
+	_, err := fromBool("announce", reflect.ValueOf(boolValue), false, "not-a-bool")
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "invalid default bool value")
+
+	_, err = fromInt("port", reflect.ValueOf(intValue), false, "not-an-int")
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "invalid default int value")
+
+	_, err = fromFloat("sleep", reflect.ValueOf(floatValue), false, "not-a-float")
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "invalid default float value")
 }
 
 func TestOpenMPConfigGenerateWithExtraServerCfg(t *testing.T) {

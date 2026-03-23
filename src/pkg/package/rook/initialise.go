@@ -305,31 +305,30 @@ func Init(
 	if answers.GitIgnore {
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			errInner := getTemplateFile(dir, ".gitignore", answers)
 			if errInner != nil {
 				print.Erro("Failed to get .gitignore template:", errInner)
 			}
-			wg.Done()
 		}()
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			errInner := getTemplateFile(dir, ".gitattributes", answers)
 			if errInner != nil {
 				print.Erro("Failed to get .gitattributes template:", errInner)
 			}
-			wg.Done()
 		}()
 	}
 
 	if answers.Readme {
 		wg.Add(1)
 		go func() {
-			errInner := getTemplateFile(dir, "README.md", answers)
-			if err != nil {
-				print.Erro("Failed to get readme template:", errInner)
-				return
-			}
 			defer wg.Done()
+			errInner := getTemplateFile(dir, "README.md", answers)
+			if errInner != nil {
+				print.Erro("Failed to get readme template:", errInner)
+			}
 		}()
 	}
 
@@ -337,20 +336,20 @@ func Init(
 	case "vscode":
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			errInner := getTemplateFile(dir, ".vscode/tasks.json", answers)
 			if errInner != nil {
 				print.Erro("Failed to get tasks.json template:", errInner)
 			}
-			wg.Done()
 		}()
 	case "sublime":
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			errInner := getTemplateFile(dir, "{{.Repo}}.sublime-project", answers)
 			if errInner != nil {
 				print.Erro("Failed to get tasks.json template:", errInner)
 			}
-			wg.Done()
 		}()
 	}
 
@@ -381,12 +380,11 @@ func Init(
 	if answers.EditorConfig {
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			errInner := getTemplateFile(dir, ".editorconfig", answers)
 			if errInner != nil {
 				print.Erro("Failed to get .editorconfig template:", errInner)
-				return
 			}
-			wg.Done()
 		}()
 	}
 
@@ -427,9 +425,12 @@ func getTemplateFile(dir, filename string, answers Answers) (err error) {
 		return
 	}
 	defer func() {
-		errDefer := resp.Body.Close()
-		if errDefer != nil {
-			panic(errDefer)
+		if errClose := resp.Body.Close(); errClose != nil {
+			if err == nil {
+				err = errors.Wrap(errClose, "failed to close template response body")
+				return
+			}
+			print.Warn("failed to close template response body:", errClose)
 		}
 	}()
 
@@ -462,9 +463,12 @@ func getTemplateFile(dir, filename string, answers Answers) (err error) {
 		return
 	}
 	defer func() {
-		err = file.Close()
-		if err != nil {
-			print.Erro(err)
+		if errClose := file.Close(); errClose != nil {
+			if err == nil {
+				err = errors.Wrap(errClose, "failed to close template file")
+				return
+			}
+			print.Warn("failed to close template file:", errClose)
 		}
 	}()
 
@@ -476,14 +480,14 @@ func getTemplateFile(dir, filename string, answers Answers) (err error) {
 	return nil
 }
 
-func validateUser(ans interface{}) (err error) {
+func validateUser(ans any) (err error) {
 	if strings.ContainsAny(ans.(string), ` :;/\\~`) {
 		return errors.New("Contains invalid characters")
 	}
 	return
 }
 
-func validateRepo(ans interface{}) (err error) {
+func validateRepo(ans any) (err error) {
 	if strings.ContainsAny(ans.(string), ` :;/\\~`) {
 		return errors.New("Contains invalid characters")
 	}

@@ -42,7 +42,7 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 		r := retrier.New(retrier.ConstantBackoff(1, 100*time.Millisecond), nil)
 		err := r.Run(func() error {
 			print.Verb("attempting to ensure dependency", dep)
-			errInner := pcx.EnsurePackage(dep, forceUpdate)
+			errInner := pcx.ensurePackage(ctx, dep, forceUpdate)
 			if errInner != nil {
 				print.Warn(errors.Wrapf(errInner, "failed to ensure package %s", dep))
 				return errInner
@@ -78,7 +78,7 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 			return errors.Wrap(err, "failed to ensure package layout")
 		}
 
-		runtimeInfo, err := runtime.EnsureBinaries(pcx.CacheDir, cfg)
+		runtimeInfo, err := runtime.EnsureBinariesContext(ctx, pcx.CacheDir, cfg)
 		if err != nil {
 			return errors.Wrap(err, "failed to ensure runtime binaries")
 		}
@@ -132,9 +132,13 @@ func (pcx *PackageContext) GatherPlugins() (pluginDeps []versioning.DependencyMe
 // If the package is present, it will ensure the directory contains the correct version.
 // When lockfile support is enabled, it uses locked versions for reproducibility.
 func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUpdate bool) error {
+	return pcx.ensurePackage(context.Background(), meta, forceUpdate)
+}
+
+func (pcx *PackageContext) ensurePackage(ctx context.Context, meta versioning.DependencyMeta, forceUpdate bool) error {
 	// Handle URL-like schemes differently
 	if meta.IsURLScheme() {
-		return pcx.ensureURLSchemeDependency(meta)
+		return pcx.ensureURLSchemeDependency(ctx, meta)
 	}
 
 	// Apply locked version if lockfile is enabled and not forcing update
@@ -180,7 +184,7 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 		}
 	}
 
-	err = pcx.installPackageResources(effectiveMeta)
+	err = pcx.installPackageResources(ctx, effectiveMeta)
 	if err != nil {
 		return errors.Wrap(err, "failed to install package resources")
 	}
@@ -190,9 +194,18 @@ func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUp
 
 // EnsurePackageWithParent ensures a package and records it as a transitive dependency
 func (pcx *PackageContext) EnsurePackageWithParent(meta versioning.DependencyMeta, forceUpdate bool, parentRepo string) error {
+	return pcx.ensurePackageWithParent(context.Background(), meta, forceUpdate, parentRepo)
+}
+
+func (pcx *PackageContext) ensurePackageWithParent(
+	ctx context.Context,
+	meta versioning.DependencyMeta,
+	forceUpdate bool,
+	parentRepo string,
+) error {
 	// Handle URL-like schemes differently
 	if meta.IsURLScheme() {
-		return pcx.ensureURLSchemeDependency(meta)
+		return pcx.ensureURLSchemeDependency(ctx, meta)
 	}
 
 	// Apply locked version if lockfile is enabled and not forcing update
@@ -235,7 +248,7 @@ func (pcx *PackageContext) EnsurePackageWithParent(meta versioning.DependencyMet
 		}
 	}
 
-	err = pcx.installPackageResources(effectiveMeta)
+	err = pcx.installPackageResources(ctx, effectiveMeta)
 	if err != nil {
 		return errors.Wrap(err, "failed to install package resources")
 	}
@@ -259,7 +272,7 @@ func (pcx *PackageContext) GetResolvedCommit(dependencyPath string) (string, err
 }
 
 // installPackageResources handles resource installation from cached package
-func (pcx *PackageContext) installPackageResources(meta versioning.DependencyMeta) error {
+func (pcx *PackageContext) installPackageResources(ctx context.Context, meta versioning.DependencyMeta) error {
 	// NOTE: Resource installation needs a package definition (`pawn.json`/`pawn.yaml`).
 	// We prefer the cached copy because it is typically the newest, but some repos may not have a
 	// definition on their default branch (e.g. definition only exists on another branch), or a user may
@@ -278,7 +291,7 @@ func (pcx *PackageContext) installPackageResources(meta versioning.DependencyMet
 			err = nil
 			print.Verb(meta, "using local dependency package definition for resources")
 		} else if pcx.RemotePackages != nil {
-			pkgRemote, errRemote := pcx.RemotePackages.Fetch(context.Background(), meta)
+			pkgRemote, errRemote := pcx.RemotePackages.Fetch(ctx, meta)
 			if errRemote == nil {
 				pkg = pkgRemote
 				err = nil
@@ -300,7 +313,7 @@ func (pcx *PackageContext) installPackageResources(meta versioning.DependencyMet
 		}
 
 		if len(resource.Includes) > 0 {
-			includePath, err = pcx.extractResourceDependencies(context.Background(), pkg, resource)
+			includePath, err = pcx.extractResourceDependencies(ctx, pkg, resource)
 			if err != nil {
 				return err
 			}
@@ -327,12 +340,12 @@ func applyDependencyMetaToPackage(pkg *pawnpackage.Package, meta versioning.Depe
 }
 
 // ensureURLSchemeDependency handles dependencies with URL-like schemes (plugin://, includes://, filterscript://)
-func (pcx *PackageContext) ensureURLSchemeDependency(meta versioning.DependencyMeta) error {
-	return ensureURLSchemeWithHandler(pcx, meta)
+func (pcx *PackageContext) ensureURLSchemeDependency(ctx context.Context, meta versioning.DependencyMeta) error {
+	return ensureURLSchemeWithHandler(ctx, pcx, meta)
 }
 
 // ensurePluginDependency handles plugin:// scheme dependencies
-func (pcx *PackageContext) ensurePluginDependency(meta versioning.DependencyMeta) error {
+func (pcx *PackageContext) ensurePluginDependency(ctx context.Context, meta versioning.DependencyMeta) error {
 	if meta.IsLocalScheme() {
 		// Local plugin: plugin://local/path
 		pluginPath := filepath.Join(pcx.Package.LocalPath, meta.Local)
@@ -367,7 +380,7 @@ func (pcx *PackageContext) ensurePluginDependency(meta versioning.DependencyMeta
 		ensureMeta.Site = "github.com"
 	}
 
-	err := pcx.EnsurePackage(ensureMeta, false)
+	err := pcx.ensurePackage(ctx, ensureMeta, false)
 	if err != nil {
 		return err
 	}
@@ -382,7 +395,7 @@ func (pcx *PackageContext) ensurePluginDependency(meta versioning.DependencyMeta
 
 // ensureComponentDependency handles component:// scheme dependencies
 // Components are installed like plugins but into the ./components directory.
-func (pcx *PackageContext) ensureComponentDependency(meta versioning.DependencyMeta) error {
+func (pcx *PackageContext) ensureComponentDependency(ctx context.Context, meta versioning.DependencyMeta) error {
 	if meta.IsLocalScheme() {
 		// Local component: component://local/path
 		componentPath := filepath.Join(pcx.Package.LocalPath, meta.Local)
@@ -416,7 +429,7 @@ func (pcx *PackageContext) ensureComponentDependency(meta versioning.DependencyM
 		ensureMeta.Site = "github.com"
 	}
 
-	err := pcx.EnsurePackage(ensureMeta, false)
+	err := pcx.ensurePackage(ctx, ensureMeta, false)
 	if err != nil {
 		return err
 	}
@@ -430,7 +443,7 @@ func (pcx *PackageContext) ensureComponentDependency(meta versioning.DependencyM
 }
 
 // ensureIncludesDependency handles includes:// scheme dependencies
-func (pcx *PackageContext) ensureIncludesDependency(meta versioning.DependencyMeta) error {
+func (pcx *PackageContext) ensureIncludesDependency(ctx context.Context, meta versioning.DependencyMeta) error {
 	if meta.IsLocalScheme() {
 		// Local includes: includes://local/path
 		includesPath := filepath.Join(pcx.Package.LocalPath, meta.Local)
@@ -455,7 +468,7 @@ func (pcx *PackageContext) ensureIncludesDependency(meta versioning.DependencyMe
 		Path:   meta.Path,
 	}
 
-	err := pcx.EnsurePackage(remoteMeta, false)
+	err := pcx.ensurePackage(ctx, remoteMeta, false)
 	if err != nil {
 		return err
 	}
@@ -470,7 +483,7 @@ func (pcx *PackageContext) ensureIncludesDependency(meta versioning.DependencyMe
 }
 
 // ensureFilterscriptDependency handles filterscript:// scheme dependencies
-func (pcx *PackageContext) ensureFilterscriptDependency(meta versioning.DependencyMeta) error {
+func (pcx *PackageContext) ensureFilterscriptDependency(ctx context.Context, meta versioning.DependencyMeta) error {
 	if meta.IsLocalScheme() {
 		// Local filterscript: filterscript://local/path
 		filterscriptPath := filepath.Join(pcx.Package.LocalPath, meta.Local)
@@ -494,7 +507,7 @@ func (pcx *PackageContext) ensureFilterscriptDependency(meta versioning.Dependen
 		Path:   meta.Path,
 	}
 
-	err := pcx.EnsurePackage(remoteMeta, false)
+	err := pcx.ensurePackage(ctx, remoteMeta, false)
 	if err != nil {
 		return err
 	}

@@ -43,7 +43,7 @@ func (f *fakeRuntimeEnvironment) CopyFileToRuntime(cacheDir, version, amxFile st
 	return nil
 }
 
-func (f *fakeRuntimeEnvironment) Ensure(context.Context, interface{}, *runtimecfg.Runtime, bool) error {
+func (f *fakeRuntimeEnvironment) Ensure(context.Context, any, *runtimecfg.Runtime, bool) error {
 	f.ensureCalled = true
 	return nil
 }

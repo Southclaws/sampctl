@@ -24,7 +24,7 @@ func (runtimeEnvironmentAdapter) CopyFileToRuntime(cacheDir, version, amxFile st
 	return runtimepkg.CopyFileToRuntime(cacheDir, version, amxFile)
 }
 
-func (runtimeEnvironmentAdapter) Ensure(ctx context.Context, gh interface{}, cfg *runtimecfg.Runtime, noCache bool) error {
+func (runtimeEnvironmentAdapter) Ensure(ctx context.Context, gh any, cfg *runtimecfg.Runtime, noCache bool) error {
 	if ghClient, ok := gh.(*github.Client); ok {
 		return runtimepkg.Ensure(ctx, ghClient, cfg, noCache)
 	}

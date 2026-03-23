@@ -31,7 +31,7 @@ func Ensure(ctx context.Context, gh *github.Client, cfg *run.Runtime, noCache bo
 	}
 
 	print.Verb("ensuring server binaries")
-	_, err = EnsureBinaries(cacheDir, *cfg)
+	_, err = EnsureBinariesContext(ctx, cacheDir, *cfg)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure runtime binaries")
 	}
@@ -53,7 +53,12 @@ func Ensure(ctx context.Context, gh *github.Client, cfg *run.Runtime, noCache bo
 
 // EnsureBinaries ensures the dir has all the necessary files to run a server
 func EnsureBinaries(cacheDir string, cfg run.Runtime) (*RuntimeManifestInfo, error) {
-	manifest, stageDir, err := ensureStagedRuntime(cacheDir, cfg)
+	return EnsureBinariesContext(context.Background(), cacheDir, cfg)
+}
+
+// EnsureBinariesContext ensures the dir has all the necessary files to run a server.
+func EnsureBinariesContext(ctx context.Context, cacheDir string, cfg run.Runtime) (*RuntimeManifestInfo, error) {
+	manifest, stageDir, err := ensureStagedRuntime(ctx, cacheDir, cfg)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare runtime files")
 	}
@@ -134,7 +139,7 @@ func pluginExtForFile(os string) (ext string) {
 	return
 }
 
-func ensureStagedRuntime(cacheDir string, cfg run.Runtime) (runtimeManifest, string, error) {
+func ensureStagedRuntime(ctx context.Context, cacheDir string, cfg run.Runtime) (runtimeManifest, string, error) {
 	stageDir := filepath.Join(cacheDir, runtimeStagingDir, cfg.Platform, cfg.Version)
 	manifestPath := runtimeManifestPath(stageDir)
 
@@ -155,7 +160,7 @@ func ensureStagedRuntime(cacheDir string, cfg run.Runtime) (runtimeManifest, str
 		return runtimeManifest{}, "", errors.Wrap(err, "failed to create runtime staging directory")
 	}
 
-	if err := GetServerPackage(cfg.Version, stageDir, cfg.Platform); err != nil {
+	if err := GetServerPackageContext(ctx, cfg.Version, stageDir, cfg.Platform); err != nil {
 		return runtimeManifest{}, "", errors.Wrap(err, "failed to download runtime package")
 	}
 

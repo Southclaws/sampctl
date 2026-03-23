@@ -17,6 +17,11 @@ import (
 
 // GetServerPackage checks if a cached package is available and if not, downloads it to dir
 func GetServerPackage(version, dir, platform string) (err error) {
+	return GetServerPackageContext(context.Background(), version, dir, platform)
+}
+
+// GetServerPackageContext checks if a cached package is available and if not, downloads it to dir.
+func GetServerPackageContext(ctx context.Context, version, dir, platform string) (err error) {
 	cacheDir, err := fs.ConfigDir()
 	if err != nil {
 		return errors.Wrap(err, "failed to get config dir")
@@ -30,7 +35,7 @@ func GetServerPackage(version, dir, platform string) (err error) {
 		return
 	}
 
-	err = FromNet(cacheDir, version, dir, platform)
+	err = FromNetContext(ctx, cacheDir, version, dir, platform)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get package %s from net", version)
 	}
@@ -93,6 +98,11 @@ func FromCache(cacheDir, version, dir, platform string) (hit bool, err error) {
 
 // FromNet downloads a server package to the cache, then calls FromCache to finish the job
 func FromNet(cacheDir, version, dir, platform string) (err error) {
+	return FromNetContext(context.Background(), cacheDir, version, dir, platform)
+}
+
+// FromNetContext downloads a server package to the cache, then extracts it to dir.
+func FromNetContext(ctx context.Context, cacheDir, version, dir, platform string) (err error) {
 	print.Info("Downloading package", version, "into", dir)
 
 	pkg, err := FindPackage(cacheDir, version)
@@ -119,7 +129,7 @@ func FromNet(cacheDir, version, dir, platform string) (err error) {
 	hr.SetCacheDir(cacheDir)
 	hr.SetCacheTTL(0)
 
-	if err := hr.Ensure(context.Background(), version, ""); err != nil {
+	if err := hr.Ensure(ctx, version, ""); err != nil {
 		return errors.Wrap(err, "failed to download package")
 	}
 

@@ -156,7 +156,7 @@ func RunContainer(
 	}()
 
 	go func() {
-		wait, errInner := cli.ContainerWait(context.Background(), cnt.ID, container.WaitConditionNotRunning)
+		wait, errInner := cli.ContainerWait(ctx, cnt.ID, container.WaitConditionNotRunning)
 
 		select {
 		case <-wait:
@@ -179,7 +179,11 @@ func RunContainer(
 	}
 	defer func() {
 		if errClose := reader.Close(); errClose != nil {
-			panic(errClose)
+			if err == nil {
+				err = errors.Wrap(errClose, "failed to close container log stream")
+				return
+			}
+			print.Warn("failed to close container log stream:", errClose)
 		}
 	}()
 

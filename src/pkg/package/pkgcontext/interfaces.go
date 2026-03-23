@@ -41,6 +41,6 @@ type RuntimeEnvironment interface {
 	Run(ctx context.Context, cfg runtimecfg.Runtime, cacheDir string, passArgs, recover bool, output io.Writer, input io.Reader) error
 	PrepareRuntimeDirectory(cacheDir, version, platform, scriptfiles string) error
 	CopyFileToRuntime(cacheDir, version, amxFile string) error
-	Ensure(ctx context.Context, gh interface{}, cfg *runtimecfg.Runtime, noCache bool) error
+	Ensure(ctx context.Context, gh any, cfg *runtimecfg.Runtime, noCache bool) error
 	GenerateConfig(cfg *runtimecfg.Runtime) error
 }

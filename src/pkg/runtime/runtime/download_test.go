@@ -1,10 +1,12 @@
 package runtime
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_ServerFromNet(t *testing.T) {
@@ -54,4 +56,22 @@ func Test_ServerFromCache(t *testing.T) {
 			assert.FileExists(t, filepath.Join(dir, expectedBinary))
 		})
 	}
+}
+
+func TestFromNetContextHonorsCancellation(t *testing.T) {
+	t.Parallel()
+
+	rootDir := t.TempDir()
+	cacheDir := filepath.Join(rootDir, "cache")
+	dir := filepath.Join(rootDir, "server-dir")
+	platform := currentTestPlatform()
+
+	seedRuntimeRemoteFixture(t, cacheDir, "latest", platform)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := FromNetContext(ctx, cacheDir, "latest", dir, platform)
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "failed to download package")
 }
