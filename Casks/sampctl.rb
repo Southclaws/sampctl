@@ -5,12 +5,12 @@
 class Sampctl < Formula
   desc "The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer."
   homepage "https://github.com/Southclaws/sampctl"
-  version "1.12.0"
+  version "1.13.0"
 
   on_linux do
     if Hardware::CPU.intel?
-      url "https://github.com/Southclaws/sampctl/releases/download/1.12.0/sampctl_1.12.0_Linux_x86_64.tar.gz"
-      sha256 "0ed15f1d1d874a86fc6973752ce1f0211c25e34436cc6e345cc14b9a51b464e9"
+      url "https://github.com/Southclaws/sampctl/releases/download/1.13.0/sampctl_1.13.0_linux_amd64.tar.gz"
+      sha256 "92243d9f6a9546138ac8ff9f5134652e620d09d130c8ba2d908fb684684b7a89"
 
       def install
         bin.install "sampctl"
