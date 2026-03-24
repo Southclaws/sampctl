@@ -73,6 +73,13 @@ homebrew_casks:
     repository:
       owner: Southclaws
       name: sampctl
+      branch: goreleaser-cask-{{ .Version }}
+      pull_request:
+        enabled: true
+        base:
+          owner: Southclaws
+          name: sampctl
+          branch: master
     homepage: https://github.com/Southclaws/sampctl
     description: The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
 
@@ -80,6 +87,13 @@ scoops:
   - repository:
       owner: Southclaws
       name: sampctl
+      branch: goreleaser-scoop-{{ .Version }}
+      pull_request:
+        enabled: true
+        base:
+          owner: Southclaws
+          name: sampctl
+          branch: master
     homepage: http://sampctl.com
     description: The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer.
     license: GPLv3

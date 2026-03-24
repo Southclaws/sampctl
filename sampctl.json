@@ -1,19 +1,19 @@
 {
-    "version": "1.12.0",
+    "version": "1.13.0",
     "architecture": {
         "32bit": {
-            "url": "https://github.com/Southclaws/sampctl/releases/download/1.12.0/sampctl_1.12.0_windows_386.tar.gz",
+            "url": "https://github.com/Southclaws/sampctl/releases/download/1.13.0/sampctl_1.13.0_windows_386.tar.gz",
             "bin": [
                 "sampctl.exe"
             ],
-            "hash": "f2b9e9281cb0c37d9744726bc76992046f4d74db03a24c90ae76cd5c8f382bfe"
+            "hash": "f6d089ef329d6ea8bc6f55610bec8b8e5152c527069c9bf0e2a7b4168fde6cd4"
         },
         "64bit": {
-            "url": "https://github.com/Southclaws/sampctl/releases/download/1.12.0/sampctl_1.12.0_windows_amd64.tar.gz",
+            "url": "https://github.com/Southclaws/sampctl/releases/download/1.13.0/sampctl_1.13.0_windows_amd64.tar.gz",
             "bin": [
                 "sampctl.exe"
             ],
-            "hash": "5aa28d96c5bb22109860eb187b2a01dc3824036857f6b741665fa32ba2ef4221"
+            "hash": "b7711602952a3c446fcd333af68b9761783b5dbcf8307e8b57104928f5d2593c"
         }
     },
     "homepage": "http://sampctl.com",
