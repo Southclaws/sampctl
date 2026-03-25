@@ -1,16 +1,22 @@
 package pkgcontext
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/plumbing/transport"
+	"github.com/google/go-github/github"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
+	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
+	runtimepkg "github.com/Southclaws/sampctl/src/pkg/runtime"
+	runtimecfg "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 )
 
 type fakeRepositoryStore struct {
@@ -25,6 +31,48 @@ type fakeRepositoryHealth struct {
 	repairCalls   int
 	validateFn    func(path string) (bool, error)
 	repairFn      func(path string) error
+}
+
+type constructorRuntimeEnvironment struct{}
+
+func (constructorRuntimeEnvironment) Run(context.Context, runtimecfg.Runtime, runtimepkg.RunOptions) error {
+	return nil
+}
+
+func (constructorRuntimeEnvironment) PrepareRuntimeDirectory(string, string, string, string) error {
+	return nil
+}
+
+func (constructorRuntimeEnvironment) CopyFileToRuntime(string, string, string) error {
+	return nil
+}
+
+func (constructorRuntimeEnvironment) Ensure(context.Context, *github.Client, *runtimecfg.Runtime, bool) error {
+	return nil
+}
+
+func (constructorRuntimeEnvironment) GenerateConfig(*runtimecfg.Runtime) error {
+	return nil
+}
+
+type fakeTransportAuth struct{}
+
+func (fakeTransportAuth) Name() string {
+	return "fake"
+}
+
+func (fakeTransportAuth) String() string {
+	return "fake"
+}
+
+func (fakeTransportAuth) SetAuth(*transport.Endpoint) error {
+	return nil
+}
+
+type constructorRemoteFetcher struct{}
+
+func (constructorRemoteFetcher) Fetch(context.Context, versioning.DependencyMeta) (pawnpackage.Package, error) {
+	return pawnpackage.Package{}, nil
 }
 
 func (f *fakeRepositoryStore) Open(path string) (*git.Repository, error) {
@@ -73,7 +121,7 @@ func TestEnsureRepoExistsUsesInjectedRepositoryStoreForClone(t *testing.T) {
 		return repo, nil
 	}
 
-	pcx := PackageContext{RepoStore: store, RepoHealth: health}
+	pcx := PackageContext{PackageServices: PackageServices{RepoStore: store, RepoHealth: health}}
 	to := filepath.Join(t.TempDir(), "repo")
 
 	repo, err := pcx.ensureRepoExists(repoEnsureRequest{
@@ -121,7 +169,7 @@ func TestEnsureDependencyRepositoryUsesInjectedRepositoryStoreForOpen(t *testing
 		repairFn:   func(string) error { return nil },
 	}
 
-	pcx := &PackageContext{RepoStore: store, RepoHealth: health}
+	pcx := &PackageContext{PackageServices: PackageServices{RepoStore: store, RepoHealth: health}}
 	got, err := pcx.ensureDependencyRepository(versioning.DependencyMeta{User: "fixture", Repo: "repo"}, depPath)
 	require.NoError(t, err)
 	assert.Same(t, repo, got)
@@ -155,7 +203,7 @@ func TestEnsureRepoExistsUsesInjectedRepositoryHealth(t *testing.T) {
 		repairFn:   func(string) error { return nil },
 	}
 
-	pcx := PackageContext{RepoStore: store, RepoHealth: health}
+	pcx := PackageContext{PackageServices: PackageServices{RepoStore: store, RepoHealth: health}}
 	_, err := pcx.ensureRepoExists(repoEnsureRequest{
 		From:        "https://example.com/repo.git",
 		To:          filepath.Join(t.TempDir(), "repo"),
@@ -166,4 +214,76 @@ func TestEnsureRepoExistsUsesInjectedRepositoryHealth(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, health.validateCalls)
 	assert.Equal(t, 0, health.repairCalls)
+}
+
+func TestNewPackageContextBaseUsesInjectedDependencies(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeRepositoryStore{}
+	health := &fakeRepositoryHealth{}
+	fetcher := constructorRemoteFetcher{}
+	runtimeEnv := constructorRuntimeEnvironment{}
+	auth := fakeTransportAuth{}
+	gh := github.NewClient(nil)
+
+	pcx := newPackageContextBase(NewPackageContextOptions{
+		GitHub:         gh,
+		Auth:           auth,
+		Platform:       "linux",
+		CacheDir:       "/tmp/cache",
+		RemotePackages: fetcher,
+		RepoStore:      store,
+		RepoHealth:     health,
+		RuntimeEnv:     runtimeEnv,
+	})
+
+	assert.Same(t, gh, pcx.GitHub)
+	assert.Same(t, store, pcx.RepoStore)
+	assert.Same(t, health, pcx.RepoHealth)
+	assert.Equal(t, fetcher, pcx.RemotePackages)
+	assert.Equal(t, runtimeEnv, pcx.RuntimeEnv)
+	assert.Equal(t, auth, pcx.GitAuth)
+	assert.Equal(t, "linux", pcx.Platform)
+	assert.Equal(t, "/tmp/cache", pcx.CacheDir)
+}
+
+func TestNewPackageContextBaseUsesDefaultsWhenDependenciesMissing(t *testing.T) {
+	t.Parallel()
+
+	pcx := newPackageContextBase(NewPackageContextOptions{})
+
+	require.NotNil(t, pcx.RemotePackages)
+	assert.IsType(t, GitRepositoryStore{}, pcx.RepoStore)
+	assert.IsType(t, GitRepositoryHealth{}, pcx.RepoHealth)
+	assert.IsType(t, runtimeEnvironmentAdapter{}, pcx.RuntimeEnv)
+	assert.Nil(t, pcx.GitHub)
+	assert.Nil(t, pcx.GitAuth)
+}
+
+func TestPackageContextStatePromotion(t *testing.T) {
+	t.Parallel()
+
+	pcx := PackageContext{
+		PackageServices: PackageServices{
+			Platform: "linux",
+			CacheDir: "/tmp/cache",
+		},
+		PackageResolvedState: PackageResolvedState{
+			AllDependencies: []versioning.DependencyMeta{{User: "fixture", Repo: "repo"}},
+		},
+		PackageExecutionState: PackageExecutionState{
+			BuildName:  "default",
+			ForceBuild: true,
+		},
+		PackageLockfileState: PackageLockfileState{
+			UseLockfile: true,
+		},
+	}
+
+	assert.Equal(t, "linux", pcx.Platform)
+	assert.Equal(t, "/tmp/cache", pcx.CacheDir)
+	assert.Len(t, pcx.AllDependencies, 1)
+	assert.Equal(t, "default", pcx.BuildName)
+	assert.True(t, pcx.ForceBuild)
+	assert.True(t, pcx.UseLockfile)
 }

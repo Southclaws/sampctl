@@ -32,12 +32,14 @@ func TestInstallPackageResourcesUsesInjectedRemoteFetcher(t *testing.T) {
 	fetcher := &fakeRemotePackageFetcher{pkg: pawnpackage.Package{}}
 
 	pcx := &PackageContext{
-		CacheDir:       t.TempDir(),
-		Platform:       "linux",
-		RemotePackages: fetcher,
 		Package: pawnpackage.Package{
 			LocalPath: projectDir,
 			Vendor:    vendorDir,
+		},
+		PackageServices: PackageServices{
+			CacheDir:       t.TempDir(),
+			Platform:       "linux",
+			RemotePackages: fetcher,
 		},
 	}
 

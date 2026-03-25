@@ -94,7 +94,7 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 		}
 
 		pcx.recordRuntimeToLockfile(runtimeInfo)
-		if saveErr := pcx.SaveLockfile(); saveErr != nil {
+		if saveErr := pcx.PackageLockfileState.SaveLockfile(); saveErr != nil {
 			print.Warn("failed to save lockfile after runtime update:", saveErr)
 		}
 	}
@@ -115,7 +115,7 @@ func (pcx *PackageContext) EnsureProject(ctx context.Context, forceUpdate bool) 
 		return updated, err
 	}
 
-	if err := pcx.SaveLockfile(); err != nil {
+	if err := pcx.PackageLockfileState.SaveLockfile(); err != nil {
 		return updated, err
 	}
 
@@ -156,7 +156,7 @@ func (pcx *PackageContext) ensurePackage(ctx context.Context, meta versioning.De
 	dependencyPath := filepath.Join(pcx.Package.Vendor, effectiveMeta.Repo)
 
 	if fs.Exists(dependencyPath) {
-		valid, validationErr := pcx.repositoryHealth().Validate(dependencyPath)
+		valid, validationErr := pcx.PackageServices.repositoryHealth().Validate(dependencyPath)
 		if validationErr != nil || !valid {
 			print.Verb(effectiveMeta, "existing repository is invalid or corrupted")
 			if validationErr != nil {
@@ -223,7 +223,7 @@ func (pcx *PackageContext) ensurePackageWithParent(
 	dependencyPath := filepath.Join(pcx.Package.Vendor, effectiveMeta.Repo)
 
 	if fs.Exists(dependencyPath) {
-		valid, validationErr := pcx.repositoryHealth().Validate(dependencyPath)
+		valid, validationErr := pcx.PackageServices.repositoryHealth().Validate(dependencyPath)
 		if validationErr != nil || !valid {
 			print.Verb(effectiveMeta, "existing repository is invalid or corrupted")
 			err := os.RemoveAll(dependencyPath)

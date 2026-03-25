@@ -304,7 +304,7 @@ func (pcx PackageContext) EnsureDependencyFromCache(
 	cacheRepoExists := fs.Exists(filepath.Join(from, ".git"))
 	if !cacheRepoExists || forceUpdate {
 		if forceUpdate && cacheRepoExists {
-			if cacheRepo, openErr := pcx.repositoryStore().Open(from); openErr == nil && getRepositoryOriginURL(cacheRepo) == "" {
+			if cacheRepo, openErr := pcx.PackageServices.repositoryStore().Open(from); openErr == nil && getRepositoryOriginURL(cacheRepo) == "" {
 				print.Verb(meta, "cached repository has no origin remote, skipping cache refresh")
 			} else {
 				_, err = pcx.EnsureDependencyCached(meta, forceUpdate)
@@ -352,7 +352,7 @@ func (pcx PackageContext) EnsureDependencyCached(
 
 func (pcx PackageContext) ensureRepoExists(request repoEnsureRequest) (repo *git.Repository, err error) {
 	if fs.Exists(request.To) {
-		valid, validationErr := pcx.repositoryHealth().Validate(request.To)
+		valid, validationErr := pcx.PackageServices.repositoryHealth().Validate(request.To)
 		if validationErr != nil || !valid {
 			print.Verb("repository at", request.To, "is invalid or corrupted")
 			if validationErr != nil {
@@ -366,7 +366,7 @@ func (pcx PackageContext) ensureRepoExists(request repoEnsureRequest) (repo *git
 		}
 	}
 
-	repo, err = pcx.repositoryStore().Open(request.To)
+	repo, err = pcx.PackageServices.repositoryStore().Open(request.To)
 	if err != nil {
 		// Repository doesn't exist or can't be opened - clone it
 		return pcx.cloneRepository(request.From, request.To, request.Branch, request.SSH)
@@ -409,14 +409,14 @@ func (pcx PackageContext) cloneRepository(from, to, branch string, ssh bool) (*g
 	}
 
 	print.Verb("executing clone with options:", cloneOpts)
-	repo, err := pcx.repositoryStore().Clone(to, false, cloneOpts)
+	repo, err := pcx.PackageServices.repositoryStore().Clone(to, false, cloneOpts)
 	if err != nil {
 		print.Verb("clone failed, cleaning up:", err)
 		os.RemoveAll(to)
 		return nil, errors.Wrap(err, "failed to clone repository")
 	}
 
-	valid, validationErr := pcx.repositoryHealth().Validate(to)
+	valid, validationErr := pcx.PackageServices.repositoryHealth().Validate(to)
 	if validationErr != nil || !valid {
 		print.Verb("cloned repository failed validation")
 		os.RemoveAll(to)
@@ -455,7 +455,7 @@ func (pcx PackageContext) updateRepository(repo *git.Repository, request repoEns
 
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		print.Verb("pull failed:", err)
-		repairErr := pcx.repositoryHealth().Repair(request.To)
+		repairErr := pcx.PackageServices.repositoryHealth().Repair(request.To)
 		if repairErr == nil {
 			print.Verb("repository repaired, retrying pull")
 			err = wt.Pull(pullOpts)

@@ -29,9 +29,7 @@ func TestEnsureDependenciesCached(t *testing.T) {
 						"pawn-lang/samp-stdlib",
 					},
 				},
-				Platform: "linux",
-				CacheDir: "./tests/cache",
-				GitAuth:  gitAuth,
+				PackageServices: PackageServices{Platform: "linux", CacheDir: "./tests/cache", GitAuth: gitAuth},
 			},
 			[]versioning.DependencyMeta{
 				{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
@@ -51,9 +49,7 @@ func TestEnsureDependenciesCached(t *testing.T) {
 						"Southclaws/pawn-requests",
 					},
 				},
-				Platform: "linux",
-				CacheDir: "./tests/cache",
-				GitAuth:  gitAuth,
+				PackageServices: PackageServices{Platform: "linux", CacheDir: "./tests/cache", GitAuth: gitAuth},
 			},
 			[]versioning.DependencyMeta{
 				{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},

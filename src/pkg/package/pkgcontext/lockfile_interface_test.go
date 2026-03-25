@@ -57,7 +57,7 @@ func TestPackageContextLockfileInterfaceHelpers(t *testing.T) {
 		lockfile:  lockfile.New("dev"),
 		hasLocked: true,
 	}
-	pcx := &PackageContext{lockfileResolver: fake}
+	pcx := &PackageContext{PackageLockfileState: PackageLockfileState{lockfileResolver: fake}}
 
 	require.NoError(t, pcx.SaveLockfile())
 	assert.True(t, fake.saved)
@@ -68,7 +68,7 @@ func TestPackageContextLockfileInterfaceHelpers(t *testing.T) {
 	pcx.ForceUpdateLockfile()
 	assert.True(t, fake.forced)
 
-	pcx.lockfileResolver = nil
+	pcx.PackageLockfileState.lockfileResolver = nil
 	assert.NoError(t, pcx.SaveLockfile())
 	assert.False(t, pcx.HasLockfile())
 	assert.False(t, pcx.HasLockfileResolver())

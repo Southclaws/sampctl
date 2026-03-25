@@ -15,7 +15,7 @@ import (
 
 func TestLatestTagFromCache_TieBreaksNonSemverByName(t *testing.T) {
 	cacheDir := t.TempDir()
-	pcx := &PackageContext{CacheDir: cacheDir}
+	pcx := &PackageContext{PackageServices: PackageServices{CacheDir: cacheDir}}
 
 	meta := versioning.DependencyMeta{User: "testuser", Repo: "testrepo"}
 	cachePath := meta.CachePath(cacheDir)

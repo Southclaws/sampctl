@@ -5,13 +5,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"github.com/fatih/color"
@@ -131,23 +129,18 @@ func (pcx *PackageContext) BuildWatch(ctx context.Context, options BuildOptions)
 
 	print.Verb("watching directory for changes", watchPath)
 
-	signals := make(chan os.Signal, 1)
+	signals, stopSignals := newTerminationSignals()
 	resultCh := make(chan buildWatchResult, 1)
-	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
-	defer signal.Stop(signals)
+	defer stopSignals()
 
 	var (
 		ctxInner, cancel = context.WithCancel(ctx)
 		buildRunning     bool
-		pendingEvent     string
-		debounceTimer    *time.Timer
-		debounceCh       <-chan time.Time
+		debouncer        watchDebouncer
 	)
 
 	defer func() {
-		if debounceTimer != nil {
-			debounceTimer.Stop()
-		}
+		debouncer.Stop()
 		cancel()
 	}()
 
@@ -156,7 +149,6 @@ func (pcx *PackageContext) BuildWatch(ctx context.Context, options BuildOptions)
 	startBuild := func(eventName string) {
 		cancel()
 		buildRunning = true
-		pendingEvent = ""
 		buildRun := atomic.AddUint32(&buildNumber, 1)
 		ctxInner, cancel = context.WithCancel(ctx)
 
@@ -183,21 +175,7 @@ func (pcx *PackageContext) BuildWatch(ctx context.Context, options BuildOptions)
 	}
 
 	queueBuild := func(eventName string) {
-		pendingEvent = eventName
-		if debounceTimer == nil {
-			debounceTimer = time.NewTimer(buildWatchDebounce)
-			debounceCh = debounceTimer.C
-			return
-		}
-
-		if !debounceTimer.Stop() {
-			select {
-			case <-debounceTimer.C:
-			default:
-			}
-		}
-		debounceTimer.Reset(buildWatchDebounce)
-		debounceCh = debounceTimer.C
+		debouncer.Queue(eventName, buildWatchDebounce)
 	}
 
 	startBuild(pcx.Package.Entry)
@@ -222,12 +200,12 @@ loop:
 			}
 			queueBuild(event.Name)
 
-		case <-debounceCh:
-			debounceCh = nil
-			if pendingEvent == "" || buildRunning {
+		case <-debouncer.Channel():
+			eventName, ok := debouncer.OnTimerFired(buildRunning)
+			if !ok {
 				continue
 			}
-			startBuild(pendingEvent)
+			startBuild(eventName)
 
 		case result := <-resultCh:
 			buildRunning = false
@@ -254,8 +232,11 @@ loop:
 				}
 			}
 
-			if pendingEvent != "" && debounceCh == nil {
-				startBuild(pendingEvent)
+			if debouncer.Channel() == nil {
+				eventName, ok := debouncer.PopPending()
+				if ok {
+					startBuild(eventName)
+				}
 			}
 		}
 	}

@@ -123,10 +123,10 @@ func TestBuildPrepareAddsLocalComponentAndPluginIncludePaths(t *testing.T) {
 			Output:    "gamemodes/test.amx",
 			Build:     &build.Config{},
 		},
-		AllPlugins: []versioning.DependencyMeta{
+		PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{
 			{Scheme: "component", Local: "components/test", User: "local", Repo: "test"},
 			{Scheme: "plugin", Local: "plugins/plug", User: "local", Repo: "plug"},
-		},
+		}},
 	}
 
 	config, err := pcx.buildPrepare(context.Background(), "", false, false)
@@ -310,8 +310,8 @@ func TestBuildPrepareGeneratesBuildFileWithConstants(t *testing.T) {
 	t.Setenv("BUILD_ENV_VALUE", "from-env")
 
 	pcx := &PackageContext{
-		AppVersion: "2.3.4",
-		Platform:   "linux",
+		PackageServices:       PackageServices{Platform: "linux"},
+		PackageExecutionState: PackageExecutionState{AppVersion: "2.3.4"},
 		Package: pawnpackage.Package{
 			LocalPath: tempDir,
 			Entry:     "gamemodes/test.pwn",
@@ -355,8 +355,8 @@ func TestBuildPrepareGeneratesBuildFileByDefault(t *testing.T) {
 	tempDir := t.TempDir()
 
 	pcx := &PackageContext{
-		AppVersion: "1.2.3",
-		Platform:   "windows",
+		PackageServices:       PackageServices{Platform: "windows"},
+		PackageExecutionState: PackageExecutionState{AppVersion: "1.2.3"},
 		Package: pawnpackage.Package{
 			LocalPath: tempDir,
 			Entry:     "gamemodes/test.pwn",
@@ -384,8 +384,8 @@ func TestBuildPrepareAllowsBuildFileDefaultsToBeOverridden(t *testing.T) {
 	tempDir := t.TempDir()
 
 	pcx := &PackageContext{
-		AppVersion: "1.2.3",
-		Platform:   "linux",
+		PackageServices:       PackageServices{Platform: "linux"},
+		PackageExecutionState: PackageExecutionState{AppVersion: "1.2.3"},
 		Package: pawnpackage.Package{
 			LocalPath: tempDir,
 			Entry:     "gamemodes/test.pwn",

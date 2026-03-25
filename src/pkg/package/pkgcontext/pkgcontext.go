@@ -8,7 +8,6 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 
-	"github.com/Southclaws/sampctl/src/pkg/build"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/lockfile"
@@ -42,48 +41,29 @@ func (GitRepositoryHealth) Repair(path string) error {
 
 // PackageContext stores state for a package during its lifecycle.
 type PackageContext struct {
-	Package         pawnpackage.Package         // the package this context wraps
-	GitHub          *github.Client              // GitHub client for downloading plugins
-	GitAuth         transport.AuthMethod        // Authentication method for git
-	Platform        string                      // the platform this package targets
-	CacheDir        string                      // the cache directory
-	AllDependencies []versioning.DependencyMeta // flattened list of dependencies
-	AllPlugins      []versioning.DependencyMeta // flattened list of plugin dependencies
-	AllIncludePaths []string                    // any additional include paths specified by resources
-	ActualRuntime   run.Runtime                 // actual runtime configuration to use for running the package
-	ActualBuild     build.Config                // actual build configuration to use for running the package
-	RemotePackages  pawnpackage.RemotePackageFetcher
-	RepoStore       RepositoryStore
-	RepoHealth      RepositoryHealth
-	RuntimeEnv      RuntimeEnvironment
+	Package pawnpackage.Package // the package this context wraps
 
-	// Runtime specific fields
-	Runtime     string // the runtime config to use, defaults to `default`
-	Container   bool   // whether or not to run the package in a container
-	AppVersion  string // the version of sampctl
-	BuildName   string // Build configuration to use
-	ForceBuild  bool   // Force a build before running
-	ForceEnsure bool   // Force an ensure before building before running
-	NoCache     bool   // Don't use a cache, download all plugin dependencies
-	BuildFile   string // File to increment build number
-	Relative    bool   // Show output as relative paths
-
-	// Lockfile support
-	lockfileResolver DependencyLock // resolver for lockfile-aware dependency resolution
-	UseLockfile      bool           // whether to use lockfile for reproducible builds
+	PackageServices
+	PackageResolvedState
+	PackageExecutionState
+	PackageLockfileState
 }
 
 type NewPackageContextOptions struct {
-	GitHub      *github.Client
-	Auth        transport.AuthMethod
-	Parent      bool
-	Dir         string
-	Platform    string
-	CacheDir    string
-	Vendor      string
-	Init        bool
-	UseLockfile bool
-	AppVersion  string
+	GitHub         *github.Client
+	Auth           transport.AuthMethod
+	Parent         bool
+	Dir            string
+	Platform       string
+	CacheDir       string
+	Vendor         string
+	Init           bool
+	UseLockfile    bool
+	AppVersion     string
+	RemotePackages pawnpackage.RemotePackageFetcher
+	RepoStore      RepositoryStore
+	RepoHealth     RepositoryHealth
+	RuntimeEnv     RuntimeEnvironment
 }
 
 // NewPackageContext attempts to parse a directory as a Package by looking for a
@@ -103,15 +83,37 @@ func NewPackageContext(options NewPackageContextOptions) (pcx *PackageContext, e
 }
 
 func newPackageContextBase(options NewPackageContextOptions) *PackageContext {
+	remotePackages := options.RemotePackages
+	if remotePackages == nil {
+		remotePackages = pawnpackage.NewRemotePackageFetcher(options.GitHub)
+	}
+
+	repoStore := options.RepoStore
+	if repoStore == nil {
+		repoStore = GitRepositoryStore{}
+	}
+
+	repoHealth := options.RepoHealth
+	if repoHealth == nil {
+		repoHealth = GitRepositoryHealth{}
+	}
+
+	runtimeEnv := options.RuntimeEnv
+	if runtimeEnv == nil {
+		runtimeEnv = runtimeEnvironmentAdapter{}
+	}
+
 	return &PackageContext{
-		GitHub:         options.GitHub,
-		GitAuth:        options.Auth,
-		Platform:       options.Platform,
-		CacheDir:       options.CacheDir,
-		RemotePackages: pawnpackage.NewRemotePackageFetcher(options.GitHub),
-		RepoStore:      GitRepositoryStore{},
-		RepoHealth:     GitRepositoryHealth{},
-		RuntimeEnv:     runtimeEnvironmentAdapter{},
+		PackageServices: PackageServices{
+			GitHub:         options.GitHub,
+			GitAuth:        options.Auth,
+			Platform:       options.Platform,
+			CacheDir:       options.CacheDir,
+			RemotePackages: remotePackages,
+			RepoStore:      repoStore,
+			RepoHealth:     repoHealth,
+			RuntimeEnv:     runtimeEnv,
+		},
 	}
 }
 
@@ -220,36 +222,27 @@ func (pcx *PackageContext) InitLockfileResolver(sampctlVersion string) error {
 
 // SaveLockfile saves the lockfile if it was modified during dependency resolution
 func (pcx *PackageContext) SaveLockfile() error {
-	if pcx.lockfileResolver == nil {
-		return nil
-	}
-	return pcx.lockfileResolver.Save()
+	return pcx.PackageLockfileState.SaveLockfile()
 }
 
 // HasLockfile returns true if the package has a lockfile
 func (pcx *PackageContext) HasLockfile() bool {
-	return pcx.lockfileResolver != nil && pcx.lockfileResolver.HasLockfile()
+	return pcx.PackageLockfileState.HasLockfile()
 }
 
 // ForceUpdateLockfile resets the lockfile state so fresh versions are resolved.
 func (pcx *PackageContext) ForceUpdateLockfile() {
-	if pcx.lockfileResolver == nil {
-		return
-	}
-	pcx.lockfileResolver.ForceUpdate()
+	pcx.PackageLockfileState.ForceUpdateLockfile()
 }
 
 // HasLockfileResolver reports whether lockfile support is enabled for the package context.
 func (pcx *PackageContext) HasLockfileResolver() bool {
-	return pcx.lockfileResolver != nil
+	return pcx.PackageLockfileState.HasLockfileResolver()
 }
 
 // GetLockfile returns the current in-memory lockfile, if one is active.
 func (pcx *PackageContext) GetLockfile() *lockfile.Lockfile {
-	if pcx.lockfileResolver == nil {
-		return nil
-	}
-	return pcx.lockfileResolver.GetLockfile()
+	return pcx.PackageLockfileState.GetLockfile()
 }
 
 func newDependencyLock(dir, sampctlVersion string) (DependencyLock, error) {
@@ -257,24 +250,15 @@ func newDependencyLock(dir, sampctlVersion string) (DependencyLock, error) {
 }
 
 func (pcx PackageContext) repositoryStore() RepositoryStore {
-	if pcx.RepoStore != nil {
-		return pcx.RepoStore
-	}
-	return GitRepositoryStore{}
+	return pcx.PackageServices.repositoryStore()
 }
 
 func (pcx PackageContext) repositoryHealth() RepositoryHealth {
-	if pcx.RepoHealth != nil {
-		return pcx.RepoHealth
-	}
-	return GitRepositoryHealth{}
+	return pcx.PackageServices.repositoryHealth()
 }
 
 func (pcx PackageContext) runtimeEnvironment() RuntimeEnvironment {
-	if pcx.RuntimeEnv != nil {
-		return pcx.RuntimeEnv
-	}
-	return runtimeEnvironmentAdapter{}
+	return pcx.PackageServices.runtimeEnvironment()
 }
 
 func getPackageTag(dir string) (tag string) {

@@ -125,12 +125,14 @@ func TestPackage_Build(t *testing.T) {
 			}
 
 			pcx := pkgcontext.PackageContext{
-				CacheDir:        cacheDir,
-				GitHub:          gh,
-				GitAuth:         gitAuth,
-				Platform:        runtime.GOOS,
-				Package:         tt.args.pkg,
-				AllDependencies: tt.args.dependencies,
+				Package: tt.args.pkg,
+				PackageServices: pkgcontext.PackageServices{
+					CacheDir: cacheDir,
+					GitHub:   gh,
+					GitAuth:  gitAuth,
+					Platform: runtime.GOOS,
+				},
+				PackageResolvedState: pkgcontext.PackageResolvedState{AllDependencies: tt.args.dependencies},
 			}
 
 			pcx.Package.Parent = false

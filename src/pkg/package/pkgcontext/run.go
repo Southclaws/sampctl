@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
-	"syscall"
 
 	"github.com/pkg/errors"
 
@@ -27,7 +25,7 @@ func (pcx *PackageContext) Run(ctx context.Context, output io.Writer, input io.R
 		return errors.Wrap(err, "failed to prepare package for running")
 	}
 
-	err := pcx.runtimeEnvironment().Run(
+	err := pcx.PackageServices.runtimeEnvironment().Run(
 		ctx,
 		pcx.ActualRuntime,
 		pcx.runtimeRunOptions(output, input, true, false),
@@ -46,14 +44,13 @@ func (pcx *PackageContext) RunWatch(ctx context.Context) (err error) {
 	}
 
 	var (
-		errorCh          = make(chan error, 1)
-		signals          = make(chan os.Signal, 1)
-		trigger          = make(chan build.Problems)
-		runtimeRunning   atomic.Bool
-		runtimeCtx, stop = context.WithCancel(ctx)
-		runtimeDone      <-chan error
+		errorCh              = make(chan error, 1)
+		signals, stopSignals = newTerminationSignals()
+		trigger              = make(chan build.Problems)
+		runtime              watchedRuntime
 	)
-	defer stop()
+	defer stopSignals()
+	defer runtime.Stop()
 
 	go func() {
 		errorCh <- pcx.BuildWatch(ctx, BuildOptions{
@@ -64,8 +61,6 @@ func (pcx *PackageContext) RunWatch(ctx context.Context) (err error) {
 			Trigger:   trigger,
 		})
 	}()
-	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
-	defer signal.Stop(signals)
 
 	print.Verb(pcx.Package, "starting run watcher")
 
@@ -86,8 +81,7 @@ loop:
 				continue
 			}
 
-			runtimeDone = stopWatchedRuntime(stop, runtimeDone, &runtimeRunning)
-			runtimeCtx, stop = context.WithCancel(ctx)
+			runtime.Stop()
 
 			outputPath, pathErr := pcx.runtimeOutputPath()
 			if pathErr != nil {
@@ -101,11 +95,10 @@ loop:
 			}
 
 			fmt.Println("watch-run: executing package code")
-			runtimeDone = pcx.startWatchedRuntime(runtimeCtx, &runtimeRunning)
+			runtime.Restart(ctx, pcx.startWatchedRuntime)
 		}
 	}
 
-	stopWatchedRuntime(stop, runtimeDone, &runtimeRunning)
 	print.Info("finished running run watcher")
 
 	return err
@@ -182,14 +175,14 @@ func (pcx *PackageContext) RunPrepare(ctx context.Context) (err error) {
 	}
 
 	print.Verb(pcx.Package, "ensuring runtime pre-run")
-	err = pcx.runtimeEnvironment().Ensure(ctx, pcx.GitHub, &pcx.ActualRuntime, pcx.NoCache)
+	err = pcx.PackageServices.runtimeEnvironment().Ensure(ctx, pcx.GitHub, &pcx.ActualRuntime, pcx.NoCache)
 	if err != nil {
 		err = errors.Wrap(err, "failed to ensure runtime")
 		return
 	}
 
 	print.Verb("generating server configuration file")
-	err = pcx.runtimeEnvironment().GenerateConfig(&pcx.ActualRuntime)
+	err = pcx.PackageServices.runtimeEnvironment().GenerateConfig(&pcx.ActualRuntime)
 	if err != nil {
 		return errors.Wrap(err, "failed to generate server configuration")
 	}
@@ -216,7 +209,7 @@ func (pcx *PackageContext) runtimeOutputPath() (string, error) {
 }
 
 func (pcx *PackageContext) copyRuntimeBinary(outputPath string) error {
-	err := pcx.runtimeEnvironment().CopyFileToRuntime(pcx.CacheDir, pcx.ActualRuntime.Version, outputPath)
+	err := pcx.PackageServices.runtimeEnvironment().CopyFileToRuntime(pcx.CacheDir, pcx.ActualRuntime.Version, outputPath)
 	if err != nil {
 		return errors.Wrap(err, "failed to copy amx file to temporary runtime directory")
 	}
@@ -230,7 +223,7 @@ func (pcx *PackageContext) startWatchedRuntime(ctx context.Context, running *ato
 		running.Store(true)
 		defer running.Store(false)
 
-		err := pcx.runtimeEnvironment().Run(
+		err := pcx.PackageServices.runtimeEnvironment().Run(
 			ctx,
 			pcx.ActualRuntime,
 			pcx.runtimeRunOptions(os.Stdout, os.Stdin, true, false),
@@ -273,7 +266,7 @@ func (pcx *PackageContext) prepareTemporaryRuntime(filename string) error {
 	if !fs.Exists(scriptfiles) {
 		scriptfiles = ""
 	}
-	err := pcx.runtimeEnvironment().PrepareRuntimeDirectory(
+	err := pcx.PackageServices.runtimeEnvironment().PrepareRuntimeDirectory(
 		pcx.CacheDir,
 		pcx.ActualRuntime.Version,
 		pcx.ActualRuntime.Platform,
@@ -283,7 +276,7 @@ func (pcx *PackageContext) prepareTemporaryRuntime(filename string) error {
 		return errors.Wrap(err, "failed to prepare temporary runtime area")
 	}
 
-	if err = pcx.runtimeEnvironment().CopyFileToRuntime(pcx.CacheDir, pcx.ActualRuntime.Version, filename); err != nil {
+	if err = pcx.PackageServices.runtimeEnvironment().CopyFileToRuntime(pcx.CacheDir, pcx.ActualRuntime.Version, filename); err != nil {
 		return errors.Wrap(err, "failed to copy amx file to temporary runtime directory")
 	}
 

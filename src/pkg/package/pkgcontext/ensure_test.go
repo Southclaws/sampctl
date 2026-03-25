@@ -30,10 +30,10 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 					LocalPath: fs.MustAbs("./tests/deps-basic"),
 					User:      "local", Repo: "local",
 				},
-				AllDependencies: []versioning.DependencyMeta{
+				PackageResolvedState: PackageResolvedState{AllDependencies: []versioning.DependencyMeta{
 					{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
 					{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib"},
-				},
+				}},
 			},
 			[]versioning.DependencyMeta{
 				{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
@@ -108,14 +108,16 @@ func TestPackageContext_EnsurePackage(t *testing.T) {
 			pcxWorkspace := t.TempDir()
 			pcxVendor := filepath.Join(pcxWorkspace, "dependencies")
 			pcx := PackageContext{
-				CacheDir: "./tests/cache",
-				GitHub:   gh,
-				GitAuth:  gitAuth,
-				Platform: "linux",
 				Package: pawnpackage.Package{
 					LocalPath: pcxWorkspace,
 					Vendor:    pcxVendor,
 					User:      "local", Repo: "local",
+				},
+				PackageServices: PackageServices{
+					CacheDir: "./tests/cache",
+					GitHub:   gh,
+					GitAuth:  gitAuth,
+					Platform: "linux",
 				},
 			}
 
