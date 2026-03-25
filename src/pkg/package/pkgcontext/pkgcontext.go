@@ -250,18 +250,6 @@ func newDependencyLock(dir, sampctlVersion string) (DependencyLock, error) {
 	return lockfile.NewResolver(dir, sampctlVersion, true)
 }
 
-func (pcx PackageContext) repositoryStore() RepositoryStore {
-	return pcx.PackageServices.repositoryStore()
-}
-
-func (pcx PackageContext) repositoryHealth() RepositoryHealth {
-	return pcx.PackageServices.repositoryHealth()
-}
-
-func (pcx PackageContext) runtimeEnvironment() RuntimeEnvironment {
-	return pcx.PackageServices.runtimeEnvironment()
-}
-
 func getPackageTag(dir string) (tag string) {
 	repo, err := git.PlainOpen(dir)
 	if err != nil {
