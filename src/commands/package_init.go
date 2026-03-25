@@ -8,6 +8,7 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
+	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 	"github.com/Southclaws/sampctl/src/pkg/package/rook"
 )
 
@@ -35,11 +36,12 @@ func packageInit(c *cli.Context) error {
 		preset = "openmp"
 	}
 
-	_, env, err := loadPackageContext(c, dir, true)
-	if err == nil {
-		return errors.New("Directory already appears to be a package")
+	if err := validateInitDirectory(dir); err != nil {
+		return err
 	}
-	if env.CacheDir == "" {
+
+	env, err := getCommandEnv(c)
+	if err != nil {
 		return err
 	}
 
@@ -65,4 +67,15 @@ func packageInit(c *cli.Context) error {
 	})
 
 	return err
+}
+
+func validateInitDirectory(dir string) error {
+	pkg, err := pawnpackage.PackageFromDir(dir)
+	if err != nil {
+		return errors.Wrap(err, "failed to inspect package definition")
+	}
+	if pkg.Format != "" {
+		return errors.New("Directory already appears to be a package")
+	}
+	return nil
 }
