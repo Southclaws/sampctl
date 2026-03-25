@@ -139,7 +139,7 @@ func (f *GitHubRemotePackageFetcher) packageFromRepo(
 }
 
 func remoteDefinitionRefs(meta versioning.DependencyMeta) []string {
-	refs := make([]string, 0, 3)
+	refs := make([]string, 0, 4)
 	seen := make(map[string]struct{})
 
 	add := func(ref string) {
@@ -150,11 +150,14 @@ func remoteDefinitionRefs(meta versioning.DependencyMeta) []string {
 		refs = append(refs, ref)
 	}
 
-	if meta.Tag != "" {
-		add(meta.Tag)
+	if meta.Commit != "" {
+		add(meta.Commit)
 	}
 	if meta.Branch != "" {
 		add(meta.Branch)
+	}
+	if meta.Tag != "" {
+		add(meta.Tag)
 	}
 	add("") // default branch
 
