@@ -10,7 +10,6 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 
-	"github.com/Southclaws/sampctl/src/pkg/build/build"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
@@ -18,73 +17,49 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
 
-// FromCache attempts to get a compiler package from the cache, `hit` represents success
-func FromCache(
-	meta versioning.DependencyMeta,
-	dir string,
-	platform string,
-	cacheDir string,
-) (download.Compiler, bool, error) {
-	return FromCacheContext(context.Background(), meta, dir, platform, cacheDir)
+type CompilerFetchRequest struct {
+	GitHub   *github.Client
+	Meta     versioning.DependencyMeta
+	Dir      string
+	Platform string
+	CacheDir string
 }
 
-func FromCacheContext(
-	ctx context.Context,
-	meta versioning.DependencyMeta,
-	dir string,
-	platform string,
-	cacheDir string,
-) (download.Compiler, bool, error) {
-	fetcher, err := newCompilerPackageFetcherContext(ctx, meta, platform, cacheDir)
+// FromCache attempts to get a compiler package from the cache, `hit` represents success
+func FromCache(request CompilerFetchRequest) (download.Compiler, bool, error) {
+	return FromCacheContext(context.Background(), request)
+}
+
+func FromCacheContext(ctx context.Context, request CompilerFetchRequest) (download.Compiler, bool, error) {
+	fetcher, err := newCompilerPackageFetcherContext(ctx, request.Meta, request.Platform, request.CacheDir)
 	if err != nil {
 		return download.Compiler{}, false, err
 	}
-	return fetcher.fromCache(dir)
+	return fetcher.fromCache(request.Dir)
 }
 
 // FromNet downloads a compiler package to the cache
-func FromNet(
-	ctx context.Context,
-	gh *github.Client,
-	meta versioning.DependencyMeta,
-	dir string,
-	platform string,
-	cacheDir string,
-) (download.Compiler, error) {
-	fetcher, err := newCompilerPackageFetcher(meta, platform, cacheDir)
+func FromNet(ctx context.Context, request CompilerFetchRequest) (download.Compiler, error) {
+	fetcher, err := newCompilerPackageFetcher(request.Meta, request.Platform, request.CacheDir)
 	if err != nil {
 		return download.Compiler{}, err
 	}
-	return fetcher.fromNetwork(ctx, gh, dir)
+	return fetcher.fromNetwork(ctx, request.GitHub, request.Dir)
 }
 
 // GetCompilerPackage downloads and installs a Pawn compiler to a user directory
-func GetCompilerPackage(
-	ctx context.Context,
-	gh *github.Client,
-	resolved build.CompilerConfig,
-	dir string,
-	platform string,
-	cacheDir string,
-) (download.Compiler, error) {
-	meta := versioning.DependencyMeta{
-		Site: resolved.Site,
-		User: resolved.User,
-		Repo: resolved.Repo,
-		Tag:  resolved.Version,
-	}
-
-	compiler, hit, err := FromCacheContext(ctx, meta, dir, platform, cacheDir)
+func GetCompilerPackage(ctx context.Context, request CompilerFetchRequest) (download.Compiler, error) {
+	compiler, hit, err := FromCacheContext(ctx, request)
 	if err != nil {
-		return download.Compiler{}, errors.Wrapf(err, "failed to get package %s from cache", resolved.Version)
+		return download.Compiler{}, errors.Wrapf(err, "failed to get package %s from cache", request.Meta.Tag)
 	}
 	if hit {
 		return compiler, nil
 	}
 
-	compiler, err = FromNet(ctx, gh, meta, dir, platform, cacheDir)
+	compiler, err = FromNet(ctx, request)
 	if err != nil {
-		return download.Compiler{}, errors.Wrapf(err, "failed to get package %s from net", resolved.Version)
+		return download.Compiler{}, errors.Wrapf(err, "failed to get package %s from net", request.Meta.Tag)
 	}
 
 	return compiler, nil

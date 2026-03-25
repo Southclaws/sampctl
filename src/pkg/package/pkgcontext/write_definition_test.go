@@ -117,7 +117,12 @@ func TestPackageContextDoesNotApplyDefaultsToPackageRuntime(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(cacheDir)
 
-	pcx, err := NewPackageContext(nil, nil, true, tmpDir, "linux", cacheDir, "", false)
+	pcx, err := NewPackageContext(NewPackageContextOptions{
+		Parent:   true,
+		Dir:      tmpDir,
+		Platform: "linux",
+		CacheDir: cacheDir,
+	})
 	require.NoError(t, err)
 
 	assert.NotNil(t, pcx.Package.Runtime, "Runtime should be initialized")
@@ -164,7 +169,12 @@ func TestActualRuntimeHasDefaults(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(cacheDir)
 
-	pcx, err := NewPackageContext(nil, nil, true, tmpDir, "linux", cacheDir, "", false)
+	pcx, err := NewPackageContext(NewPackageContextOptions{
+		Parent:   true,
+		Dir:      tmpDir,
+		Platform: "linux",
+		CacheDir: cacheDir,
+	})
 	require.NoError(t, err)
 
 	pcx.ActualRuntime = *pcx.Package.Runtime

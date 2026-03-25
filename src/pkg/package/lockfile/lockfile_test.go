@@ -469,7 +469,13 @@ func TestLockfileRuntimeAndBuild(t *testing.T) {
 	assert.Equal(t, "samp", runtime.RuntimeType)
 	assert.Len(t, runtime.Files, 2)
 
-	lf.SetBuild("3.10.11", "openmp", "gamemodes/main.pwn", "gamemodes/main.amx", "sha256:build123")
+	lf.SetBuild(BuildRecord{
+		CompilerVersion: "3.10.11",
+		CompilerPreset:  "openmp",
+		Entry:           "gamemodes/main.pwn",
+		Output:          "gamemodes/main.amx",
+		OutputHash:      "sha256:build123",
+	})
 
 	assert.True(t, lf.HasBuild())
 	build := lf.GetBuild()

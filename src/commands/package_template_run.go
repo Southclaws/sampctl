@@ -16,17 +16,19 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 )
 
-var packageTemplateRunFlags = []cli.Flag{
-	cli.StringFlag{
-		Name:  "version",
-		Value: "0.3.7",
-		Usage: "the SA:MP server version to use",
-	},
-	cli.StringFlag{
-		Name:  "mode",
-		Value: "main",
-		Usage: "runtime mode, one of: server, main, y_testing",
-	},
+func packageTemplateRunFlags() []cli.Flag {
+	return []cli.Flag{
+		cli.StringFlag{
+			Name:  "version",
+			Value: "0.3.7",
+			Usage: "the SA:MP server version to use",
+		},
+		cli.StringFlag{
+			Name:  "mode",
+			Value: "main",
+			Usage: "runtime mode, one of: server, main, y_testing",
+		},
+	}
 }
 
 func packageTemplateRun(c *cli.Context) (err error) {
@@ -54,7 +56,7 @@ func packageTemplateRun(c *cli.Context) (err error) {
 		return errors.Errorf("no such file or directory: %s", filename)
 	}
 
-	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, templatePath, env.Platform, env.CacheDir, "", false)
+	pcx, _, err := loadPackageContext(c, templatePath, false)
 	if err != nil {
 		return errors.Wrap(err, "template package is invalid")
 	}
@@ -64,7 +66,9 @@ func packageTemplateRun(c *cli.Context) (err error) {
 		return errors.Wrap(err, "failed to copy target script to template package directory")
 	}
 
-	problems, result, err := pcx.Build(context.Background(), "", false, false, true, "")
+	problems, result, err := pcx.Build(context.Background(), pkgcontext.BuildOptions{
+		Relative: true,
+	})
 	if err != nil {
 		return
 	}

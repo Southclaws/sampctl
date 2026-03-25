@@ -63,9 +63,16 @@ func TestGetOrRefreshJSONReadsFreshCache(t *testing.T) {
 	require.NoError(t, infrafs.WriteJSONAtomic(path, payload{Value: "cached"}, 0o755, 0o644))
 
 	called := false
-	value, refreshed, err := GetOrRefreshJSON(context.Background(), path, time.Hour, 0o755, 0o644, func(context.Context) (payload, error) {
-		called = true
-		return payload{Value: "fetched"}, nil
+	value, refreshed, err := GetOrRefreshJSON(JSONCacheRequest[payload]{
+		Context:  context.Background(),
+		Path:     path,
+		TTL:      time.Hour,
+		DirPerm:  0o755,
+		FilePerm: 0o644,
+		Fetch: func(context.Context) (payload, error) {
+			called = true
+			return payload{Value: "fetched"}, nil
+		},
 	})
 	require.NoError(t, err)
 	assert.False(t, refreshed)
@@ -81,8 +88,15 @@ func TestGetOrRefreshJSONFetchesAndWrites(t *testing.T) {
 	}
 
 	path := filepath.Join(t.TempDir(), "stale.json")
-	value, refreshed, err := GetOrRefreshJSON(context.Background(), path, time.Hour, 0o755, 0o644, func(context.Context) (payload, error) {
-		return payload{Value: "fetched"}, nil
+	value, refreshed, err := GetOrRefreshJSON(JSONCacheRequest[payload]{
+		Context:  context.Background(),
+		Path:     path,
+		TTL:      time.Hour,
+		DirPerm:  0o755,
+		FilePerm: 0o644,
+		Fetch: func(context.Context) (payload, error) {
+			return payload{Value: "fetched"}, nil
+		},
 	})
 	require.NoError(t, err)
 	assert.True(t, refreshed)
@@ -101,8 +115,15 @@ func TestGetOrRefreshJSONFetchError(t *testing.T) {
 	}
 
 	path := filepath.Join(t.TempDir(), "failed.json")
-	_, refreshed, err := GetOrRefreshJSON[payload](context.Background(), path, time.Hour, 0o755, 0o644, func(context.Context) (payload, error) {
-		return payload{}, assert.AnError
+	_, refreshed, err := GetOrRefreshJSON(JSONCacheRequest[payload]{
+		Context:  context.Background(),
+		Path:     path,
+		TTL:      time.Hour,
+		DirPerm:  0o755,
+		FilePerm: 0o644,
+		Fetch: func(context.Context) (payload, error) {
+			return payload{}, assert.AnError
+		},
 	})
 	require.Error(t, err)
 	assert.False(t, refreshed)

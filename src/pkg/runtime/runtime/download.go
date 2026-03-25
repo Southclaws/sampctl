@@ -15,6 +15,15 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
 )
 
+// ServerPackageRequest describes a runtime package cache/download operation.
+type ServerPackageRequest struct {
+	Context  context.Context
+	CacheDir string
+	Version  string
+	Dir      string
+	Platform string
+}
+
 // GetServerPackage checks if a cached package is available and if not, downloads it to dir
 func GetServerPackage(version, dir, platform string) (err error) {
 	return GetServerPackageContext(context.Background(), version, dir, platform)
@@ -27,7 +36,13 @@ func GetServerPackageContext(ctx context.Context, version, dir, platform string)
 		return errors.Wrap(err, "failed to get config dir")
 	}
 
-	hit, err := FromCacheContext(ctx, cacheDir, version, dir, platform)
+	hit, err := FromCacheContext(ServerPackageRequest{
+		Context:  ctx,
+		CacheDir: cacheDir,
+		Version:  version,
+		Dir:      dir,
+		Platform: platform,
+	})
 	if err != nil {
 		return errors.Wrapf(err, "failed to get package %s from cache", version)
 	}
@@ -35,7 +50,13 @@ func GetServerPackageContext(ctx context.Context, version, dir, platform string)
 		return
 	}
 
-	err = FromNetContext(ctx, cacheDir, version, dir, platform)
+	err = FromNetContext(ServerPackageRequest{
+		Context:  ctx,
+		CacheDir: cacheDir,
+		Version:  version,
+		Dir:      dir,
+		Platform: platform,
+	})
 	if err != nil {
 		return errors.Wrapf(err, "failed to get package %s from net", version)
 	}
@@ -45,104 +66,116 @@ func GetServerPackageContext(ctx context.Context, version, dir, platform string)
 
 // FromCache tries to grab a server package from cache, `hit` indicates if it was successful
 func FromCache(cacheDir, version, dir, platform string) (hit bool, err error) {
-	return FromCacheContext(context.Background(), cacheDir, version, dir, platform)
+	return FromCacheContext(ServerPackageRequest{
+		Context:  context.Background(),
+		CacheDir: cacheDir,
+		Version:  version,
+		Dir:      dir,
+		Platform: platform,
+	})
 }
 
-func FromCacheContext(ctx context.Context, cacheDir, version, dir, platform string) (hit bool, err error) {
-	pkg, err := FindPackageContext(ctx, cacheDir, version)
+func FromCacheContext(request ServerPackageRequest) (hit bool, err error) {
+	pkg, err := FindPackageContext(request.Context, request.CacheDir, request.Version)
 	if err != nil {
 		return
 	}
-	location, _, method, paths, err := infoForPlatform(pkg, platform)
+	location, _, method, paths, err := infoForPlatform(pkg, request.Platform)
 	if err != nil {
 		return
 	}
-	paths = normalizeRuntimePaths(paths, run.DetectRuntimeType(version))
+	paths = normalizeRuntimePaths(paths, run.DetectRuntimeType(request.Version))
 
-	if !fs.Exists(dir) {
-		err = fs.EnsureDir(dir, fs.PermDirPrivate)
+	if !fs.Exists(request.Dir) {
+		err = fs.EnsureDir(request.Dir, fs.PermDirPrivate)
 		if err != nil {
-			err = errors.Wrapf(err, "failed to create dir %s", dir)
+			err = errors.Wrapf(err, "failed to create dir %s", request.Dir)
 			return
 		}
 	}
 
-	hr, resErr := infraresource.NewHTTPFileResource(location, version, infraresource.ResourceTypeServerBinary)
+	hr, resErr := infraresource.NewHTTPFileResource(location, request.Version, infraresource.ResourceTypeServerBinary)
 	if resErr != nil {
 		err = resErr
 		return
 	}
-	hr.SetCacheDir(cacheDir)
+	hr.SetCacheDir(request.CacheDir)
 	hr.SetCacheTTL(0)
 
-	hit, archivePath := hr.Cached(version)
+	hit, archivePath := hr.Cached(request.Version)
 	if !hit {
 		hit = false
 		return
 	}
 
-	files, extractErr := method(archivePath, dir, paths)
+	files, extractErr := method(archivePath, request.Dir, paths)
 	if extractErr != nil {
 		hit = false
 		err = errors.Wrapf(extractErr, "failed to extract package %s", archivePath)
 		return
 	}
 
-	if fs.IsPosixPlatform(platform) {
+	if fs.IsPosixPlatform(request.Platform) {
 		print.Verb("setting permissions for binaries")
 	}
-	if err := fs.ChmodAllIfPosix(platform, files, fs.PermFileExec); err != nil {
+	if err := fs.ChmodAllIfPosix(request.Platform, files, fs.PermFileExec); err != nil {
 		return false, err
 	}
 
-	print.Verb("Using cached package for", version)
+	print.Verb("Using cached package for", request.Version)
 
 	return true, nil
 }
 
 // FromNet downloads a server package to the cache, then calls FromCache to finish the job
 func FromNet(cacheDir, version, dir, platform string) (err error) {
-	return FromNetContext(context.Background(), cacheDir, version, dir, platform)
+	return FromNetContext(ServerPackageRequest{
+		Context:  context.Background(),
+		CacheDir: cacheDir,
+		Version:  version,
+		Dir:      dir,
+		Platform: platform,
+	})
 }
 
 // FromNetContext downloads a server package to the cache, then extracts it to dir.
-func FromNetContext(ctx context.Context, cacheDir, version, dir, platform string) (err error) {
-	print.Info("Downloading package", version, "into", dir)
+func FromNetContext(request ServerPackageRequest) (err error) {
+	print.Info("Downloading package", request.Version, "into", request.Dir)
 
-	pkg, err := FindPackageContext(ctx, cacheDir, version)
+	pkg, err := FindPackageContext(request.Context, request.CacheDir, request.Version)
 	if err != nil {
 		return
 	}
-	location, _, method, paths, err := infoForPlatform(pkg, platform)
+	location, _, method, paths, err := infoForPlatform(pkg, request.Platform)
 	if err != nil {
 		return
 	}
-	paths = normalizeRuntimePaths(paths, run.DetectRuntimeType(version))
+	paths = normalizeRuntimePaths(paths, run.DetectRuntimeType(request.Version))
 
-	if !fs.Exists(dir) {
-		err = fs.EnsureDir(dir, fs.PermDirPrivate)
+	if !fs.Exists(request.Dir) {
+		err = fs.EnsureDir(request.Dir, fs.PermDirPrivate)
 		if err != nil {
-			return errors.Wrapf(err, "failed to create dir %s", dir)
+			return errors.Wrapf(err, "failed to create dir %s", request.Dir)
 		}
 	}
 
-	hr, err := infraresource.NewHTTPFileResource(location, version, infraresource.ResourceTypeServerBinary)
+	hr, err := infraresource.NewHTTPFileResource(location, request.Version, infraresource.ResourceTypeServerBinary)
 	if err != nil {
 		return
 	}
-	hr.SetCacheDir(cacheDir)
+	hr.SetCacheDir(request.CacheDir)
 	hr.SetCacheTTL(0)
 
-	if err := hr.Ensure(ctx, version, ""); err != nil {
+	if err := hr.Ensure(request.Context, request.Version, ""); err != nil {
 		return errors.Wrap(err, "failed to download package")
 	}
 
-	_, fullPath := hr.Cached(version)
+	_, fullPath := hr.Cached(request.Version)
 	if fullPath == "" {
 		return errors.New("failed to locate downloaded server package")
 	}
 
-	ok, err := MatchesChecksum(fullPath, platform, cacheDir, version)
+	ok, err := MatchesChecksum(fullPath, request.Platform, request.CacheDir, request.Version)
 	if err != nil {
 		innerError := os.Remove(fullPath)
 		if innerError != nil {
@@ -154,18 +187,18 @@ func FromNetContext(ctx context.Context, cacheDir, version, dir, platform string
 		if innerError != nil {
 			return errors.Errorf("failed to remove path for: %s", fullPath)
 		}
-		return errors.Errorf("server binary does not match checksum for version %s", version)
+		return errors.Errorf("server binary does not match checksum for version %s", request.Version)
 	}
 
-	files, err := method(fullPath, dir, paths)
+	files, err := method(fullPath, request.Dir, paths)
 	if err != nil {
 		return errors.Wrapf(err, "failed to extract package %s", fullPath)
 	}
 
-	if fs.IsPosixPlatform(platform) {
+	if fs.IsPosixPlatform(request.Platform) {
 		print.Verb("setting permissions for binaries")
 	}
-	if err := fs.ChmodAllIfPosix(platform, files, fs.PermFileExec); err != nil {
+	if err := fs.ChmodAllIfPosix(request.Platform, files, fs.PermFileExec); err != nil {
 		return err
 	}
 

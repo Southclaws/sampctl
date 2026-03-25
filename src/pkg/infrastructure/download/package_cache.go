@@ -37,13 +37,13 @@ func GetPackageListWithClientContext(ctx context.Context, cacheDir string, clien
 		ctx = context.Background()
 	}
 	packageFile := fs.Join(cacheDir, "packages.json")
-	packages, refreshed, err := cache.GetOrRefreshJSON[[]pawnpackage.Package](
-		ctx,
-		packageFile,
-		time.Hour*24*7,
-		fs.PermDirPrivate,
-		fs.PermFileShared,
-		func(ctx context.Context) ([]pawnpackage.Package, error) {
+	packages, refreshed, err := cache.GetOrRefreshJSON(cache.JSONCacheRequest[[]pawnpackage.Package]{
+		Context:  ctx,
+		Path:     packageFile,
+		TTL:      time.Hour * 24 * 7,
+		DirPerm:  fs.PermDirPrivate,
+		FilePerm: fs.PermFileShared,
+		Fetch: func(ctx context.Context) ([]pawnpackage.Package, error) {
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://list.packages.sampctl.com", nil)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to create request")
@@ -62,7 +62,7 @@ func GetPackageListWithClientContext(ctx context.Context, cacheDir string, clien
 			}
 			return out, nil
 		},
-	)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -93,13 +93,13 @@ func UpdatePackageListWithClientContext(ctx context.Context, cacheDir string, cl
 		ctx = context.Background()
 	}
 	packageFile := fs.Join(cacheDir, "packages.json")
-	_, _, err = cache.GetOrRefreshJSON[[]pawnpackage.Package](
-		ctx,
-		packageFile,
-		-1,
-		fs.PermDirPrivate,
-		fs.PermFileShared,
-		func(ctx context.Context) ([]pawnpackage.Package, error) {
+	_, _, err = cache.GetOrRefreshJSON(cache.JSONCacheRequest[[]pawnpackage.Package]{
+		Context:  ctx,
+		Path:     packageFile,
+		TTL:      -1,
+		DirPerm:  fs.PermDirPrivate,
+		FilePerm: fs.PermFileShared,
+		Fetch: func(ctx context.Context) ([]pawnpackage.Package, error) {
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://list.packages.sampctl.com", nil)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to create request")
@@ -118,7 +118,7 @@ func UpdatePackageListWithClientContext(ctx context.Context, cacheDir string, cl
 			}
 			return out, nil
 		},
-	)
+	})
 	return err
 }
 

@@ -27,26 +27,66 @@ func getPluginDirectory() string {
 	return "plugins"
 }
 
-// EnsurePlugins validates and downloads plugin binary files
-func EnsurePlugins(
-	ctx context.Context,
-	gh *github.Client,
-	cfg *run.Runtime,
-	cacheDir string,
-	noCache bool,
-) (err error) {
-	if err := fs.EnsurePackageLayout(cfg.WorkingDir, cfg.IsOpenMP()); err != nil {
+// EnsurePluginsRequest describes runtime plugin preparation.
+type EnsurePluginsRequest struct {
+	Context  context.Context
+	GitHub   *github.Client
+	Config   *run.Runtime
+	CacheDir string
+	NoCache  bool
+}
+
+// EnsureVersionedPluginRequest describes plugin acquisition and extraction.
+type EnsureVersionedPluginRequest struct {
+	Context        context.Context
+	GitHub         *github.Client
+	Meta           versioning.DependencyMeta
+	Dir            string
+	Platform       string
+	Version        string
+	CacheDir       string
+	PluginDestDir  string
+	Plugins        bool
+	Includes       bool
+	NoCache        bool
+	IgnorePatterns []string
+}
+
+// EnsureVersionedPluginCachedRequest describes a cache lookup for a versioned plugin asset.
+type EnsureVersionedPluginCachedRequest struct {
+	Context  context.Context
+	Meta     versioning.DependencyMeta
+	Platform string
+	Version  string
+	CacheDir string
+	NoCache  bool
+	GitHub   *github.Client
+}
+
+// PluginFetchRequest describes a plugin asset fetch from the network.
+type PluginFetchRequest struct {
+	Context  context.Context
+	GitHub   *github.Client
+	Meta     versioning.DependencyMeta
+	Platform string
+	Version  string
+	CacheDir string
+}
+
+// EnsurePlugins validates and downloads plugin binary files.
+func EnsurePlugins(request EnsurePluginsRequest) (err error) {
+	if err := fs.EnsurePackageLayout(request.Config.WorkingDir, request.Config.IsOpenMP()); err != nil {
 		return err
 	}
 
-	fileExt := pluginExtForFile(cfg.Platform)
+	fileExt := pluginExtForFile(request.Config.Platform)
 
 	var files []run.Plugin
 
 	addedPlugins := make(map[run.Plugin]struct{})
 	addedComponents := make(map[run.Plugin]struct{})
 
-	for _, plugin := range cfg.PluginDeps {
+	for _, plugin := range request.Config.PluginDeps {
 		// Local scheme dependencies (plugin://local/... / component://local/...) are already present
 		// in the workspace; they should not be downloaded from the network.
 		if plugin.IsLocalScheme() {
@@ -56,7 +96,7 @@ func EnsurePlugins(
 					continue
 				}
 				print.Verb("adding local component", name)
-				cfg.Components = append(cfg.Components, name)
+				request.Config.Components = append(request.Config.Components, name)
 				addedComponents[name] = struct{}{}
 				continue
 			}
@@ -65,7 +105,7 @@ func EnsurePlugins(
 				continue
 			}
 			print.Verb("adding local plugin", name)
-			cfg.Plugins = append(cfg.Plugins, name)
+			request.Config.Plugins = append(request.Config.Plugins, name)
 			addedPlugins[name] = struct{}{}
 			continue
 		}
@@ -75,7 +115,19 @@ func EnsurePlugins(
 			destDir = "components"
 		}
 
-		files, err = EnsureVersionedPlugin(ctx, gh, plugin, cfg.WorkingDir, cfg.Platform, cfg.Version, cacheDir, destDir, true, false, noCache, nil)
+		files, err = EnsureVersionedPlugin(EnsureVersionedPluginRequest{
+			Context:       request.Context,
+			GitHub:        request.GitHub,
+			Meta:          plugin,
+			Dir:           request.Config.WorkingDir,
+			Platform:      request.Config.Platform,
+			Version:       request.Config.Version,
+			CacheDir:      request.CacheDir,
+			PluginDestDir: destDir,
+			Plugins:       true,
+			Includes:      false,
+			NoCache:       request.NoCache,
+		})
 		if err != nil {
 			return err
 		}
@@ -88,7 +140,7 @@ func EnsurePlugins(
 					continue
 				}
 				print.Verb("adding component by local filename", name)
-				cfg.Components = append(cfg.Components, name)
+				request.Config.Components = append(request.Config.Components, name)
 				addedComponents[name] = struct{}{}
 				continue
 			}
@@ -97,7 +149,7 @@ func EnsurePlugins(
 				continue
 			}
 			print.Verb("adding plugin by local filename", name)
-			cfg.Plugins = append(cfg.Plugins, name)
+			request.Config.Plugins = append(request.Config.Plugins, name)
 			addedPlugins[name] = struct{}{}
 		}
 	}
@@ -106,29 +158,24 @@ func EnsurePlugins(
 }
 
 // EnsureVersionedPlugin automatically downloads a plugin binary from its github releases page
-func EnsureVersionedPlugin(
-	ctx context.Context,
-	gh *github.Client,
-	meta versioning.DependencyMeta,
-	dir string,
-	platform string,
-	version string,
-	cacheDir string,
-	pluginDestDir string,
-	plugins bool,
-	includes bool,
-	noCache bool,
-	ignorePatterns []string,
-) (files []run.Plugin, err error) {
-	filename, resource, err := EnsureVersionedPluginCached(ctx, meta, platform, version, cacheDir, noCache, gh)
+func EnsureVersionedPlugin(request EnsureVersionedPluginRequest) (files []run.Plugin, err error) {
+	filename, resource, err := EnsureVersionedPluginCached(EnsureVersionedPluginCachedRequest{
+		Context:  request.Context,
+		Meta:     request.Meta,
+		Platform: request.Platform,
+		Version:  request.Version,
+		CacheDir: request.CacheDir,
+		NoCache:  request.NoCache,
+		GitHub:   request.GitHub,
+	})
 	if err != nil {
 		return
 	}
 
-	print.Verb(meta, "retrieved package to file:", filename)
+	print.Verb(request.Meta, "retrieved package to file:", filename)
 
 	if resource.Archive {
-		print.Verb(meta, "plugin resource is an archive")
+		print.Verb(request.Meta, "plugin resource is an archive")
 		ext := filepath.Ext(filename)
 		if ext == "" {
 			ext = detectArchiveExt(filename)
@@ -137,21 +184,21 @@ func EnsureVersionedPlugin(
 		paths := make(map[string]string)
 
 		// get plugins
-		if plugins {
-			if pluginDestDir == "" {
+		if request.Plugins {
+			if request.PluginDestDir == "" {
 				return nil, errors.New("pluginDestDir is required when plugins=true")
 			}
 			for _, plugin := range resource.Plugins {
-				pluginDir := pluginDestDir + "/"
-				print.Verb(meta, "marking plugin path", plugin, "for extraction to ./"+pluginDir)
+				pluginDir := request.PluginDestDir + "/"
+				print.Verb(request.Meta, "marking plugin path", plugin, "for extraction to ./"+pluginDir)
 				paths[plugin] = pluginDir
 			}
 		}
 
 		// get include directories
-		if includes {
+		if request.Includes {
 			for _, include := range resource.Includes {
-				print.Verb(meta, "marking include path", include, "for extraction")
+				print.Verb(request.Meta, "marking include path", include, "for extraction")
 				paths[include] = ""
 			}
 		}
@@ -162,50 +209,50 @@ func EnsureVersionedPlugin(
 				// Don't override plugin/include destinations.
 				continue
 			}
-			print.Verb(meta, "marking misc file path", src, "for extraction to", dest)
+			print.Verb(request.Meta, "marking misc file path", src, "for extraction to", dest)
 			paths[src] = dest
 		}
 
-		if len(ignorePatterns) > 0 {
-			print.Verb(meta, "using", len(ignorePatterns), "ignore pattern(s) for extraction")
+		if len(request.IgnorePatterns) > 0 {
+			print.Verb(request.Meta, "using", len(request.IgnorePatterns), "ignore pattern(s) for extraction")
 		}
 
 		var extractedFiles map[string]string
 		switch ext {
 		case ".zip":
-			extractedFiles, err = download.UnzipWithIgnore(filename, dir, paths, ignorePatterns)
+			extractedFiles, err = download.UnzipWithIgnore(filename, request.Dir, paths, request.IgnorePatterns)
 		case ".gz":
-			extractedFiles, err = download.UntarWithIgnore(filename, dir, paths, ignorePatterns)
+			extractedFiles, err = download.UntarWithIgnore(filename, request.Dir, paths, request.IgnorePatterns)
 		default:
 			err = errors.Errorf("unsupported archive format: %s", filename)
 			return
 		}
 		if err != nil {
-			err = errors.Wrapf(err, "failed to extract plugin %s to %s", meta, dir)
+			err = errors.Wrapf(err, "failed to extract plugin %s to %s", request.Meta, request.Dir)
 			return
 		}
 		if len(extractedFiles) == 0 {
 			//nolint:lll
-			err = errors.Errorf("no files extracted from plugin %s: check the package definition of this dependency against the release assets", meta)
+			err = errors.Errorf("no files extracted from plugin %s: check the package definition of this dependency against the release assets", request.Meta)
 			return
 		}
-		print.Verb(meta, "extracted", len(extractedFiles), "plugin files to", dir)
+		print.Verb(request.Meta, "extracted", len(extractedFiles), "plugin files to", request.Dir)
 
 		for source, target := range extractedFiles {
 			for _, plugin := range resource.Plugins {
-				print.Verb(meta, "checking resource source", source, "against plugin", plugin)
+				print.Verb(request.Meta, "checking resource source", source, "against plugin", plugin)
 				if source == plugin {
 					files = append(files, run.Plugin(filepath.Base(target)))
 				}
 			}
 		}
 	} else {
-		print.Verb(meta, "plugin resource is a single file")
+		print.Verb(request.Meta, "plugin resource is a single file")
 		base := filepath.Base(filename)
-		if pluginDestDir == "" {
+		if request.PluginDestDir == "" {
 			return nil, errors.New("pluginDestDir is required when plugins=true")
 		}
-		finalDir := filepath.Join(dir, pluginDestDir)
+		finalDir := filepath.Join(request.Dir, request.PluginDestDir)
 		destination := filepath.Join(finalDir, base)
 
 		err = fs.EnsureDir(finalDir, fs.PermDirShared)
@@ -250,36 +297,35 @@ func detectArchiveExt(filename string) string {
 }
 
 // EnsureVersionedPluginCached ensures that a plugin exists in the cache
-func EnsureVersionedPluginCached(
-	ctx context.Context,
-	meta versioning.DependencyMeta,
-	platform,
-	version,
-	cacheDir string,
-	noCache bool,
-	gh *github.Client,
-) (
+func EnsureVersionedPluginCached(request EnsureVersionedPluginCachedRequest) (
 	filename string,
 	resource *pkgresource.Resource,
 	err error,
 ) {
 	hit := false
-	if !noCache {
-		hit, filename, resource, err = PluginFromCache(meta, platform, version, cacheDir)
+	if !request.NoCache {
+		hit, filename, resource, err = PluginFromCache(request.Meta, request.Platform, request.Version, request.CacheDir)
 		if err != nil {
-			err = errors.Wrapf(err, "failed to get plugin %s from cache", meta)
+			err = errors.Wrapf(err, "failed to get plugin %s from cache", request.Meta)
 			return
 		}
 	}
 	if !hit {
-		if meta.Tag == "" {
+		if request.Meta.Tag == "" {
 			//nolint:lll
 			print.Info("Downloading newest plugin because no version is specified. Consider specifying a version for this dependency.")
 		}
 
-		filename, resource, err = PluginFromNet(ctx, gh, meta, platform, version, cacheDir)
+		filename, resource, err = PluginFromNet(PluginFetchRequest{
+			Context:  request.Context,
+			GitHub:   request.GitHub,
+			Meta:     request.Meta,
+			Platform: request.Platform,
+			Version:  request.Version,
+			CacheDir: request.CacheDir,
+		})
 		if err != nil {
-			err = errors.Wrapf(err, "failed to get plugin %s from net", meta)
+			err = errors.Wrapf(err, "failed to get plugin %s from net", request.Meta)
 			return
 		}
 	}
@@ -368,23 +414,16 @@ func cachedPackageResourceAsset(cachePath string, matcher *regexp.Regexp) (strin
 }
 
 // PluginFromNet downloads a plugin from the given metadata to the cache directory
-func PluginFromNet(
-	ctx context.Context,
-	gh *github.Client,
-	meta versioning.DependencyMeta,
-	platform string,
-	version string,
-	cacheDir string,
-) (filename string, resource *pkgresource.Resource, err error) {
-	print.Info(meta, "downloading plugin resource for", platform)
+func PluginFromNet(request PluginFetchRequest) (filename string, resource *pkgresource.Resource, err error) {
+	print.Info(request.Meta, "downloading plugin resource for", request.Platform)
 
-	pkg, err := pawnpackage.GetRemotePackage(ctx, gh, meta)
+	pkg, err := pawnpackage.GetRemotePackage(request.Context, request.GitHub, request.Meta)
 	if err != nil {
 		err = errors.Wrap(err, "failed to get remote package definition file")
 		return
 	}
 
-	resource, err = GetResource(pkg.Resources, platform, version)
+	resource, err = GetResource(pkg.Resources, request.Platform, request.Version)
 	if err != nil {
 		return
 	}
@@ -395,14 +434,14 @@ func PluginFromNet(
 		return
 	}
 
-	downloader := infraresource.NewGitHubReleaseResource(meta, matcher, infraresource.ResourceTypePlugin, gh)
-	downloader.SetCacheDir(cacheDir)
+	downloader := infraresource.NewGitHubReleaseResource(request.Meta, matcher, infraresource.ResourceTypePlugin, request.GitHub)
+	downloader.SetCacheDir(request.CacheDir)
 
-	requestedVersion := meta.Tag
+	requestedVersion := request.Meta.Tag
 	if requestedVersion == "" {
 		requestedVersion = "latest"
 	}
-	if err = downloader.Ensure(ctx, requestedVersion, ""); err != nil {
+	if err = downloader.Ensure(request.Context, requestedVersion, ""); err != nil {
 		return
 	}
 
@@ -416,7 +455,7 @@ func PluginFromNet(
 		return
 	}
 
-	print.Verb(meta, "downloaded", filename, "to cache")
+	print.Verb(request.Meta, "downloaded", filename, "to cache")
 
 	return filename, resource, nil
 }

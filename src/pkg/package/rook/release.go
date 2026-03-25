@@ -272,7 +272,13 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 
 		if archivePath != "" && release != nil {
 			print.Info("Uploading release archive...")
-			err = uploadReleaseAsset(ctx, gh, pkg, release, archivePath)
+			err = uploadReleaseAsset(releaseAssetUploadRequest{
+				Context:     ctx,
+				Client:      gh,
+				Package:     pkg,
+				Release:     release,
+				ArchivePath: archivePath,
+			})
 			if err != nil {
 				print.Warn("Failed to upload release asset:", err)
 			} else {
@@ -458,9 +464,17 @@ func createReleaseArchive(pkg pawnpackage.Package, version *semver.Version) (str
 	return archivePath, nil
 }
 
-// uploadReleaseAsset uploads the release archive as an asset to the GitHub release
-func uploadReleaseAsset(ctx context.Context, gh *github.Client, pkg pawnpackage.Package, release *github.RepositoryRelease, archivePath string) error {
-	file, err := os.Open(archivePath)
+type releaseAssetUploadRequest struct {
+	Context     context.Context
+	Client      *github.Client
+	Package     pawnpackage.Package
+	Release     *github.RepositoryRelease
+	ArchivePath string
+}
+
+// uploadReleaseAsset uploads the release archive as an asset to the GitHub release.
+func uploadReleaseAsset(request releaseAssetUploadRequest) error {
+	file, err := os.Open(request.ArchivePath)
 	if err != nil {
 		return errors.Wrap(err, "failed to open archive file")
 	}
@@ -471,12 +485,19 @@ func uploadReleaseAsset(ctx context.Context, gh *github.Client, pkg pawnpackage.
 		return errors.Wrap(err, "failed to stat archive file")
 	}
 
-	archiveName := filepath.Base(archivePath)
+	archiveName := filepath.Base(request.ArchivePath)
 	opts := &github.UploadOptions{
 		Name: archiveName,
 	}
 
-	_, _, err = gh.Repositories.UploadReleaseAsset(ctx, pkg.User, pkg.Repo, *release.ID, opts, file)
+	_, _, err = request.Client.Repositories.UploadReleaseAsset(
+		request.Context,
+		request.Package.User,
+		request.Package.Repo,
+		*request.Release.ID,
+		opts,
+		file,
+	)
 	if err != nil {
 		return errors.Wrap(err, "failed to upload release asset")
 	}

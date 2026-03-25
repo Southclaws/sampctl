@@ -296,7 +296,13 @@ func TestUploadReleaseAsset(t *testing.T) {
 	pkg.User = "owner"
 	pkg.Repo = "repo"
 
-	require.NoError(t, uploadReleaseAsset(t.Context(), client, pkg, release, archivePath))
+	require.NoError(t, uploadReleaseAsset(releaseAssetUploadRequest{
+		Context:     t.Context(),
+		Client:      client,
+		Package:     pkg,
+		Release:     release,
+		ArchivePath: archivePath,
+	}))
 	assert.Equal(t, http.MethodPost, gotMethod)
 	assert.Equal(t, "/repos/owner/repo/releases/42/assets", gotPath)
 	assert.Equal(t, "fixture.zip", gotName)

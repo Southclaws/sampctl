@@ -31,7 +31,7 @@ func (f *fakeDependencyLock) RecordLocalDependency(versioning.DependencyMeta) er
 
 func (f *fakeDependencyLock) RecordRuntime(string, string, string, []lockfile.LockedFileInfo) {}
 
-func (f *fakeDependencyLock) RecordBuild(string, string, string, string, string) {}
+func (f *fakeDependencyLock) RecordBuild(lockfile.BuildRecord) {}
 
 func (f *fakeDependencyLock) Save() error {
 	f.saved = true

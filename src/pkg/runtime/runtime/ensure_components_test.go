@@ -37,7 +37,13 @@ func TestEnsureComponentsExtractToComponentsDir(t *testing.T) {
 
 	cfg.WorkingDir = filepath.Join(t.TempDir(), "Pawn.RakNet-component-linux-openmp")
 
-	err := EnsurePlugins(context.Background(), nil, &cfg, cacheDir, false)
+	err := EnsurePlugins(EnsurePluginsRequest{
+		Context:  context.Background(),
+		GitHub:   nil,
+		Config:   &cfg,
+		CacheDir: cacheDir,
+		NoCache:  false,
+	})
 	assert.NoError(t, err)
 
 	// It should install binaries into ./components

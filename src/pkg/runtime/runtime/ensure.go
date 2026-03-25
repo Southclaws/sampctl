@@ -37,7 +37,13 @@ func Ensure(ctx context.Context, gh *github.Client, cfg *run.Runtime, noCache bo
 	}
 
 	print.Verb("ensuring all dependency and static plugins")
-	err = EnsurePlugins(ctx, gh, cfg, cacheDir, noCache)
+	err = EnsurePlugins(EnsurePluginsRequest{
+		Context:  ctx,
+		GitHub:   gh,
+		Config:   cfg,
+		CacheDir: cacheDir,
+		NoCache:  noCache,
+	})
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure plugins")
 	}

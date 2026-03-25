@@ -21,22 +21,22 @@ func seedPawnPackageFixtureCache(t *testing.T) string {
 	requireDir(t, cacheDir)
 	seedPawnRepo(t, cacheDir,
 		versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib"},
-		pawnpackage.Package{DependencyMeta: versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib"}},
+		pawnpackage.Package{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib"},
 		map[string]string{"pawn.inc": "// fixture\n"},
 	)
 	seedPawnRepo(t, cacheDir,
 		versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
 		pawnpackage.Package{
-			DependencyMeta: versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
-			Dependencies:   []versioning.DependencyString{"pawn-lang/pawn-stdlib"},
+			Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib",
+			Dependencies: []versioning.DependencyString{"pawn-lang/pawn-stdlib"},
 		},
 		map[string]string{"a_samp.inc": "// fixture\n"},
 	)
 	seedPawnRepo(t, cacheDir,
 		versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-uuid"},
 		pawnpackage.Package{
-			DependencyMeta: versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-uuid"},
-			Dependencies:   []versioning.DependencyString{"pawn-lang/samp-stdlib"},
+			Site: "github.com", User: "Southclaws", Repo: "pawn-uuid",
+			Dependencies: []versioning.DependencyString{"pawn-lang/samp-stdlib"},
 		},
 		map[string]string{"uuid.inc": "// fixture\n"},
 	)

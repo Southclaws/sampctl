@@ -128,9 +128,9 @@ func seedCachedPluginPackage(t *testing.T, cacheDir string, meta versioning.Depe
 
 func pluginFixturePackage(meta versioning.DependencyMeta, resources []res.Resource) pawnpackage.Package {
 	return pawnpackage.Package{
-		DependencyMeta: meta,
-		Resources:      resources,
-		Runtime:        &run.Runtime{Plugins: []run.Plugin{run.Plugin(meta.Repo)}},
+		Site: meta.Site, User: meta.User, Repo: meta.Repo, Path: meta.Path, Tag: meta.Tag, Branch: meta.Branch, Commit: meta.Commit, SSH: meta.SSH, Scheme: meta.Scheme,
+		Resources: resources,
+		Runtime:   &run.Runtime{Plugins: []run.Plugin{run.Plugin(meta.Repo)}},
 	}
 }
 

@@ -27,8 +27,8 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 			"basic",
 			PackageContext{
 				Package: pawnpackage.Package{
-					LocalPath:      fs.MustAbs("./tests/deps-basic"),
-					DependencyMeta: versioning.DependencyMeta{User: "local", Repo: "local"},
+					LocalPath: fs.MustAbs("./tests/deps-basic"),
+					User:      "local", Repo: "local",
 				},
 				AllDependencies: []versioning.DependencyMeta{
 					{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
@@ -113,9 +113,9 @@ func TestPackageContext_EnsurePackage(t *testing.T) {
 				GitAuth:  gitAuth,
 				Platform: "linux",
 				Package: pawnpackage.Package{
-					LocalPath:      pcxWorkspace,
-					Vendor:         pcxVendor,
-					DependencyMeta: versioning.DependencyMeta{User: "local", Repo: "local"},
+					LocalPath: pcxWorkspace,
+					Vendor:    pcxVendor,
+					User:      "local", Repo: "local",
 				},
 			}
 

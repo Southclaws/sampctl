@@ -76,7 +76,13 @@ func TestEnsureRepoExistsUsesInjectedRepositoryStoreForClone(t *testing.T) {
 	pcx := PackageContext{RepoStore: store, RepoHealth: health}
 	to := filepath.Join(t.TempDir(), "repo")
 
-	repo, err := pcx.ensureRepoExists("https://example.com/repo.git", to, "", false, false)
+	repo, err := pcx.ensureRepoExists(repoEnsureRequest{
+		From:        "https://example.com/repo.git",
+		To:          to,
+		Branch:      "",
+		SSH:         false,
+		ForceUpdate: false,
+	})
 	require.NoError(t, err)
 	require.NotNil(t, repo)
 	assert.Equal(t, 1, store.openCalls)
@@ -150,7 +156,13 @@ func TestEnsureRepoExistsUsesInjectedRepositoryHealth(t *testing.T) {
 	}
 
 	pcx := PackageContext{RepoStore: store, RepoHealth: health}
-	_, err := pcx.ensureRepoExists("https://example.com/repo.git", filepath.Join(t.TempDir(), "repo"), "", false, false)
+	_, err := pcx.ensureRepoExists(repoEnsureRequest{
+		From:        "https://example.com/repo.git",
+		To:          filepath.Join(t.TempDir(), "repo"),
+		Branch:      "",
+		SSH:         false,
+		ForceUpdate: false,
+	})
 	require.NoError(t, err)
 	assert.Equal(t, 1, health.validateCalls)
 	assert.Equal(t, 0, health.repairCalls)

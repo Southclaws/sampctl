@@ -9,34 +9,31 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
-var packageEnsureFlags = []cli.Flag{
-	cli.StringFlag{
-		Name:  "dir",
-		Value: ".",
-		Usage: "working directory for the project - by default, uses the current directory",
-	},
-	cli.BoolFlag{
-		Name:  "update",
-		Usage: "update cached dependencies to latest version, ignoring lockfile",
-	},
-	cli.BoolFlag{
-		Name:  "no-lock",
-		Usage: "disable lockfile support (not recommended for reproducible builds)",
-	},
-	cli.BoolFlag{
-		Name:  "lock-only",
-		Usage: "only update the lockfile without modifying dependencies",
-	},
+func packageEnsureFlags() []cli.Flag {
+	return []cli.Flag{
+		cli.StringFlag{
+			Name:  "dir",
+			Value: ".",
+			Usage: "working directory for the project - by default, uses the current directory",
+		},
+		cli.BoolFlag{
+			Name:  "update",
+			Usage: "update cached dependencies to latest version, ignoring lockfile",
+		},
+		cli.BoolFlag{
+			Name:  "no-lock",
+			Usage: "disable lockfile support (not recommended for reproducible builds)",
+		},
+		cli.BoolFlag{
+			Name:  "lock-only",
+			Usage: "only update the lockfile without modifying dependencies",
+		},
+	}
 }
 
 func packageEnsure(c *cli.Context) error {
-	env, err := getCommandEnv(c)
-	if err != nil {
-		return err
-	}
 	dir := fs.MustAbs(c.String("dir"))
 	forceUpdate := c.Bool("update")
 	noLock := c.Bool("no-lock")
@@ -44,16 +41,14 @@ func packageEnsure(c *cli.Context) error {
 	useLockfile := !noLock
 
 	// Create package context
-	pcx, err := pkgcontext.NewPackageContext(
-		gh, gitAuth, true, dir, env.Platform, env.CacheDir, "", false)
+	pcx, _, err := loadPackageContext(c, dir, false)
 	if err != nil {
 		return errors.Wrap(err, "failed to create package context")
 	}
 
 	// Initialize lockfile resolver if lockfile support is enabled
 	if useLockfile {
-		err = pcx.InitLockfileResolver(sampctlVersion)
-		if err != nil {
+		if err = initLockfileResolver(c, pcx); err != nil {
 			return errors.Wrap(err, "failed to initialize lockfile resolver")
 		}
 

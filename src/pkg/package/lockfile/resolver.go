@@ -219,11 +219,11 @@ func (r *Resolver) RecordRuntime(version, platform, runtimeType string, files []
 	print.Verb("recorded runtime", version, "for", platform)
 }
 
-func (r *Resolver) RecordBuild(compilerVersion, compilerPreset, entry, output, outputHash string) {
+func (r *Resolver) RecordBuild(record BuildRecord) {
 	if !r.useLockfile || r.lockfile == nil {
 		return
 	}
-	r.lockfile.SetBuild(compilerVersion, compilerPreset, entry, output, outputHash)
+	r.lockfile.SetBuild(record)
 	r.modified = true
-	print.Verb("recorded build for", entry)
+	print.Verb("recorded build for", record.Entry)
 }

@@ -2,7 +2,6 @@ package pkgcontext
 
 import (
 	"context"
-	"io"
 
 	"github.com/google/go-github/github"
 
@@ -14,8 +13,8 @@ var _ RuntimeEnvironment = runtimeEnvironmentAdapter{}
 
 type runtimeEnvironmentAdapter struct{}
 
-func (runtimeEnvironmentAdapter) Run(ctx context.Context, cfg runtimecfg.Runtime, cacheDir string, passArgs, recover bool, output io.Writer, input io.Reader) error {
-	return runtimepkg.Run(ctx, cfg, cacheDir, passArgs, recover, output, input)
+func (runtimeEnvironmentAdapter) Run(ctx context.Context, cfg runtimecfg.Runtime, options runtimepkg.RunOptions) error {
+	return runtimepkg.Run(ctx, cfg, options)
 }
 
 func (runtimeEnvironmentAdapter) PrepareRuntimeDirectory(cacheDir, version, platform, scriptfiles string) error {

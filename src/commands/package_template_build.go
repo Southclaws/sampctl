@@ -14,8 +14,8 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
-var packageTemplateBuildFlags = []cli.Flag{
-	//
+func packageTemplateBuildFlags() []cli.Flag {
+	return nil
 }
 
 func packageTemplateBuild(c *cli.Context) (err error) {
@@ -41,7 +41,7 @@ func packageTemplateBuild(c *cli.Context) (err error) {
 		return errors.Errorf("no such file or directory: %s", filename)
 	}
 
-	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, templatePath, env.Platform, env.CacheDir, "", false)
+	pcx, _, err := loadPackageContext(c, templatePath, false)
 	if err != nil {
 		return errors.Wrap(err, "template package is invalid")
 	}
@@ -51,7 +51,9 @@ func packageTemplateBuild(c *cli.Context) (err error) {
 		return errors.Wrap(err, "failed to copy target script to template package directory")
 	}
 
-	problems, result, err := pcx.Build(context.Background(), "", false, false, true, "")
+	problems, result, err := pcx.Build(context.Background(), pkgcontext.BuildOptions{
+		Relative: true,
+	})
 	if err != nil {
 		return
 	}

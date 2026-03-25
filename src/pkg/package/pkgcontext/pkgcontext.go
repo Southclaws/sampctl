@@ -73,51 +73,70 @@ type PackageContext struct {
 	UseLockfile      bool           // whether to use lockfile for reproducible builds
 }
 
+type NewPackageContextOptions struct {
+	GitHub      *github.Client
+	Auth        transport.AuthMethod
+	Parent      bool
+	Dir         string
+	Platform    string
+	CacheDir    string
+	Vendor      string
+	Init        bool
+	UseLockfile bool
+	AppVersion  string
+}
+
 // NewPackageContext attempts to parse a directory as a Package by looking for a
 // `pawn.json` or `pawn.yaml` file and unmarshalling it - additional parameters
 // are required to specify whether or not the package is a "parent package" and
 // where the vendor directory is.
-func NewPackageContext(
-	gh *github.Client,
-	auth transport.AuthMethod,
-	parent bool,
-	dir string,
-	platform string,
-	cacheDir string,
-	vendor string,
-	init bool,
-) (pcx *PackageContext, err error) {
-	pcx = &PackageContext{
-		GitHub:         gh,
-		GitAuth:        auth,
-		Platform:       platform,
-		CacheDir:       cacheDir,
-		RemotePackages: pawnpackage.NewRemotePackageFetcher(gh),
+func NewPackageContext(options NewPackageContextOptions) (pcx *PackageContext, err error) {
+	pcx = newPackageContextBase(options)
+	if err = pcx.loadPackageDefinition(options); err != nil {
+		return nil, err
+	}
+	if err = pcx.ensureCachedDependencies(); err != nil {
+		return nil, err
+	}
+	print.Verb(pcx.Package, "flattened dependencies to", len(pcx.AllDependencies), "leaves")
+	return pcx, nil
+}
+
+func newPackageContextBase(options NewPackageContextOptions) *PackageContext {
+	return &PackageContext{
+		GitHub:         options.GitHub,
+		GitAuth:        options.Auth,
+		Platform:       options.Platform,
+		CacheDir:       options.CacheDir,
+		RemotePackages: pawnpackage.NewRemotePackageFetcher(options.GitHub),
 		RepoStore:      GitRepositoryStore{},
 		RepoHealth:     GitRepositoryHealth{},
 		RuntimeEnv:     runtimeEnvironmentAdapter{},
 	}
-	pcx.Package, err = pawnpackage.PackageFromDir(dir)
+}
+
+func (pcx *PackageContext) loadPackageDefinition(options NewPackageContextOptions) (err error) {
+	pcx.Package, err = pawnpackage.PackageFromDir(options.Dir)
 	if err != nil {
 		err = errors.Wrap(err, "failed to read package definition")
 		return
 	}
 
-	pcx.Package.Parent = parent
-	pcx.Package.LocalPath = dir
+	pcx.Package.Parent = options.Parent
+	pcx.Package.LocalPath = options.Dir
 
-	if !init {
-		pcx.Package.Tag = getPackageTag(dir)
+	if !options.Init {
+		pcx.Package.Tag = getPackageTag(options.Dir)
 	} else {
 		pcx.Package.Tag = ""
 	}
 
-	print.Verb(pcx.Package, "read package from directory", dir)
+	print.Verb(pcx.Package, "read package from directory", options.Dir)
 
-	if vendor == "" {
-		pcx.Package.Vendor = filepath.Join(dir, "dependencies")
+	if options.Vendor == "" {
+		pcx.Package.Vendor = filepath.Join(options.Dir, "dependencies")
 	} else {
-		pcx.Package.Vendor = vendor
+		pcx.Package.Vendor = options.Vendor
 	}
 
 	if err = pcx.Package.Validate(); err != nil {
@@ -127,15 +146,15 @@ func NewPackageContext(
 
 	// user and repo are not mandatory but are recommended, warn the user if this is their own
 	// package (parent == true) but ignore for dependencies (parent == false)
-	if !init {
+	if !options.Init {
 		if pcx.Package.User == "" {
-			if parent {
+			if options.Parent {
 				print.Warn(pcx.Package, "Package Definition File does specify a value for `user`.")
 			}
 			pcx.Package.User = "<none>"
 		}
 		if pcx.Package.Repo == "" {
-			if parent {
+			if options.Parent {
 				print.Warn(pcx.Package, "Package Definition File does specify a value for `repo`.")
 			}
 			pcx.Package.Repo = "<local>"
@@ -150,42 +169,29 @@ func NewPackageContext(
 		pcx.Package.Runtime = new(run.Runtime)
 	}
 
-	print.Verb(pcx.Package, "building dependency tree and ensuring cached copies")
-	err = pcx.EnsureDependenciesCached()
-	if err != nil {
-		err = errors.Wrap(err, "failed to ensure dependencies are cached")
-		return
-	}
+	return nil
+}
 
-	print.Verb(pcx.Package, "flattened dependencies to", len(pcx.AllDependencies), "leaves")
-	return pcx, nil
+func (pcx *PackageContext) ensureCachedDependencies() error {
+	print.Verb(pcx.Package, "building dependency tree and ensuring cached copies")
+	if err := pcx.EnsureDependenciesCached(); err != nil {
+		return errors.Wrap(err, "failed to ensure dependencies are cached")
+	}
+	return nil
 }
 
 // NewPackageContextWithLockfile creates a PackageContext with lockfile support enabled.
-func NewPackageContextWithLockfile(
-	gh *github.Client,
-	auth transport.AuthMethod,
-	parent bool,
-	dir string,
-	platform string,
-	cacheDir string,
-	vendor string,
-	init bool,
-	useLockfile bool,
-	sampctlVersion string,
-) (pcx *PackageContext, err error) {
-	// Create the base context first
-	pcx, err = NewPackageContext(gh, auth, parent, dir, platform, cacheDir, vendor, init)
+func NewPackageContextWithLockfile(options NewPackageContextOptions) (pcx *PackageContext, err error) {
+	pcx, err = NewPackageContext(options)
 	if err != nil {
 		return nil, err
 	}
 
-	// Enable lockfile support if requested
-	pcx.UseLockfile = useLockfile
-	pcx.AppVersion = sampctlVersion
+	pcx.UseLockfile = options.UseLockfile
+	pcx.AppVersion = options.AppVersion
 
-	if useLockfile && parent {
-		pcx.lockfileResolver, err = newDependencyLock(dir, sampctlVersion)
+	if options.UseLockfile && options.Parent {
+		pcx.lockfileResolver, err = newDependencyLock(options.Dir, options.AppVersion)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to initialize lockfile resolver")
 		}

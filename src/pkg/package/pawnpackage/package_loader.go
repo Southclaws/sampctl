@@ -123,7 +123,14 @@ func (f *GitHubRemotePackageFetcher) packageFromRepo(
 	refs := remoteDefinitionRefs(meta)
 	paths := []string{"pawn.json", "pawn.yaml"}
 
-	pkg, err = fetchRemoteDefinitionFromGitHub(ctx, f.GitHub, meta.User, meta.Repo, refs, paths)
+	pkg, err = fetchRemoteDefinitionFromGitHub(remoteDefinitionRequest{
+		Context: ctx,
+		Client:  f.GitHub,
+		Owner:   meta.User,
+		Repo:    meta.Repo,
+		Refs:    refs,
+		Paths:   paths,
+	})
 	if err != nil {
 		return pkg, errors.Wrap(err, "package does not point to a valid remote package")
 	}
@@ -154,40 +161,42 @@ func remoteDefinitionRefs(meta versioning.DependencyMeta) []string {
 	return refs
 }
 
-func fetchRemoteDefinitionFromGitHub(
-	ctx context.Context,
-	client *github.Client,
-	owner string,
-	repo string,
-	refs []string,
-	paths []string,
-) (Package, error) {
-	if client == nil {
+type remoteDefinitionRequest struct {
+	Context context.Context
+	Client  *github.Client
+	Owner   string
+	Repo    string
+	Refs    []string
+	Paths   []string
+}
+
+func fetchRemoteDefinitionFromGitHub(request remoteDefinitionRequest) (Package, error) {
+	if request.Client == nil {
 		return Package{}, errors.New("no GitHub client provided")
 	}
 
 	var lastErr error
 
-	for _, ref := range refs {
-		for _, path := range paths {
+	for _, ref := range request.Refs {
+		for _, path := range request.Paths {
 			opt := &github.RepositoryContentGetOptions{}
 			if ref != "" {
 				opt.Ref = ref
 			}
 
-			fileContent, _, _, err := client.Repositories.GetContents(ctx, owner, repo, path, opt)
+			fileContent, _, _, err := request.Client.Repositories.GetContents(request.Context, request.Owner, request.Repo, path, opt)
 			if err != nil {
 				lastErr = err
 				continue
 			}
 			if fileContent == nil {
-				lastErr = errors.Errorf("empty response for %s/%s (%s)", owner, repo, path)
+				lastErr = errors.Errorf("empty response for %s/%s (%s)", request.Owner, request.Repo, path)
 				continue
 			}
 
 			rawContent, err := decodeRepositoryContent(fileContent)
 			if err != nil {
-				lastErr = errors.Wrapf(err, "failed to decode %s/%s (%s)", owner, repo, path)
+				lastErr = errors.Wrapf(err, "failed to decode %s/%s (%s)", request.Owner, request.Repo, path)
 				continue
 			}
 
@@ -201,7 +210,7 @@ func fetchRemoteDefinitionFromGitHub(
 				err = errors.Errorf("unsupported remote definition format for %s", path)
 			}
 			if err != nil {
-				lastErr = errors.Wrapf(err, "failed to parse %s/%s (%s)", owner, repo, path)
+				lastErr = errors.Wrapf(err, "failed to parse %s/%s (%s)", request.Owner, request.Repo, path)
 				continue
 			}
 

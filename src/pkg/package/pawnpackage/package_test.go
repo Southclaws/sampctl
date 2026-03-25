@@ -52,11 +52,11 @@ func TestPackage_Build(t *testing.T) {
 		{
 			"bare", []byte(`main(){}`), args{
 				pawnpackage.Package{
-					Parent:         true,
-					LocalPath:      fs.MustAbs("./tests/build-auto-bare"),
-					DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "bare"},
-					Entry:          "gamemodes/test.pwn",
-					Output:         "gamemodes/test.amx",
+					Parent:    true,
+					LocalPath: fs.MustAbs("./tests/build-auto-bare"),
+					User:      "test", Repo: "bare",
+					Entry:  "gamemodes/test.pwn",
+					Output: "gamemodes/test.amx",
 					Builds: []*build.Config{
 						{Name: "build", Version: "3.10.10"},
 					},
@@ -70,11 +70,11 @@ func TestPackage_Build(t *testing.T) {
 			main() {print("hi");}`,
 			), args{
 				pawnpackage.Package{
-					Parent:         true,
-					LocalPath:      fs.MustAbs("./tests/build-auto-stdlib"),
-					DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "stdlib"},
-					Entry:          "gamemodes/test.pwn",
-					Output:         "gamemodes/test.amx",
+					Parent:    true,
+					LocalPath: fs.MustAbs("./tests/build-auto-stdlib"),
+					User:      "test", Repo: "stdlib",
+					Entry:  "gamemodes/test.pwn",
+					Output: "gamemodes/test.amx",
 					Builds: []*build.Config{
 						{Name: "build", Version: "3.10.10"},
 					},
@@ -92,11 +92,11 @@ func TestPackage_Build(t *testing.T) {
 			main() {}`,
 			), args{
 				pawnpackage.Package{
-					Parent:         true,
-					LocalPath:      fs.MustAbs("./tests/build-auto-requests"),
-					DependencyMeta: versioning.DependencyMeta{User: "test", Repo: "requests"},
-					Entry:          "gamemodes/test.pwn",
-					Output:         "gamemodes/test.amx",
+					Parent:    true,
+					LocalPath: fs.MustAbs("./tests/build-auto-requests"),
+					User:      "test", Repo: "requests",
+					Entry:  "gamemodes/test.pwn",
+					Output: "gamemodes/test.amx",
 				},
 				"build", true,
 				[]versioning.DependencyMeta{
@@ -136,10 +136,13 @@ func TestPackage_Build(t *testing.T) {
 			pcx.Package.Parent = false
 			pcx.Package.LocalPath = pcxWorkspace
 			pcx.Package.Vendor = pcxVendor
-			pcx.Package.DependencyMeta = versioning.DependencyMeta{User: "local", Repo: "local"}
+			pcx.Package.SetDependencyMeta(versioning.DependencyMeta{User: "local", Repo: "local"})
 			pcx.Package.Build = &build.Config{Compiler: build.CompilerConfig{Path: compilerDir}}
 
-			gotProblems, _, err := pcx.Build(context.Background(), tt.args.build, tt.args.ensure, false, false, "")
+			gotProblems, _, err := pcx.Build(context.Background(), pkgcontext.BuildOptions{
+				Name:   tt.args.build,
+				Ensure: tt.args.ensure,
+			})
 			if tt.wantErr {
 				assert.Error(t, err)
 				return

@@ -3,7 +3,6 @@ package pkgcontext
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -13,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	runtimecfg "github.com/Southclaws/sampctl/src/pkg/runtime/run"
+	runtimepkg "github.com/Southclaws/sampctl/src/pkg/runtime/runtime"
 )
 
 type fakeRuntimeEnvironment struct {
@@ -28,7 +28,7 @@ type fakeRuntimeEnvironment struct {
 
 var _ RuntimeEnvironment = (*fakeRuntimeEnvironment)(nil)
 
-func (f *fakeRuntimeEnvironment) Run(context.Context, runtimecfg.Runtime, string, bool, bool, io.Writer, io.Reader) error {
+func (f *fakeRuntimeEnvironment) Run(context.Context, runtimecfg.Runtime, runtimepkg.RunOptions) error {
 	f.runCalled = true
 	return nil
 }
@@ -79,7 +79,12 @@ func TestRunPrepareUsesInjectedRuntimeEnvironment(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), data, 0o644))
 
 	fakeEnv := &fakeRuntimeEnvironment{}
-	pcx, err := NewPackageContext(nil, nil, true, projectDir, "linux", t.TempDir(), "", false)
+	pcx, err := NewPackageContext(NewPackageContextOptions{
+		Parent:   true,
+		Dir:      projectDir,
+		Platform: "linux",
+		CacheDir: t.TempDir(),
+	})
 	require.NoError(t, err)
 	pcx.RuntimeEnv = fakeEnv
 

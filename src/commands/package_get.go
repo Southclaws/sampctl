@@ -10,7 +10,9 @@ import (
 	"gopkg.in/urfave/cli.v1"
 )
 
-var packageGetFlags = []cli.Flag{}
+func packageGetFlags() []cli.Flag {
+	return nil
+}
 
 func packageGet(c *cli.Context) error {
 	if len(c.Args()) == 0 {
@@ -19,6 +21,10 @@ func packageGet(c *cli.Context) error {
 	}
 
 	env, err := getCommandEnv(c)
+	if err != nil {
+		return err
+	}
+	state, err := getCommandState(c)
 	if err != nil {
 		return err
 	}
@@ -33,7 +39,15 @@ func packageGet(c *cli.Context) error {
 		dir = fs.MustAbs(".")
 	}
 
-	err = rook.Get(context.Background(), gh, dep, dir, gitAuth, env.Platform, env.CacheDir)
+	err = rook.Get(rook.GetOptions{
+		Context:  context.Background(),
+		GitHub:   state.gh,
+		Meta:     dep,
+		Dir:      dir,
+		Auth:     state.gitAuth,
+		Platform: env.Platform,
+		CacheDir: env.CacheDir,
+	})
 	if err != nil {
 		return err
 	}

@@ -38,7 +38,13 @@ func TestPackageContext_ensureRepoExists_forceUpdateFetchesNewTags(t *testing.T)
 
 	pcx := PackageContext{}
 
-	_, err = pcx.ensureRepoExists(remoteDir, cacheDir, "", false, false)
+	_, err = pcx.ensureRepoExists(repoEnsureRequest{
+		From:        remoteDir,
+		To:          cacheDir,
+		Branch:      "",
+		SSH:         false,
+		ForceUpdate: false,
+	})
 	require.NoError(t, err)
 
 	repoCached, err := git.PlainOpen(cacheDir)
@@ -62,7 +68,13 @@ func TestPackageContext_ensureRepoExists_forceUpdateFetchesNewTags(t *testing.T)
 	_, err = repoRemote.CreateTag("v1.0.0", head.Hash(), nil)
 	require.NoError(t, err)
 
-	_, err = pcx.ensureRepoExists(remoteDir, cacheDir, "", false, false)
+	_, err = pcx.ensureRepoExists(repoEnsureRequest{
+		From:        remoteDir,
+		To:          cacheDir,
+		Branch:      "",
+		SSH:         false,
+		ForceUpdate: false,
+	})
 	require.NoError(t, err)
 
 	repoCached, err = git.PlainOpen(cacheDir)
@@ -78,7 +90,13 @@ func TestPackageContext_ensureRepoExists_forceUpdateFetchesNewTags(t *testing.T)
 	require.NoError(t, err)
 	require.Equal(t, 0, tagCount)
 
-	_, err = pcx.ensureRepoExists(remoteDir, cacheDir, "", false, true)
+	_, err = pcx.ensureRepoExists(repoEnsureRequest{
+		From:        remoteDir,
+		To:          cacheDir,
+		Branch:      "",
+		SSH:         false,
+		ForceUpdate: true,
+	})
 	require.NoError(t, err)
 
 	repoCached, err = git.PlainOpen(cacheDir)

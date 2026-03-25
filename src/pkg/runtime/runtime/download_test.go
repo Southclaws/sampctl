@@ -71,7 +71,13 @@ func TestFromNetContextHonorsCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	err := FromNetContext(ctx, cacheDir, "latest", dir, platform)
+	err := FromNetContext(ServerPackageRequest{
+		Context:  ctx,
+		CacheDir: cacheDir,
+		Version:  "latest",
+		Dir:      dir,
+		Platform: platform,
+	})
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "failed to download package")
 }

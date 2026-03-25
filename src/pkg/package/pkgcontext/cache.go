@@ -17,6 +17,19 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
 
+type repoEnsureRequest struct {
+	From        string
+	To          string
+	Branch      string
+	SSH         bool
+	ForceUpdate bool
+}
+
+type repoEnsureWithMetaRequest struct {
+	Meta versioning.DependencyMeta
+	repoEnsureRequest
+}
+
 // EnsureDependenciesCached will recursively visit a parent package dependencies
 // in the cache, pulling them if they do not exist yet.
 func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
@@ -47,7 +60,7 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 	// set the parent package visited state to true, just in case it depends on
 	// itself or a dependency depends on it. This should never happen but if it
 	// does, this prevents an infinite recursion.
-	visited[pcx.Package.DependencyMeta.Repo] = true
+	visited[pcx.Package.Dependency().Repo] = true
 
 	// keep track of recursion depth
 	verboseDepth := 0
@@ -158,7 +171,7 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 		}
 		verboseDepth--
 	}
-	recurse(pcx.Package.DependencyMeta)
+	recurse(pcx.Package.Dependency())
 
 	if errInner != nil {
 		return errors.New("Failed to clone the repo")
@@ -307,7 +320,16 @@ func (pcx PackageContext) EnsureDependencyFromCache(
 		}
 	}
 
-	repo, err = pcx.ensureRepoExistsWithMeta(meta, from, path, meta.Branch, meta.SSH != "", forceUpdate)
+	repo, err = pcx.ensureRepoExistsWithMeta(repoEnsureWithMetaRequest{
+		Meta: meta,
+		repoEnsureRequest: repoEnsureRequest{
+			From:        from,
+			To:          path,
+			Branch:      meta.Branch,
+			SSH:         meta.SSH != "",
+			ForceUpdate: forceUpdate,
+		},
+	})
 	return
 }
 
@@ -316,39 +338,42 @@ func (pcx PackageContext) EnsureDependencyCached(
 	meta versioning.DependencyMeta,
 	forceUpdate bool,
 ) (repo *git.Repository, err error) {
-	return pcx.ensureRepoExistsWithMeta(meta, meta.URL(), meta.CachePath(pcx.CacheDir), meta.Branch, meta.SSH != "", forceUpdate)
+	return pcx.ensureRepoExistsWithMeta(repoEnsureWithMetaRequest{
+		Meta: meta,
+		repoEnsureRequest: repoEnsureRequest{
+			From:        meta.URL(),
+			To:          meta.CachePath(pcx.CacheDir),
+			Branch:      meta.Branch,
+			SSH:         meta.SSH != "",
+			ForceUpdate: forceUpdate,
+		},
+	})
 }
 
-func (pcx PackageContext) ensureRepoExists(
-	from,
-	to,
-	branch string,
-	ssh,
-	forceUpdate bool,
-) (repo *git.Repository, err error) {
-	if fs.Exists(to) {
-		valid, validationErr := pcx.repositoryHealth().Validate(to)
+func (pcx PackageContext) ensureRepoExists(request repoEnsureRequest) (repo *git.Repository, err error) {
+	if fs.Exists(request.To) {
+		valid, validationErr := pcx.repositoryHealth().Validate(request.To)
 		if validationErr != nil || !valid {
-			print.Verb("repository at", to, "is invalid or corrupted")
+			print.Verb("repository at", request.To, "is invalid or corrupted")
 			if validationErr != nil {
 				print.Verb("validation error:", validationErr)
 			}
 			print.Verb("removing invalid repository for fresh clone")
-			errRemove := os.RemoveAll(to)
+			errRemove := os.RemoveAll(request.To)
 			if errRemove != nil {
 				return nil, errors.Wrap(errRemove, "failed to remove invalid repository")
 			}
 		}
 	}
 
-	repo, err = pcx.repositoryStore().Open(to)
+	repo, err = pcx.repositoryStore().Open(request.To)
 	if err != nil {
 		// Repository doesn't exist or can't be opened - clone it
-		return pcx.cloneRepository(from, to, branch, ssh)
+		return pcx.cloneRepository(request.From, request.To, request.Branch, request.SSH)
 	}
 
-	if forceUpdate {
-		return pcx.updateRepository(repo, to, branch, ssh, from)
+	if request.ForceUpdate {
+		return pcx.updateRepository(repo, request)
 	}
 
 	return repo, nil
@@ -406,22 +431,22 @@ func (pcx PackageContext) cloneRepository(from, to, branch string, ssh bool) (*g
 }
 
 // updateRepository attempts to update an existing repository with robust error handling
-func (pcx PackageContext) updateRepository(repo *git.Repository, to, branch string, ssh bool, from string) (*git.Repository, error) {
-	print.Verb("updating repository at", to)
+func (pcx PackageContext) updateRepository(repo *git.Repository, request repoEnsureRequest) (*git.Repository, error) {
+	print.Verb("updating repository at", request.To)
 
 	wt, err := repo.Worktree()
 	if err != nil {
 		// Worktree error often indicates corruption - re-clone
 		print.Verb("worktree error, repository may be corrupted:", err)
-		return pcx.recoverByReclone(from, to, branch, ssh)
+		return pcx.recoverByReclone(request.From, request.To, request.Branch, request.SSH)
 	}
 
 	// Configure pull options
 	pullOpts := &git.PullOptions{}
-	if branch != "" {
-		pullOpts.ReferenceName = plumbing.ReferenceName("refs/heads/" + branch)
+	if request.Branch != "" {
+		pullOpts.ReferenceName = plumbing.ReferenceName("refs/heads/" + request.Branch)
 	}
-	if auth := pcx.authForRemote(from, ssh); auth != nil {
+	if auth := pcx.authForRemote(request.From, request.SSH); auth != nil {
 		pullOpts.Auth = auth
 	}
 
@@ -430,7 +455,7 @@ func (pcx PackageContext) updateRepository(repo *git.Repository, to, branch stri
 
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		print.Verb("pull failed:", err)
-		repairErr := pcx.repositoryHealth().Repair(to)
+		repairErr := pcx.repositoryHealth().Repair(request.To)
 		if repairErr == nil {
 			print.Verb("repository repaired, retrying pull")
 			err = wt.Pull(pullOpts)
@@ -440,7 +465,7 @@ func (pcx PackageContext) updateRepository(repo *git.Repository, to, branch stri
 		}
 
 		print.Verb("repair unsuccessful, re-cloning repository")
-		return pcx.recoverByReclone(from, to, branch, ssh)
+		return pcx.recoverByReclone(request.From, request.To, request.Branch, request.SSH)
 	}
 
 	return repo, nil
@@ -459,22 +484,21 @@ func (pcx PackageContext) recoverByReclone(from, to, branch string, ssh bool) (*
 }
 
 // ensureRepoExistsWithMeta wraps ensureRepoExists and provides improved error handling
-func (pcx PackageContext) ensureRepoExistsWithMeta(
-	meta versioning.DependencyMeta,
-	from,
-	to,
-	branch string,
-	ssh,
-	forceUpdate bool,
-) (repo *git.Repository, err error) {
-	repo, err = pcx.ensureRepoExists(from, to, branch, ssh, forceUpdate)
-	if err != nil && pcx.shouldRetryWithSSH(meta, from, ssh, err) {
-		fallbackFrom := toGitSSHURL(meta)
-		print.Verb(meta, "HTTPS git operation failed, retrying with SSH:", fallbackFrom)
-		repo, err = pcx.ensureRepoExists(fallbackFrom, to, branch, true, forceUpdate)
+func (pcx PackageContext) ensureRepoExistsWithMeta(request repoEnsureWithMetaRequest) (repo *git.Repository, err error) {
+	repo, err = pcx.ensureRepoExists(request.repoEnsureRequest)
+	if err != nil && pcx.shouldRetryWithSSH(request.Meta, request.From, request.SSH, err) {
+		fallbackFrom := toGitSSHURL(request.Meta)
+		print.Verb(request.Meta, "HTTPS git operation failed, retrying with SSH:", fallbackFrom)
+		repo, err = pcx.ensureRepoExists(repoEnsureRequest{
+			From:        fallbackFrom,
+			To:          request.To,
+			Branch:      request.Branch,
+			SSH:         true,
+			ForceUpdate: request.ForceUpdate,
+		})
 	}
 	if err != nil {
-		err = WrapGitError(err, meta)
+		err = WrapGitError(err, request.Meta)
 	}
 	return repo, err
 }

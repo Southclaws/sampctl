@@ -47,8 +47,18 @@ type Package struct {
 	// format stores the original format of the package definition file, either `json` or `yaml`
 	Format string `json:"-" yaml:"-"`
 
-	// Inferred metadata, not always explicitly set via JSON/YAML but inferred from the dependency path
-	versioning.DependencyMeta `yaml:"-,inline"`
+	// DependencyMeta is retained for backward compatibility with older tests and call sites.
+	// New code should prefer Dependency() / SetDependencyMeta().
+	DependencyMeta versioning.DependencyMeta `json:"-" yaml:"-"`
+	Site           string                    `json:"site,omitempty" yaml:"site,omitempty"`
+	User           string                    `json:"user" yaml:"user"`
+	Repo           string                    `json:"repo" yaml:"repo"`
+	Path           string                    `json:"path,omitempty" yaml:"path,omitempty"`
+	Tag            string                    `json:"tag,omitempty" yaml:"tag,omitempty"`
+	Branch         string                    `json:"branch,omitempty" yaml:"branch,omitempty"`
+	Commit         string                    `json:"commit,omitempty" yaml:"commit,omitempty"`
+	SSH            string                    `json:"ssh,omitempty" yaml:"ssh,omitempty"`
+	Scheme         string                    `json:"scheme,omitempty" yaml:"scheme,omitempty"`
 
 	// Metadata, set by the package author to describe the package
 	Contributors []string `json:"contributors,omitempty" yaml:"contributors,omitempty"` // list of contributors
@@ -115,8 +125,56 @@ func (pkg Package) effectivePreset() string {
 	return "samp"
 }
 
+// Dependency returns the current dependency metadata for this package.
+func (pkg Package) Dependency() versioning.DependencyMeta {
+	meta := pkg.DependencyMeta
+	if pkg.Site != "" {
+		meta.Site = pkg.Site
+	}
+	if pkg.User != "" {
+		meta.User = pkg.User
+	}
+	if pkg.Repo != "" {
+		meta.Repo = pkg.Repo
+	}
+	if pkg.Path != "" {
+		meta.Path = pkg.Path
+	}
+	if pkg.Tag != "" {
+		meta.Tag = pkg.Tag
+	}
+	if pkg.Branch != "" {
+		meta.Branch = pkg.Branch
+	}
+	if pkg.Commit != "" {
+		meta.Commit = pkg.Commit
+	}
+	if pkg.SSH != "" {
+		meta.SSH = pkg.SSH
+	}
+	if pkg.Scheme != "" {
+		meta.Scheme = pkg.Scheme
+	}
+
+	return meta
+}
+
+// SetDependencyMeta applies dependency metadata to the package and its compatibility field.
+func (pkg *Package) SetDependencyMeta(meta versioning.DependencyMeta) {
+	pkg.DependencyMeta = meta
+	pkg.Site = meta.Site
+	pkg.User = meta.User
+	pkg.Repo = meta.Repo
+	pkg.Path = meta.Path
+	pkg.Tag = meta.Tag
+	pkg.Branch = meta.Branch
+	pkg.Commit = meta.Commit
+	pkg.SSH = meta.SSH
+	pkg.Scheme = meta.Scheme
+}
+
 func (pkg Package) String() string {
-	return fmt.Sprint(pkg.DependencyMeta)
+	return fmt.Sprint(pkg.Dependency())
 }
 
 // Validate checks a package for missing fields
@@ -147,8 +205,7 @@ func (pkg Package) GetAllDependencies() (result []versioning.DependencyString) {
 // PackageFromDep creates a Package object from a Dependency String
 func PackageFromDep(depString versioning.DependencyString) (pkg Package, err error) {
 	dep, err := depString.Explode()
-	//nolint:lll
-	pkg.Site, pkg.User, pkg.Repo, pkg.Path, pkg.Tag, pkg.Branch, pkg.Commit = dep.Site, dep.User, dep.Repo, dep.Path, dep.Tag, dep.Branch, dep.Commit
+	pkg.SetDependencyMeta(dep)
 	return
 }
 
@@ -156,6 +213,7 @@ func PackageFromDep(depString versioning.DependencyString) (pkg Package, err err
 // on the `Format` field of the package.
 func (pkg Package) WriteDefinition() (err error) {
 	cleanPkg := pkg
+	cleanPkg.SetDependencyMeta(cleanPkg.Dependency())
 	if cleanPkg.Runtime != nil {
 		cleanPkg.Runtime = run.CloneWithoutDefaults(cleanPkg.Runtime)
 	}

@@ -51,13 +51,13 @@ func GetRuntimeListWithClientContext(ctx context.Context, cacheDir string, clien
 	}
 
 	runtimesFile := fs.Join(cacheDir, "runtimes.json")
-	runtimes, refreshed, err := cache.GetOrRefreshJSON[Runtimes](
-		ctx,
-		runtimesFile,
-		time.Hour*24*7,
-		fs.PermDirPrivate,
-		fs.PermFileShared,
-		func(ctx context.Context) (Runtimes, error) {
+	runtimes, refreshed, err := cache.GetOrRefreshJSON(cache.JSONCacheRequest[Runtimes]{
+		Context:  ctx,
+		Path:     runtimesFile,
+		TTL:      time.Hour * 24 * 7,
+		DirPerm:  fs.PermDirPrivate,
+		FilePerm: fs.PermFileShared,
+		Fetch: func(ctx context.Context) (Runtimes, error) {
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://raw.githubusercontent.com/sampctl/runtimes/master/runtimes.json", nil)
 			if err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to create request")
@@ -76,7 +76,7 @@ func GetRuntimeListWithClientContext(ctx context.Context, cacheDir string, clien
 			}
 			return out, nil
 		},
-	)
+	})
 	if err != nil {
 		return Runtimes{}, err
 	}
@@ -104,13 +104,13 @@ func UpdateRuntimeListWithClientContext(ctx context.Context, cacheDir string, cl
 	}
 
 	runtimesFile := fs.Join(cacheDir, "runtimes.json")
-	_, _, err = cache.GetOrRefreshJSON[Runtimes](
-		ctx,
-		runtimesFile,
-		-1,
-		fs.PermDirPrivate,
-		fs.PermFileShared,
-		func(ctx context.Context) (Runtimes, error) {
+	_, _, err = cache.GetOrRefreshJSON(cache.JSONCacheRequest[Runtimes]{
+		Context:  ctx,
+		Path:     runtimesFile,
+		TTL:      -1,
+		DirPerm:  fs.PermDirPrivate,
+		FilePerm: fs.PermFileShared,
+		Fetch: func(ctx context.Context) (Runtimes, error) {
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://raw.githubusercontent.com/sampctl/runtimes/master/runtimes.json", nil)
 			if err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to create request")
@@ -129,7 +129,7 @@ func UpdateRuntimeListWithClientContext(ctx context.Context, cacheDir string, cl
 			}
 			return out, nil
 		},
-	)
+	})
 	return err
 }
 

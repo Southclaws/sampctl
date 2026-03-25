@@ -28,10 +28,7 @@ import (
 func RunContainer(
 	ctx context.Context,
 	cfg run.Runtime,
-	cacheDir string,
-	passArgs bool,
-	output io.Writer,
-	_ io.Reader,
+	options RunOptions,
 ) (err error) {
 	cli, err := client.NewClientWithOpts()
 	if err != nil {
@@ -48,7 +45,7 @@ func RunContainer(
 	}()
 
 	args := strslice.StrSlice{"sampctl", "server", "run"}
-	if passArgs {
+	if options.PassArgs {
 		for i, arg := range os.Args {
 			// trim first 3 args and container specific flags
 			if arg == "--container" || arg == "--mountCache" || i < 3 {
@@ -69,10 +66,10 @@ func RunContainer(
 	}
 
 	if cfg.Container.MountCache {
-		print.Verb("mounting cache at", cacheDir, "into container at /root/.samp")
+		print.Verb("mounting cache at", options.CacheDir, "into container at /root/.samp")
 		mounts = append(mounts, mount.Mount{
 			Type:     mount.TypeBind,
-			Source:   cacheDir,
+			Source:   options.CacheDir,
 			Target:   "/root/.samp",
 			ReadOnly: true,
 		})
@@ -193,7 +190,7 @@ func RunContainer(
 	scanner := bufio.NewScanner(reader)
 	writeFailed := false
 	for scanner.Scan() {
-		_, err = fmt.Fprintln(output, scanner.Text())
+		_, err = fmt.Fprintln(options.Output, scanner.Text())
 		if err != nil {
 			writeFailed = true
 			break

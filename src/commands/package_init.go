@@ -8,21 +8,22 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 	"github.com/Southclaws/sampctl/src/pkg/package/rook"
 )
 
-var packageInitFlags = []cli.Flag{
-	cli.StringFlag{
-		Name:  "dir",
-		Value: ".",
-		Usage: "working directory for the project - by default, uses the current directory",
-	},
-	cli.StringFlag{
-		Name:  "preset",
-		Value: "openmp",
-		Usage: "specify the preset to use for the project: 'samp' for SA-MP or 'openmp' for open.mp",
-	},
+func packageInitFlags() []cli.Flag {
+	return []cli.Flag{
+		cli.StringFlag{
+			Name:  "dir",
+			Value: ".",
+			Usage: "working directory for the project - by default, uses the current directory",
+		},
+		cli.StringFlag{
+			Name:  "preset",
+			Value: "openmp",
+			Usage: "specify the preset to use for the project: 'samp' for SA-MP or 'openmp' for open.mp",
+		},
+	}
 }
 
 func packageInit(c *cli.Context) error {
@@ -34,17 +35,34 @@ func packageInit(c *cli.Context) error {
 		preset = "openmp"
 	}
 
-	env, err := getCommandEnv(c)
+	_, env, err := loadPackageContext(c, dir, true)
+	if err == nil {
+		return errors.New("Directory already appears to be a package")
+	}
+	if env.CacheDir == "" {
+		return err
+	}
+
+	state, err := getCommandState(c)
+	if err != nil {
+		return err
+	}
+	cfg, err := getCommandConfig(c)
 	if err != nil {
 		return err
 	}
 
-	_, err = pkgcontext.NewPackageContext(gh, gitAuth, true, dir, env.Platform, env.CacheDir, "", true)
-	if err != nil {
-		return errors.New("Directory already appears to be a package")
-	}
-
-	err = rook.Init(context.Background(), gh, dir, cfg, gitAuth, env.Platform, env.CacheDir, preset, c.App.Version)
+	err = rook.Init(rook.InitOptions{
+		Context:  context.Background(),
+		GitHub:   state.gh,
+		Dir:      dir,
+		Config:   cfg,
+		Auth:     state.gitAuth,
+		Platform: env.Platform,
+		CacheDir: env.CacheDir,
+		Preset:   preset,
+		Version:  c.App.Version,
+	})
 
 	return err
 }

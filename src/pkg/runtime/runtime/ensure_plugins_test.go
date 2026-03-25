@@ -90,13 +90,25 @@ func TestEnsurePlugins(t *testing.T) {
 
 			seedCachedPluginPackage(t, cacheDir, tt.meta, pluginFixturePackage(tt.meta, tt.resources), tt.archiveName, tt.archiveFiles)
 
-			err := EnsurePlugins(context.Background(), nil, &tt.cfg, cacheDir, false)
+			err := EnsurePlugins(EnsurePluginsRequest{
+				Context:  context.Background(),
+				GitHub:   nil,
+				Config:   &tt.cfg,
+				CacheDir: cacheDir,
+				NoCache:  false,
+			})
 			assert.NoError(t, err)
 
 			tt.cfg.Plugins = nil
 			tt.cfg.Components = nil
 
-			err = EnsurePlugins(context.Background(), nil, &tt.cfg, cacheDir, false)
+			err = EnsurePlugins(EnsurePluginsRequest{
+				Context:  context.Background(),
+				GitHub:   nil,
+				Config:   &tt.cfg,
+				CacheDir: cacheDir,
+				NoCache:  false,
+			})
 			assert.NoError(t, err)
 
 			for _, file := range tt.wantFiles {

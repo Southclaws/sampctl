@@ -12,19 +12,20 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
-	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
-var packageTemplateMakeFlags = []cli.Flag{
-	cli.StringFlag{
-		Name:  "dir",
-		Value: ".",
-		Usage: "working directory for the package - by default, uses the current directory",
-	},
-	cli.BoolFlag{
-		Name:  "update",
-		Usage: "update cached dependencies to latest version",
-	},
+func packageTemplateMakeFlags() []cli.Flag {
+	return []cli.Flag{
+		cli.StringFlag{
+			Name:  "dir",
+			Value: ".",
+			Usage: "working directory for the package - by default, uses the current directory",
+		},
+		cli.BoolFlag{
+			Name:  "update",
+			Usage: "update cached dependencies to latest version",
+		},
+	}
 }
 
 func packageTemplateMake(c *cli.Context) (err error) {
@@ -63,8 +64,7 @@ func packageTemplateMake(c *cli.Context) (err error) {
 		return errors.Wrap(err, "failed to write package template definition file")
 	}
 
-	pcx, err := pkgcontext.NewPackageContext(
-		gh, nil, true, templatePath, env.Platform, env.CacheDir, "", false)
+	pcx, _, err := loadPackageContext(c, templatePath, false)
 	if err != nil {
 		return errors.Wrap(err, "failed to create package context")
 	}

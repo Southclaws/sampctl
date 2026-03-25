@@ -33,11 +33,25 @@ func TestFromCache(t *testing.T) {
 	createZipArchive(t, archivePath, map[string]string{"pkg/bin/tool": "payload"})
 
 	cacheDir := filepath.Dir(archivePath)
-	hit, err := FromCache(cacheDir, filepath.Base(archivePath), t.TempDir(), Unzip, map[string]string{"pkg/bin/tool": "bin/"}, "linux")
+	hit, err := FromCache(CacheExtractRequest{
+		CacheDir: cacheDir,
+		Filename: filepath.Base(archivePath),
+		Dir:      t.TempDir(),
+		Method:   Unzip,
+		Paths:    map[string]string{"pkg/bin/tool": "bin/"},
+		Platform: "linux",
+	})
 	require.NoError(t, err)
 	assert.True(t, hit)
 
-	hit, err = FromCache(cacheDir, "missing.zip", t.TempDir(), Unzip, nil, "linux")
+	hit, err = FromCache(CacheExtractRequest{
+		CacheDir: cacheDir,
+		Filename: "missing.zip",
+		Dir:      t.TempDir(),
+		Method:   Unzip,
+		Paths:    nil,
+		Platform: "linux",
+	})
 	require.NoError(t, err)
 	assert.False(t, hit)
 }
@@ -315,7 +329,15 @@ func TestReleaseAssetByPattern(t *testing.T) {
 	client.UploadURL = mustParseURL(t, server.URL+"/")
 
 	dir := t.TempDir()
-	file, tag, err := ReleaseAssetByPattern(context.Background(), client, versioning.DependencyMeta{User: "o", Repo: "r"}, regexp.MustCompile(`tool`), dir, "", t.TempDir())
+	file, tag, err := ReleaseAssetByPattern(ReleaseAssetRequest{
+		Context:    context.Background(),
+		Client:     client,
+		Meta:       versioning.DependencyMeta{User: "o", Repo: "r"},
+		Matcher:    regexp.MustCompile(`tool`),
+		Dir:        dir,
+		OutputFile: "",
+		CacheDir:   t.TempDir(),
+	})
 	require.NoError(t, err)
 	assert.Equal(t, "v1.0.0", tag)
 	assert.Equal(t, filepath.Join(dir, "tool.zip"), file)
@@ -328,20 +350,44 @@ func TestReleaseAssetAndReleaseLookupErrors(t *testing.T) {
 	t.Run("download release asset branches", func(t *testing.T) {
 		meta := versioning.DependencyMeta{User: "u", Repo: "r"}
 
-		_, err := downloadReleaseAsset(context.Background(), nil, meta, nil, filepath.Join(t.TempDir(), "out.bin"))
+		_, err := downloadReleaseAsset(ReleaseAssetDownloadRequest{
+			Context:     context.Background(),
+			Client:      nil,
+			Meta:        meta,
+			Asset:       nil,
+			Destination: filepath.Join(t.TempDir(), "out.bin"),
+		})
 		require.Error(t, err)
 
 		api := &fakeReleasesAPI{downloadErr: errors.New("boom")}
 		asset := &github.ReleaseAsset{ID: github.Int64(1), Name: github.String("asset.zip")}
-		_, err = downloadReleaseAsset(context.Background(), api, meta, asset, filepath.Join(t.TempDir(), "out.bin"))
+		_, err = downloadReleaseAsset(ReleaseAssetDownloadRequest{
+			Context:     context.Background(),
+			Client:      api,
+			Meta:        meta,
+			Asset:       asset,
+			Destination: filepath.Join(t.TempDir(), "out.bin"),
+		})
 		require.Error(t, err)
 
 		api = &fakeReleasesAPI{}
-		_, err = downloadReleaseAsset(context.Background(), api, meta, asset, filepath.Join(t.TempDir(), "out.bin"))
+		_, err = downloadReleaseAsset(ReleaseAssetDownloadRequest{
+			Context:     context.Background(),
+			Client:      api,
+			Meta:        meta,
+			Asset:       asset,
+			Destination: filepath.Join(t.TempDir(), "out.bin"),
+		})
 		require.ErrorContains(t, err, "empty response body")
 
 		asset = &github.ReleaseAsset{Name: github.String("asset.zip")}
-		_, err = downloadReleaseAsset(context.Background(), nil, meta, asset, filepath.Join(t.TempDir(), "out.bin"))
+		_, err = downloadReleaseAsset(ReleaseAssetDownloadRequest{
+			Context:     context.Background(),
+			Client:      nil,
+			Meta:        meta,
+			Asset:       asset,
+			Destination: filepath.Join(t.TempDir(), "out.bin"),
+		})
 		require.ErrorContains(t, err, "no download URL")
 	})
 
@@ -359,7 +405,13 @@ func TestReleaseAssetAndReleaseLookupErrors(t *testing.T) {
 		api := &fakeReleasesAPI{downloadRedirectURL: server.URL}
 		asset := &github.ReleaseAsset{ID: github.Int64(1), Name: github.String("asset.zip")}
 		out := filepath.Join(t.TempDir(), "out.bin")
-		got, err := downloadReleaseAsset(context.Background(), api, versioning.DependencyMeta{User: "u", Repo: "r"}, asset, out)
+		got, err := downloadReleaseAsset(ReleaseAssetDownloadRequest{
+			Context:     context.Background(),
+			Client:      api,
+			Meta:        versioning.DependencyMeta{User: "u", Repo: "r"},
+			Asset:       asset,
+			Destination: out,
+		})
 		require.NoError(t, err)
 		assert.Equal(t, out, got)
 		data, readErr := os.ReadFile(out)
@@ -392,7 +444,15 @@ func TestReleaseAssetAndReleaseLookupErrors(t *testing.T) {
 			Assets:  []github.ReleaseAsset{{Name: github.String("asset.zip"), BrowserDownloadURL: &assetURL}},
 		}}}
 
-		file, _, err := ReleaseAssetByPatternWithAPI(context.Background(), fake, versioning.DependencyMeta{User: "u", Repo: "r"}, regexp.MustCompile(`asset`), "", "nested/custom.bin", t.TempDir())
+		file, _, err := ReleaseAssetByPatternWithAPI(ReleaseAssetAPIRequest{
+			Context:    context.Background(),
+			Client:     fake,
+			Meta:       versioning.DependencyMeta{User: "u", Repo: "r"},
+			Matcher:    regexp.MustCompile(`asset`),
+			Dir:        "",
+			OutputFile: "nested/custom.bin",
+			CacheDir:   t.TempDir(),
+		})
 		require.NoError(t, err)
 		assert.Equal(t, "custom.bin", filepath.Base(file))
 	})

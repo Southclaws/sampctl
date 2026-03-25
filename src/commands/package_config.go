@@ -13,8 +13,8 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 )
 
-var packageConfigFlags = []cli.Flag{
-	//
+func packageConfigFlags() []cli.Flag {
+	return nil
 }
 
 func packageConfig(c *cli.Context) error {
@@ -26,7 +26,10 @@ func packageConfig(c *cli.Context) error {
 	field := c.Args().Get(0) // the name of the config field
 	value := c.Args().Get(1) // the value of the config value
 
-	cnf := cfg
+	cnf, err := getCommandConfig(c)
+	if err != nil {
+		return err
+	}
 	v := reflect.ValueOf(cnf).Elem()
 
 	// show output of fields

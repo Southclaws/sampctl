@@ -2,7 +2,6 @@ package pkgcontext
 
 import (
 	"context"
-	"io"
 
 	git "github.com/go-git/go-git/v5"
 	"github.com/google/go-github/github"
@@ -10,6 +9,7 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/lockfile"
 	runtimecfg "github.com/Southclaws/sampctl/src/pkg/runtime/run"
+	runtimepkg "github.com/Southclaws/sampctl/src/pkg/runtime/runtime"
 )
 
 // DependencyLock abstracts lockfile-aware dependency resolution for package flows.
@@ -18,7 +18,7 @@ type DependencyLock interface {
 	RecordResolution(meta versioning.DependencyMeta, resolution lockfile.DependencyResolution, transitive bool, requiredBy string) error
 	RecordLocalDependency(meta versioning.DependencyMeta) error
 	RecordRuntime(version, platform, runtimeType string, files []lockfile.LockedFileInfo)
-	RecordBuild(compilerVersion, compilerPreset, entry, output, outputHash string)
+	RecordBuild(record lockfile.BuildRecord)
 	Save() error
 	ForceUpdate()
 	HasLockfile() bool
@@ -39,7 +39,7 @@ type RepositoryHealth interface {
 
 // RuntimeEnvironment abstracts runtime preparation and execution for package runs.
 type RuntimeEnvironment interface {
-	Run(ctx context.Context, cfg runtimecfg.Runtime, cacheDir string, passArgs, recover bool, output io.Writer, input io.Reader) error
+	Run(ctx context.Context, cfg runtimecfg.Runtime, options runtimepkg.RunOptions) error
 	PrepareRuntimeDirectory(cacheDir, version, platform, scriptfiles string) error
 	CopyFileToRuntime(cacheDir, version, amxFile string) error
 	Ensure(ctx context.Context, gh *github.Client, cfg *runtimecfg.Runtime, noCache bool) error

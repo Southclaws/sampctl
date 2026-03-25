@@ -20,7 +20,7 @@ import (
 
 // GitHubReleaseResource represents a resource from a GitHub release asset
 type GitHubReleaseResource struct {
-	*BaseResource
+	baseResource   *BaseResource
 	dependencyMeta versioning.DependencyMeta
 	assetPattern   *regexp.Regexp
 	ghClient       *github.Client
@@ -32,7 +32,7 @@ type GitHubReleaseResource struct {
 // Unlike BaseResource, GitHubReleaseResource stores the downloaded asset under its
 // original filename inside a stable cache directory.
 func (ghr *GitHubReleaseResource) Cached(version string) (bool, string) {
-	cacheDir, err := ghr.cachePath(version)
+	cacheDir, err := ghr.baseResource.cachePath(version)
 	if err != nil {
 		return false, ""
 	}
@@ -45,7 +45,7 @@ func (ghr *GitHubReleaseResource) Cached(version string) (bool, string) {
 	// Backward compatibility: older cache layout stored the downloaded asset directly
 	// at the hash path
 	if !info.IsDir() {
-		if ghr.cacheTTL > 0 && time.Since(info.ModTime()) > ghr.cacheTTL {
+		if ghr.baseResource.cacheTTL > 0 && time.Since(info.ModTime()) > ghr.baseResource.cacheTTL {
 			return false, ""
 		}
 		return true, cacheDir
@@ -72,7 +72,7 @@ func (ghr *GitHubReleaseResource) Cached(version string) (bool, string) {
 	if err != nil {
 		return false, ""
 	}
-	if ghr.cacheTTL > 0 && time.Since(fileInfo.ModTime()) > ghr.cacheTTL {
+	if ghr.baseResource.cacheTTL > 0 && time.Since(fileInfo.ModTime()) > ghr.baseResource.cacheTTL {
 		return false, ""
 	}
 
@@ -97,11 +97,50 @@ func NewGitHubReleaseResource(
 	}
 
 	return &GitHubReleaseResource{
-		BaseResource:   NewBaseResource(identifier, version, resourceType),
+		baseResource:   NewBaseResource(identifier, version, resourceType),
 		dependencyMeta: depMeta,
 		assetPattern:   assetPattern,
 		ghClient:       ghClient,
 	}
+}
+
+// Version returns the resource version.
+func (ghr *GitHubReleaseResource) Version() string {
+	return ghr.baseResource.Version()
+}
+
+// Type returns the resource type.
+func (ghr *GitHubReleaseResource) Type() ResourceType {
+	return ghr.baseResource.Type()
+}
+
+// Identifier returns the unique resource identifier.
+func (ghr *GitHubReleaseResource) Identifier() string {
+	return ghr.baseResource.Identifier()
+}
+
+// SetCacheDir overrides the cache directory for this resource.
+func (ghr *GitHubReleaseResource) SetCacheDir(cacheDir string) {
+	ghr.baseResource.SetCacheDir(cacheDir)
+}
+
+// SetCacheTTL overrides the cache TTL for this resource.
+func (ghr *GitHubReleaseResource) SetCacheTTL(ttl time.Duration) {
+	ghr.baseResource.SetCacheTTL(ttl)
+}
+
+// SetLocalPath configures a local asset path used for cache seeding.
+func (ghr *GitHubReleaseResource) SetLocalPath(path string) {
+	ghr.baseResource.SetLocalPath(path)
+}
+
+// EnsureFromLocal seeds the cache from a local file.
+func (ghr *GitHubReleaseResource) EnsureFromLocal(ctx context.Context, version, targetPath string) error {
+	return ghr.baseResource.EnsureFromLocal(ctx, version, targetPath)
+}
+
+func (ghr *GitHubReleaseResource) getCachePath(version string) string {
+	return ghr.baseResource.getCachePath(version)
 }
 
 // SetExtractFunc sets the extraction function for archive assets
@@ -117,20 +156,20 @@ func (ghr *GitHubReleaseResource) SetExtractPaths(paths map[string]string) {
 // Ensure acquires the GitHub release asset, downloading and extracting as needed
 func (ghr *GitHubReleaseResource) Ensure(ctx context.Context, version, path string) error {
 	if version == "" {
-		version = ghr.version
+		version = ghr.baseResource.version
 	}
 	if ghr.ghClient == nil {
 		return errors.New("no GitHub client provided")
 	}
 
-	cacheDirPath, err := ghr.cachePath(version)
+	cacheDirPath, err := ghr.baseResource.cachePath(version)
 	if err != nil {
 		return err
 	}
 
 	// Check if already cached
 	if cached, cachedPath := ghr.Cached(version); cached {
-		if err := ghr.MarkCached(cachedPath); err != nil {
+		if err := ghr.baseResource.MarkCached(cachedPath); err != nil {
 			return errors.Wrap(err, "failed to update cache timestamp")
 		}
 		if path != "" && path != cachedPath {
@@ -151,21 +190,21 @@ func (ghr *GitHubReleaseResource) Ensure(ctx context.Context, version, path stri
 	}
 
 	downloadDir := cacheDirPath
-	if ghr.cacheDir != "" {
-		if rel, relErr := filepath.Rel(ghr.cacheDir, downloadDir); relErr == nil && rel != "" && !filepath.IsAbs(rel) && !strings.HasPrefix(rel, "..") {
+	if ghr.baseResource.cacheDir != "" {
+		if rel, relErr := filepath.Rel(ghr.baseResource.cacheDir, downloadDir); relErr == nil && rel != "" && !filepath.IsAbs(rel) && !strings.HasPrefix(rel, "..") {
 			downloadDir = rel
 		}
 	}
 
-	filename, tag, err := download.ReleaseAssetByPattern(
-		ctx,
-		ghr.ghClient,
-		meta,
-		ghr.assetPattern,
-		downloadDir,
-		"",
-		ghr.cacheDir,
-	)
+	filename, tag, err := download.ReleaseAssetByPattern(download.ReleaseAssetRequest{
+		Context:    ctx,
+		Client:     ghr.ghClient,
+		Meta:       meta,
+		Matcher:    ghr.assetPattern,
+		Dir:        downloadDir,
+		OutputFile: "",
+		CacheDir:   ghr.baseResource.cacheDir,
+	})
 	if err != nil {
 		return errors.Wrap(err, "failed to download GitHub release asset")
 	}
@@ -173,12 +212,12 @@ func (ghr *GitHubReleaseResource) Ensure(ctx context.Context, version, path stri
 	resolvedVersion := version
 	if resolvedVersion == "latest" && tag != "" {
 		resolvedVersion = tag
-		ghr.version = tag
+		ghr.baseResource.version = tag
 	}
 
 	// If we resolved "latest" to an actual tag, move the downloaded asset to the tagged cache path.
 	if resolvedVersion != version {
-		newCacheDirPath, err := ghr.cachePath(resolvedVersion)
+		newCacheDirPath, err := ghr.baseResource.cachePath(resolvedVersion)
 		if err != nil {
 			return err
 		}

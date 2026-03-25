@@ -112,7 +112,13 @@ func TestResolverLifecycle(t *testing.T) {
 	assert.True(t, resolver.IsLocked(localMeta))
 
 	resolver.RecordRuntime("0.3.7", "linux", "samp", []LockedFileInfo{{Path: "server", Size: 1}})
-	resolver.RecordBuild("3.10.11", "pawn-lang", "main.pwn", "main.amx", "sha256:abc")
+	resolver.RecordBuild(BuildRecord{
+		CompilerVersion: "3.10.11",
+		CompilerPreset:  "pawn-lang",
+		Entry:           "main.pwn",
+		Output:          "main.amx",
+		OutputHash:      "sha256:abc",
+	})
 	require.NoError(t, resolver.Save())
 	assert.True(t, Exists(dir))
 

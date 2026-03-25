@@ -10,8 +10,8 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 )
 
-var compilerFlags = []cli.Flag{
-	//
+func compilerFlags() []cli.Flag {
+	return nil
 }
 
 func compilerList(c *cli.Context) error {

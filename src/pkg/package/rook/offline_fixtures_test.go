@@ -43,7 +43,7 @@ func seedOfflineFixtures(cacheDir string) error {
 	if err := seedCachedPackageRepo(cacheDir,
 		versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib"},
 		pawnpackage.Package{
-			DependencyMeta: versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib"},
+			Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib",
 		},
 		nil,
 		map[string]string{"include/pawn.inc": "// fixture"},
@@ -54,8 +54,8 @@ func seedOfflineFixtures(cacheDir string) error {
 	if err := seedCachedPackageRepo(cacheDir,
 		versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
 		pawnpackage.Package{
-			DependencyMeta: versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
-			Dependencies:   []versioning.DependencyString{"pawn-lang/pawn-stdlib"},
+			Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib",
+			Dependencies: []versioning.DependencyString{"pawn-lang/pawn-stdlib"},
 		},
 		nil,
 		map[string]string{"a_samp.inc": "// fixture"},
@@ -66,8 +66,8 @@ func seedOfflineFixtures(cacheDir string) error {
 	if err := seedCachedPackageRepo(cacheDir,
 		versioning.DependencyMeta{Site: "github.com", User: "AmyrAhmady", Repo: "samp-plugin-crashdetect"},
 		pawnpackage.Package{
-			DependencyMeta: versioning.DependencyMeta{Site: "github.com", User: "AmyrAhmady", Repo: "samp-plugin-crashdetect"},
-			Runtime:        &run.Runtime{Plugins: []run.Plugin{"crashdetect"}},
+			Site: "github.com", User: "AmyrAhmady", Repo: "samp-plugin-crashdetect",
+			Runtime: &run.Runtime{Plugins: []run.Plugin{"crashdetect"}},
 			Resources: []res.Resource{{
 				Name:     `^crashdetect-(.*)-linux.tar.gz$`,
 				Platform: "linux",
@@ -89,7 +89,7 @@ func seedOfflineFixtures(cacheDir string) error {
 	if err := seedCachedPackageRepo(cacheDir,
 		versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "YSI-Includes"},
 		pawnpackage.Package{
-			DependencyMeta: versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "YSI-Includes"},
+			Site: "github.com", User: "pawn-lang", Repo: "YSI-Includes",
 		},
 		nil,
 		map[string]string{"YSI_Core/y_utils.inc": "// fixture"},
@@ -100,7 +100,7 @@ func seedOfflineFixtures(cacheDir string) error {
 	if err := seedCachedPackageRepo(cacheDir,
 		versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-errors", Tag: "1.2.3"},
 		pawnpackage.Package{
-			DependencyMeta: versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-errors"},
+			Site: "github.com", User: "Southclaws", Repo: "pawn-errors",
 			Dependencies: []versioning.DependencyString{
 				"pawn-lang/samp-stdlib",
 				"AmyrAhmady/samp-plugin-crashdetect:v4.22",

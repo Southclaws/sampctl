@@ -12,8 +12,8 @@ import (
 
 // LocalResource represents a resource from a local file or directory
 type LocalResource struct {
-	*BaseResource
-	localPath string
+	baseResource *BaseResource
+	localPath    string
 }
 
 // NewLocalResource creates a new LocalResource
@@ -27,12 +27,27 @@ func NewLocalResource(localPath string, resourceType ResourceType) *LocalResourc
 	}
 
 	lr := &LocalResource{
-		BaseResource: NewBaseResource(identifier, version, resourceType),
+		baseResource: NewBaseResource(identifier, version, resourceType),
 		localPath:    localPath,
 	}
 
-	lr.SetLocalPath(localPath)
+	lr.baseResource.SetLocalPath(localPath)
 	return lr
+}
+
+// Version returns the resource version.
+func (lr *LocalResource) Version() string {
+	return lr.baseResource.Version()
+}
+
+// Type returns the resource type.
+func (lr *LocalResource) Type() ResourceType {
+	return lr.baseResource.Type()
+}
+
+// Identifier returns the unique resource identifier.
+func (lr *LocalResource) Identifier() string {
+	return lr.baseResource.Identifier()
 }
 
 // Ensure acquires the local resource, copying it if necessary

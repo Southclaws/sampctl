@@ -83,7 +83,13 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 			return errors.Wrap(err, "failed to ensure runtime binaries")
 		}
 
-		if err := runtime.EnsurePlugins(ctx, pcx.GitHub, &pcx.ActualRuntime, pcx.CacheDir, false); err != nil {
+		if err := runtime.EnsurePlugins(runtime.EnsurePluginsRequest{
+			Context:  ctx,
+			GitHub:   pcx.GitHub,
+			Config:   &pcx.ActualRuntime,
+			CacheDir: pcx.CacheDir,
+			NoCache:  false,
+		}); err != nil {
 			return errors.Wrap(err, "failed to ensure runtime plugins")
 		}
 
@@ -329,14 +335,7 @@ func applyDependencyMetaToPackage(pkg *pawnpackage.Package, meta versioning.Depe
 		return
 	}
 
-	pkg.Site = meta.Site
-	pkg.User = meta.User
-	pkg.Repo = meta.Repo
-	pkg.Path = meta.Path
-	pkg.Tag = meta.Tag
-	pkg.Branch = meta.Branch
-	pkg.Commit = meta.Commit
-	pkg.SSH = meta.SSH
+	pkg.SetDependencyMeta(meta)
 }
 
 // ensureURLSchemeDependency handles dependencies with URL-like schemes (plugin://, includes://, filterscript://)
@@ -530,20 +529,20 @@ func (pcx PackageContext) extractResourceDependencies(
 		return
 	}
 
-	_, err = runtime.EnsureVersionedPlugin(
-		ctx,
-		pcx.GitHub,
-		pkg.DependencyMeta,
-		dir,
-		pcx.Platform,
-		res.Version,
-		pcx.CacheDir,
-		"",
-		false,
-		true,
-		false,
-		pcx.Package.ExtractIgnorePatterns,
-	)
+	_, err = runtime.EnsureVersionedPlugin(runtime.EnsureVersionedPluginRequest{
+		Context:        ctx,
+		GitHub:         pcx.GitHub,
+		Meta:           pkg.Dependency(),
+		Dir:            dir,
+		Platform:       pcx.Platform,
+		Version:        res.Version,
+		CacheDir:       pcx.CacheDir,
+		PluginDestDir:  "",
+		Plugins:        false,
+		Includes:       true,
+		NoCache:        false,
+		IgnorePatterns: pcx.Package.ExtractIgnorePatterns,
+	})
 	if err != nil {
 		err = errors.Wrap(err, "failed to ensure asset")
 		return
@@ -596,7 +595,13 @@ func (pcx *PackageContext) RecordBuildToLockfile(compilerVersion, compilerPreset
 		}
 	}
 
-	pcx.lockfileResolver.RecordBuild(compilerVersion, compilerPreset, entry, output, outputHash)
+	pcx.lockfileResolver.RecordBuild(lockfile.BuildRecord{
+		CompilerVersion: compilerVersion,
+		CompilerPreset:  compilerPreset,
+		Entry:           entry,
+		Output:          output,
+		OutputHash:      outputHash,
+	})
 }
 
 func hashOutputFile(path string) (string, error) {

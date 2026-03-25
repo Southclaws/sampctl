@@ -99,22 +99,34 @@ type starterProfile struct {
 	EditorConfig bool
 }
 
-// Init prompts the user to initialise a package
-func Init(
-	ctx context.Context,
-	gh *github.Client,
-	dir string,
-	config *config.Config,
-	auth transport.AuthMethod,
-	platform,
-	cacheDir,
-	preset,
-	version string,
-) (err error) {
+// InitOptions describes an interactive package initialization.
+type InitOptions struct {
+	Context  context.Context
+	GitHub   *github.Client
+	Dir      string
+	Config   *config.Config
+	Auth     transport.AuthMethod
+	Platform string
+	CacheDir string
+	Preset   string
+	Version  string
+}
+
+// Init prompts the user to initialise a package.
+func Init(options InitOptions) (err error) {
 	var (
 		pwnFiles []string
 		incFiles []string
-		dirName  = filepath.Base(dir)
+		dir      = options.Dir
+		dirName  = filepath.Base(options.Dir)
+		ctx      = options.Context
+		gh       = options.GitHub
+		cfg      = options.Config
+		auth     = options.Auth
+		platform = options.Platform
+		cacheDir = options.CacheDir
+		preset   = options.Preset
+		version  = options.Version
 	)
 
 	if !fs.Exists(dir) {
@@ -219,7 +231,7 @@ func Init(
 	if answers.PublishMode == publishGitHub {
 		err = survey.AskOne(&survey.Input{
 			Message: "GitHub repository to publish from (owner/repo)",
-			Default: defaultRepositorySpec(config.DefaultUser, dirName),
+			Default: defaultRepositorySpec(cfg.DefaultUser, dirName),
 		}, &answers.Repository, validateRepositorySpec)
 		if err != nil {
 			return
@@ -241,7 +253,7 @@ func Init(
 		}
 	}
 
-	metadataUser := defaultMetadataUser(config.DefaultUser)
+	metadataUser := defaultMetadataUser(cfg.DefaultUser)
 	metadataRepo := defaultRepoName(dirName)
 	templateUser := metadataUser
 	if answers.PublishMode == publishGitHub {
@@ -250,8 +262,8 @@ func Init(
 			return
 		}
 		templateUser = metadataUser
-		if metadataUser != config.DefaultUser {
-			config.DefaultUser = metadataUser
+		if metadataUser != cfg.DefaultUser {
+			cfg.DefaultUser = metadataUser
 		}
 	}
 
@@ -262,10 +274,8 @@ func Init(
 		Parent:    true,
 		LocalPath: dir,
 		Format:    answers.Format,
-		DependencyMeta: versioning.DependencyMeta{
-			User: metadataUser,
-			Repo: metadataRepo,
-		},
+		User:      metadataUser,
+		Repo:      metadataRepo,
 	}
 
 	pkg.Preset = answers.Preset
@@ -389,7 +399,15 @@ func Init(
 
 	wg.Wait()
 
-	pcx, err := pkgcontext.NewPackageContext(gh, auth, true, dir, platform, cacheDir, "", true)
+	pcx, err := pkgcontext.NewPackageContext(pkgcontext.NewPackageContextOptions{
+		GitHub:   gh,
+		Auth:     auth,
+		Parent:   true,
+		Dir:      dir,
+		Platform: platform,
+		CacheDir: cacheDir,
+		Init:     true,
+	})
 	if err != nil {
 		return
 	}

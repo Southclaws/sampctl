@@ -46,6 +46,47 @@ var (
 // locations on the host filesystem (absolute paths).
 type ExtractFunc func(string, string, map[string]string) (map[string]string, error)
 
+// CacheExtractRequest describes a cached archive extraction operation.
+type CacheExtractRequest struct {
+	CacheDir string
+	Filename string
+	Dir      string
+	Method   ExtractFunc
+	Paths    map[string]string
+	Platform string
+}
+
+// ReleaseAssetRequest describes a GitHub release asset download using a github.Client.
+type ReleaseAssetRequest struct {
+	Context    context.Context
+	Client     *github.Client
+	Meta       versioning.DependencyMeta
+	Matcher    *regexp.Regexp
+	Dir        string
+	OutputFile string
+	CacheDir   string
+}
+
+// ReleaseAssetAPIRequest describes a GitHub release asset download using the narrow releases API.
+type ReleaseAssetAPIRequest struct {
+	Context    context.Context
+	Client     GitHubReleasesAPI
+	Meta       versioning.DependencyMeta
+	Matcher    *regexp.Regexp
+	Dir        string
+	OutputFile string
+	CacheDir   string
+}
+
+// ReleaseAssetDownloadRequest describes the final transfer of a selected release asset.
+type ReleaseAssetDownloadRequest struct {
+	Context     context.Context
+	Client      GitHubReleasesAPI
+	Meta        versioning.DependencyMeta
+	Asset       *github.ReleaseAsset
+	Destination string
+}
+
 const (
 	// ExtractZip is an extract function for .zip packages
 	ExtractZip = "zip"
@@ -90,9 +131,9 @@ func MigrateOldConfig(cacheDir string) error {
 	return nil
 }
 
-// FromCache first checks if a file is cached, then
-func FromCache(cacheDir, filename, dir string, method ExtractFunc, paths map[string]string, platform string) (hit bool, err error) {
-	path := filepath.Join(cacheDir, filename)
+// FromCache first checks if a file is cached, then extracts it if present.
+func FromCache(request CacheExtractRequest) (hit bool, err error) {
+	path := filepath.Join(request.CacheDir, request.Filename)
 
 	if !fs.Exists(path) {
 		hit = false
@@ -100,17 +141,17 @@ func FromCache(cacheDir, filename, dir string, method ExtractFunc, paths map[str
 	}
 
 	var files map[string]string
-	files, err = method(path, dir, paths)
+	files, err = request.Method(path, request.Dir, request.Paths)
 	if err != nil {
 		hit = false
 		err = errors.Wrapf(err, "failed to unzip package %s", path)
 		return
 	}
 
-	if fs.IsPosixPlatform(platform) {
+	if fs.IsPosixPlatform(request.Platform) {
 		print.Verb("setting permissions for binaries")
 	}
-	if err := fs.ChmodAllIfPosix(platform, files, fs.PermFileExec); err != nil {
+	if err := fs.ChmodAllIfPosix(request.Platform, files, fs.PermFileExec); err != nil {
 		hit = false
 		return false, err
 	}
@@ -211,37 +252,29 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 }
 
 // ReleaseAssetByPattern downloads a resource file, which is a GitHub release asset
-func ReleaseAssetByPattern(
-	ctx context.Context,
-	gh *github.Client,
-	meta versioning.DependencyMeta,
-	matcher *regexp.Regexp,
-	dir,
-	outputFile,
-	cacheDir string,
-) (filename, tag string, err error) {
-	return ReleaseAssetByPatternWithAPI(ctx, githubClientReleasesAdapter{client: gh}, meta, matcher, dir, outputFile, cacheDir)
+func ReleaseAssetByPattern(request ReleaseAssetRequest) (filename, tag string, err error) {
+	return ReleaseAssetByPatternWithAPI(ReleaseAssetAPIRequest{
+		Context:    request.Context,
+		Client:     githubClientReleasesAdapter{client: request.Client},
+		Meta:       request.Meta,
+		Matcher:    request.Matcher,
+		Dir:        request.Dir,
+		OutputFile: request.OutputFile,
+		CacheDir:   request.CacheDir,
+	})
 }
 
-func ReleaseAssetByPatternWithAPI(
-	ctx context.Context,
-	gh GitHubReleasesAPI,
-	meta versioning.DependencyMeta,
-	matcher *regexp.Regexp,
-	dir,
-	outputFile,
-	cacheDir string,
-) (filename, tag string, err error) {
+func ReleaseAssetByPatternWithAPI(request ReleaseAssetAPIRequest) (filename, tag string, err error) {
 	var (
 		asset  *github.ReleaseAsset
 		assets = make([]string, 1)
 	)
 
 	var release *github.RepositoryRelease
-	if meta.Tag == "" {
-		release, err = getLatestReleaseOrPreRelease(ctx, gh, meta.User, meta.Repo)
+	if request.Meta.Tag == "" {
+		release, err = getLatestReleaseOrPreRelease(request.Context, request.Client, request.Meta.User, request.Meta.Repo)
 	} else {
-		release, _, err = gh.GetReleaseByTag(ctx, meta.User, meta.Repo, meta.Tag)
+		release, _, err = request.Client.GetReleaseByTag(request.Context, request.Meta.User, request.Meta.Repo, request.Meta.Tag)
 	}
 	if err != nil {
 		return
@@ -249,29 +282,29 @@ func ReleaseAssetByPatternWithAPI(
 
 	for _, a := range release.Assets {
 		rel := a
-		if matcher.MatchString(*a.Name) {
+		if request.Matcher.MatchString(*a.Name) {
 			asset = &rel
 			break
 		}
 		assets = append(assets, *a.Name)
 	}
 	if asset == nil {
-		err = errors.Errorf("resource matcher '%s' does not match any release assets from '%v'", matcher, assets)
+		err = errors.Errorf("resource matcher '%s' does not match any release assets from '%v'", request.Matcher, assets)
 		return
 	}
 	tag = release.GetTagName()
-	if dir == "" {
-		dir = filepath.Join("assets", meta.User, meta.Repo, tag)
+	if request.Dir == "" {
+		request.Dir = filepath.Join("assets", request.Meta.User, request.Meta.Repo, tag)
 	}
 
-	baseDir := dir
+	baseDir := request.Dir
 	if !filepath.IsAbs(baseDir) {
-		baseDir = filepath.Join(cacheDir, baseDir)
+		baseDir = filepath.Join(request.CacheDir, baseDir)
 	}
 
-	if outputFile == "" {
+	if request.OutputFile == "" {
 		if name := asset.GetName(); name != "" {
-			outputFile = name
+			request.OutputFile = name
 		} else if asset.BrowserDownloadURL != nil && *asset.BrowserDownloadURL != "" {
 			var u *url.URL
 			u, err = url.Parse(*asset.BrowserDownloadURL)
@@ -279,17 +312,23 @@ func ReleaseAssetByPatternWithAPI(
 				err = errors.Wrap(err, "failed to parse download URL from GitHub API")
 				return
 			}
-			outputFile = filepath.Base(u.Path)
+			request.OutputFile = filepath.Base(u.Path)
 		} else {
 			err = errors.New("release asset has no name or download URL")
 			return
 		}
 	} else {
-		outputFile = filepath.Base(outputFile)
+		request.OutputFile = filepath.Base(request.OutputFile)
 	}
 
-	destination := filepath.Join(baseDir, outputFile)
-	filename, err = downloadReleaseAsset(ctx, gh, meta, asset, destination)
+	destination := filepath.Join(baseDir, request.OutputFile)
+	filename, err = downloadReleaseAsset(ReleaseAssetDownloadRequest{
+		Context:     request.Context,
+		Client:      request.Client,
+		Meta:        request.Meta,
+		Asset:       asset,
+		Destination: destination,
+	})
 	if err != nil {
 		return
 	}
@@ -297,39 +336,33 @@ func ReleaseAssetByPatternWithAPI(
 	return filename, tag, nil
 }
 
-func downloadReleaseAsset(
-	ctx context.Context,
-	gh GitHubReleasesAPI,
-	meta versioning.DependencyMeta,
-	asset *github.ReleaseAsset,
-	destination string,
-) (string, error) {
-	if asset == nil {
+func downloadReleaseAsset(request ReleaseAssetDownloadRequest) (string, error) {
+	if request.Asset == nil {
 		return "", errors.New("no release asset selected")
 	}
 
-	if gh != nil && asset.GetID() != 0 {
-		rc, redirectURL, err := gh.DownloadReleaseAsset(ctx, meta.User, meta.Repo, asset.GetID())
+	if request.Client != nil && request.Asset.GetID() != 0 {
+		rc, redirectURL, err := request.Client.DownloadReleaseAsset(request.Context, request.Meta.User, request.Meta.Repo, request.Asset.GetID())
 		if err != nil {
 			return "", errors.Wrap(err, "failed to download release asset via GitHub API")
 		}
 		if redirectURL != "" {
-			return FromNet(ctx, redirectURL, destination)
+			return FromNet(request.Context, redirectURL, request.Destination)
 		}
 		if rc == nil {
 			return "", errors.New("empty response body for release asset download")
 		}
 		defer rc.Close()
-		if writeErr := fs.WriteFromReaderAtomic(destination, rc, fs.PermDirPrivate, fs.PermFileShared); writeErr != nil {
+		if writeErr := fs.WriteFromReaderAtomic(request.Destination, rc, fs.PermDirPrivate, fs.PermFileShared); writeErr != nil {
 			return "", errors.Wrap(writeErr, "failed to write package to cache")
 		}
-		return destination, nil
+		return request.Destination, nil
 	}
 
-	if asset.BrowserDownloadURL == nil || *asset.BrowserDownloadURL == "" {
+	if request.Asset.BrowserDownloadURL == nil || *request.Asset.BrowserDownloadURL == "" {
 		return "", errors.New("release asset has no download URL")
 	}
-	return FromNet(ctx, *asset.BrowserDownloadURL, destination)
+	return FromNet(request.Context, *request.Asset.BrowserDownloadURL, request.Destination)
 }
 
 func getLatestReleaseOrPreRelease(

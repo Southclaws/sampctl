@@ -73,7 +73,7 @@ func TestTagTaglessDependencies_PinsLatestTagFromCache(t *testing.T) {
 	require.NoError(t, err)
 	pkg.Parent = true
 	pkg.LocalPath = projectDir
-	pkg.DependencyMeta = versioning.DependencyMeta{User: "local", Repo: "project"}
+	pkg.SetDependencyMeta(versioning.DependencyMeta{User: "local", Repo: "project"})
 
 	pcx := pkgcontext.PackageContext{Package: pkg, CacheDir: cacheDir, Platform: "linux"}
 

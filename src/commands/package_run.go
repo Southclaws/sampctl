@@ -8,49 +8,50 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
-	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
-var packageRunFlags = []cli.Flag{
-	cli.StringFlag{
-		Name:  "dir",
-		Value: ".",
-		Usage: "working directory for the server - by default, uses the current directory",
-	},
-	cli.BoolFlag{
-		Name:  "container",
-		Usage: "starts the server as a Linux container instead of running it in the current directory",
-	},
-	cli.StringFlag{
-		Name:  "build",
-		Value: "",
-		Usage: "build configuration to use if `--forceBuild` is set",
-	},
-	cli.BoolFlag{
-		Name:  "forceBuild",
-		Usage: "forces a build to run before executing the server",
-	},
-	cli.BoolFlag{
-		Name:  "forceEnsure",
-		Usage: "forces dependency ensure before build if `--forceBuild` is set",
-	},
-	cli.BoolFlag{
-		Name:  "noCache",
-		Usage: "forces download of plugins if `--forceEnsure` is set",
-	},
-	cli.BoolFlag{
-		Name:  "watch",
-		Usage: "keeps sampctl running and triggers builds whenever source files change",
-	},
-	cli.StringFlag{
-		Name:  "buildFile",
-		Value: "",
-		Usage: "declares a file to store the incrementing build number for easy versioning",
-	},
-	cli.BoolFlag{
-		Name:  "relativePaths",
-		Usage: "force compiler output to use relative paths instead of absolute",
-	},
+func packageRunFlags() []cli.Flag {
+	return []cli.Flag{
+		cli.StringFlag{
+			Name:  "dir",
+			Value: ".",
+			Usage: "working directory for the server - by default, uses the current directory",
+		},
+		cli.BoolFlag{
+			Name:  "container",
+			Usage: "starts the server as a Linux container instead of running it in the current directory",
+		},
+		cli.StringFlag{
+			Name:  "build",
+			Value: "",
+			Usage: "build configuration to use if `--forceBuild` is set",
+		},
+		cli.BoolFlag{
+			Name:  "forceBuild",
+			Usage: "forces a build to run before executing the server",
+		},
+		cli.BoolFlag{
+			Name:  "forceEnsure",
+			Usage: "forces dependency ensure before build if `--forceBuild` is set",
+		},
+		cli.BoolFlag{
+			Name:  "noCache",
+			Usage: "forces download of plugins if `--forceEnsure` is set",
+		},
+		cli.BoolFlag{
+			Name:  "watch",
+			Usage: "keeps sampctl running and triggers builds whenever source files change",
+		},
+		cli.StringFlag{
+			Name:  "buildFile",
+			Value: "",
+			Usage: "declares a file to store the incrementing build number for easy versioning",
+		},
+		cli.BoolFlag{
+			Name:  "relativePaths",
+			Usage: "force compiler output to use relative paths instead of absolute",
+		},
+	}
 }
 
 func packageRun(c *cli.Context) error {
@@ -66,12 +67,7 @@ func packageRun(c *cli.Context) error {
 
 	runtimeName := c.Args().Get(0)
 
-	env, err := getCommandEnv(c)
-	if err != nil {
-		return err
-	}
-
-	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, env.Platform, env.CacheDir, "", false)
+	pcx, env, err := loadPackageContext(c, dir, false)
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}

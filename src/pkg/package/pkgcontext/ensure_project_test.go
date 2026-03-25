@@ -76,7 +76,12 @@ func TestEnsureProjectInitialisesLockfileAndPinsDependencies(t *testing.T) {
 
 	seedStagedRuntime(t, cacheDir, run.Runtime{Version: "0.3.7", Platform: "linux"})
 
-	pcx, err := NewPackageContext(nil, nil, true, projectDir, "linux", cacheDir, "", false)
+	pcx, err := NewPackageContext(NewPackageContextOptions{
+		Parent:   true,
+		Dir:      projectDir,
+		Platform: "linux",
+		CacheDir: cacheDir,
+	})
 	require.NoError(t, err)
 	require.NoError(t, pcx.InitLockfileResolver("dev"))
 
