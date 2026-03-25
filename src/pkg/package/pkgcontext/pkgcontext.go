@@ -193,10 +193,11 @@ func NewPackageContextWithLockfile(options NewPackageContextOptions) (pcx *Packa
 	pcx.AppVersion = options.AppVersion
 
 	if options.UseLockfile && options.Parent {
-		pcx.lockfileResolver, err = newDependencyLock(options.Dir, options.AppVersion)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to initialize lockfile resolver")
+		resolver, resolverErr := newDependencyLock(options.Dir, options.AppVersion)
+		if resolverErr != nil {
+			return nil, errors.Wrap(resolverErr, "failed to initialize lockfile resolver")
 		}
+		pcx.PackageLockfileState.SetLockfileResolver(resolver)
 	}
 
 	return pcx, nil
@@ -209,11 +210,11 @@ func (pcx *PackageContext) InitLockfileResolver(sampctlVersion string) error {
 		return nil // Only parent packages use lockfiles
 	}
 
-	var err error
-	pcx.lockfileResolver, err = newDependencyLock(pcx.Package.LocalPath, sampctlVersion)
+	resolver, err := newDependencyLock(pcx.Package.LocalPath, sampctlVersion)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize lockfile resolver")
 	}
+	pcx.PackageLockfileState.SetLockfileResolver(resolver)
 
 	pcx.UseLockfile = true
 	pcx.AppVersion = sampctlVersion

@@ -68,6 +68,51 @@ type PackageLockfileState struct {
 	UseLockfile      bool
 }
 
+func (state *PackageLockfileState) SetLockfileResolver(resolver DependencyLock) {
+	if state == nil {
+		return
+	}
+	state.lockfileResolver = resolver
+}
+
+func (state *PackageLockfileState) LockedVersion(meta versioning.DependencyMeta, forceUpdate bool) versioning.DependencyMeta {
+	if state == nil || state.lockfileResolver == nil || forceUpdate {
+		return meta
+	}
+	return state.lockfileResolver.GetLockedVersion(meta)
+}
+
+func (state *PackageLockfileState) RecordDependencyResolution(
+	meta versioning.DependencyMeta,
+	resolution lockfile.DependencyResolution,
+	transitive bool,
+	requiredBy string,
+) error {
+	if state == nil || state.lockfileResolver == nil {
+		return nil
+	}
+	return state.lockfileResolver.RecordResolution(meta, resolution, transitive, requiredBy)
+}
+
+func (state *PackageLockfileState) RecordRuntime(
+	version string,
+	platform string,
+	runtimeType string,
+	files []lockfile.LockedFileInfo,
+) {
+	if state == nil || state.lockfileResolver == nil {
+		return
+	}
+	state.lockfileResolver.RecordRuntime(version, platform, runtimeType, files)
+}
+
+func (state *PackageLockfileState) RecordBuild(record lockfile.BuildRecord) {
+	if state == nil || state.lockfileResolver == nil {
+		return
+	}
+	state.lockfileResolver.RecordBuild(record)
+}
+
 func (state *PackageLockfileState) SaveLockfile() error {
 	if state == nil || state.lockfileResolver == nil {
 		return nil

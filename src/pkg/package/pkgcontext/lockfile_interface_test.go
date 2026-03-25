@@ -11,17 +11,34 @@ import (
 )
 
 type fakeDependencyLock struct {
-	lockfile  *lockfile.Lockfile
-	saved     bool
-	forced    bool
-	hasLocked bool
+	lockfile         *lockfile.Lockfile
+	saved            bool
+	forced           bool
+	hasLocked        bool
+	lockedVersion    versioning.DependencyMeta
+	lastResolution   lockfile.DependencyResolution
+	lastResolutionIn versioning.DependencyMeta
+	lastTransitive   bool
+	lastRequiredBy   string
+	runtimeVersion   string
+	runtimePlatform  string
+	runtimeType      string
+	runtimeFiles     []lockfile.LockedFileInfo
+	buildRecord      lockfile.BuildRecord
 }
 
 func (f *fakeDependencyLock) GetLockedVersion(meta versioning.DependencyMeta) versioning.DependencyMeta {
+	if f.lockedVersion.Repo != "" || f.lockedVersion.Tag != "" || f.lockedVersion.Commit != "" || f.lockedVersion.Branch != "" {
+		return f.lockedVersion
+	}
 	return meta
 }
 
-func (f *fakeDependencyLock) RecordResolution(versioning.DependencyMeta, lockfile.DependencyResolution, bool, string) error {
+func (f *fakeDependencyLock) RecordResolution(meta versioning.DependencyMeta, resolution lockfile.DependencyResolution, transitive bool, requiredBy string) error {
+	f.lastResolutionIn = meta
+	f.lastResolution = resolution
+	f.lastTransitive = transitive
+	f.lastRequiredBy = requiredBy
 	return nil
 }
 
@@ -29,9 +46,16 @@ func (f *fakeDependencyLock) RecordLocalDependency(versioning.DependencyMeta) er
 	return nil
 }
 
-func (f *fakeDependencyLock) RecordRuntime(string, string, string, []lockfile.LockedFileInfo) {}
+func (f *fakeDependencyLock) RecordRuntime(version, platform, runtimeType string, files []lockfile.LockedFileInfo) {
+	f.runtimeVersion = version
+	f.runtimePlatform = platform
+	f.runtimeType = runtimeType
+	f.runtimeFiles = files
+}
 
-func (f *fakeDependencyLock) RecordBuild(lockfile.BuildRecord) {}
+func (f *fakeDependencyLock) RecordBuild(record lockfile.BuildRecord) {
+	f.buildRecord = record
+}
 
 func (f *fakeDependencyLock) Save() error {
 	f.saved = true

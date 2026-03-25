@@ -147,11 +147,8 @@ func (pcx *PackageContext) ensurePackage(ctx context.Context, meta versioning.De
 		return pcx.ensureURLSchemeDependency(ctx, meta)
 	}
 
-	// Apply locked version if lockfile is enabled and not forcing update
-	effectiveMeta := meta
-	if pcx.lockfileResolver != nil && !forceUpdate {
-		effectiveMeta = pcx.lockfileResolver.GetLockedVersion(meta)
-	}
+	// Apply locked version if lockfile is enabled and not forcing update.
+	effectiveMeta := pcx.PackageLockfileState.LockedVersion(meta, forceUpdate)
 
 	dependencyPath := filepath.Join(pcx.Package.Vendor, effectiveMeta.Repo)
 
@@ -181,11 +178,11 @@ func (pcx *PackageContext) ensurePackage(ctx context.Context, meta versioning.De
 	}
 
 	// Record the resolution to lockfile
-	if pcx.lockfileResolver != nil {
+	if pcx.PackageLockfileState.HasLockfileResolver() {
 		resolution, resolutionErr := resolveDependencyLock(meta, repo)
 		if resolutionErr != nil {
 			print.Warn("failed to resolve dependency lock data:", resolutionErr)
-		} else if recordErr := pcx.lockfileResolver.RecordResolution(meta, resolution, false, ""); recordErr != nil {
+		} else if recordErr := pcx.PackageLockfileState.RecordDependencyResolution(meta, resolution, false, ""); recordErr != nil {
 			print.Warn("failed to record dependency resolution to lockfile:", recordErr)
 		}
 	}
@@ -214,11 +211,8 @@ func (pcx *PackageContext) ensurePackageWithParent(
 		return pcx.ensureURLSchemeDependency(ctx, meta)
 	}
 
-	// Apply locked version if lockfile is enabled and not forcing update
-	effectiveMeta := meta
-	if pcx.lockfileResolver != nil && !forceUpdate {
-		effectiveMeta = pcx.lockfileResolver.GetLockedVersion(meta)
-	}
+	// Apply locked version if lockfile is enabled and not forcing update.
+	effectiveMeta := pcx.PackageLockfileState.LockedVersion(meta, forceUpdate)
 
 	dependencyPath := filepath.Join(pcx.Package.Vendor, effectiveMeta.Repo)
 
@@ -244,12 +238,12 @@ func (pcx *PackageContext) ensurePackageWithParent(
 	}
 
 	// Record the resolution to lockfile as transitive dependency
-	if pcx.lockfileResolver != nil {
+	if pcx.PackageLockfileState.HasLockfileResolver() {
 		isTransitive := parentRepo != "" && parentRepo != pcx.Package.Repo
 		resolution, resolutionErr := resolveDependencyLock(meta, repo)
 		if resolutionErr != nil {
 			print.Warn("failed to resolve dependency lock data:", resolutionErr)
-		} else if recordErr := pcx.lockfileResolver.RecordResolution(meta, resolution, isTransitive, parentRepo); recordErr != nil {
+		} else if recordErr := pcx.PackageLockfileState.RecordDependencyResolution(meta, resolution, isTransitive, parentRepo); recordErr != nil {
 			print.Warn("failed to record dependency resolution to lockfile:", recordErr)
 		}
 	}
@@ -552,7 +546,7 @@ func (pcx PackageContext) extractResourceDependencies(
 }
 
 func (pcx *PackageContext) recordRuntimeToLockfile(manifestInfo *runtime.RuntimeManifestInfo) {
-	if pcx.lockfileResolver == nil {
+	if !pcx.PackageLockfileState.HasLockfileResolver() {
 		return
 	}
 
@@ -572,7 +566,7 @@ func (pcx *PackageContext) recordRuntimeToLockfile(manifestInfo *runtime.Runtime
 	}
 
 	print.Verb("recording runtime to lockfile:", pcx.ActualRuntime.Version, pcx.ActualRuntime.Platform, string(pcx.ActualRuntime.RuntimeType))
-	pcx.lockfileResolver.RecordRuntime(
+	pcx.PackageLockfileState.RecordRuntime(
 		pcx.ActualRuntime.Version,
 		pcx.ActualRuntime.Platform,
 		string(pcx.ActualRuntime.RuntimeType),
@@ -581,7 +575,7 @@ func (pcx *PackageContext) recordRuntimeToLockfile(manifestInfo *runtime.Runtime
 }
 
 func (pcx *PackageContext) RecordBuildToLockfile(compilerVersion, compilerPreset, entry, output string) {
-	if pcx.lockfileResolver == nil {
+	if !pcx.PackageLockfileState.HasLockfileResolver() {
 		return
 	}
 
@@ -595,7 +589,7 @@ func (pcx *PackageContext) RecordBuildToLockfile(compilerVersion, compilerPreset
 		}
 	}
 
-	pcx.lockfileResolver.RecordBuild(lockfile.BuildRecord{
+	pcx.PackageLockfileState.RecordBuild(lockfile.BuildRecord{
 		CompilerVersion: compilerVersion,
 		CompilerPreset:  compilerPreset,
 		Entry:           entry,
