@@ -5,6 +5,7 @@ package runtime
 
 import (
 	"io"
+	"os"
 	"os/exec"
 	"sync"
 	"syscall"
@@ -90,4 +91,12 @@ func getRuntimeSysProcAttr() *syscall.SysProcAttr {
 	return &syscall.SysProcAttr{
 		CreationFlags: 0x00000200, // CREATE_NEW_PROCESS_GROUP
 	}
+}
+
+func terminateRuntimeProcess(process *os.Process) error {
+	err := process.Kill()
+	if err != nil && err.Error() == "process already finished" {
+		return nil
+	}
+	return err
 }

@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -174,7 +175,7 @@ func executeRuntime(ctx context.Context, execCfg runtimeExecution) error {
 	})
 	print.Verb("finished server execution with:", term)
 
-	if term.exit {
+	if shouldKillTrackedProcess(term) {
 		killTrackedProcess(tracker.current())
 	}
 
@@ -184,6 +185,19 @@ func executeRuntime(ctx context.Context, execCfg runtimeExecution) error {
 	<-readerDone
 
 	return wrapRuntimeError(term.err)
+}
+
+func shouldKillTrackedProcess(term termination) bool {
+	if term.exit {
+		return true
+	}
+	if term.err == nil {
+		return false
+	}
+	if errors.Is(term.err, context.Canceled) || errors.Is(term.err, context.DeadlineExceeded) {
+		return true
+	}
+	return strings.Contains(term.err.Error(), "received signal:")
 }
 
 func waitForRuntimeTermination(request runtimeTerminationRequest) termination {
@@ -425,11 +439,11 @@ func killTrackedProcess(cmd *exec.Cmd) {
 		print.Verb("not attempting to kill server: cmd.Process is nil")
 		return
 	}
-	if err := cmd.Process.Kill(); err != nil {
+	if err := terminateRuntimeProcess(cmd.Process); err != nil {
 		print.Erro("Failed to kill", err)
 		return
 	}
-	print.Verb("sent a SIGINT to child process")
+	print.Verb("stopped child process")
 }
 
 func closeOutputPipe(writer *io.PipeWriter) {
