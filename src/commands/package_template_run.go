@@ -13,7 +13,7 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
-	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
+	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 )
 
 func packageTemplateRunFlags() []cli.Flag {

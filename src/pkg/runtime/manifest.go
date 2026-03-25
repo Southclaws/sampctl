@@ -15,7 +15,7 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/package/lockfile"
-	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
+	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 )
 
 const (

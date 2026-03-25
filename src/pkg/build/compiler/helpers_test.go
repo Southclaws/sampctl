@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/Southclaws/sampctl/src/pkg/build/build"
+	"github.com/Southclaws/sampctl/src/pkg/build"
 )
 
 func TestBuildIncludeArgs(t *testing.T) {

@@ -18,8 +18,8 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
-	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
-	pkgresource "github.com/Southclaws/sampctl/src/resource"
+	pkgresource "github.com/Southclaws/sampctl/src/pkg/package/resource"
+	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 )
 
 // getPluginDirectory returns the directory used for plugins

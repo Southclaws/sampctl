@@ -19,7 +19,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
+	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 )
 
 var (

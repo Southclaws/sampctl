@@ -8,8 +8,8 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/lockfile"
-	runtimecfg "github.com/Southclaws/sampctl/src/pkg/runtime/run"
-	runtimepkg "github.com/Southclaws/sampctl/src/pkg/runtime/runtime"
+	runtimepkg "github.com/Southclaws/sampctl/src/pkg/runtime"
+	runtimecfg "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 )
 
 // DependencyLock abstracts lockfile-aware dependency resolution for package flows.

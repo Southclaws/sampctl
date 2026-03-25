@@ -23,8 +23,8 @@ import (
 	infraresource "github.com/Southclaws/sampctl/src/pkg/infrastructure/resource"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
-	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
-	res "github.com/Southclaws/sampctl/src/resource"
+	res "github.com/Southclaws/sampctl/src/pkg/package/resource"
+	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 )
 
 func seedRuntimeCacheFixture(t *testing.T, cacheDir, requestedVersion, platform string) string {

@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
+	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 )
 
 func TestGetRuntimeConfigRuntimeOverride(t *testing.T) {

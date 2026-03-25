@@ -12,7 +12,7 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	infraresource "github.com/Southclaws/sampctl/src/pkg/infrastructure/resource"
-	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
+	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 )
 
 // ServerPackageRequest describes a runtime package cache/download operation.

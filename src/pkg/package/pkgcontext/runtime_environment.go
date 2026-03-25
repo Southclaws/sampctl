@@ -5,8 +5,8 @@ import (
 
 	"github.com/google/go-github/github"
 
-	runtimecfg "github.com/Southclaws/sampctl/src/pkg/runtime/run"
-	runtimepkg "github.com/Southclaws/sampctl/src/pkg/runtime/runtime"
+	runtimepkg "github.com/Southclaws/sampctl/src/pkg/runtime"
+	runtimecfg "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 )
 
 var _ RuntimeEnvironment = runtimeEnvironmentAdapter{}

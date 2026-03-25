@@ -10,11 +10,11 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
-	"github.com/Southclaws/sampctl/src/pkg/build/build"
+	"github.com/Southclaws/sampctl/src/pkg/build"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
-	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
-	"github.com/Southclaws/sampctl/src/resource"
+	"github.com/Southclaws/sampctl/src/pkg/package/resource"
+	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 )
 
 // Package represents a definition for a Pawn package and can either be used to define a build or

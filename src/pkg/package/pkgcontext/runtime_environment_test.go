@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	runtimecfg "github.com/Southclaws/sampctl/src/pkg/runtime/run"
-	runtimepkg "github.com/Southclaws/sampctl/src/pkg/runtime/runtime"
+	runtimepkg "github.com/Southclaws/sampctl/src/pkg/runtime"
+	runtimecfg "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 )
 
 type fakeRuntimeEnvironment struct {

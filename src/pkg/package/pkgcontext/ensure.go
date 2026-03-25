@@ -18,8 +18,8 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/lockfile"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
-	"github.com/Southclaws/sampctl/src/pkg/runtime/runtime"
-	"github.com/Southclaws/sampctl/src/resource"
+	"github.com/Southclaws/sampctl/src/pkg/package/resource"
+	"github.com/Southclaws/sampctl/src/pkg/runtime"
 )
 
 // ErrNotRemotePackage describes a repository that does not contain a package definition file

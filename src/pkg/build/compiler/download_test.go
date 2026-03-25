@@ -22,17 +22,17 @@ func TestGetCompilerPackage(t *testing.T) {
 		dir := filepath.Join(rootDir, "compiler")
 		seedCompilerCacheFixture(t, cacheDir, meta, "linux")
 
-			compiler, err := GetCompilerPackage(context.Background(), CompilerFetchRequest{
-				Meta: versioning.DependencyMeta{
-					Site: "github.com",
-					User: meta.User,
-					Repo: meta.Repo,
-					Tag:  meta.Tag,
-				},
-				Dir:      dir,
-				Platform: "linux",
-				CacheDir: cacheDir,
-			})
+		compiler, err := GetCompilerPackage(context.Background(), CompilerFetchRequest{
+			Meta: versioning.DependencyMeta{
+				Site: "github.com",
+				User: meta.User,
+				Repo: meta.Repo,
+				Tag:  meta.Tag,
+			},
+			Dir:      dir,
+			Platform: "linux",
+			CacheDir: cacheDir,
+		})
 		require.NoError(t, err)
 		assert.Equal(t, "pawncc", compiler.Binary)
 		assert.FileExists(t, filepath.Join(dir, "pawncc"))
@@ -52,18 +52,18 @@ func TestGetCompilerPackage(t *testing.T) {
 		// remove cached asset and manifest rewrite so network path is required
 		require.NoError(t, os.Remove(cachedCompilerAssetPath(t, cacheDir, meta, pkg)))
 
-			compiler, err := GetCompilerPackage(context.Background(), CompilerFetchRequest{
-				GitHub: client,
-				Meta: versioning.DependencyMeta{
-					Site: "github.com",
-					User: meta.User,
-					Repo: meta.Repo,
-					Tag:  meta.Tag,
-				},
-				Dir:      dir,
-				Platform: "windows",
-				CacheDir: cacheDir,
-			})
+		compiler, err := GetCompilerPackage(context.Background(), CompilerFetchRequest{
+			GitHub: client,
+			Meta: versioning.DependencyMeta{
+				Site: "github.com",
+				User: meta.User,
+				Repo: meta.Repo,
+				Tag:  meta.Tag,
+			},
+			Dir:      dir,
+			Platform: "windows",
+			CacheDir: cacheDir,
+		})
 		require.NoError(t, err)
 		assert.Equal(t, "pawncc.exe", compiler.Binary)
 		assert.FileExists(t, filepath.Join(dir, "pawncc.exe"))
@@ -92,13 +92,13 @@ func Test_CompilerFromNet(t *testing.T) {
 			assert.NoError(t, err)
 
 			client := newCompilerReleaseClient(t, tt.meta, assetName, assetBody)
-				_, err = FromNet(context.Background(), CompilerFetchRequest{
-					GitHub: client,
-					Meta:   tt.meta,
-					Dir:    dir,
-					Platform: tt.platform,
-					CacheDir: cacheDir,
-				})
+			_, err = FromNet(context.Background(), CompilerFetchRequest{
+				GitHub:   client,
+				Meta:     tt.meta,
+				Dir:      dir,
+				Platform: tt.platform,
+				CacheDir: cacheDir,
+			})
 			assert.NoError(t, err)
 
 			for _, name := range tt.expectedFiles {
@@ -127,12 +127,12 @@ func Test_CompilerFromCache(t *testing.T) {
 
 			seedCompilerCacheFixture(t, cacheDir, tt.meta, tt.platform)
 
-				_, gotHit, err := FromCache(CompilerFetchRequest{
-					Meta:     tt.meta,
-					Dir:      dir,
-					Platform: tt.platform,
-					CacheDir: cacheDir,
-				})
+			_, gotHit, err := FromCache(CompilerFetchRequest{
+				Meta:     tt.meta,
+				Dir:      dir,
+				Platform: tt.platform,
+				CacheDir: cacheDir,
+			})
 			assert.NoError(t, err)
 			assert.True(t, gotHit)
 

@@ -13,11 +13,11 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/Southclaws/sampctl/src/pkg/build/build"
+	"github.com/Southclaws/sampctl/src/pkg/build"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
-	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
-	runtimepkg "github.com/Southclaws/sampctl/src/pkg/runtime/runtime"
+	runtimepkg "github.com/Southclaws/sampctl/src/pkg/runtime"
+	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 )
 
 // Run will create a temporary server runtime and run the package output AMX as a gamemode using the
@@ -46,12 +46,12 @@ func (pcx *PackageContext) RunWatch(ctx context.Context) (err error) {
 	}
 
 	var (
-		errorCh        = make(chan error, 1)
-		signals        = make(chan os.Signal, 1)
-		trigger        = make(chan build.Problems)
-		runtimeRunning atomic.Bool
+		errorCh          = make(chan error, 1)
+		signals          = make(chan os.Signal, 1)
+		trigger          = make(chan build.Problems)
+		runtimeRunning   atomic.Bool
 		runtimeCtx, stop = context.WithCancel(ctx)
-		runtimeDone    <-chan error
+		runtimeDone      <-chan error
 	)
 	defer stop()
 

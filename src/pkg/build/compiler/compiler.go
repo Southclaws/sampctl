@@ -19,7 +19,7 @@ import (
 	"github.com/pkg/errors"
 	"rs3.io/go/mserr/ntstatus"
 
-	"github.com/Southclaws/sampctl/src/pkg/build/build"
+	"github.com/Southclaws/sampctl/src/pkg/build"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
@@ -194,7 +194,7 @@ func resolveCompilerBinary(
 
 	if request.Config.Compiler.Path == "" {
 		pkg, err := GetCompilerPackage(ctx, CompilerFetchRequest{
-			GitHub:   request.GitHub,
+			GitHub: request.GitHub,
 			Meta: versioning.DependencyMeta{
 				Site: resolved.Site,
 				User: resolved.User,

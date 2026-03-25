@@ -10,8 +10,8 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
-	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
-	res "github.com/Southclaws/sampctl/src/resource"
+	res "github.com/Southclaws/sampctl/src/pkg/package/resource"
+	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 )
 
 func TestEnsureComponentsExtractToComponentsDir(t *testing.T) {
