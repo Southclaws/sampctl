@@ -52,26 +52,15 @@ func packageEnsure(c *cli.Context) error {
 			return errors.Wrap(err, "failed to initialize lockfile resolver")
 		}
 
-		// If forcing update, clear the lockfile to resolve fresh versions
-		if forceUpdate {
-			pcx.ForceUpdateLockfile()
-			print.Verb("lockfile cleared, resolving fresh dependency versions")
-		}
-
-		// Report lockfile status
-		if pcx.HasLockfile() {
-			print.Verb("using lockfile for reproducible dependency resolution")
-		} else {
-			print.Verb("no lockfile found, will create one after ensuring dependencies")
-		}
+		describeEnsureLockfile(pcx, forceUpdate)
 	}
 
 	// If lock-only mode, just save the lockfile without ensuring dependencies
 	if lockOnly {
-		if !pcx.HasLockfileResolver() {
-			return errors.New("cannot use --lock-only without lockfile support")
+		if err := requireLockfileSupport(pcx); err != nil {
+			return err
 		}
-		err = pcx.SaveLockfile()
+		err = saveCommandLockfile(pcx)
 		if err != nil {
 			return errors.Wrap(err, "failed to save lockfile")
 		}
@@ -91,9 +80,9 @@ func packageEnsure(c *cli.Context) error {
 	}
 
 	if useLockfile {
-		lf := pcx.GetLockfile()
-		if lf != nil {
-			print.Verb("lockfile saved with", lf.DependencyCount(), "dependencies")
+		count := lockfileDependencyCount(pcx)
+		if count > 0 {
+			print.Verb("lockfile saved with", count, "dependencies")
 		}
 	}
 

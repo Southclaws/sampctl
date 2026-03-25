@@ -8,7 +8,7 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/package/lockfile"
-	"github.com/Southclaws/sampctl/src/pkg/runtime"
+	runtimepkg "github.com/Southclaws/sampctl/src/pkg/runtime"
 )
 
 func (pcx *PackageContext) ensureParentRuntime(ctx context.Context) error {
@@ -28,16 +28,16 @@ func (pcx *PackageContext) ensureParentRuntime(ctx context.Context) error {
 
 	pcx.ActualRuntime = cfg
 
-	if err := fs.EnsurePackageLayout(cfg.WorkingDir, cfg.IsOpenMP()); err != nil {
+	if err := pcx.PackageServices.runtimeProvisioner().EnsurePackageLayout(cfg.WorkingDir, cfg.IsOpenMP()); err != nil {
 		return errors.Wrap(err, "failed to ensure package layout")
 	}
 
-	runtimeInfo, err := runtime.EnsureBinariesContext(ctx, pcx.CacheDir, cfg)
+	runtimeInfo, err := pcx.PackageServices.runtimeProvisioner().EnsureBinaries(ctx, pcx.CacheDir, cfg)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure runtime binaries")
 	}
 
-	if err := runtime.EnsurePlugins(runtime.EnsurePluginsRequest{
+	if err := pcx.PackageServices.runtimeProvisioner().EnsurePlugins(runtimepkg.EnsurePluginsRequest{
 		Context:  ctx,
 		GitHub:   pcx.GitHub,
 		Config:   &pcx.ActualRuntime,
@@ -55,7 +55,7 @@ func (pcx *PackageContext) ensureParentRuntime(ctx context.Context) error {
 	return nil
 }
 
-func (pcx *PackageContext) recordRuntimeToLockfile(manifestInfo *runtime.RuntimeManifestInfo) {
+func (pcx *PackageContext) recordRuntimeToLockfile(manifestInfo *runtimepkg.RuntimeManifestInfo) {
 	if !pcx.PackageLockfileState.HasLockfileResolver() {
 		return
 	}

@@ -44,14 +44,6 @@ func getCommandConfig(c *cli.Context) (*config.Config, error) {
 	return state.cfg, nil
 }
 
-func initLockfileResolver(c *cli.Context, pcx *pkgcontext.PackageContext) error {
-	state, err := getCommandState(c)
-	if err != nil {
-		return err
-	}
-	return pcx.InitLockfileResolver(state.version)
-}
-
 func loadPackageContext(c *cli.Context, dir string, init bool) (*pkgcontext.PackageContext, commandEnv, error) {
 	env, err := getCommandEnv(c)
 	if err != nil {

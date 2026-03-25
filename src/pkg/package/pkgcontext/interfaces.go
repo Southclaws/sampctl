@@ -25,6 +25,26 @@ type DependencyLock interface {
 	GetLockfile() *lockfile.Lockfile
 }
 
+// LockfileInitializer initializes lockfile resolution for a package context.
+type LockfileInitializer interface {
+	InitLockfileResolver(sampctlVersion string) error
+}
+
+// LockfileController exposes the command-facing lockfile behavior supported by PackageContext.
+type LockfileController interface {
+	SaveLockfile() error
+	HasLockfile() bool
+	ForceUpdateLockfile()
+	HasLockfileResolver() bool
+	GetLockfile() *lockfile.Lockfile
+}
+
+// BuildLockfileController extends LockfileController with build recording behavior.
+type BuildLockfileController interface {
+	LockfileController
+	RecordBuildToLockfile(compilerVersion, compilerPreset, entry, output string)
+}
+
 // RepositoryStore abstracts repository open/clone operations used by package flows.
 type RepositoryStore interface {
 	Open(path string) (*git.Repository, error)
@@ -44,4 +64,11 @@ type RuntimeEnvironment interface {
 	CopyFileToRuntime(cacheDir, version, amxFile string) error
 	Ensure(ctx context.Context, gh *github.Client, cfg *runtimecfg.Runtime, noCache bool) error
 	GenerateConfig(cfg *runtimecfg.Runtime) error
+}
+
+// RuntimeProvisioner abstracts runtime layout/binary/plugin provisioning for ensure flows.
+type RuntimeProvisioner interface {
+	EnsurePackageLayout(workingDir string, isOpenMP bool) error
+	EnsureBinaries(ctx context.Context, cacheDir string, cfg runtimecfg.Runtime) (*runtimepkg.RuntimeManifestInfo, error)
+	EnsurePlugins(request runtimepkg.EnsurePluginsRequest) error
 }

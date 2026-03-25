@@ -53,8 +53,8 @@ func packageInstall(c *cli.Context) error {
 		return err
 	}
 
-	//save lockfile after successful install
-	err = pcx.SaveLockfile()
+	// save lockfile after successful install
+	err = saveCommandLockfile(pcx)
 	if err != nil {
 		print.Warn("failed to save lockfile:", err)
 	}

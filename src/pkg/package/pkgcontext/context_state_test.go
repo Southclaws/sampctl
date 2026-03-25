@@ -17,24 +17,28 @@ func TestPackageServicesResolvers(t *testing.T) {
 	store := &fakeRepositoryStore{}
 	health := &fakeRepositoryHealth{}
 	runtimeEnv := constructorRuntimeEnvironment{}
+	runtimeProv := constructorRuntimeProvisioner{}
 	gh := github.NewClient(nil)
 
 	services := PackageServices{
-		GitHub:     gh,
-		RepoStore:  store,
-		RepoHealth: health,
-		RuntimeEnv: runtimeEnv,
+		GitHub:      gh,
+		RepoStore:   store,
+		RepoHealth:  health,
+		RuntimeEnv:  runtimeEnv,
+		RuntimeProv: runtimeProv,
 	}
 
 	assert.Same(t, store, services.repositoryStore())
 	assert.Same(t, health, services.repositoryHealth())
 	assert.Equal(t, runtimeEnv, services.runtimeEnvironment())
+	assert.Equal(t, runtimeProv, services.runtimeProvisioner())
 	assert.Same(t, gh, services.GitHub)
 
 	defaults := PackageServices{}
 	assert.IsType(t, GitRepositoryStore{}, defaults.repositoryStore())
 	assert.IsType(t, GitRepositoryHealth{}, defaults.repositoryHealth())
 	assert.IsType(t, runtimeEnvironmentAdapter{}, defaults.runtimeEnvironment())
+	assert.IsType(t, runtimeProvisionerAdapter{}, defaults.runtimeProvisioner())
 }
 
 func TestPackageLockfileStateMethods(t *testing.T) {

@@ -35,6 +35,8 @@ type fakeRepositoryHealth struct {
 
 type constructorRuntimeEnvironment struct{}
 
+type constructorRuntimeProvisioner struct{}
+
 func (constructorRuntimeEnvironment) Run(context.Context, runtimecfg.Runtime, runtimepkg.RunOptions) error {
 	return nil
 }
@@ -52,6 +54,18 @@ func (constructorRuntimeEnvironment) Ensure(context.Context, *github.Client, *ru
 }
 
 func (constructorRuntimeEnvironment) GenerateConfig(*runtimecfg.Runtime) error {
+	return nil
+}
+
+func (constructorRuntimeProvisioner) EnsurePackageLayout(string, bool) error {
+	return nil
+}
+
+func (constructorRuntimeProvisioner) EnsureBinaries(context.Context, string, runtimecfg.Runtime) (*runtimepkg.RuntimeManifestInfo, error) {
+	return nil, nil
+}
+
+func (constructorRuntimeProvisioner) EnsurePlugins(runtimepkg.EnsurePluginsRequest) error {
 	return nil
 }
 
@@ -223,6 +237,7 @@ func TestNewPackageContextBaseUsesInjectedDependencies(t *testing.T) {
 	health := &fakeRepositoryHealth{}
 	fetcher := constructorRemoteFetcher{}
 	runtimeEnv := constructorRuntimeEnvironment{}
+	runtimeProv := constructorRuntimeProvisioner{}
 	auth := fakeTransportAuth{}
 	gh := github.NewClient(nil)
 
@@ -235,6 +250,7 @@ func TestNewPackageContextBaseUsesInjectedDependencies(t *testing.T) {
 		RepoStore:      store,
 		RepoHealth:     health,
 		RuntimeEnv:     runtimeEnv,
+		RuntimeProv:    runtimeProv,
 	})
 
 	assert.Same(t, gh, pcx.GitHub)
@@ -242,6 +258,7 @@ func TestNewPackageContextBaseUsesInjectedDependencies(t *testing.T) {
 	assert.Same(t, health, pcx.RepoHealth)
 	assert.Equal(t, fetcher, pcx.RemotePackages)
 	assert.Equal(t, runtimeEnv, pcx.RuntimeEnv)
+	assert.Equal(t, runtimeProv, pcx.RuntimeProv)
 	assert.Equal(t, auth, pcx.GitAuth)
 	assert.Equal(t, "linux", pcx.Platform)
 	assert.Equal(t, "/tmp/cache", pcx.CacheDir)
@@ -256,6 +273,7 @@ func TestNewPackageContextBaseUsesDefaultsWhenDependenciesMissing(t *testing.T) 
 	assert.IsType(t, GitRepositoryStore{}, pcx.RepoStore)
 	assert.IsType(t, GitRepositoryHealth{}, pcx.RepoHealth)
 	assert.IsType(t, runtimeEnvironmentAdapter{}, pcx.RuntimeEnv)
+	assert.IsType(t, runtimeProvisionerAdapter{}, pcx.RuntimeProv)
 	assert.Nil(t, pcx.GitHub)
 	assert.Nil(t, pcx.GitAuth)
 }

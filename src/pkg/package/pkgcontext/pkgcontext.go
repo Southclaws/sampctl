@@ -64,6 +64,7 @@ type NewPackageContextOptions struct {
 	RepoStore      RepositoryStore
 	RepoHealth     RepositoryHealth
 	RuntimeEnv     RuntimeEnvironment
+	RuntimeProv    RuntimeProvisioner
 }
 
 // NewPackageContext attempts to parse a directory as a Package by looking for a
@@ -103,6 +104,11 @@ func newPackageContextBase(options NewPackageContextOptions) *PackageContext {
 		runtimeEnv = runtimeEnvironmentAdapter{}
 	}
 
+	runtimeProv := options.RuntimeProv
+	if runtimeProv == nil {
+		runtimeProv = runtimeProvisionerAdapter{}
+	}
+
 	return &PackageContext{
 		PackageServices: PackageServices{
 			GitHub:         options.GitHub,
@@ -113,6 +119,7 @@ func newPackageContextBase(options NewPackageContextOptions) *PackageContext {
 			RepoStore:      repoStore,
 			RepoHealth:     repoHealth,
 			RuntimeEnv:     runtimeEnv,
+			RuntimeProv:    runtimeProv,
 		},
 	}
 }

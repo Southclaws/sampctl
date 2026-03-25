@@ -20,6 +20,7 @@ type PackageServices struct {
 	RepoStore      RepositoryStore
 	RepoHealth     RepositoryHealth
 	RuntimeEnv     RuntimeEnvironment
+	RuntimeProv    RuntimeProvisioner
 }
 
 func (services PackageServices) repositoryStore() RepositoryStore {
@@ -41,6 +42,13 @@ func (services PackageServices) runtimeEnvironment() RuntimeEnvironment {
 		return services.RuntimeEnv
 	}
 	return runtimeEnvironmentAdapter{}
+}
+
+func (services PackageServices) runtimeProvisioner() RuntimeProvisioner {
+	if services.RuntimeProv != nil {
+		return services.RuntimeProv
+	}
+	return runtimeProvisionerAdapter{}
 }
 
 type PackageResolvedState struct {
