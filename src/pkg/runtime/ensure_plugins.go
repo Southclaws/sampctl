@@ -311,7 +311,7 @@ func EnsureVersionedPluginCached(request EnsureVersionedPluginCachedRequest) (
 		}
 	}
 	if !hit {
-		if request.Meta.Tag == "" {
+		if !hasExplicitDependencyReference(request.Meta) {
 			//nolint:lll
 			print.Info("Downloading newest plugin because no version is specified. Consider specifying a version for this dependency.")
 		}
@@ -331,6 +331,10 @@ func EnsureVersionedPluginCached(request EnsureVersionedPluginCachedRequest) (
 	}
 
 	return filename, resource, nil
+}
+
+func hasExplicitDependencyReference(meta versioning.DependencyMeta) bool {
+	return meta.Tag != "" || meta.Branch != "" || meta.Commit != ""
 }
 
 // PluginFromCache tries to grab a plugin asset from the cache, `hit` indicates if it was successful

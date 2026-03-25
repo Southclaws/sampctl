@@ -141,3 +141,41 @@ func TestGetResourceAndPath(t *testing.T) {
 	assert.Equal(t, filepath.Join("plugins", "streamer", "latest"), GetResourcePath(versioning.DependencyMeta{Repo: "streamer"}))
 	assert.Equal(t, filepath.Join("plugins", "streamer", "v1.0.0"), GetResourcePath(versioning.DependencyMeta{Repo: "streamer", Tag: "v1.0.0"}))
 }
+
+func TestHasExplicitDependencyReference(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		meta versioning.DependencyMeta
+		want bool
+	}{
+		{
+			name: "no reference",
+			meta: versioning.DependencyMeta{User: "fixture", Repo: "streamer"},
+			want: false,
+		},
+		{
+			name: "tag reference",
+			meta: versioning.DependencyMeta{User: "fixture", Repo: "streamer", Tag: "v1.0.0"},
+			want: true,
+		},
+		{
+			name: "branch reference",
+			meta: versioning.DependencyMeta{User: "fixture", Repo: "streamer", Branch: "main"},
+			want: true,
+		},
+		{
+			name: "commit reference",
+			meta: versioning.DependencyMeta{User: "fixture", Repo: "streamer", Commit: "abc123"},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, hasExplicitDependencyReference(tt.meta))
+		})
+	}
+}
