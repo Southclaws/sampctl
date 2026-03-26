@@ -4,6 +4,7 @@ vars:
   VERSION: { sh: "git describe --tags --dirty --always" }
   LDFLAGS: -ldflags "-X main.version={{.VERSION}}"
   GITHUB_TOKEN: { sh: "echo $GITHUB_TOKEN" }
+  GO_BIN: { sh: 'printf %s "${GOBIN:-$(go env GOPATH)/bin}"' }
   PATH: { sh: "pwd" }
 
 tasks:
@@ -34,7 +35,50 @@ tasks:
   # Run go test against source code
   test:
     cmds:
-      - go test --race -v ./src/...
+      - go test --race -v ./...
+
+  go:tools:install:
+    desc: "Install pinned Go tooling from the root module"
+    cmds:
+      - go install tool
+
+  fmt:
+    desc: "Format Go code using the repo's golangci-lint formatter config"
+    deps: ["go:tools:install"]
+    cmds:
+      - "{{.GO_BIN}}/golangci-lint fmt"
+
+  lint:
+    desc: "Run the full Go lint suite"
+    deps: ["go:tools:install"]
+    cmds:
+      - "{{.GO_BIN}}/golangci-lint run"
+
+  vet:
+    desc: "Run go vet across the module"
+    cmds:
+      - go vet ./...
+
+  staticcheck:
+    desc: "Run staticcheck directly"
+    deps: ["go:tools:install"]
+    cmds:
+      - "{{.GO_BIN}}/staticcheck ./..."
+
+  vuln:
+    desc: "Run govulncheck across the module"
+    deps: ["go:tools:install"]
+    cmds:
+      - "{{.GO_BIN}}/govulncheck ./..."
+
+  check:
+    desc: "Run the Go quality suite"
+    cmds:
+      - task: lint
+      - task: vet
+      - task: staticcheck
+      - task: vuln
+      - task: test
 
   # Releasing sampctl via goreleaser
   # for osx tar fix
@@ -78,6 +122,14 @@ tasks:
   earthly:test:
     cmds:
       - earthly +test
+
+  earthly:quality:
+    cmds:
+      - earthly +quality
+
+  earthly:quality-full:
+    cmds:
+      - earthly +quality-full
 
   earthly:build:
     cmds:
@@ -127,6 +179,11 @@ tasks:
     deps: ["ci:build"]
     cmds:
       - earthly --secret FULL_ACCESS_GITHUB_TOKEN +test
+
+  ci:quality:
+    desc: "Run Go quality checks in Earthly"
+    cmds:
+      - earthly --build-arg LINT_FLAGS=--new-from-rev=HEAD~1 +quality
 
   ci:full:
     desc: "Run full CI workflow: build then test"

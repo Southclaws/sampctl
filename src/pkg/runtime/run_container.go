@@ -1,0 +1,296 @@
+package runtime
+
+import (
+	"bufio"
+	"context"
+	"fmt"
+	"io"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/strslice"
+	"github.com/docker/docker/client"
+	"github.com/docker/go-connections/nat"
+	"github.com/pkg/errors"
+
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
+	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
+)
+
+// RunContainer does what Run does but inside a Linux container
+// nolint:gocyclo
+func RunContainer(
+	ctx context.Context,
+	cfg run.Runtime,
+	options RunOptions,
+) (err error) {
+	cli, err := client.NewClientWithOpts()
+	if err != nil {
+		return
+	}
+	defer func() {
+		if errClose := cli.Close(); errClose != nil {
+			if err == nil {
+				err = errors.Wrap(errClose, "failed to close docker client")
+				return
+			}
+			print.Warn("failed to close docker client:", errClose)
+		}
+	}()
+
+	args := strslice.StrSlice{"sampctl", "server", "run"}
+	if options.PassArgs {
+		for i, arg := range os.Args {
+			// trim first 3 args and container specific flags
+			if arg == "--container" || arg == "--mountCache" || i < 3 {
+				continue
+			}
+			args = append(args, arg)
+		}
+	}
+
+	port := fmt.Sprint(*cfg.Port)
+	print.Verb("mounting package working directory at", cfg.WorkingDir, "into container at /samp")
+	mounts := []mount.Mount{
+		{
+			Type:   mount.TypeBind,
+			Source: cfg.WorkingDir,
+			Target: "/samp",
+		},
+	}
+
+	if cfg.Container.MountCache {
+		print.Verb("mounting cache at", options.CacheDir, "into container at /root/.samp")
+		mounts = append(mounts, mount.Mount{
+			Type:     mount.TypeBind,
+			Source:   options.CacheDir,
+			Target:   "/root/.samp",
+			ReadOnly: true,
+		})
+	}
+
+	hostConfig := &container.HostConfig{
+		Mounts: mounts,
+		PortBindings: nat.PortMap{
+			nat.Port(port): []nat.PortBinding{
+				{HostIP: "0.0.0.0", HostPort: port},
+			},
+		},
+		SecurityOpt: []string{"seccomp=unconfined"},
+		Privileged:  true,
+	}
+
+	netConfig := &network.NetworkingConfig{
+		//
+	}
+
+	ref := "southclaws/sampctl:" + cfg.AppVersion
+	containerConfig := &container.Config{
+		Image:        ref,
+		Entrypoint:   args,
+		Tty:          true,
+		AttachStdout: true,
+		AttachStderr: true,
+		AttachStdin:  true,
+	}
+
+	containerName := fmt.Sprintf("sampctl-%d", time.Now().Unix())
+
+	ctxPrepare, cancel := context.WithTimeout(ctx, time.Minute*10)
+	defer cancel()
+
+	var cnt container.CreateResponse
+	cnt, err = cli.ContainerCreate(
+		ctxPrepare,
+		containerConfig,
+		hostConfig,
+		netConfig,
+		nil,
+		containerName)
+	if err != nil {
+		if client.IsErrNotFound(err) {
+			print.Info("Pulling image:", ref)
+			pullReader, errInner := cli.ImagePull(ctxPrepare, ref, types.ImagePullOptions{})
+			if errInner != nil {
+				return errors.Wrap(errInner, "failed to pull image")
+			}
+			defer func() {
+				errDefer := pullReader.Close()
+				if errDefer != nil {
+					print.Erro(errDefer)
+				}
+			}()
+			_, errInner = io.ReadAll(pullReader)
+			if errInner != nil {
+				return errors.Wrap(errInner, "failed to read pull output")
+			}
+
+			cnt, errInner = cli.ContainerCreate(
+				ctxPrepare,
+				containerConfig,
+				hostConfig,
+				netConfig,
+				nil,
+				containerName)
+			if errInner != nil {
+				return errors.Wrap(errInner, "failed to create container")
+			}
+		} else {
+			return errors.Wrap(err, "failed to create container")
+		}
+	}
+	defer func() {
+		removeErr := removeContainer(context.Background(), cli, cnt.ID)
+		if removeErr == nil {
+			return
+		}
+		if err == nil {
+			err = errors.Wrap(removeErr, "failed to remove container")
+			return
+		}
+		print.Warn("failed to remove container:", removeErr)
+	}()
+
+	print.Info("Starting container...")
+	err = cli.ContainerStart(ctx, cnt.ID, container.StartOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to start container")
+	}
+
+	runCtx, stopSignals := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer stopSignals()
+
+	// Get logs and wait for exit
+
+	reader, err := cli.ContainerLogs(runCtx, cnt.ID, container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow:     true,
+		Timestamps: false,
+	})
+	if err != nil {
+		return
+	}
+	defer func() {
+		if errClose := reader.Close(); errClose != nil {
+			if err == nil {
+				err = errors.Wrap(errClose, "failed to close container log stream")
+				return
+			}
+			print.Warn("failed to close container log stream:", errClose)
+		}
+	}()
+
+	scanner := bufio.NewScanner(reader)
+	writeFailed := false
+	for scanner.Scan() {
+		_, err = fmt.Fprintln(options.Output, scanner.Text())
+		if err != nil {
+			writeFailed = true
+			break
+		}
+	}
+
+	if scanErr := scanner.Err(); scanErr != nil && runCtx.Err() == nil {
+		return errors.Wrap(scanErr, "failed to read container logs")
+	}
+
+	if writeFailed {
+		stopErr := stopContainer(context.Background(), cli, cnt.ID)
+		if stopErr != nil {
+			print.Warn("failed to stop container after output error:", stopErr)
+		}
+		return errors.Wrap(err, "failed to write container output")
+	}
+
+	if runCtx.Err() != nil {
+		stopErr := stopContainer(context.Background(), cli, cnt.ID)
+		if stopErr != nil {
+			return errors.Wrap(stopErr, "failed to stop container after cancellation")
+		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		return errors.New("received signal, stopped container")
+	}
+
+	if waitErr := waitForContainerExit(runCtx, cli, cnt.ID); waitErr != nil {
+		return errors.Wrap(waitErr, "container execution failed")
+	}
+
+	return nil
+}
+
+type containerStopper interface {
+	ContainerKill(ctx context.Context, containerID, signal string) error
+	ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.WaitResponse, <-chan error)
+}
+
+type containerRemover interface {
+	ContainerRemove(ctx context.Context, containerID string, options container.RemoveOptions) error
+}
+
+type containerWaiter interface {
+	ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.WaitResponse, <-chan error)
+}
+
+func stopContainer(ctx context.Context, cli containerStopper, containerID string) error {
+	stopCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	if err := cli.ContainerKill(stopCtx, containerID, "SIGINT"); err != nil {
+		print.Verb("Failed to kill container:", err)
+	}
+
+	wait, errCh := cli.ContainerWait(stopCtx, containerID, container.WaitConditionNotRunning)
+	select {
+	case <-wait:
+		return nil
+	case err := <-errCh:
+		if err == nil {
+			return nil
+		}
+		return err
+	case <-stopCtx.Done():
+		return stopCtx.Err()
+	}
+}
+
+func removeContainer(ctx context.Context, cli containerRemover, containerID string) error {
+	if containerID == "" {
+		return nil
+	}
+
+	removeCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	return cli.ContainerRemove(removeCtx, containerID, container.RemoveOptions{Force: true})
+}
+
+func waitForContainerExit(ctx context.Context, cli containerWaiter, containerID string) error {
+	waitCh, errCh := cli.ContainerWait(ctx, containerID, container.WaitConditionNotRunning)
+
+	select {
+	case waitResp := <-waitCh:
+		if waitResp.Error != nil && waitResp.Error.Message != "" {
+			return errors.Errorf("container exited with status code %d: %s", waitResp.StatusCode, waitResp.Error.Message)
+		}
+		if waitResp.StatusCode != 0 {
+			return errors.Errorf("container exited with status code %d", waitResp.StatusCode)
+		}
+		return nil
+	case err := <-errCh:
+		if err == nil {
+			return nil
+		}
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}

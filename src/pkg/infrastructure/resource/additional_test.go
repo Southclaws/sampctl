@@ -376,6 +376,34 @@ func TestIdentifierFromDependencyMeta(t *testing.T) {
 	assert.Equal(t, filepath.Join("plugin", "github.com", "u", "r"), identifierFromDependencyMeta(versioning.DependencyMeta{Scheme: "plugin", User: "u", Repo: "r"}))
 }
 
+func TestGitHubReleaseResourceCachedLatestUsesResolvedTagCache(t *testing.T) {
+	t.Parallel()
+
+	cacheDir := t.TempDir()
+	assetPath := filepath.Join(t.TempDir(), "streamer-v1.2.3.tar.gz")
+	require.NoError(t, os.WriteFile(assetPath, []byte("fixture"), 0o644))
+
+	matcher := regexp.MustCompile(`^streamer-v1\.2\.3\.tar\.gz$`)
+	resource := NewGitHubReleaseResource(
+		versioning.DependencyMeta{User: "fixture", Repo: "streamer"},
+		matcher,
+		ResourceTypePlugin,
+		nil,
+	)
+	resource.SetCacheDir(cacheDir)
+	resource.SetCacheTTL(0)
+	resource.SetLocalPath(assetPath)
+
+	require.NoError(t, resource.EnsureFromLocal(context.Background(), "v1.2.3", ""))
+	expectedHit, expectedPath := resource.Cached("v1.2.3")
+	require.True(t, expectedHit)
+
+	hit, cachedPath := resource.Cached("latest")
+	assert.True(t, hit)
+	assert.Equal(t, expectedPath, cachedPath)
+	assert.Equal(t, "v1.2.3", resource.Version())
+}
+
 func createZipBytes(t *testing.T, files map[string]string) []byte {
 	t.Helper()
 

@@ -10,15 +10,15 @@ import (
 )
 
 func TestSetColouredAndPrinting(t *testing.T) {
-	origVerbose := isVerbose
-	origColoured := isColoured
+	origVerbose := isVerbose.Load()
+	origColoured := isColoured.Load()
 	defer func() {
-		isVerbose = origVerbose
-		isColoured = origColoured
+		isVerbose.Store(origVerbose)
+		isColoured.Store(origColoured)
 	}()
 
-	isVerbose = false
-	isColoured = false
+	isVerbose.Store(false)
+	isColoured.Store(false)
 
 	assert.Equal(t, "", captureStdout(func() { Verb("hidden") }))
 

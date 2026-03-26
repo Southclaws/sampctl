@@ -2,6 +2,7 @@ package fs
 
 import (
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"os"
@@ -19,31 +20,20 @@ func WriteFileAtomic(path string, data []byte, dirPerm, filePerm os.FileMode) er
 		return err
 	}
 	tmp := f.Name()
-	cleanup := func() {
-		_ = os.Remove(tmp)
-	}
 	if err := f.Chmod(PermFileTemp); err != nil {
-		_ = f.Close()
-		cleanup()
-		return err
+		return stderrors.Join(err, cleanupTempFile(f, tmp))
 	}
 	if _, err := f.Write(data); err != nil {
-		_ = f.Close()
-		cleanup()
-		return err
+		return stderrors.Join(err, cleanupTempFile(f, tmp))
 	}
 	if err := f.Sync(); err != nil {
-		_ = f.Close()
-		cleanup()
-		return err
+		return stderrors.Join(err, cleanupTempFile(f, tmp))
 	}
 	if err := f.Close(); err != nil {
-		cleanup()
-		return err
+		return stderrors.Join(err, removeFileIfExists(tmp))
 	}
 	if err := os.Rename(tmp, path); err != nil {
-		cleanup()
-		return err
+		return stderrors.Join(err, removeFileIfExists(tmp))
 	}
 	if err := os.Chmod(path, filePerm); err != nil {
 		return err
@@ -62,31 +52,20 @@ func WriteFromReaderAtomic(path string, r io.Reader, dirPerm, filePerm os.FileMo
 		return err
 	}
 	tmp := f.Name()
-	cleanup := func() {
-		_ = os.Remove(tmp)
-	}
 	if err := f.Chmod(PermFileTemp); err != nil {
-		_ = f.Close()
-		cleanup()
-		return err
+		return stderrors.Join(err, cleanupTempFile(f, tmp))
 	}
 	if _, err := io.Copy(f, r); err != nil {
-		_ = f.Close()
-		cleanup()
-		return err
+		return stderrors.Join(err, cleanupTempFile(f, tmp))
 	}
 	if err := f.Sync(); err != nil {
-		_ = f.Close()
-		cleanup()
-		return err
+		return stderrors.Join(err, cleanupTempFile(f, tmp))
 	}
 	if err := f.Close(); err != nil {
-		cleanup()
-		return err
+		return stderrors.Join(err, removeFileIfExists(tmp))
 	}
 	if err := os.Rename(tmp, path); err != nil {
-		cleanup()
-		return err
+		return stderrors.Join(err, removeFileIfExists(tmp))
 	}
 	if err := os.Chmod(path, filePerm); err != nil {
 		return err
@@ -101,4 +80,30 @@ func WriteJSONAtomic(path string, v any, dirPerm, filePerm os.FileMode) error {
 	}
 	data = append(data, '\n')
 	return WriteFileAtomic(path, data, dirPerm, filePerm)
+}
+
+func cleanupTempFile(f *os.File, path string) error {
+	return stderrors.Join(closeTempFile(f), removeFileIfExists(path))
+}
+
+func closeTempFile(f *os.File) error {
+	if f == nil {
+		return nil
+	}
+
+	err := f.Close()
+	if err != nil && !stderrors.Is(err, os.ErrClosed) {
+		return err
+	}
+
+	return nil
+}
+
+func removeFileIfExists(path string) error {
+	err := os.Remove(path)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	return nil
 }

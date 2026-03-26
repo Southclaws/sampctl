@@ -9,6 +9,16 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 )
 
+// JSONCacheRequest describes a read-through JSON cache operation.
+type JSONCacheRequest[T any] struct {
+	Context  context.Context
+	Path     string
+	TTL      time.Duration
+	DirPerm  os.FileMode
+	FilePerm os.FileMode
+	Fetch    func(context.Context) (T, error)
+}
+
 func IsFresh(path string, ttl time.Duration) bool {
 	if ttl <= 0 {
 		return false
@@ -32,23 +42,17 @@ func ReadJSON[T any](path string) (T, error) {
 	return out, nil
 }
 
-func GetOrRefreshJSON[T any](
-	ctx context.Context,
-	path string,
-	ttl time.Duration,
-	dirPerm, filePerm os.FileMode,
-	fetch func(context.Context) (T, error),
-) (value T, refreshed bool, err error) {
-	if IsFresh(path, ttl) {
-		value, err = ReadJSON[T](path)
+func GetOrRefreshJSON[T any](request JSONCacheRequest[T]) (value T, refreshed bool, err error) {
+	if IsFresh(request.Path, request.TTL) {
+		value, err = ReadJSON[T](request.Path)
 		return value, false, err
 	}
 
-	value, err = fetch(ctx)
+	value, err = request.Fetch(request.Context)
 	if err != nil {
 		return value, false, err
 	}
-	if err := fs.WriteJSONAtomic(path, value, dirPerm, filePerm); err != nil {
+	if err := fs.WriteJSONAtomic(request.Path, value, request.DirPerm, request.FilePerm); err != nil {
 		return value, false, err
 	}
 	return value, true, nil

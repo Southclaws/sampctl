@@ -212,7 +212,11 @@ func (m *DefaultResourceManager) cleanResourceDir(resourceDir string) error {
 	}
 
 	// Remove empty resource directory if it has no versions left
-	if isEmpty, _ := m.isDirEmpty(resourceDir); isEmpty {
+	isEmpty, err := m.isDirEmpty(resourceDir)
+	if err != nil {
+		return errors.Wrapf(err, "failed to inspect resource directory: %s", resourceDir)
+	}
+	if isEmpty {
 		err := os.Remove(resourceDir)
 		if err != nil {
 			return errors.Wrapf(err, "failed to remove empty resource directory: %s", resourceDir)
@@ -250,7 +254,11 @@ func (m *DefaultResourceManager) cleanVersionDir(versionDir string) error {
 	}
 
 	// Remove empty version directory if it has no hash entries left
-	if isEmpty, _ := m.isDirEmpty(versionDir); isEmpty {
+	isEmpty, err := m.isDirEmpty(versionDir)
+	if err != nil {
+		return errors.Wrapf(err, "failed to inspect version directory: %s", versionDir)
+	}
+	if isEmpty {
 		err := os.Remove(versionDir)
 		if err != nil {
 			return errors.Wrapf(err, "failed to remove empty version directory: %s", versionDir)

@@ -3,6 +3,7 @@ package pkgcontext
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -175,20 +176,24 @@ func DiagnoseRepository(path string) (diagnosis string, healthy bool) {
 	commitIter, err := repo.CommitObjects()
 	if err == nil {
 		defer commitIter.Close()
-		_ = commitIter.ForEach(func(c *object.Commit) error {
+		if iterErr := commitIter.ForEach(func(c *object.Commit) error {
 			commitCount++
 			return nil
-		})
+		}); iterErr != nil {
+			return "Cannot iterate commits: " + iterErr.Error(), false
+		}
 	}
 
 	refIter, err := repo.References()
 	refCount := 0
 	if err == nil {
 		defer refIter.Close()
-		_ = refIter.ForEach(func(ref *plumbing.Reference) error {
+		if iterErr := refIter.ForEach(func(ref *plumbing.Reference) error {
 			refCount++
 			return nil
-		})
+		}); iterErr != nil {
+			return "Cannot iterate references: " + iterErr.Error(), false
+		}
 	}
 
 	dirtyFiles := 0
@@ -204,7 +209,7 @@ func DiagnoseRepository(path string) (diagnosis string, healthy bool) {
 	}
 
 	return diagnosis + " | HEAD: " + head.Hash().String()[:8] + " | " + commit.Message[:min(50, len(commit.Message))] +
-		" | Commits: " + string(rune(commitCount)) + " | Refs: " + string(rune(refCount)), true
+		" | Commits: " + strconv.Itoa(commitCount) + " | Refs: " + strconv.Itoa(refCount), true
 }
 
 func min(a, b int) int {

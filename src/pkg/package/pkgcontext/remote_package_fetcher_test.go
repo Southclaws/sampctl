@@ -18,6 +18,8 @@ type fakeRemotePackageFetcher struct {
 	err    error
 }
 
+type testContextKey string
+
 func (f *fakeRemotePackageFetcher) Fetch(ctx context.Context, _ versioning.DependencyMeta) (pawnpackage.Package, error) {
 	f.called = true
 	f.ctx = ctx
@@ -32,18 +34,24 @@ func TestInstallPackageResourcesUsesInjectedRemoteFetcher(t *testing.T) {
 	fetcher := &fakeRemotePackageFetcher{pkg: pawnpackage.Package{}}
 
 	pcx := &PackageContext{
-		CacheDir:       t.TempDir(),
-		Platform:       "linux",
-		RemotePackages: fetcher,
 		Package: pawnpackage.Package{
 			LocalPath: projectDir,
 			Vendor:    vendorDir,
 		},
+		PackageServices: PackageServices{
+			CacheDir:       t.TempDir(),
+			Platform:       "linux",
+			RemotePackages: fetcher,
+		},
 	}
 
-	ctx := context.WithValue(context.Background(), "test-key", "test-value")
+	ctx := context.WithValue(context.Background(), testContextKey("test-key"), "test-value")
 
-	err := pcx.installPackageResources(ctx, versioning.DependencyMeta{User: "fixture", Repo: "repo"})
+	err := pcx.installPackageResources(
+		ctx,
+		versioning.DependencyMeta{User: "fixture", Repo: "repo"},
+		versioning.DependencyMeta{User: "fixture", Repo: "repo"},
+	)
 	require.NoError(t, err)
 	assert.True(t, fetcher.called)
 	assert.Equal(t, ctx, fetcher.ctx)

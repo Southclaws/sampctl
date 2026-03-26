@@ -27,7 +27,11 @@ func autoComplete(c *cli.Context) (err error) {
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			print.Warn("failed to close autocomplete response body:", closeErr)
+		}
+	}()
 
 	if resp.StatusCode != 200 {
 		return errors.Errorf("failed to get bash completion: %s", resp.Status)

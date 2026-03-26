@@ -175,6 +175,16 @@ func formatPinnedDependency(meta versioning.DependencyMeta) string {
 }
 
 func (pcx *PackageContext) resolveLatestTag(ctx context.Context, meta versioning.DependencyMeta, forceUpdate bool) (string, error) {
+	if forceUpdate {
+		tag, err := pcx.resolveFreshLatestTag(ctx, meta)
+		if err == nil && tag != "" {
+			return tag, nil
+		}
+		if err != nil {
+			print.Verb(meta, "failed to resolve fresh latest tag:", err)
+		}
+	}
+
 	tag, err := pcx.latestTagFromCache(meta)
 	if err == nil && tag != "" {
 		return tag, nil
@@ -200,6 +210,42 @@ func (pcx *PackageContext) resolveLatestTag(ctx context.Context, meta versioning
 		return "", errors.Wrap(err, "failed to read tags after refreshing dependency cache")
 	}
 	return tag, nil
+}
+
+func (pcx *PackageContext) resolveFreshLatestTag(ctx context.Context, meta versioning.DependencyMeta) (string, error) {
+	if pcx.GitHub != nil && (meta.Site == "" || meta.Site == "github.com") {
+		tag, err := pcx.latestTagFromGitHubRelease(ctx, meta)
+		if err == nil && tag != "" {
+			return tag, nil
+		}
+		if err != nil {
+			print.Verb(meta, "failed to get latest release tag:", err)
+		}
+	}
+
+	if pcx.cachedRepoHasNoOrigin(meta) {
+		return pcx.latestTagFromCache(meta)
+	}
+
+	if _, err := pcx.EnsureDependencyCached(meta, true); err != nil {
+		return "", errors.Wrap(err, "failed to refresh dependency cache")
+	}
+
+	tag, err := pcx.latestTagFromCache(meta)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to read tags after refreshing dependency cache")
+	}
+
+	return tag, nil
+}
+
+func (pcx *PackageContext) cachedRepoHasNoOrigin(meta versioning.DependencyMeta) bool {
+	repoPath := meta.CachePath(pcx.CacheDir)
+	repo, err := pcx.PackageServices.repositoryStore().Open(repoPath)
+	if err != nil {
+		return false
+	}
+	return getRepositoryOriginURL(repo) == ""
 }
 
 func (pcx *PackageContext) latestTagFromGitHubRelease(ctx context.Context, meta versioning.DependencyMeta) (string, error) {

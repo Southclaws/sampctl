@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Southclaws/sampctl/src/pkg/build/build"
+	"github.com/Southclaws/sampctl/src/pkg/build"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 )
 
@@ -197,7 +197,14 @@ func TestCompileSource(t *testing.T) {
 			err := os.MkdirAll(tt.args.cacheDir, 0o700)
 			assert.NoError(t, err)
 
-			gotProblems, gotResult, err := CompileSource(context.Background(), nil, ".", "", tt.args.cacheDir, runtime.GOOS, tt.args.config, tt.args.relative)
+			gotProblems, gotResult, err := CompileSource(context.Background(), CompileRequest{
+				ExecDir:  ".",
+				ErrorDir: "",
+				CacheDir: tt.args.cacheDir,
+				Platform: runtime.GOOS,
+				Config:   tt.args.config,
+				Relative: tt.args.relative,
+			})
 
 			if tt.wantErr {
 				assert.Error(t, err)

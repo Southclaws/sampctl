@@ -64,9 +64,9 @@ func TestTagTaglessDependencies_RollsBackOnCacheRefreshFailure(t *testing.T) {
 	require.NoError(t, err)
 	pkg.Parent = true
 	pkg.LocalPath = projectDir
-	pkg.DependencyMeta = versioning.DependencyMeta{User: "local", Repo: "project"}
+	pkg.SetDependencyMeta(versioning.DependencyMeta{User: "local", Repo: "project"})
 
-	pcx := pkgcontext.PackageContext{Package: pkg, CacheDir: cacheDir, Platform: "linux"}
+	pcx := pkgcontext.PackageContext{Package: pkg, PackageServices: pkgcontext.PackageServices{CacheDir: cacheDir, Platform: "linux"}}
 
 	updated, err := pcx.TagTaglessDependencies(context.Background(), false)
 	require.Error(t, err)

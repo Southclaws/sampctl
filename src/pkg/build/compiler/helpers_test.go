@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/Southclaws/sampctl/src/pkg/build/build"
+	"github.com/Southclaws/sampctl/src/pkg/build"
 )
 
 func TestBuildIncludeArgs(t *testing.T) {
@@ -86,5 +86,11 @@ func TestRunBuildCommands(t *testing.T) {
 		cfg := build.Config{PreBuildCommands: [][]string{{"/bin/sh", "-c", "exit 3"}}}
 		err := RunPreBuildCommands(context.Background(), cfg, &bytes.Buffer{})
 		require.Error(t, err)
+	})
+
+	t.Run("rejects empty command", func(t *testing.T) {
+		cfg := build.Config{PostBuildCommands: [][]string{{}}}
+		err := RunPostBuildCommands(context.Background(), cfg, &bytes.Buffer{})
+		require.EqualError(t, err, "post-build command is empty")
 	})
 }

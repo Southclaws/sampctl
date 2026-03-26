@@ -2,27 +2,54 @@ package pkgcontext
 
 import (
 	"context"
-	"io"
 
 	git "github.com/go-git/go-git/v5"
 	"github.com/google/go-github/github"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/lockfile"
-	runtimecfg "github.com/Southclaws/sampctl/src/pkg/runtime/run"
+	runtimepkg "github.com/Southclaws/sampctl/src/pkg/runtime"
+	runtimecfg "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 )
 
 // DependencyLock abstracts lockfile-aware dependency resolution for package flows.
 type DependencyLock interface {
 	GetLockedVersion(meta versioning.DependencyMeta) versioning.DependencyMeta
+	GetPreviousDependency(meta versioning.DependencyMeta) (lockfile.LockedDependency, bool)
 	RecordResolution(meta versioning.DependencyMeta, resolution lockfile.DependencyResolution, transitive bool, requiredBy string) error
 	RecordLocalDependency(meta versioning.DependencyMeta) error
+	PruneMissing(currentDeps []versioning.DependencyMeta)
 	RecordRuntime(version, platform, runtimeType string, files []lockfile.LockedFileInfo)
-	RecordBuild(compilerVersion, compilerPreset, entry, output, outputHash string)
+	RecordBuild(record lockfile.BuildRecord)
 	Save() error
 	ForceUpdate()
 	HasLockfile() bool
 	GetLockfile() *lockfile.Lockfile
+}
+
+// LockfileInitializer initializes lockfile resolution for a package context.
+type LockfileInitializer interface {
+	InitLockfileResolver(sampctlVersion string) error
+}
+
+// LockfileController exposes the command-facing lockfile behavior supported by PackageContext.
+type LockfileController interface {
+	SaveLockfile() error
+	HasLockfile() bool
+	ForceUpdateLockfile()
+	HasLockfileResolver() bool
+	GetLockfile() *lockfile.Lockfile
+}
+
+// LockfileUpdater updates lockfile contents without installing dependencies into the working tree.
+type LockfileUpdater interface {
+	UpdateLockfile(ctx context.Context, forceUpdate bool) error
+}
+
+// BuildLockfileController extends LockfileController with build recording behavior.
+type BuildLockfileController interface {
+	LockfileController
+	RecordBuildToLockfile(compilerVersion, compilerPreset, entry, output string)
 }
 
 // RepositoryStore abstracts repository open/clone operations used by package flows.
@@ -39,9 +66,16 @@ type RepositoryHealth interface {
 
 // RuntimeEnvironment abstracts runtime preparation and execution for package runs.
 type RuntimeEnvironment interface {
-	Run(ctx context.Context, cfg runtimecfg.Runtime, cacheDir string, passArgs, recover bool, output io.Writer, input io.Reader) error
+	Run(ctx context.Context, cfg runtimecfg.Runtime, options runtimepkg.RunOptions) error
 	PrepareRuntimeDirectory(cacheDir, version, platform, scriptfiles string) error
 	CopyFileToRuntime(cacheDir, version, amxFile string) error
 	Ensure(ctx context.Context, gh *github.Client, cfg *runtimecfg.Runtime, noCache bool) error
 	GenerateConfig(cfg *runtimecfg.Runtime) error
+}
+
+// RuntimeProvisioner abstracts runtime layout/binary/plugin provisioning for ensure flows.
+type RuntimeProvisioner interface {
+	EnsurePackageLayout(workingDir string, isOpenMP bool) error
+	EnsureBinaries(ctx context.Context, cacheDir string, cfg runtimecfg.Runtime) (*runtimepkg.RuntimeManifestInfo, error)
+	EnsurePlugins(request runtimepkg.EnsurePluginsRequest) error
 }

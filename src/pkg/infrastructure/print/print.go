@@ -2,13 +2,14 @@ package print
 
 import (
 	"fmt"
+	"sync/atomic"
 
 	"github.com/fatih/color"
 )
 
 var (
-	isVerbose  = false
-	isColoured = false
+	isVerbose  atomic.Bool
+	isColoured atomic.Bool
 	infoStyle  = color.New(color.FgBlack).Add(color.BgYellow)
 	warnStyle  = color.New(color.FgBlack).Add(color.BgHiRed)
 	erroStyle  = color.New(color.FgRed).Add(color.BgBlack)
@@ -16,24 +17,24 @@ var (
 
 // SetVerbose activates all the Verb calls
 func SetVerbose() {
-	isVerbose = true
+	isVerbose.Store(true)
 }
 
 // SetColoured activates ANSI colour codes
 func SetColoured() {
-	isColoured = true
+	isColoured.Store(true)
 }
 
 // Verb prints a message only if Verb is set - controlled via the -v flag
 func Verb(a ...interface{}) {
-	if isVerbose {
+	if isVerbose.Load() {
 		Info(a...)
 	}
 }
 
 // Info is for general purpose messages that are always shown
 func Info(a ...interface{}) {
-	if isColoured {
+	if isColoured.Load() {
 		fmt.Print(infoStyle.Sprint("INFO:"), " ", color.WhiteString(fmt.Sprintln(a...)))
 	} else {
 		fmt.Print("INFO: ", fmt.Sprintln(a...))
@@ -42,7 +43,7 @@ func Info(a ...interface{}) {
 
 // Warn is for warnings that do not prevent the command from finishing
 func Warn(a ...interface{}) {
-	if isColoured {
+	if isColoured.Load() {
 		fmt.Print(warnStyle.Sprint("WARN:"), " ", color.YellowString(fmt.Sprintln(a...)))
 	} else {
 		fmt.Print("WARN: ", fmt.Sprintln(a...))
@@ -51,7 +52,7 @@ func Warn(a ...interface{}) {
 
 // Erro is for warnings that do not prevent the command from finishing
 func Erro(a ...interface{}) {
-	if isColoured {
+	if isColoured.Load() {
 		fmt.Print(erroStyle.Sprint("ERROR:"), " ", color.RedString(fmt.Sprintln(a...)))
 	} else {
 		fmt.Print("ERROR: ", fmt.Sprintln(a...))

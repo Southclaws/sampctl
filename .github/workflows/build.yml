@@ -3,8 +3,33 @@ name: Build
 on: [push, pull_request]
 
 jobs:
+  quality:
+    name: Go Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Setup Earthly
+        uses: earthly/actions/setup-earthly@v1
+        with:
+          version: latest
+      - name: Run Go quality checks
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ] && git rev-parse --verify "origin/${DEFAULT_BRANCH}" >/dev/null 2>&1; then
+            earthly --build-arg LINT_FLAGS="--new-from-merge-base=origin/${DEFAULT_BRANCH}" +quality
+          elif git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+            earthly --build-arg LINT_FLAGS="--new-from-rev=HEAD~1" +quality
+          else
+            echo "Skipping changed-only golangci-lint: no comparison revision available."
+            earthly +quality-vet
+          fi
+
   build:
     name: Build
+    needs: quality
     runs-on: ubuntu-latest
     env:
       FULL_ACCESS_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

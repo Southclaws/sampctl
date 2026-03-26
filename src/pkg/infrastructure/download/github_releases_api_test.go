@@ -67,15 +67,15 @@ func TestReleaseAssetByPatternWithAPI_UsesListReleases_WhenNoTag(t *testing.T) {
 	fake := &fakeReleasesAPI{releases: []*github.RepositoryRelease{rel}, byTag: map[string]*github.RepositoryRelease{}}
 	fake.downloadRC = io.NopCloser(strings.NewReader("ok"))
 
-	filename, tag, err := ReleaseAssetByPatternWithAPI(
-		context.Background(),
-		fake,
-		versioning.DependencyMeta{User: "o", Repo: "r"},
-		regexp.MustCompile("linux"),
-		tmpDir,
-		"",
-		tmpDir,
-	)
+	filename, tag, err := ReleaseAssetByPatternWithAPI(ReleaseAssetAPIRequest{
+		Context:    context.Background(),
+		Client:     fake,
+		Meta:       versioning.DependencyMeta{User: "o", Repo: "r"},
+		Matcher:    regexp.MustCompile("linux"),
+		Dir:        tmpDir,
+		OutputFile: "",
+		CacheDir:   tmpDir,
+	})
 	require.NoError(t, err)
 	require.Equal(t, "v1.2.3", tag)
 	require.Equal(t, filepath.Join(tmpDir, name), filename)
@@ -105,15 +105,15 @@ func TestReleaseAssetByPatternWithAPI_UsesGetReleaseByTag_WhenTagProvided(t *tes
 	fake := &fakeReleasesAPI{releases: nil, byTag: map[string]*github.RepositoryRelease{"v9.9.9": rel}}
 	fake.downloadRC = io.NopCloser(strings.NewReader("ok"))
 
-	filename, tag, err := ReleaseAssetByPatternWithAPI(
-		context.Background(),
-		fake,
-		versioning.DependencyMeta{User: "o", Repo: "r", Tag: "v9.9.9"},
-		regexp.MustCompile("win"),
-		tmpDir,
-		"",
-		tmpDir,
-	)
+	filename, tag, err := ReleaseAssetByPatternWithAPI(ReleaseAssetAPIRequest{
+		Context:    context.Background(),
+		Client:     fake,
+		Meta:       versioning.DependencyMeta{User: "o", Repo: "r", Tag: "v9.9.9"},
+		Matcher:    regexp.MustCompile("win"),
+		Dir:        tmpDir,
+		OutputFile: "",
+		CacheDir:   tmpDir,
+	})
 	require.NoError(t, err)
 	require.Equal(t, "v9.9.9", tag)
 	require.Equal(t, filepath.Join(tmpDir, name), filename)
@@ -141,14 +141,14 @@ func TestReleaseAssetByPatternWithAPI_ReturnsError_WhenNoAssetMatches(t *testing
 	fake := &fakeReleasesAPI{releases: []*github.RepositoryRelease{rel}, byTag: map[string]*github.RepositoryRelease{}}
 	fake.downloadRC = io.NopCloser(strings.NewReader("ok"))
 
-	_, _, err := ReleaseAssetByPatternWithAPI(
-		context.Background(),
-		fake,
-		versioning.DependencyMeta{User: "o", Repo: "r"},
-		regexp.MustCompile("nope"),
-		"",
-		"",
-		t.TempDir(),
-	)
+	_, _, err := ReleaseAssetByPatternWithAPI(ReleaseAssetAPIRequest{
+		Context:    context.Background(),
+		Client:     fake,
+		Meta:       versioning.DependencyMeta{User: "o", Repo: "r"},
+		Matcher:    regexp.MustCompile("nope"),
+		Dir:        "",
+		OutputFile: "",
+		CacheDir:   t.TempDir(),
+	})
 	require.Error(t, err)
 }

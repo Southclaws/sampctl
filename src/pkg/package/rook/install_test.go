@@ -49,7 +49,14 @@ func Test_PackageInstall(t *testing.T) {
 
 			_ = os.WriteFile(filepath.Join(dir, "pawn.json"), tt.pkg, 0o700) // nolint
 
-			pcx1, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, "./tests/cache", "", false)
+			pcx1, err := pkgcontext.NewPackageContext(pkgcontext.NewPackageContextOptions{
+				GitHub:   gh,
+				Auth:     gitAuth,
+				Parent:   true,
+				Dir:      dir,
+				Platform: runtime.GOOS,
+				CacheDir: "./tests/cache",
+			})
 			if err != nil {
 				t.Error(err)
 			}
@@ -61,7 +68,14 @@ func Test_PackageInstall(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			pcx2, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, runtime.GOOS, "./tests/cache", "", false)
+			pcx2, err := pkgcontext.NewPackageContext(pkgcontext.NewPackageContextOptions{
+				GitHub:   gh,
+				Auth:     gitAuth,
+				Parent:   true,
+				Dir:      dir,
+				Platform: runtime.GOOS,
+				CacheDir: "./tests/cache",
+			})
 			if err != nil {
 				t.Error(err)
 			}
@@ -106,7 +120,15 @@ func Test_PackageGet(t *testing.T) {
 				}
 			}
 
-			err := Get(context.Background(), gh, tt.args.dep, tt.args.dir, nil, runtime.GOOS, "./tests/cache")
+			err := Get(GetOptions{
+				Context:  context.Background(),
+				GitHub:   gh,
+				Meta:     tt.args.dep,
+				Dir:      tt.args.dir,
+				Auth:     nil,
+				Platform: runtime.GOOS,
+				CacheDir: "./tests/cache",
+			})
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

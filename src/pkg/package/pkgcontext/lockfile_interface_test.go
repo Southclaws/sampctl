@@ -11,27 +11,67 @@ import (
 )
 
 type fakeDependencyLock struct {
-	lockfile  *lockfile.Lockfile
-	saved     bool
-	forced    bool
-	hasLocked bool
+	lockfile         *lockfile.Lockfile
+	previous         lockfile.LockedDependency
+	hasPrevious      bool
+	saved            bool
+	forced           bool
+	hasLocked        bool
+	lockedVersion    versioning.DependencyMeta
+	localDeps        []versioning.DependencyMeta
+	prunedDeps       []versioning.DependencyMeta
+	lastResolution   lockfile.DependencyResolution
+	lastResolutionIn versioning.DependencyMeta
+	lastTransitive   bool
+	lastRequiredBy   string
+	runtimeVersion   string
+	runtimePlatform  string
+	runtimeType      string
+	runtimeFiles     []lockfile.LockedFileInfo
+	buildRecord      lockfile.BuildRecord
 }
 
 func (f *fakeDependencyLock) GetLockedVersion(meta versioning.DependencyMeta) versioning.DependencyMeta {
+	if f.lockedVersion.Repo != "" || f.lockedVersion.Tag != "" || f.lockedVersion.Commit != "" || f.lockedVersion.Branch != "" {
+		return f.lockedVersion
+	}
 	return meta
 }
 
-func (f *fakeDependencyLock) RecordResolution(versioning.DependencyMeta, lockfile.DependencyResolution, bool, string) error {
+func (f *fakeDependencyLock) RecordResolution(meta versioning.DependencyMeta, resolution lockfile.DependencyResolution, transitive bool, requiredBy string) error {
+	f.lastResolutionIn = meta
+	f.lastResolution = resolution
+	f.lastTransitive = transitive
+	f.lastRequiredBy = requiredBy
 	return nil
 }
 
-func (f *fakeDependencyLock) RecordLocalDependency(versioning.DependencyMeta) error {
+func (f *fakeDependencyLock) GetPreviousDependency(versioning.DependencyMeta) (lockfile.LockedDependency, bool) {
+	if !f.hasPrevious {
+		return lockfile.LockedDependency{}, false
+	}
+	return f.previous, true
+}
+
+func (f *fakeDependencyLock) RecordLocalDependency(meta versioning.DependencyMeta) error {
+	f.localDeps = append(f.localDeps, meta)
 	return nil
 }
 
-func (f *fakeDependencyLock) RecordRuntime(string, string, string, []lockfile.LockedFileInfo) {}
+func (f *fakeDependencyLock) PruneMissing(current []versioning.DependencyMeta) {
+	f.prunedDeps = append([]versioning.DependencyMeta(nil), current...)
+}
 
-func (f *fakeDependencyLock) RecordBuild(string, string, string, string, string) {}
+func (f *fakeDependencyLock) RecordRuntime(version, platform, runtimeType string, files []lockfile.LockedFileInfo) {
+	f.runtimeVersion = version
+	f.runtimePlatform = platform
+	f.runtimeType = runtimeType
+	f.runtimeFiles = files
+}
+
+func (f *fakeDependencyLock) RecordBuild(record lockfile.BuildRecord) {
+	f.buildRecord = record
+}
 
 func (f *fakeDependencyLock) Save() error {
 	f.saved = true
@@ -57,7 +97,7 @@ func TestPackageContextLockfileInterfaceHelpers(t *testing.T) {
 		lockfile:  lockfile.New("dev"),
 		hasLocked: true,
 	}
-	pcx := &PackageContext{lockfileResolver: fake}
+	pcx := &PackageContext{PackageLockfileState: PackageLockfileState{lockfileResolver: fake}}
 
 	require.NoError(t, pcx.SaveLockfile())
 	assert.True(t, fake.saved)
@@ -68,7 +108,7 @@ func TestPackageContextLockfileInterfaceHelpers(t *testing.T) {
 	pcx.ForceUpdateLockfile()
 	assert.True(t, fake.forced)
 
-	pcx.lockfileResolver = nil
+	pcx.PackageLockfileState.lockfileResolver = nil
 	assert.NoError(t, pcx.SaveLockfile())
 	assert.False(t, pcx.HasLockfile())
 	assert.False(t, pcx.HasLockfileResolver())

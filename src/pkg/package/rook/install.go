@@ -16,39 +16,44 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
-// Get simply performs a git clone of the given package to the specified directory then ensures it
-func Get(
-	ctx context.Context,
-	gh *github.Client,
-	meta versioning.DependencyMeta,
-	dir string,
-	auth transport.AuthMethod,
-	platform,
-	cacheDir string,
-) (err error) {
-	err = os.MkdirAll(dir, 0o700)
+// GetOptions describes a package clone-and-ensure operation.
+type GetOptions struct {
+	Context  context.Context
+	GitHub   *github.Client
+	Meta     versioning.DependencyMeta
+	Dir      string
+	Auth     transport.AuthMethod
+	Platform string
+	CacheDir string
+}
+
+// Get simply performs a git clone of the given package to the specified directory then ensures it.
+func Get(options GetOptions) (err error) {
+	err = os.MkdirAll(options.Dir, 0o700)
 	if err != nil {
 		return errors.Wrap(err, "failed to create directory for clone")
 	}
 
-	if !util.DirEmpty(dir) {
-		dir = filepath.Join(dir, meta.Repo)
+	if !util.DirEmpty(options.Dir) {
+		options.Dir = filepath.Join(options.Dir, options.Meta.Repo)
 	}
 
-	print.Verb("cloning package", meta, "to", dir)
+	print.Verb("cloning package", options.Meta, "to", options.Dir)
 
-	repo, err := git.PlainClone(dir, false, &git.CloneOptions{
-		URL:   meta.URL(),
+	repo, err := git.PlainClone(options.Dir, false, &git.CloneOptions{
+		URL:   options.Meta.URL(),
 		Depth: 1000, // TODO: We might want to consider removing depth for better reliability, or add a configurable option
 	})
 	if err != nil {
 		return errors.Wrap(err, "failed to clone package repository")
 	}
 
-	valid, validationErr := pkgcontext.ValidateRepository(dir)
+	valid, validationErr := pkgcontext.ValidateRepository(options.Dir)
 	if validationErr != nil || !valid {
 		print.Verb("cloned repository failed validation, cleaning up")
-		os.RemoveAll(dir)
+		if removeErr := os.RemoveAll(options.Dir); removeErr != nil {
+			print.Warn("failed to clean up invalid clone:", removeErr)
+		}
 		if validationErr != nil {
 			return errors.Wrap(validationErr, "cloned repository is invalid")
 		}
@@ -58,17 +63,26 @@ func Get(
 	_, err = repo.Head()
 	if err != nil {
 		print.Verb("cloned repository has invalid HEAD, cleaning up")
-		os.RemoveAll(dir)
+		if removeErr := os.RemoveAll(options.Dir); removeErr != nil {
+			print.Warn("failed to clean up clone with invalid HEAD:", removeErr)
+		}
 		return errors.Wrap(err, "cloned repository has invalid HEAD")
 	}
 
-	print.Verb("ensuring cloned package", meta, "to", dir)
-	pcx, err := pkgcontext.NewPackageContext(gh, auth, true, dir, platform, cacheDir, "", false)
+	print.Verb("ensuring cloned package", options.Meta, "to", options.Dir)
+	pcx, err := pkgcontext.NewPackageContext(pkgcontext.NewPackageContextOptions{
+		GitHub:   options.GitHub,
+		Auth:     options.Auth,
+		Parent:   true,
+		Dir:      options.Dir,
+		Platform: options.Platform,
+		CacheDir: options.CacheDir,
+	})
 	if err != nil {
 		return errors.Wrap(err, "failed to read cloned repository as Pawn package")
 	}
 
-	err = pcx.EnsureDependencies(ctx, true)
+	err = pcx.EnsureDependencies(options.Context, true)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure dependencies for cloned package")
 	}

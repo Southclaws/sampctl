@@ -1,4 +1,4 @@
-//nolint:dupl,golint
+//nolint:dupl
 package download
 
 import (
@@ -48,7 +48,7 @@ func GetCompilerListWithClientContext(ctx context.Context, cacheDir string, clie
 	var refreshErr error
 
 	if !cache.IsFresh(compilersFile, time.Hour*24*7) {
-		fmt.Fprintln(os.Stderr, "updating compiler list...") // nolint:gas
+		fmt.Fprintln(os.Stderr, "updating compiler list...") //nolint:gosec
 		refreshErr = UpdateCompilerListWithClientContext(ctx, cacheDir, client)
 		if refreshErr != nil {
 			fmt.Fprintln(os.Stderr, errors.Wrap(refreshErr, "failed to update compiler list"))
@@ -90,7 +90,11 @@ func UpdateCompilerListWithClientContext(ctx context.Context, cacheDir string, c
 	if err != nil {
 		return errors.Wrap(err, "failed to download package list")
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+			err = errors.Wrap(closeErr, "failed to close compiler list response body")
+		}
+	}()
 	if resp.StatusCode != 200 {
 		return errors.Errorf("package list status %s", resp.Status)
 	}

@@ -99,9 +99,11 @@ func DirEmpty(path string) bool {
 	if err != nil {
 		return false
 	}
-	defer func() {
-		_ = f.Close()
-	}()
+
 	_, err = f.Readdirnames(1)
+	if errClose := f.Close(); errClose != nil {
+		return false
+	}
+
 	return err == io.EOF
 }

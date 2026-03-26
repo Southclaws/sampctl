@@ -1,4 +1,4 @@
-//nolint:dupl,golint
+//nolint:dupl
 package download
 
 import (
@@ -51,13 +51,13 @@ func GetRuntimeListWithClientContext(ctx context.Context, cacheDir string, clien
 	}
 
 	runtimesFile := fs.Join(cacheDir, "runtimes.json")
-	runtimes, refreshed, err := cache.GetOrRefreshJSON[Runtimes](
-		ctx,
-		runtimesFile,
-		time.Hour*24*7,
-		fs.PermDirPrivate,
-		fs.PermFileShared,
-		func(ctx context.Context) (Runtimes, error) {
+	runtimes, refreshed, err := cache.GetOrRefreshJSON(cache.JSONCacheRequest[Runtimes]{
+		Context:  ctx,
+		Path:     runtimesFile,
+		TTL:      time.Hour * 24 * 7,
+		DirPerm:  fs.PermDirPrivate,
+		FilePerm: fs.PermFileShared,
+		Fetch: func(ctx context.Context) (out Runtimes, err error) {
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://raw.githubusercontent.com/sampctl/runtimes/master/runtimes.json", nil)
 			if err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to create request")
@@ -66,22 +66,25 @@ func GetRuntimeListWithClientContext(ctx context.Context, cacheDir string, clien
 			if err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to download package list")
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+					err = errors.Wrap(closeErr, "failed to close runtime list response body")
+				}
+			}()
 			if resp.StatusCode != 200 {
 				return Runtimes{}, errors.Errorf("package list status %s", resp.Status)
 			}
-			var out Runtimes
 			if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to decode package list")
 			}
 			return out, nil
 		},
-	)
+	})
 	if err != nil {
 		return Runtimes{}, err
 	}
 	if refreshed {
-		fmt.Fprintln(os.Stderr, "updating runtimes list...") // nolint:gas
+		fmt.Fprintln(os.Stderr, "updating runtimes list...") //nolint:gosec
 	}
 	return runtimes, nil
 }
@@ -104,13 +107,13 @@ func UpdateRuntimeListWithClientContext(ctx context.Context, cacheDir string, cl
 	}
 
 	runtimesFile := fs.Join(cacheDir, "runtimes.json")
-	_, _, err = cache.GetOrRefreshJSON[Runtimes](
-		ctx,
-		runtimesFile,
-		-1,
-		fs.PermDirPrivate,
-		fs.PermFileShared,
-		func(ctx context.Context) (Runtimes, error) {
+	_, _, err = cache.GetOrRefreshJSON(cache.JSONCacheRequest[Runtimes]{
+		Context:  ctx,
+		Path:     runtimesFile,
+		TTL:      -1,
+		DirPerm:  fs.PermDirPrivate,
+		FilePerm: fs.PermFileShared,
+		Fetch: func(ctx context.Context) (out Runtimes, err error) {
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://raw.githubusercontent.com/sampctl/runtimes/master/runtimes.json", nil)
 			if err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to create request")
@@ -119,17 +122,20 @@ func UpdateRuntimeListWithClientContext(ctx context.Context, cacheDir string, cl
 			if err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to download package list")
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+					err = errors.Wrap(closeErr, "failed to close runtime list response body")
+				}
+			}()
 			if resp.StatusCode != 200 {
 				return Runtimes{}, errors.Errorf("package list status %s", resp.Status)
 			}
-			var out Runtimes
 			if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to decode package list")
 			}
 			return out, nil
 		},
-	)
+	})
 	return err
 }
 

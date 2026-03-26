@@ -4,6 +4,7 @@ package download
 
 import (
 	"context"
+	stderrors "errors"
 	"io"
 	"math/rand/v2"
 	"mime"
@@ -45,6 +46,47 @@ var (
 // a directory. The map argument contains a map of source files in the archive to target file
 // locations on the host filesystem (absolute paths).
 type ExtractFunc func(string, string, map[string]string) (map[string]string, error)
+
+// CacheExtractRequest describes a cached archive extraction operation.
+type CacheExtractRequest struct {
+	CacheDir string
+	Filename string
+	Dir      string
+	Method   ExtractFunc
+	Paths    map[string]string
+	Platform string
+}
+
+// ReleaseAssetRequest describes a GitHub release asset download using a github.Client.
+type ReleaseAssetRequest struct {
+	Context    context.Context
+	Client     *github.Client
+	Meta       versioning.DependencyMeta
+	Matcher    *regexp.Regexp
+	Dir        string
+	OutputFile string
+	CacheDir   string
+}
+
+// ReleaseAssetAPIRequest describes a GitHub release asset download using the narrow releases API.
+type ReleaseAssetAPIRequest struct {
+	Context    context.Context
+	Client     GitHubReleasesAPI
+	Meta       versioning.DependencyMeta
+	Matcher    *regexp.Regexp
+	Dir        string
+	OutputFile string
+	CacheDir   string
+}
+
+// ReleaseAssetDownloadRequest describes the final transfer of a selected release asset.
+type ReleaseAssetDownloadRequest struct {
+	Context     context.Context
+	Client      GitHubReleasesAPI
+	Meta        versioning.DependencyMeta
+	Asset       *github.ReleaseAsset
+	Destination string
+}
 
 const (
 	// ExtractZip is an extract function for .zip packages
@@ -90,28 +132,23 @@ func MigrateOldConfig(cacheDir string) error {
 	return nil
 }
 
-// FromCache first checks if a file is cached, then
-func FromCache(cacheDir, filename, dir string, method ExtractFunc, paths map[string]string, platform string) (hit bool, err error) {
-	path := filepath.Join(cacheDir, filename)
+// FromCache first checks if a file is cached, then extracts it if present.
+func FromCache(request CacheExtractRequest) (bool, error) {
+	path := filepath.Join(request.CacheDir, request.Filename)
 
 	if !fs.Exists(path) {
-		hit = false
-		return
+		return false, nil
 	}
 
-	var files map[string]string
-	files, err = method(path, dir, paths)
+	files, err := request.Method(path, request.Dir, request.Paths)
 	if err != nil {
-		hit = false
-		err = errors.Wrapf(err, "failed to unzip package %s", path)
-		return
+		return false, errors.Wrapf(err, "failed to unzip package %s", path)
 	}
 
-	if fs.IsPosixPlatform(platform) {
+	if fs.IsPosixPlatform(request.Platform) {
 		print.Verb("setting permissions for binaries")
 	}
-	if err := fs.ChmodAllIfPosix(platform, files, fs.PermFileExec); err != nil {
-		hit = false
+	if err := fs.ChmodAllIfPosix(request.Platform, files, fs.PermFileExec); err != nil {
 		return false, err
 	}
 
@@ -124,6 +161,9 @@ func FromNet(ctx context.Context, location, cachePath string) (result string, er
 
 func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath string) (result string, err error) {
 	print.Verb("attempting to download package from", location, "to", cachePath)
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if client == nil {
 		client = fromNetClientFactory()
 	}
@@ -141,9 +181,14 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 
 		resp, doErr := client.Do(req)
 		if doErr != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return "", ctxErr
+			}
 			lastErr = errors.Wrapf(doErr, "failed to download package from %s", location)
 			if attempt < maxAttempts {
-				fromNetSleep(backoff(attempt))
+				if sleepErr := sleepRetryBackoff(ctx, backoff(attempt)); sleepErr != nil {
+					return "", sleepErr
+				}
 				continue
 			}
 			return "", lastErr
@@ -151,8 +196,10 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 
 		if resp.StatusCode != http.StatusOK {
 			retryable := (resp.StatusCode >= 500 && resp.StatusCode <= 599) || resp.StatusCode == http.StatusTooManyRequests
-			_, _ = io.CopyN(io.Discard, resp.Body, 32*1024)
-			_ = resp.Body.Close()
+			if _, copyErr := io.CopyN(io.Discard, resp.Body, 32*1024); copyErr != nil && !stderrors.Is(copyErr, io.EOF) {
+				print.Warn("failed to drain unsuccessful download response:", copyErr)
+			}
+			closeWithWarning(resp.Body, "download response body")
 			lastErr = errors.Errorf("unexpected status code given %d", resp.StatusCode)
 			err = lastErr
 			if !retryable {
@@ -163,12 +210,16 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 				if resp.StatusCode == http.StatusTooManyRequests {
 					if ra := resp.Header.Get("Retry-After"); ra != "" {
 						if secs, convErr := strconv.Atoi(strings.TrimSpace(ra)); convErr == nil && secs > 0 && secs <= 10 {
-							fromNetSleep(time.Duration(secs) * time.Second)
+							if sleepErr := sleepRetryBackoff(ctx, time.Duration(secs)*time.Second); sleepErr != nil {
+								return "", sleepErr
+							}
 							continue
 						}
 					}
 				}
-				fromNetSleep(backoff(attempt))
+				if sleepErr := sleepRetryBackoff(ctx, backoff(attempt)); sleepErr != nil {
+					return "", sleepErr
+				}
 				continue
 			}
 			return "", err
@@ -178,7 +229,7 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 		if ct != "" {
 			if t, _, parseErr := mime.ParseMediaType(ct); parseErr == nil {
 				if !(strings.HasPrefix(t, "application/") || strings.HasPrefix(t, "text/")) {
-					_ = resp.Body.Close()
+					closeWithWarning(resp.Body, "download response body")
 					lastErr = errors.Errorf("content has unexpected content type %s", t)
 					err = lastErr
 					if attempt < maxAttempts {
@@ -191,16 +242,23 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 		}
 
 		if writeErr := fs.WriteFromReaderAtomic(cachePath, resp.Body, fs.PermDirPrivate, fs.PermFileShared); writeErr != nil {
-			_ = resp.Body.Close()
+			closeWithWarning(resp.Body, "download response body")
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return "", ctxErr
+			}
 			lastErr = errors.Wrap(writeErr, "failed to write package to cache")
 			err = lastErr
 			if attempt < maxAttempts {
-				fromNetSleep(backoff(attempt))
+				if sleepErr := sleepRetryBackoff(ctx, backoff(attempt)); sleepErr != nil {
+					return "", sleepErr
+				}
 				continue
 			}
 			return "", err
 		}
-		_ = resp.Body.Close()
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			return "", errors.Wrap(closeErr, "failed to close download response body")
+		}
 		return cachePath, nil
 	}
 
@@ -210,38 +268,54 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 	return "", lastErr
 }
 
-// ReleaseAssetByPattern downloads a resource file, which is a GitHub release asset
-func ReleaseAssetByPattern(
-	ctx context.Context,
-	gh *github.Client,
-	meta versioning.DependencyMeta,
-	matcher *regexp.Regexp,
-	dir,
-	outputFile,
-	cacheDir string,
-) (filename, tag string, err error) {
-	return ReleaseAssetByPatternWithAPI(ctx, githubClientReleasesAdapter{client: gh}, meta, matcher, dir, outputFile, cacheDir)
+func sleepRetryBackoff(ctx context.Context, duration time.Duration) error {
+	if duration <= 0 {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			return nil
+		}
+	}
+
+	done := make(chan struct{})
+	go func() {
+		fromNetSleep(duration)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
-func ReleaseAssetByPatternWithAPI(
-	ctx context.Context,
-	gh GitHubReleasesAPI,
-	meta versioning.DependencyMeta,
-	matcher *regexp.Regexp,
-	dir,
-	outputFile,
-	cacheDir string,
-) (filename, tag string, err error) {
+// ReleaseAssetByPattern downloads a resource file, which is a GitHub release asset
+func ReleaseAssetByPattern(request ReleaseAssetRequest) (filename, tag string, err error) {
+	return ReleaseAssetByPatternWithAPI(ReleaseAssetAPIRequest{
+		Context:    request.Context,
+		Client:     githubClientReleasesAdapter{client: request.Client},
+		Meta:       request.Meta,
+		Matcher:    request.Matcher,
+		Dir:        request.Dir,
+		OutputFile: request.OutputFile,
+		CacheDir:   request.CacheDir,
+	})
+}
+
+func ReleaseAssetByPatternWithAPI(request ReleaseAssetAPIRequest) (filename, tag string, err error) {
 	var (
 		asset  *github.ReleaseAsset
 		assets = make([]string, 1)
 	)
 
 	var release *github.RepositoryRelease
-	if meta.Tag == "" {
-		release, err = getLatestReleaseOrPreRelease(ctx, gh, meta.User, meta.Repo)
+	if request.Meta.Tag == "" {
+		release, err = getLatestReleaseOrPreRelease(request.Context, request.Client, request.Meta.User, request.Meta.Repo)
 	} else {
-		release, _, err = gh.GetReleaseByTag(ctx, meta.User, meta.Repo, meta.Tag)
+		release, _, err = request.Client.GetReleaseByTag(request.Context, request.Meta.User, request.Meta.Repo, request.Meta.Tag)
 	}
 	if err != nil {
 		return
@@ -249,29 +323,29 @@ func ReleaseAssetByPatternWithAPI(
 
 	for _, a := range release.Assets {
 		rel := a
-		if matcher.MatchString(*a.Name) {
+		if request.Matcher.MatchString(*a.Name) {
 			asset = &rel
 			break
 		}
 		assets = append(assets, *a.Name)
 	}
 	if asset == nil {
-		err = errors.Errorf("resource matcher '%s' does not match any release assets from '%v'", matcher, assets)
+		err = errors.Errorf("resource matcher '%s' does not match any release assets from '%v'", request.Matcher, assets)
 		return
 	}
 	tag = release.GetTagName()
-	if dir == "" {
-		dir = filepath.Join("assets", meta.User, meta.Repo, tag)
+	if request.Dir == "" {
+		request.Dir = filepath.Join("assets", request.Meta.User, request.Meta.Repo, tag)
 	}
 
-	baseDir := dir
+	baseDir := request.Dir
 	if !filepath.IsAbs(baseDir) {
-		baseDir = filepath.Join(cacheDir, baseDir)
+		baseDir = filepath.Join(request.CacheDir, baseDir)
 	}
 
-	if outputFile == "" {
+	if request.OutputFile == "" {
 		if name := asset.GetName(); name != "" {
-			outputFile = name
+			request.OutputFile = name
 		} else if asset.BrowserDownloadURL != nil && *asset.BrowserDownloadURL != "" {
 			var u *url.URL
 			u, err = url.Parse(*asset.BrowserDownloadURL)
@@ -279,17 +353,23 @@ func ReleaseAssetByPatternWithAPI(
 				err = errors.Wrap(err, "failed to parse download URL from GitHub API")
 				return
 			}
-			outputFile = filepath.Base(u.Path)
+			request.OutputFile = filepath.Base(u.Path)
 		} else {
 			err = errors.New("release asset has no name or download URL")
 			return
 		}
 	} else {
-		outputFile = filepath.Base(outputFile)
+		request.OutputFile = filepath.Base(request.OutputFile)
 	}
 
-	destination := filepath.Join(baseDir, outputFile)
-	filename, err = downloadReleaseAsset(ctx, gh, meta, asset, destination)
+	destination := filepath.Join(baseDir, request.OutputFile)
+	filename, err = downloadReleaseAsset(ReleaseAssetDownloadRequest{
+		Context:     request.Context,
+		Client:      request.Client,
+		Meta:        request.Meta,
+		Asset:       asset,
+		Destination: destination,
+	})
 	if err != nil {
 		return
 	}
@@ -297,39 +377,45 @@ func ReleaseAssetByPatternWithAPI(
 	return filename, tag, nil
 }
 
-func downloadReleaseAsset(
-	ctx context.Context,
-	gh GitHubReleasesAPI,
-	meta versioning.DependencyMeta,
-	asset *github.ReleaseAsset,
-	destination string,
-) (string, error) {
-	if asset == nil {
+func downloadReleaseAsset(request ReleaseAssetDownloadRequest) (string, error) {
+	if request.Asset == nil {
 		return "", errors.New("no release asset selected")
 	}
 
-	if gh != nil && asset.GetID() != 0 {
-		rc, redirectURL, err := gh.DownloadReleaseAsset(ctx, meta.User, meta.Repo, asset.GetID())
+	if request.Client != nil && request.Asset.GetID() != 0 {
+		rc, redirectURL, err := request.Client.DownloadReleaseAsset(request.Context, request.Meta.User, request.Meta.Repo, request.Asset.GetID())
 		if err != nil {
 			return "", errors.Wrap(err, "failed to download release asset via GitHub API")
 		}
 		if redirectURL != "" {
-			return FromNet(ctx, redirectURL, destination)
+			return FromNet(request.Context, redirectURL, request.Destination)
 		}
 		if rc == nil {
 			return "", errors.New("empty response body for release asset download")
 		}
-		defer rc.Close()
-		if writeErr := fs.WriteFromReaderAtomic(destination, rc, fs.PermDirPrivate, fs.PermFileShared); writeErr != nil {
+		if writeErr := fs.WriteFromReaderAtomic(request.Destination, rc, fs.PermDirPrivate, fs.PermFileShared); writeErr != nil {
+			closeWithWarning(rc, "release asset response body")
 			return "", errors.Wrap(writeErr, "failed to write package to cache")
 		}
-		return destination, nil
+		if closeErr := rc.Close(); closeErr != nil {
+			return "", errors.Wrap(closeErr, "failed to close release asset response body")
+		}
+		return request.Destination, nil
 	}
 
-	if asset.BrowserDownloadURL == nil || *asset.BrowserDownloadURL == "" {
+	if request.Asset.BrowserDownloadURL == nil || *request.Asset.BrowserDownloadURL == "" {
 		return "", errors.New("release asset has no download URL")
 	}
-	return FromNet(ctx, *asset.BrowserDownloadURL, destination)
+	return FromNet(request.Context, *request.Asset.BrowserDownloadURL, request.Destination)
+}
+
+func closeWithWarning(closer io.Closer, label string) {
+	if closer == nil {
+		return
+	}
+	if err := closer.Close(); err != nil {
+		print.Warn("failed to close", label+":", err)
+	}
 }
 
 func getLatestReleaseOrPreRelease(

@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,20 +12,22 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
-	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
+	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 )
 
-var packageTemplateRunFlags = []cli.Flag{
-	cli.StringFlag{
-		Name:  "version",
-		Value: "0.3.7",
-		Usage: "the SA:MP server version to use",
-	},
-	cli.StringFlag{
-		Name:  "mode",
-		Value: "main",
-		Usage: "runtime mode, one of: server, main, y_testing",
-	},
+func packageTemplateRunFlags() []cli.Flag {
+	return []cli.Flag{
+		cli.StringFlag{
+			Name:  "version",
+			Value: "0.3.7",
+			Usage: "the SA:MP server version to use",
+		},
+		cli.StringFlag{
+			Name:  "mode",
+			Value: "main",
+			Usage: "runtime mode, one of: server, main, y_testing",
+		},
+	}
 }
 
 func packageTemplateRun(c *cli.Context) (err error) {
@@ -54,7 +55,7 @@ func packageTemplateRun(c *cli.Context) (err error) {
 		return errors.Errorf("no such file or directory: %s", filename)
 	}
 
-	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, templatePath, env.Platform, env.CacheDir, "", false)
+	pcx, _, err := loadPackageContext(c, templatePath, false)
 	if err != nil {
 		return errors.Wrap(err, "template package is invalid")
 	}
@@ -64,7 +65,12 @@ func packageTemplateRun(c *cli.Context) (err error) {
 		return errors.Wrap(err, "failed to copy target script to template package directory")
 	}
 
-	problems, result, err := pcx.Build(context.Background(), "", false, false, true, "")
+	ctx, cancel := newCommandContext()
+	defer cancel()
+
+	problems, result, err := pcx.Build(ctx, pkgcontext.BuildOptions{
+		Relative: true,
+	})
 	if err != nil {
 		return
 	}
@@ -80,9 +86,6 @@ func packageTemplateRun(c *cli.Context) (err error) {
 		result.Total,
 	))
 
-	// override the version with the one passed by --version
-	pcx.Package.Runtime.Version = version
-
 	if !problems.IsValid() {
 		return errors.New("cannot run with build errors")
 	}
@@ -97,13 +100,27 @@ func packageTemplateRun(c *cli.Context) (err error) {
 	pcx.BuildFile = ""
 	pcx.Relative = false
 
-	pcx.Package.Runtime = new(run.Runtime)
-	pcx.Package.Runtime.Mode = run.RunMode(mode)
+	pcx.Package.Runtime = templateRunRuntime(pcx.Package.Runtime, version, run.RunMode(mode))
 
-	err = pcx.Run(context.Background(), os.Stdout, os.Stdin)
+	err = pcx.Run(ctx, os.Stdout, os.Stdin)
 	if err != nil {
 		return
 	}
 
 	return nil
+}
+
+func templateRunRuntime(base *run.Runtime, version string, mode run.RunMode) *run.Runtime {
+	if base == nil {
+		return &run.Runtime{
+			Version: version,
+			Mode:    mode,
+		}
+	}
+
+	cloned := *base
+	cloned.Version = version
+	cloned.Mode = mode
+
+	return &cloned
 }

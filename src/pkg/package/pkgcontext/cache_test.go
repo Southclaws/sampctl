@@ -22,16 +22,14 @@ func TestEnsureDependenciesCached(t *testing.T) {
 			"basic",
 			PackageContext{
 				Package: pawnpackage.Package{
-					Parent:         true,
-					LocalPath:      fs.MustAbs("./tests/deps-basic"),
-					DependencyMeta: versioning.DependencyMeta{User: "local", Repo: "local"},
+					Parent:    true,
+					LocalPath: fs.MustAbs("./tests/deps-basic"),
+					User:      "local", Repo: "local",
 					Dependencies: []versioning.DependencyString{
 						"pawn-lang/samp-stdlib",
 					},
 				},
-				Platform: "linux",
-				CacheDir: "./tests/cache",
-				GitAuth:  gitAuth,
+				PackageServices: PackageServices{Platform: "linux", CacheDir: "./tests/cache", GitAuth: gitAuth},
 			},
 			[]versioning.DependencyMeta{
 				{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
@@ -43,17 +41,15 @@ func TestEnsureDependenciesCached(t *testing.T) {
 			"plugin",
 			PackageContext{
 				Package: pawnpackage.Package{
-					Parent:         true,
-					LocalPath:      fs.MustAbs("./tests/deps-plugin"),
-					DependencyMeta: versioning.DependencyMeta{User: "local", Repo: "local"},
+					Parent:    true,
+					LocalPath: fs.MustAbs("./tests/deps-plugin"),
+					User:      "local", Repo: "local",
 					Dependencies: []versioning.DependencyString{
 						"pawn-lang/samp-stdlib",
 						"Southclaws/pawn-requests",
 					},
 				},
-				Platform: "linux",
-				CacheDir: "./tests/cache",
-				GitAuth:  gitAuth,
+				PackageServices: PackageServices{Platform: "linux", CacheDir: "./tests/cache", GitAuth: gitAuth},
 			},
 			[]versioning.DependencyMeta{
 				{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},

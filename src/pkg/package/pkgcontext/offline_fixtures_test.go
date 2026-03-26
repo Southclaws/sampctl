@@ -14,8 +14,8 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
-	"github.com/Southclaws/sampctl/src/pkg/runtime/run"
-	res "github.com/Southclaws/sampctl/src/resource"
+	res "github.com/Southclaws/sampctl/src/pkg/package/resource"
+	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 )
 
 var (
@@ -34,7 +34,7 @@ func seedPkgContextFixtures(cacheDir string) error {
 	commit, err := seedPkgContextRepo(cacheDir,
 		versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib"},
 		pawnpackage.Package{
-			DependencyMeta: versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib"},
+			Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib",
 		},
 		nil,
 		"",
@@ -48,8 +48,8 @@ func seedPkgContextFixtures(cacheDir string) error {
 	commit, err = seedPkgContextRepo(cacheDir,
 		versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
 		pawnpackage.Package{
-			DependencyMeta: versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
-			Dependencies:   []versioning.DependencyString{"pawn-lang/pawn-stdlib"},
+			Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib",
+			Dependencies: []versioning.DependencyString{"pawn-lang/pawn-stdlib"},
 		},
 		[]string{"0.3z-R4"},
 		"",
@@ -63,7 +63,7 @@ func seedPkgContextFixtures(cacheDir string) error {
 	if _, err := seedPkgContextRepo(cacheDir,
 		versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-errors"},
 		pawnpackage.Package{
-			DependencyMeta: versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-errors"},
+			Site: "github.com", User: "Southclaws", Repo: "pawn-errors",
 		},
 		nil,
 		"v2",
@@ -75,8 +75,8 @@ func seedPkgContextFixtures(cacheDir string) error {
 	if _, err := seedPkgContextRepo(cacheDir,
 		versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-requests"},
 		pawnpackage.Package{
-			DependencyMeta: versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-requests"},
-			Dependencies:   []versioning.DependencyString{"pawn-lang/samp-stdlib"},
+			Site: "github.com", User: "Southclaws", Repo: "pawn-requests",
+			Dependencies: []versioning.DependencyString{"pawn-lang/samp-stdlib"},
 			Resources: []res.Resource{{
 				Name:     `^requests-.+-linux.tar.gz$`,
 				Platform: "linux",
@@ -101,9 +101,9 @@ func seedPkgContextFixtures(cacheDir string) error {
 	if _, err := seedPkgContextRepo(cacheDir,
 		versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "package-resource-test"},
 		pawnpackage.Package{
-			DependencyMeta: versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "package-resource-test"},
-			Dependencies:   []versioning.DependencyString{"sampctl/samp-stdlib"},
-			Runtime:        &run.Runtime{Plugins: []run.Plugin{"package-resource-test"}},
+			Site: "github.com", User: "sampctl", Repo: "package-resource-test",
+			Dependencies: []versioning.DependencyString{"sampctl/samp-stdlib"},
+			Runtime:      &run.Runtime{Plugins: []run.Plugin{"package-resource-test"}},
 			Resources: []res.Resource{
 				{
 					Name:     `^test-.+-([Dd]ebian[0-9]?|[Ll]inux)\.tar\.gz$`,

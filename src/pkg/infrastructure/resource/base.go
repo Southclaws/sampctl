@@ -28,7 +28,10 @@ type BaseResource struct {
 
 // NewBaseResource creates a new BaseResource
 func NewBaseResource(identifier, version string, resourceType ResourceType) *BaseResource {
-	cacheDir, _ := fs.ConfigDir()
+	cacheDir := ""
+	if resolvedCacheDir, err := fs.ConfigDir(); err == nil {
+		cacheDir = resolvedCacheDir
+	}
 
 	return &BaseResource{
 		identifier:   identifier,

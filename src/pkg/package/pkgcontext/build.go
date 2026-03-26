@@ -4,20 +4,19 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/signal"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"github.com/fatih/color"
 	"github.com/fsnotify/fsnotify"
 	"github.com/pkg/errors"
 
-	"github.com/Southclaws/sampctl/src/pkg/build/build"
+	"github.com/Southclaws/sampctl/src/pkg/build"
 	"github.com/Southclaws/sampctl/src/pkg/build/compiler"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
@@ -33,114 +32,73 @@ type buildWatchResult struct {
 	buildNumber uint32
 }
 
+type BuildOptions struct {
+	Name      string
+	Ensure    bool
+	DryRun    bool
+	Relative  bool
+	BuildFile string
+	Trigger   chan build.Problems
+}
+
 // Build compiles a package, dependencies are ensured and a list of paths are sent to the compiler.
 func (pcx *PackageContext) Build(
 	ctx context.Context,
-	build string,
-	ensure bool,
-	dry bool,
-	relative bool,
-	buildFile string,
+	options BuildOptions,
 ) (
 	problems build.Problems,
 	result build.Result,
 	err error,
 ) {
-	config, err := pcx.buildPrepare(ctx, build, ensure, true)
+	config, err := pcx.buildPrepare(ctx, options.Name, options.Ensure, true)
 	if err != nil {
 		return
 	}
 
-	buildNumber := uint32(0)
-	if buildFile != "" {
-		buildNumber, err = readInt(buildFile)
-		if err != nil {
-			return
-		}
-	}
-
-	command, err := compiler.PrepareCommand(
-		ctx,
-		pcx.GitHub,
-		pcx.Package.LocalPath,
-		pcx.CacheDir,
-		pcx.Platform,
-		*config,
-	)
+	buildNumber, err := readBuildNumber(options.BuildFile)
 	if err != nil {
 		return
 	}
 
-	if dry {
-		fmt.Println(strings.Join(command.Env, " "), strings.Join(command.Args, " "))
-	} else {
-		print.Verb("running pre-build commands")
-		err = compiler.RunPreBuildCommands(ctx, *config, os.Stdout)
-		if err != nil {
-			print.Erro("Failed to execute pre-build command: ", err)
-			return
-		}
-
-		print.Verb("building", pcx.Package, "with", config.Compiler.Version)
-
-		problems, result, err = compiler.CompileWithCommand(
-			command,
-			config.WorkingDir,
-			pcx.Package.LocalPath,
-			relative,
-		)
-		if err != nil {
-			err = errors.Wrap(err, "failed to compile package entry")
-			return
-		}
-
-		atomic.AddUint32(&buildNumber, 1)
-
-		if buildFile != "" {
-			err2 := os.WriteFile(buildFile, []byte(fmt.Sprint(buildNumber)), 0o700)
-			if err2 != nil {
-				print.Erro("Failed to write buildfile:", err2)
-			}
-		}
-
-		print.Verb("running post-build commands")
-		err = compiler.RunPostBuildCommands(ctx, *config, os.Stdout)
-		if err != nil {
-			print.Erro("Failed to execute post-build command: ", err)
-			return
-		}
+	command, err := pcx.prepareBuildCommand(ctx, *config)
+	if err != nil {
+		return
+	}
+	if options.DryRun {
+		printBuildCommand(command)
+		return
 	}
 
-	return problems, result, err
+	return pcx.executeBuild(buildExecutionRequest{
+		Context:     ctx,
+		Config:      *config,
+		Command:     command,
+		BuildNumber: buildNumber,
+		Options:     options,
+	})
 }
 
 // BuildWatch runs the Build code on file changes
-func (pcx *PackageContext) BuildWatch(
-	ctx context.Context,
-	name string,
-	ensure bool,
-	buildFile string,
-	relative bool,
-	trigger chan build.Problems,
-) (err error) {
-	config, err := pcx.buildPrepare(ctx, name, ensure, true)
+func (pcx *PackageContext) BuildWatch(ctx context.Context, options BuildOptions) (err error) {
+	config, err := pcx.buildPrepare(ctx, options.Name, options.Ensure, true)
 	if err != nil {
 		return
 	}
 
-	buildNumber := uint32(0)
-	if buildFile != "" {
-		buildNumber, err = readInt(buildFile)
-		if err != nil {
-			return
-		}
+	buildNumber, err := readBuildNumber(options.BuildFile)
+	if err != nil {
+		return
 	}
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return errors.Wrap(err, "failed to create new filesystem watcher")
 	}
-	defer watcher.Close()
+	defer func() {
+		if closeErr := watcher.Close(); closeErr != nil && err == nil {
+			err = errors.Wrap(closeErr, "failed to close filesystem watcher")
+		}
+	}()
 
 	watchPath := pcx.Package.LocalPath
 	if pcx.Package.Entry != "" {
@@ -175,23 +133,18 @@ func (pcx *PackageContext) BuildWatch(
 
 	print.Verb("watching directory for changes", watchPath)
 
-	signals := make(chan os.Signal, 1)
+	signals, stopSignals := newTerminationSignals()
 	resultCh := make(chan buildWatchResult, 1)
-	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
-	defer signal.Stop(signals)
+	defer stopSignals()
 
 	var (
 		ctxInner, cancel = context.WithCancel(ctx)
 		buildRunning     bool
-		pendingEvent     string
-		debounceTimer    *time.Timer
-		debounceCh       <-chan time.Time
+		debouncer        watchDebouncer
 	)
 
 	defer func() {
-		if debounceTimer != nil {
-			debounceTimer.Stop()
-		}
+		debouncer.Stop()
 		cancel()
 	}()
 
@@ -200,7 +153,6 @@ func (pcx *PackageContext) BuildWatch(
 	startBuild := func(eventName string) {
 		cancel()
 		buildRunning = true
-		pendingEvent = ""
 		buildRun := atomic.AddUint32(&buildNumber, 1)
 		ctxInner, cancel = context.WithCancel(ctx)
 
@@ -208,16 +160,15 @@ func (pcx *PackageContext) BuildWatch(
 		fmt.Printf("%s compiling %s with compiler version %s [%d]\n", watcherColour("WATCHER:"), config.Input, config.Compiler.Version, buildRun)
 
 		go func(run uint32, changedFile string, buildCtx context.Context) {
-			problems, _, buildErr := compiler.CompileSource(
-				buildCtx,
-				pcx.GitHub,
-				pcx.Package.LocalPath,
-				pcx.Package.LocalPath,
-				pcx.CacheDir,
-				pcx.Platform,
-				*config,
-				relative,
-			)
+			problems, _, buildErr := compiler.CompileSource(buildCtx, compiler.CompileRequest{
+				GitHub:   pcx.GitHub,
+				ExecDir:  pcx.Package.LocalPath,
+				ErrorDir: pcx.Package.LocalPath,
+				CacheDir: pcx.CacheDir,
+				Platform: pcx.Platform,
+				Config:   *config,
+				Relative: options.Relative,
+			})
 			resultCh <- buildWatchResult{
 				problems:    problems,
 				err:         buildErr,
@@ -228,21 +179,7 @@ func (pcx *PackageContext) BuildWatch(
 	}
 
 	queueBuild := func(eventName string) {
-		pendingEvent = eventName
-		if debounceTimer == nil {
-			debounceTimer = time.NewTimer(buildWatchDebounce)
-			debounceCh = debounceTimer.C
-			return
-		}
-
-		if !debounceTimer.Stop() {
-			select {
-			case <-debounceTimer.C:
-			default:
-			}
-		}
-		debounceTimer.Reset(buildWatchDebounce)
-		debounceCh = debounceTimer.C
+		debouncer.Queue(eventName, buildWatchDebounce)
 	}
 
 	startBuild(pcx.Package.Entry)
@@ -267,12 +204,12 @@ loop:
 			}
 			queueBuild(event.Name)
 
-		case <-debounceCh:
-			debounceCh = nil
-			if pendingEvent == "" || buildRunning {
+		case <-debouncer.Channel():
+			eventName, ok := debouncer.OnTimerFired(buildRunning)
+			if !ok {
 				continue
 			}
-			startBuild(pendingEvent)
+			startBuild(eventName)
 
 		case result := <-resultCh:
 			buildRunning = false
@@ -287,20 +224,23 @@ loop:
 			} else {
 				fmt.Printf("%s finished building: %s [%d]\n", watcherColour("WATCHER:"), result.eventName, result.buildNumber)
 
-				if trigger != nil {
-					trigger <- result.problems
+				if options.Trigger != nil {
+					options.Trigger <- result.problems
 				}
 
-				if buildFile != "" {
-					err2 := os.WriteFile(buildFile, []byte(fmt.Sprint(result.buildNumber)), 0o700)
+				if options.BuildFile != "" {
+					err2 := os.WriteFile(options.BuildFile, []byte(fmt.Sprint(result.buildNumber)), 0o700)
 					if err2 != nil {
 						print.Erro("Failed to write buildfile:", err2)
 					}
 				}
 			}
 
-			if pendingEvent != "" && debounceCh == nil {
-				startBuild(pendingEvent)
+			if debouncer.Channel() == nil {
+				eventName, ok := debouncer.PopPending()
+				if ok {
+					startBuild(eventName)
+				}
 			}
 		}
 	}
@@ -308,6 +248,66 @@ loop:
 	fmt.Printf("%s finished watching all builds\n", watcherColour("WATCHER:"))
 
 	return err
+}
+
+func readBuildNumber(buildFile string) (uint32, error) {
+	if buildFile == "" {
+		return 0, nil
+	}
+	return readInt(buildFile)
+}
+
+func (pcx *PackageContext) prepareBuildCommand(ctx context.Context, config build.Config) (*exec.Cmd, error) {
+	return compiler.PrepareCommand(ctx, compiler.PrepareCommandRequest{
+		GitHub:   pcx.GitHub,
+		ExecDir:  pcx.Package.LocalPath,
+		CacheDir: pcx.CacheDir,
+		Platform: pcx.Platform,
+		Config:   config,
+	})
+}
+
+func printBuildCommand(command *exec.Cmd) {
+	fmt.Println(strings.Join(command.Env, " "), strings.Join(command.Args, " "))
+}
+
+type buildExecutionRequest struct {
+	Context     context.Context
+	Config      build.Config
+	Command     *exec.Cmd
+	BuildNumber uint32
+	Options     BuildOptions
+}
+
+func (pcx *PackageContext) executeBuild(request buildExecutionRequest) (problems build.Problems, result build.Result, err error) {
+	if err = compiler.RunPreBuildCommands(request.Context, request.Config, os.Stdout); err != nil {
+		print.Erro("Failed to execute pre-build command:", err)
+		return nil, build.Result{}, err
+	}
+
+	print.Verb("building", pcx.Package, "with", request.Config.Compiler.Version)
+	problems, result, err = compiler.CompileWithCommand(request.Command, request.Config.WorkingDir, pcx.Package.LocalPath, request.Options.Relative)
+	if err != nil {
+		return nil, build.Result{}, errors.Wrap(err, "failed to compile package entry")
+	}
+
+	atomic.AddUint32(&request.BuildNumber, 1)
+	writeBuildNumber(request.Options.BuildFile, request.BuildNumber)
+
+	if err = compiler.RunPostBuildCommands(request.Context, request.Config, os.Stdout); err != nil {
+		print.Erro("Failed to execute post-build command:", err)
+		return problems, result, err
+	}
+	return problems, result, nil
+}
+
+func writeBuildNumber(buildFile string, buildNumber uint32) {
+	if buildFile == "" {
+		return
+	}
+	if err := os.WriteFile(buildFile, []byte(fmt.Sprint(buildNumber)), 0o700); err != nil {
+		print.Erro("Failed to write buildfile:", err)
+	}
 }
 
 func shouldWatchBuildEvent(event fsnotify.Event) bool {

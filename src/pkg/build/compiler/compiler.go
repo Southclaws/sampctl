@@ -19,10 +19,11 @@ import (
 	"github.com/pkg/errors"
 	"rs3.io/go/mserr/ntstatus"
 
-	"github.com/Southclaws/sampctl/src/pkg/build/build"
+	"github.com/Southclaws/sampctl/src/pkg/build"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
 
 //nolint:lll
@@ -46,37 +47,60 @@ var (
 	matchTotal = regexp.MustCompile(`^Total requirements:\s*([0-9]+) bytes$`)
 )
 
+type CompileRequest struct {
+	GitHub   *github.Client
+	ExecDir  string
+	ErrorDir string
+	CacheDir string
+	Platform string
+	Config   build.Config
+	Relative bool
+}
+
+type PrepareCommandRequest struct {
+	GitHub   *github.Client
+	ExecDir  string
+	CacheDir string
+	Platform string
+	Config   build.Config
+}
+
 // CompileSource compiles a given input script to the specified output path using compiler version
 func CompileSource(
 	ctx context.Context,
-	gh *github.Client,
-	execDir,
-	errorDir,
-	cacheDir,
-	platform string,
-	config build.Config,
-	relative bool,
+	request CompileRequest,
 ) (
 	problems build.Problems,
 	result build.Result,
 	err error,
 ) {
-	cmd, err := PrepareCommand(ctx, gh, execDir, cacheDir, platform, config)
+	cmd, err := PrepareCommand(ctx, PrepareCommandRequest{
+		GitHub:   request.GitHub,
+		ExecDir:  request.ExecDir,
+		CacheDir: request.CacheDir,
+		Platform: request.Platform,
+		Config:   request.Config,
+	})
 	if err != nil {
 		return
 	}
 
-	err = RunPreBuildCommands(ctx, config, os.Stdout)
+	err = RunPreBuildCommands(ctx, request.Config, os.Stdout)
 	if err != nil {
 		return
 	}
 
-	problems, result, err = CompileWithCommand(cmd, config.WorkingDir, errorDir, relative)
+	problems, result, err = CompileWithCommand(
+		cmd,
+		request.Config.WorkingDir,
+		request.ErrorDir,
+		request.Relative,
+	)
 	if err != nil {
 		return
 	}
 
-	err = RunPostBuildCommands(ctx, config, os.Stdout)
+	err = RunPostBuildCommands(ctx, request.Config, os.Stdout)
 	if err != nil {
 		return
 	}
@@ -85,47 +109,40 @@ func CompileSource(
 }
 
 // PrepareCommand prepares a build command for compiling the given input script
-func PrepareCommand(
-	ctx context.Context,
-	gh *github.Client,
-	execDir,
-	cacheDir,
-	platform string,
-	config build.Config,
-) (cmd *exec.Cmd, err error) {
-	input, output, workingDir, err := prepareIOPaths(config)
+func PrepareCommand(ctx context.Context, request PrepareCommandRequest) (cmd *exec.Cmd, err error) {
+	input, output, workingDir, err := prepareIOPaths(request.Config)
 	if err != nil {
 		return nil, err
 	}
 
-	cacheDir, err = fs.Abs(cacheDir)
+	cacheDir, err := fs.Abs(request.CacheDir)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to resolve cache directory")
 	}
 
-	if len(config.Plugins) != 0 {
+	if len(request.Config.Plugins) != 0 {
 		print.Warn("The use of `plugins` in the build configuration has been disabled and will be removed in the future")
 		print.Warn("Please instead use `prebuild` or `postbuild`")
 	}
 
-	pkg, runtimeDir, err := resolveCompilerBinary(ctx, gh, cacheDir, platform, config)
+	pkg, runtimeDir, err := resolveCompilerBinary(ctx, request, cacheDir)
 	if err != nil {
 		return nil, err
 	}
 
 	args := baseCompilerArgs(input, workingDir, output)
-	args = append(args, compilerOptionArgs(config)...)
+	args = append(args, compilerOptionArgs(request.Config)...)
 
-	includeArgs, err := buildIncludeArgs(execDir, config.Includes)
+	includeArgs, err := buildIncludeArgs(request.ExecDir, request.Config.Includes)
 	if err != nil {
 		return nil, err
 	}
 	args = append(args, includeArgs...)
 
-	constantArgs := buildConstantArgs(config.Constants)
+	constantArgs := buildConstantArgs(request.Config.Constants)
 	args = append(args, constantArgs...)
 
-	cmd = exec.CommandContext(ctx, filepath.Join(runtimeDir, pkg.Binary), args...) //nolint:gas
+	cmd = exec.CommandContext(ctx, filepath.Join(runtimeDir, pkg.Binary), args...) //nolint:gosec
 	cmd.Env = []string{
 		fmt.Sprintf("LD_LIBRARY_PATH=%s", runtimeDir),
 		fmt.Sprintf("DYLD_LIBRARY_PATH=%s", runtimeDir),
@@ -169,27 +186,36 @@ func prepareIOPaths(config build.Config) (input, output, workingDir string, err 
 
 func resolveCompilerBinary(
 	ctx context.Context,
-	gh *github.Client,
-	cacheDir,
-	platform string,
-	config build.Config,
+	request PrepareCommandRequest,
+	cacheDir string,
 ) (download.Compiler, string, error) {
-	resolved := config.Compiler.ResolveCompilerConfig()
+	resolved := request.Config.Compiler.ResolveCompilerConfig()
 	runtimeDir := compilerRuntimeDir(cacheDir, resolved)
 
-	if config.Compiler.Path == "" {
-		pkg, err := GetCompilerPackage(ctx, gh, resolved, runtimeDir, platform, cacheDir)
+	if request.Config.Compiler.Path == "" {
+		pkg, err := GetCompilerPackage(ctx, CompilerFetchRequest{
+			GitHub: request.GitHub,
+			Meta: versioning.DependencyMeta{
+				Site: resolved.Site,
+				User: resolved.User,
+				Repo: resolved.Repo,
+				Tag:  resolved.Version,
+			},
+			Dir:      runtimeDir,
+			Platform: request.Platform,
+			CacheDir: cacheDir,
+		})
 		if err != nil {
 			return download.Compiler{}, "", errors.Wrap(err, "failed to get compiler package")
 		}
 		return pkg, runtimeDir, nil
 	}
 
-	pkg, err := compilerFromCustomPath(config.Compiler.Path)
+	pkg, err := compilerFromCustomPath(request.Config.Compiler.Path)
 	if err != nil {
 		return download.Compiler{}, "", err
 	}
-	return pkg, config.Compiler.Path, nil
+	return pkg, request.Config.Compiler.Path, nil
 }
 
 func compilerRuntimeDir(cacheDir string, resolved build.CompilerConfig) string {
@@ -490,24 +516,40 @@ func (p *compilerOutputParser) handleResultLine(line string) {
 	}
 
 	if g := matchHeader.FindStringSubmatch(line); len(g) == 2 {
-		p.result.Header, _ = strconv.Atoi(g[1])
+		if value, err := strconv.Atoi(g[1]); err == nil {
+			p.result.Header = value
+		}
 		return
 	}
 	if g := matchCode.FindStringSubmatch(line); len(g) == 2 {
-		p.result.Code, _ = strconv.Atoi(g[1])
+		if value, err := strconv.Atoi(g[1]); err == nil {
+			p.result.Code = value
+		}
 		return
 	}
 	if g := matchData.FindStringSubmatch(line); len(g) == 2 {
-		p.result.Data, _ = strconv.Atoi(g[1])
+		if value, err := strconv.Atoi(g[1]); err == nil {
+			p.result.Data = value
+		}
 		return
 	}
 	if g := matchStack.FindStringSubmatch(line); len(g) == 3 {
-		p.result.StackHeap, _ = strconv.Atoi(g[1])
-		p.result.Estimate, _ = strconv.Atoi(g[2])
+		stackHeap, err := strconv.Atoi(g[1])
+		if err != nil {
+			return
+		}
+		estimate, err := strconv.Atoi(g[2])
+		if err != nil {
+			return
+		}
+		p.result.StackHeap = stackHeap
+		p.result.Estimate = estimate
 		return
 	}
 	if g := matchTotal.FindStringSubmatch(line); len(g) == 2 {
-		p.result.Total, _ = strconv.Atoi(g[1])
+		if value, err := strconv.Atoi(g[1]); err == nil {
+			p.result.Total = value
+		}
 		return
 	}
 
@@ -518,11 +560,11 @@ func (p *compilerOutputParser) handleResultLine(line string) {
 // RunPostBuildCommands executes commands after a build is ran for a certain build config
 func RunPostBuildCommands(ctx context.Context, cfg build.Config, output io.Writer) (err error) {
 	for _, command := range cfg.PostBuildCommands {
+		if len(command) == 0 {
+			return errors.New("post-build command is empty")
+		}
 		print.Verb("running post-build commands", command)
-		ctxInner, cancel := context.WithCancel(ctx)
-		defer cancel()
-
-		cmd := exec.CommandContext(ctxInner, command[0], command[1:]...) //nolint:gas
+		cmd := exec.CommandContext(ctx, command[0], command[1:]...) //nolint:gosec
 		cmd.Stdout = output
 		cmd.Stderr = output
 
@@ -538,11 +580,11 @@ func RunPostBuildCommands(ctx context.Context, cfg build.Config, output io.Write
 // RunPreBuildCommands executes commands before a build is ran for a certain build config
 func RunPreBuildCommands(ctx context.Context, cfg build.Config, output io.Writer) (err error) {
 	for _, command := range cfg.PreBuildCommands {
+		if len(command) == 0 {
+			return errors.New("pre-build command is empty")
+		}
 		print.Verb("running pre-build commands", command)
-		ctxInner, cancel := context.WithCancel(ctx)
-		defer cancel()
-
-		cmd := exec.CommandContext(ctxInner, command[0], command[1:]...) //nolint:gas
+		cmd := exec.CommandContext(ctx, command[0], command[1:]...) //nolint:gosec
 		cmd.Stdout = output
 		cmd.Stderr = output
 

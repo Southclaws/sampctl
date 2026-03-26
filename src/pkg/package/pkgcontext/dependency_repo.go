@@ -13,7 +13,7 @@ import (
 )
 
 func (pcx *PackageContext) ensureDependencyRepository(meta versioning.DependencyMeta, dependencyPath string) (*git.Repository, error) {
-	repo, err := pcx.repositoryStore().Open(dependencyPath)
+	repo, err := pcx.PackageServices.repositoryStore().Open(dependencyPath)
 	if err == nil {
 		head, headErr := repo.Head()
 		if headErr != nil {
@@ -37,14 +37,18 @@ func (pcx *PackageContext) cloneDependencyFromCache(meta versioning.DependencyMe
 	repo, err := pcx.EnsureDependencyFromCache(meta, dependencyPath, false)
 	if err != nil {
 		print.Verb(meta, "failed to clone from cache:", err)
-		os.RemoveAll(dependencyPath)
+		if removeErr := os.RemoveAll(dependencyPath); removeErr != nil {
+			print.Warn("failed to clean up dependency clone:", removeErr)
+		}
 		return nil, errors.Wrap(err, "failed to clone dependency from cache")
 	}
 
-	valid, validationErr := pcx.repositoryHealth().Validate(dependencyPath)
+	valid, validationErr := pcx.PackageServices.repositoryHealth().Validate(dependencyPath)
 	if validationErr != nil || !valid {
 		print.Verb(meta, "cloned repository failed validation")
-		os.RemoveAll(dependencyPath)
+		if removeErr := os.RemoveAll(dependencyPath); removeErr != nil {
+			print.Warn("failed to clean up invalid dependency clone:", removeErr)
+		}
 		if validationErr != nil {
 			return nil, errors.Wrap(validationErr, "cloned repository is invalid")
 		}
@@ -72,9 +76,9 @@ func (pcx *PackageContext) updateRepoStateWithRecovery(repo *git.Repository, met
 
 	print.Verb(meta, "first update attempt failed:", err)
 
-	if repairErr := pcx.repositoryHealth().Repair(dependencyPath); repairErr == nil {
+	if repairErr := pcx.PackageServices.repositoryHealth().Repair(dependencyPath); repairErr == nil {
 		print.Verb(meta, "repository repaired, retrying update")
-		if repo, openErr := pcx.repositoryStore().Open(dependencyPath); openErr == nil {
+		if repo, openErr := pcx.PackageServices.repositoryStore().Open(dependencyPath); openErr == nil {
 			if err = pcx.updateRepoState(repo, meta, true); err == nil {
 				return nil
 			}
@@ -92,7 +96,7 @@ func (pcx *PackageContext) updateRepoStateWithRecovery(repo *git.Repository, met
 		return errors.Wrap(cloneErr, "failed to recover by re-cloning")
 	}
 
-	repo, err = pcx.repositoryStore().Open(dependencyPath)
+	repo, err = pcx.PackageServices.repositoryStore().Open(dependencyPath)
 	if err != nil {
 		return errors.Wrap(err, "failed to open re-cloned repository")
 	}

@@ -29,9 +29,7 @@ func TestHandleURLSchemeCaching(t *testing.T) {
 				Package: pawnpackage.Package{
 					LocalPath: "/test/path",
 				},
-				AllPlugins:      []versioning.DependencyMeta{},
-				AllIncludePaths: []string{},
-				AllDependencies: []versioning.DependencyMeta{},
+				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}, AllDependencies: []versioning.DependencyMeta{}},
 			},
 			meta: versioning.DependencyMeta{
 				Scheme: "plugin",
@@ -48,9 +46,7 @@ func TestHandleURLSchemeCaching(t *testing.T) {
 				Package: pawnpackage.Package{
 					LocalPath: "/test/path",
 				},
-				AllPlugins:      []versioning.DependencyMeta{},
-				AllIncludePaths: []string{},
-				AllDependencies: []versioning.DependencyMeta{},
+				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}, AllDependencies: []versioning.DependencyMeta{}},
 			},
 			meta: versioning.DependencyMeta{
 				Scheme: "plugin",
@@ -70,9 +66,7 @@ func TestHandleURLSchemeCaching(t *testing.T) {
 				Package: pawnpackage.Package{
 					LocalPath: "/test/path",
 				},
-				AllPlugins:      []versioning.DependencyMeta{},
-				AllIncludePaths: []string{},
-				AllDependencies: []versioning.DependencyMeta{},
+				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}, AllDependencies: []versioning.DependencyMeta{}},
 			},
 			meta: versioning.DependencyMeta{
 				Scheme: "component",
@@ -89,9 +83,7 @@ func TestHandleURLSchemeCaching(t *testing.T) {
 				Package: pawnpackage.Package{
 					LocalPath: "/test/path",
 				},
-				AllPlugins:      []versioning.DependencyMeta{},
-				AllIncludePaths: []string{},
-				AllDependencies: []versioning.DependencyMeta{},
+				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}, AllDependencies: []versioning.DependencyMeta{}},
 			},
 			meta: versioning.DependencyMeta{
 				Scheme: "component",
@@ -111,9 +103,7 @@ func TestHandleURLSchemeCaching(t *testing.T) {
 				Package: pawnpackage.Package{
 					LocalPath: "/test/path",
 				},
-				AllPlugins:      []versioning.DependencyMeta{},
-				AllIncludePaths: []string{},
-				AllDependencies: []versioning.DependencyMeta{},
+				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}, AllDependencies: []versioning.DependencyMeta{}},
 			},
 			meta: versioning.DependencyMeta{
 				Scheme: "includes",
@@ -131,9 +121,7 @@ func TestHandleURLSchemeCaching(t *testing.T) {
 					LocalPath: "/test/path",
 					Vendor:    "/test/path/dependencies",
 				},
-				AllPlugins:      []versioning.DependencyMeta{},
-				AllIncludePaths: []string{},
-				AllDependencies: []versioning.DependencyMeta{},
+				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}, AllDependencies: []versioning.DependencyMeta{}},
 			},
 			meta: versioning.DependencyMeta{
 				Scheme: "includes",
@@ -152,9 +140,7 @@ func TestHandleURLSchemeCaching(t *testing.T) {
 				Package: pawnpackage.Package{
 					LocalPath: "/test/path",
 				},
-				AllPlugins:      []versioning.DependencyMeta{},
-				AllIncludePaths: []string{},
-				AllDependencies: []versioning.DependencyMeta{},
+				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}, AllDependencies: []versioning.DependencyMeta{}},
 			},
 			meta: versioning.DependencyMeta{
 				Scheme: "filterscript",
@@ -171,9 +157,7 @@ func TestHandleURLSchemeCaching(t *testing.T) {
 				Package: pawnpackage.Package{
 					LocalPath: "/test/path",
 				},
-				AllPlugins:      []versioning.DependencyMeta{},
-				AllIncludePaths: []string{},
-				AllDependencies: []versioning.DependencyMeta{},
+				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}, AllDependencies: []versioning.DependencyMeta{}},
 			},
 			meta: versioning.DependencyMeta{
 				Scheme: "filterscript",
@@ -192,9 +176,7 @@ func TestHandleURLSchemeCaching(t *testing.T) {
 				Package: pawnpackage.Package{
 					LocalPath: "/test/path",
 				},
-				AllPlugins:      []versioning.DependencyMeta{},
-				AllIncludePaths: []string{},
-				AllDependencies: []versioning.DependencyMeta{},
+				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}, AllDependencies: []versioning.DependencyMeta{}},
 			},
 			meta: versioning.DependencyMeta{
 				Scheme: "unsupported",
@@ -257,8 +239,7 @@ func TestEnsureURLSchemeDependency(t *testing.T) {
 				Package: pawnpackage.Package{
 					LocalPath: testPath,
 				},
-				AllPlugins:      []versioning.DependencyMeta{},
-				AllIncludePaths: []string{},
+				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}},
 			},
 			meta: versioning.DependencyMeta{
 				Scheme: "plugin",
@@ -272,8 +253,7 @@ func TestEnsureURLSchemeDependency(t *testing.T) {
 				Package: pawnpackage.Package{
 					LocalPath: testPath,
 				},
-				AllPlugins:      []versioning.DependencyMeta{},
-				AllIncludePaths: []string{},
+				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}},
 			},
 			meta: versioning.DependencyMeta{
 				Scheme: "includes",
@@ -287,8 +267,7 @@ func TestEnsureURLSchemeDependency(t *testing.T) {
 				Package: pawnpackage.Package{
 					LocalPath: testPath,
 				},
-				AllPlugins:      []versioning.DependencyMeta{},
-				AllIncludePaths: []string{},
+				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}},
 			},
 			meta: versioning.DependencyMeta{
 				Scheme: "component",
@@ -302,8 +281,7 @@ func TestEnsureURLSchemeDependency(t *testing.T) {
 				Package: pawnpackage.Package{
 					LocalPath: testPath,
 				},
-				AllPlugins:      []versioning.DependencyMeta{},
-				AllIncludePaths: []string{},
+				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}},
 			},
 			meta: versioning.DependencyMeta{
 				Scheme: "filterscript",
@@ -317,8 +295,7 @@ func TestEnsureURLSchemeDependency(t *testing.T) {
 				Package: pawnpackage.Package{
 					LocalPath: testPath,
 				},
-				AllPlugins:      []versioning.DependencyMeta{},
-				AllIncludePaths: []string{},
+				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}},
 			},
 			meta: versioning.DependencyMeta{
 				Scheme: "unsupported",

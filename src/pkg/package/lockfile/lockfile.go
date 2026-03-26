@@ -42,6 +42,15 @@ type LockedBuild struct {
 	OutputHash      string `json:"output_hash,omitempty"`
 }
 
+// BuildRecord describes build metadata stored in the lockfile.
+type BuildRecord struct {
+	CompilerVersion string
+	CompilerPreset  string
+	Entry           string
+	Output          string
+	OutputHash      string
+}
+
 type LockedDependency struct {
 	Constraint string   `json:"constraint"`
 	Resolved   string   `json:"resolved"`
@@ -190,13 +199,13 @@ func (l *Lockfile) SetRuntime(version, platform, runtimeType string, files []Loc
 	}
 }
 
-func (l *Lockfile) SetBuild(compilerVersion, compilerPreset, entry, output, outputHash string) {
+func (l *Lockfile) SetBuild(record BuildRecord) {
 	l.Build = &LockedBuild{
-		CompilerVersion: compilerVersion,
-		CompilerPreset:  compilerPreset,
-		Entry:           entry,
-		Output:          output,
-		OutputHash:      outputHash,
+		CompilerVersion: record.CompilerVersion,
+		CompilerPreset:  record.CompilerPreset,
+		Entry:           record.Entry,
+		Output:          record.Output,
+		OutputHash:      record.OutputHash,
 	}
 }
 

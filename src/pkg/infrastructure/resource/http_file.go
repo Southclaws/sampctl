@@ -21,9 +21,9 @@ import (
 // Cache layout: <cacheDir>/<type>/<identifier>/<version>/<hash>/<filename>
 // (where <hash> is derived from identifier+version).
 type HTTPFileResource struct {
-	*BaseResource
-	url      string
-	filename string
+	baseResource *BaseResource
+	url          string
+	filename     string
 }
 
 func NewHTTPFileResource(rawURL, version string, resourceType ResourceType) (*HTTPFileResource, error) {
@@ -42,15 +42,53 @@ func NewHTTPFileResource(rawURL, version string, resourceType ResourceType) (*HT
 	}
 
 	hr := &HTTPFileResource{
-		BaseResource: NewBaseResource(identifier, version, resourceType),
+		baseResource: NewBaseResource(identifier, version, resourceType),
 		url:          rawURL,
 		filename:     filename,
 	}
 	return hr, nil
 }
 
+// Version returns the resource version.
+func (hr *HTTPFileResource) Version() string {
+	return hr.baseResource.Version()
+}
+
+// Type returns the resource type.
+func (hr *HTTPFileResource) Type() ResourceType {
+	return hr.baseResource.Type()
+}
+
+// Identifier returns the unique resource identifier.
+func (hr *HTTPFileResource) Identifier() string {
+	if hr.baseResource == nil {
+		return ""
+	}
+	return hr.baseResource.Identifier()
+}
+
+// SetCacheDir overrides the cache directory for this resource.
+func (hr *HTTPFileResource) SetCacheDir(cacheDir string) {
+	hr.baseResource.SetCacheDir(cacheDir)
+}
+
+// SetCacheTTL overrides the cache TTL for this resource.
+func (hr *HTTPFileResource) SetCacheTTL(ttl time.Duration) {
+	hr.baseResource.SetCacheTTL(ttl)
+}
+
+// SetLocalPath configures a local source path used for cache seeding.
+func (hr *HTTPFileResource) SetLocalPath(path string) {
+	hr.baseResource.SetLocalPath(path)
+}
+
+// EnsureFromLocal seeds the cache from a local file.
+func (hr *HTTPFileResource) EnsureFromLocal(ctx context.Context, version, targetPath string) error {
+	return hr.baseResource.EnsureFromLocal(ctx, version, targetPath)
+}
+
 func (hr *HTTPFileResource) Cached(version string) (bool, string) {
-	cacheDir, err := hr.cachePath(version)
+	cacheDir, err := hr.baseResource.cachePath(version)
 	if err != nil {
 		return false, ""
 	}
@@ -63,7 +101,7 @@ func (hr *HTTPFileResource) Cached(version string) (bool, string) {
 	// Backward compatibility: older cache layout may have stored the file directly
 	// at the hash path (a file, not a directory).
 	if !info.IsDir() {
-		if hr.cacheTTL > 0 && time.Since(info.ModTime()) > hr.cacheTTL {
+		if hr.baseResource.cacheTTL > 0 && time.Since(info.ModTime()) > hr.baseResource.cacheTTL {
 			return false, ""
 		}
 		return true, cacheDir
@@ -74,7 +112,7 @@ func (hr *HTTPFileResource) Cached(version string) (bool, string) {
 	if err != nil {
 		return false, ""
 	}
-	if hr.cacheTTL > 0 && time.Since(fileInfo.ModTime()) > hr.cacheTTL {
+	if hr.baseResource.cacheTTL > 0 && time.Since(fileInfo.ModTime()) > hr.baseResource.cacheTTL {
 		return false, ""
 	}
 
@@ -83,11 +121,11 @@ func (hr *HTTPFileResource) Cached(version string) (bool, string) {
 
 func (hr *HTTPFileResource) Ensure(ctx context.Context, version, path string) error {
 	if version == "" {
-		version = hr.version
+		version = hr.baseResource.version
 	}
 
 	if cached, cachedPath := hr.Cached(version); cached {
-		if err := hr.MarkCached(cachedPath); err != nil {
+		if err := hr.baseResource.MarkCached(cachedPath); err != nil {
 			return errors.Wrap(err, "failed to update cache timestamp")
 		}
 		if path != "" && path != cachedPath {
@@ -96,7 +134,7 @@ func (hr *HTTPFileResource) Ensure(ctx context.Context, version, path string) er
 		return nil
 	}
 
-	cacheDirPath, err := hr.cachePath(version)
+	cacheDirPath, err := hr.baseResource.cachePath(version)
 	if err != nil {
 		return err
 	}
@@ -117,22 +155,6 @@ func (hr *HTTPFileResource) Ensure(ctx context.Context, version, path string) er
 	}
 
 	return nil
-}
-
-// Identifier returns the stable identifier used for caching.
-func (hr *HTTPFileResource) Identifier() string {
-	if hr.BaseResource == nil {
-		return ""
-	}
-	return hr.BaseResource.Identifier()
-}
-
-func (hr *HTTPFileResource) Type() ResourceType {
-	return hr.BaseResource.Type()
-}
-
-func (hr *HTTPFileResource) Version() string {
-	return hr.BaseResource.Version()
 }
 
 func (hr *HTTPFileResource) GetURL() string {

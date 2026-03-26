@@ -123,7 +123,14 @@ func (f *GitHubRemotePackageFetcher) packageFromRepo(
 	refs := remoteDefinitionRefs(meta)
 	paths := []string{"pawn.json", "pawn.yaml"}
 
-	pkg, err = fetchRemoteDefinitionFromGitHub(ctx, f.GitHub, meta.User, meta.Repo, refs, paths)
+	pkg, err = fetchRemoteDefinitionFromGitHub(remoteDefinitionRequest{
+		Context: ctx,
+		Client:  f.GitHub,
+		Owner:   meta.User,
+		Repo:    meta.Repo,
+		Refs:    refs,
+		Paths:   paths,
+	})
 	if err != nil {
 		return pkg, errors.Wrap(err, "package does not point to a valid remote package")
 	}
@@ -132,7 +139,7 @@ func (f *GitHubRemotePackageFetcher) packageFromRepo(
 }
 
 func remoteDefinitionRefs(meta versioning.DependencyMeta) []string {
-	refs := make([]string, 0, 3)
+	refs := make([]string, 0, 4)
 	seen := make(map[string]struct{})
 
 	add := func(ref string) {
@@ -143,51 +150,56 @@ func remoteDefinitionRefs(meta versioning.DependencyMeta) []string {
 		refs = append(refs, ref)
 	}
 
-	if meta.Tag != "" {
-		add(meta.Tag)
+	if meta.Commit != "" {
+		add(meta.Commit)
 	}
 	if meta.Branch != "" {
 		add(meta.Branch)
+	}
+	if meta.Tag != "" {
+		add(meta.Tag)
 	}
 	add("") // default branch
 
 	return refs
 }
 
-func fetchRemoteDefinitionFromGitHub(
-	ctx context.Context,
-	client *github.Client,
-	owner string,
-	repo string,
-	refs []string,
-	paths []string,
-) (Package, error) {
-	if client == nil {
+type remoteDefinitionRequest struct {
+	Context context.Context
+	Client  *github.Client
+	Owner   string
+	Repo    string
+	Refs    []string
+	Paths   []string
+}
+
+func fetchRemoteDefinitionFromGitHub(request remoteDefinitionRequest) (Package, error) {
+	if request.Client == nil {
 		return Package{}, errors.New("no GitHub client provided")
 	}
 
 	var lastErr error
 
-	for _, ref := range refs {
-		for _, path := range paths {
+	for _, ref := range request.Refs {
+		for _, path := range request.Paths {
 			opt := &github.RepositoryContentGetOptions{}
 			if ref != "" {
 				opt.Ref = ref
 			}
 
-			fileContent, _, _, err := client.Repositories.GetContents(ctx, owner, repo, path, opt)
+			fileContent, _, _, err := request.Client.Repositories.GetContents(request.Context, request.Owner, request.Repo, path, opt)
 			if err != nil {
 				lastErr = err
 				continue
 			}
 			if fileContent == nil {
-				lastErr = errors.Errorf("empty response for %s/%s (%s)", owner, repo, path)
+				lastErr = errors.Errorf("empty response for %s/%s (%s)", request.Owner, request.Repo, path)
 				continue
 			}
 
 			rawContent, err := decodeRepositoryContent(fileContent)
 			if err != nil {
-				lastErr = errors.Wrapf(err, "failed to decode %s/%s (%s)", owner, repo, path)
+				lastErr = errors.Wrapf(err, "failed to decode %s/%s (%s)", request.Owner, request.Repo, path)
 				continue
 			}
 
@@ -201,7 +213,7 @@ func fetchRemoteDefinitionFromGitHub(
 				err = errors.Errorf("unsupported remote definition format for %s", path)
 			}
 			if err != nil {
-				lastErr = errors.Wrapf(err, "failed to parse %s/%s (%s)", owner, repo, path)
+				lastErr = errors.Wrapf(err, "failed to parse %s/%s (%s)", request.Owner, request.Repo, path)
 				continue
 			}
 
@@ -304,7 +316,7 @@ func fetchRemoteDefinition(ctx context.Context, client *http.Client, candidates 
 	return Package{}, lastErr
 }
 
-func fetchCandidate(ctx context.Context, client *http.Client, candidate remoteCandidate) (Package, error) {
+func fetchCandidate(ctx context.Context, client *http.Client, candidate remoteCandidate) (pkg Package, err error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, candidate.url, nil)
 	if err != nil {
 		return Package{}, errors.Wrap(err, "failed to build remote definition request")
@@ -318,7 +330,11 @@ func fetchCandidate(ctx context.Context, client *http.Client, candidate remoteCa
 	if err != nil {
 		return Package{}, errors.Wrap(err, "failed to fetch remote definition")
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+			err = errors.Wrap(closeErr, "failed to close remote definition response body")
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		if candidate.onStatusError != nil {
@@ -327,7 +343,6 @@ func fetchCandidate(ctx context.Context, client *http.Client, candidate remoteCa
 		return Package{}, errors.Errorf("remote responded with %d for %s", resp.StatusCode, candidate.url)
 	}
 
-	var pkg Package
 	switch candidate.format {
 	case "json":
 		err = json.NewDecoder(resp.Body).Decode(&pkg)

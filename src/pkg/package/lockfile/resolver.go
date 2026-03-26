@@ -11,6 +11,7 @@ import (
 
 type Resolver struct {
 	lockfile       *Lockfile
+	previous       *Lockfile
 	dir            string
 	sampctlVersion string
 	useLockfile    bool
@@ -48,6 +49,11 @@ func (r *Resolver) GetLockedVersion(meta versioning.DependencyMeta) versioning.D
 		return meta
 	}
 
+	if r.lockfile.IsOutdated(meta) {
+		print.Verb(meta, "lockfile constraint changed, resolving fresh version")
+		return meta
+	}
+
 	key := DependencyKey(meta)
 	locked, ok := r.lockfile.Dependencies[key]
 	if !ok {
@@ -64,6 +70,22 @@ func (r *Resolver) GetLockedVersion(meta versioning.DependencyMeta) versioning.D
 	}
 
 	return meta
+}
+
+func (r *Resolver) GetPreviousDependency(meta versioning.DependencyMeta) (LockedDependency, bool) {
+	if !r.useLockfile {
+		return LockedDependency{}, false
+	}
+
+	if r.previous != nil {
+		return r.previous.GetDependency(DependencyKey(meta))
+	}
+
+	if r.lockfile != nil {
+		return r.lockfile.GetDependency(DependencyKey(meta))
+	}
+
+	return LockedDependency{}, false
 }
 
 func (r *Resolver) RecordResolution(meta versioning.DependencyMeta, resolution DependencyResolution, transitive bool, requiredBy string) error {
@@ -169,6 +191,7 @@ func (r *Resolver) Save() error {
 
 func (r *Resolver) ForceUpdate() {
 	if r.lockfile != nil {
+		r.previous = r.lockfile
 		r.lockfile = New(r.sampctlVersion)
 		r.modified = true
 		print.Info("lockfile cleared for fresh resolution")
@@ -219,11 +242,11 @@ func (r *Resolver) RecordRuntime(version, platform, runtimeType string, files []
 	print.Verb("recorded runtime", version, "for", platform)
 }
 
-func (r *Resolver) RecordBuild(compilerVersion, compilerPreset, entry, output, outputHash string) {
+func (r *Resolver) RecordBuild(record BuildRecord) {
 	if !r.useLockfile || r.lockfile == nil {
 		return
 	}
-	r.lockfile.SetBuild(compilerVersion, compilerPreset, entry, output, outputHash)
+	r.lockfile.SetBuild(record)
 	r.modified = true
-	print.Verb("recorded build for", entry)
+	print.Verb("recorded build for", record.Entry)
 }

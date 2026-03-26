@@ -13,8 +13,8 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 )
 
-var packageConfigFlags = []cli.Flag{
-	//
+func packageConfigFlags() []cli.Flag {
+	return nil
 }
 
 func packageConfig(c *cli.Context) error {
@@ -26,7 +26,10 @@ func packageConfig(c *cli.Context) error {
 	field := c.Args().Get(0) // the name of the config field
 	value := c.Args().Get(1) // the value of the config value
 
-	cnf := cfg
+	cnf, err := getCommandConfig(c)
+	if err != nil {
+		return err
+	}
 	v := reflect.ValueOf(cnf).Elem()
 
 	// show output of fields
@@ -59,7 +62,7 @@ func packageConfig(c *cli.Context) error {
 		{
 			f.SetString(value)
 		}
-	case reflect.UnsafePointer:
+	case reflect.Ptr:
 		{
 			fieldType := reflect.Indirect(f)
 			switch fieldType.Kind() {
@@ -75,7 +78,9 @@ func packageConfig(c *cli.Context) error {
 		}
 	}
 
-	config.WriteConfig(env.CacheDir, *cnf)
+	if err := config.WriteConfig(env.CacheDir, *cnf); err != nil {
+		return err
+	}
 	print.Info("successfully set config field", field, "to", value)
 
 	return nil
@@ -98,7 +103,7 @@ func displayConfig(v reflect.Value) {
 					{fieldType.Name, v},
 				})
 			}
-		case reflect.UnsafePointer:
+		case reflect.Ptr:
 			{
 				pField := reflect.Indirect(field)
 				switch pField.Kind() {

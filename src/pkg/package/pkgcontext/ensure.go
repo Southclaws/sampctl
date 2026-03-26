@@ -16,10 +16,6 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
-	"github.com/Southclaws/sampctl/src/pkg/package/lockfile"
-	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
-	"github.com/Southclaws/sampctl/src/pkg/runtime/runtime"
-	"github.com/Southclaws/sampctl/src/resource"
 )
 
 // ErrNotRemotePackage describes a repository that does not contain a package definition file
@@ -38,9 +34,17 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 	pcx.Package.Vendor = filepath.Join(pcx.Package.LocalPath, "dependencies")
 
 	for _, dependency := range pcx.AllDependencies {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+
 		dep := dependency
 		r := retrier.New(retrier.ConstantBackoff(1, 100*time.Millisecond), nil)
 		err := r.Run(func() error {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return ctxErr
+			}
+
 			print.Verb("attempting to ensure dependency", dep)
 			errInner := pcx.ensurePackage(ctx, dep, forceUpdate)
 			if errInner != nil {
@@ -51,6 +55,13 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 			return nil
 		})
 		if err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				if ctxErr != nil {
+					return ctxErr
+				}
+				return err
+			}
+
 			print.Warn("failed to ensure package", dep, "after 2 attempts, skipping")
 			continue
 		}
@@ -59,37 +70,8 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 	// Ensure runtime binaries/plugins for the root package so all ensure entrypoints
 	// keep the local runtime in sync with any runtime config changes.
 	if pcx.Package.Parent {
-		cfg, cfgErr := pcx.Package.GetRuntimeConfig(pcx.Runtime)
-		if cfgErr != nil {
-			return errors.Wrap(cfgErr, "failed to get runtime config")
-		}
-		cfg.WorkingDir = pcx.Package.LocalPath
-		cfg.Platform = pcx.Platform
-		cfg.Format = pcx.Package.Format
-
-		cfg.PluginDeps, err = pcx.GatherPlugins()
-		if err != nil {
-			return
-		}
-
-		pcx.ActualRuntime = cfg
-
-		if err := fs.EnsurePackageLayout(cfg.WorkingDir, cfg.IsOpenMP()); err != nil {
-			return errors.Wrap(err, "failed to ensure package layout")
-		}
-
-		runtimeInfo, err := runtime.EnsureBinariesContext(ctx, pcx.CacheDir, cfg)
-		if err != nil {
-			return errors.Wrap(err, "failed to ensure runtime binaries")
-		}
-
-		if err := runtime.EnsurePlugins(ctx, pcx.GitHub, &pcx.ActualRuntime, pcx.CacheDir, false); err != nil {
-			return errors.Wrap(err, "failed to ensure runtime plugins")
-		}
-
-		pcx.recordRuntimeToLockfile(runtimeInfo)
-		if saveErr := pcx.SaveLockfile(); saveErr != nil {
-			print.Warn("failed to save lockfile after runtime update:", saveErr)
+		if err := pcx.ensureParentRuntime(ctx); err != nil {
+			return err
 		}
 	}
 
@@ -109,7 +91,14 @@ func (pcx *PackageContext) EnsureProject(ctx context.Context, forceUpdate bool) 
 		return updated, err
 	}
 
-	if err := pcx.SaveLockfile(); err != nil {
+	deps, err := pcx.currentLockfileDependencies()
+	if err != nil {
+		return updated, err
+	}
+	pcx.recordRootLocalDependencies()
+	pcx.pruneLockfileDependencies(lockfileDependencyMetas(deps))
+
+	if err := pcx.PackageLockfileState.SaveLockfile(); err != nil {
 		return updated, err
 	}
 
@@ -127,135 +116,6 @@ func (pcx *PackageContext) GatherPlugins() (pluginDeps []versioning.DependencyMe
 	return
 }
 
-// EnsurePackage will make sure a vendor directory contains the specified package.
-// If the package is not present, it will clone it at the correct version tag, sha1 or HEAD
-// If the package is present, it will ensure the directory contains the correct version.
-// When lockfile support is enabled, it uses locked versions for reproducibility.
-func (pcx *PackageContext) EnsurePackage(meta versioning.DependencyMeta, forceUpdate bool) error {
-	return pcx.ensurePackage(context.Background(), meta, forceUpdate)
-}
-
-func (pcx *PackageContext) ensurePackage(ctx context.Context, meta versioning.DependencyMeta, forceUpdate bool) error {
-	// Handle URL-like schemes differently
-	if meta.IsURLScheme() {
-		return pcx.ensureURLSchemeDependency(ctx, meta)
-	}
-
-	// Apply locked version if lockfile is enabled and not forcing update
-	effectiveMeta := meta
-	if pcx.lockfileResolver != nil && !forceUpdate {
-		effectiveMeta = pcx.lockfileResolver.GetLockedVersion(meta)
-	}
-
-	dependencyPath := filepath.Join(pcx.Package.Vendor, effectiveMeta.Repo)
-
-	if fs.Exists(dependencyPath) {
-		valid, validationErr := pcx.repositoryHealth().Validate(dependencyPath)
-		if validationErr != nil || !valid {
-			print.Verb(effectiveMeta, "existing repository is invalid or corrupted")
-			if validationErr != nil {
-				print.Verb(effectiveMeta, "validation error:", validationErr)
-			}
-			print.Verb(effectiveMeta, "removing invalid repository for fresh clone")
-			err := os.RemoveAll(dependencyPath)
-			if err != nil {
-				return errors.Wrap(err, "failed to remove invalid dependency repo")
-			}
-		}
-	}
-
-	repo, err := pcx.ensureDependencyRepository(effectiveMeta, dependencyPath)
-	if err != nil {
-		return errors.Wrap(err, "failed to ensure dependency repository")
-	}
-
-	err = pcx.updateRepoStateWithRecovery(repo, effectiveMeta, dependencyPath, forceUpdate)
-	if err != nil {
-		return errors.Wrap(err, "failed to update repository state")
-	}
-
-	// Record the resolution to lockfile
-	if pcx.lockfileResolver != nil {
-		resolution, resolutionErr := resolveDependencyLock(meta, repo)
-		if resolutionErr != nil {
-			print.Warn("failed to resolve dependency lock data:", resolutionErr)
-		} else if recordErr := pcx.lockfileResolver.RecordResolution(meta, resolution, false, ""); recordErr != nil {
-			print.Warn("failed to record dependency resolution to lockfile:", recordErr)
-		}
-	}
-
-	err = pcx.installPackageResources(ctx, effectiveMeta)
-	if err != nil {
-		return errors.Wrap(err, "failed to install package resources")
-	}
-
-	return nil
-}
-
-// EnsurePackageWithParent ensures a package and records it as a transitive dependency
-func (pcx *PackageContext) EnsurePackageWithParent(meta versioning.DependencyMeta, forceUpdate bool, parentRepo string) error {
-	return pcx.ensurePackageWithParent(context.Background(), meta, forceUpdate, parentRepo)
-}
-
-func (pcx *PackageContext) ensurePackageWithParent(
-	ctx context.Context,
-	meta versioning.DependencyMeta,
-	forceUpdate bool,
-	parentRepo string,
-) error {
-	// Handle URL-like schemes differently
-	if meta.IsURLScheme() {
-		return pcx.ensureURLSchemeDependency(ctx, meta)
-	}
-
-	// Apply locked version if lockfile is enabled and not forcing update
-	effectiveMeta := meta
-	if pcx.lockfileResolver != nil && !forceUpdate {
-		effectiveMeta = pcx.lockfileResolver.GetLockedVersion(meta)
-	}
-
-	dependencyPath := filepath.Join(pcx.Package.Vendor, effectiveMeta.Repo)
-
-	if fs.Exists(dependencyPath) {
-		valid, validationErr := pcx.repositoryHealth().Validate(dependencyPath)
-		if validationErr != nil || !valid {
-			print.Verb(effectiveMeta, "existing repository is invalid or corrupted")
-			err := os.RemoveAll(dependencyPath)
-			if err != nil {
-				return errors.Wrap(err, "failed to remove invalid dependency repo")
-			}
-		}
-	}
-
-	repo, err := pcx.ensureDependencyRepository(effectiveMeta, dependencyPath)
-	if err != nil {
-		return errors.Wrap(err, "failed to ensure dependency repository")
-	}
-
-	err = pcx.updateRepoStateWithRecovery(repo, effectiveMeta, dependencyPath, forceUpdate)
-	if err != nil {
-		return errors.Wrap(err, "failed to update repository state")
-	}
-
-	// Record the resolution to lockfile as transitive dependency
-	if pcx.lockfileResolver != nil {
-		isTransitive := parentRepo != "" && parentRepo != pcx.Package.Repo
-		resolution, resolutionErr := resolveDependencyLock(meta, repo)
-		if resolutionErr != nil {
-			print.Warn("failed to resolve dependency lock data:", resolutionErr)
-		} else if recordErr := pcx.lockfileResolver.RecordResolution(meta, resolution, isTransitive, parentRepo); recordErr != nil {
-			print.Warn("failed to record dependency resolution to lockfile:", recordErr)
-		}
-	}
-
-	err = pcx.installPackageResources(ctx, effectiveMeta)
-	if err != nil {
-		return errors.Wrap(err, "failed to install package resources")
-	}
-
-	return nil
-}
-
 // GetResolvedCommit returns the resolved commit SHA for a dependency path
 func (pcx *PackageContext) GetResolvedCommit(dependencyPath string) (string, error) {
 	repo, err := git.PlainOpen(dependencyPath)
@@ -269,74 +129,6 @@ func (pcx *PackageContext) GetResolvedCommit(dependencyPath string) (string, err
 	}
 
 	return head.Hash().String(), nil
-}
-
-// installPackageResources handles resource installation from cached package
-func (pcx *PackageContext) installPackageResources(ctx context.Context, meta versioning.DependencyMeta) error {
-	// NOTE: Resource installation needs a package definition (`pawn.json`/`pawn.yaml`).
-	// We prefer the cached copy because it is typically the newest, but some repos may not have a
-	// definition on their default branch (e.g. definition only exists on another branch), or a user may
-	// have an older cached clone on a branch that used to exist.
-	// To avoid regressions where resource include paths silently disappear, fall back to the checked-out
-	// dependency copy and finally the remote package definition.
-	pkg, err := pawnpackage.GetCachedPackage(meta, pcx.CacheDir)
-	if err != nil {
-		print.Verb(meta, "failed to read cached package definition:", err)
-	}
-	if err != nil || pkg.Format == "" {
-		depDir := filepath.Join(pcx.Package.Vendor, meta.Repo)
-		pkgLocal, errLocal := pawnpackage.PackageFromDir(depDir)
-		if errLocal == nil && pkgLocal.Format != "" {
-			pkg = pkgLocal
-			err = nil
-			print.Verb(meta, "using local dependency package definition for resources")
-		} else if pcx.RemotePackages != nil {
-			pkgRemote, errRemote := pcx.RemotePackages.Fetch(ctx, meta)
-			if errRemote == nil {
-				pkg = pkgRemote
-				err = nil
-				print.Verb(meta, "using remote package definition for resources")
-			}
-		}
-	}
-
-	applyDependencyMetaToPackage(&pkg, meta)
-
-	// But the cached copy will have the latest tag assigned to it, so before ensuring it, apply the
-	// tag of the actual package we installed.
-	pkg.Tag = meta.Tag
-
-	var includePath string
-	for _, resource := range pkg.Resources {
-		if resource.Platform != pcx.Platform {
-			continue
-		}
-
-		if len(resource.Includes) > 0 {
-			includePath, err = pcx.extractResourceDependencies(ctx, pkg, resource)
-			if err != nil {
-				return err
-			}
-			pcx.AllIncludePaths = append(pcx.AllIncludePaths, includePath)
-		}
-	}
-
-	return err
-}
-
-func applyDependencyMetaToPackage(pkg *pawnpackage.Package, meta versioning.DependencyMeta) {
-	if pkg == nil {
-		return
-	}
-
-	pkg.Site = meta.Site
-	pkg.User = meta.User
-	pkg.Repo = meta.Repo
-	pkg.Path = meta.Path
-	pkg.Tag = meta.Tag
-	pkg.Branch = meta.Branch
-	pkg.Commit = meta.Commit
-	pkg.SSH = meta.SSH
 }
 
 // ensureURLSchemeDependency handles dependencies with URL-like schemes (plugin://, includes://, filterscript://)
@@ -516,95 +308,16 @@ func (pcx *PackageContext) ensureFilterscriptDependency(ctx context.Context, met
 	return nil
 }
 
-func (pcx PackageContext) extractResourceDependencies(
-	ctx context.Context,
-	pkg pawnpackage.Package,
-	res resource.Resource,
-) (dir string, err error) {
-	dir = filepath.Join(pcx.Package.Vendor, res.Path(pkg.Repo))
-	print.Verb(pkg, "installing resource-based dependency", res.Name, "to", dir)
-
-	err = os.MkdirAll(dir, 0o700)
-	if err != nil {
-		err = errors.Wrap(err, "failed to create target directory")
-		return
-	}
-
-	_, err = runtime.EnsureVersionedPlugin(
-		ctx,
-		pcx.GitHub,
-		pkg.DependencyMeta,
-		dir,
-		pcx.Platform,
-		res.Version,
-		pcx.CacheDir,
-		"",
-		false,
-		true,
-		false,
-		pcx.Package.ExtractIgnorePatterns,
-	)
-	if err != nil {
-		err = errors.Wrap(err, "failed to ensure asset")
-		return
-	}
-
-	return dir, nil
-}
-
-func (pcx *PackageContext) recordRuntimeToLockfile(manifestInfo *runtime.RuntimeManifestInfo) {
-	if pcx.lockfileResolver == nil {
-		return
-	}
-
-	if manifestInfo == nil {
-		print.Verb("no runtime info available, skipping lockfile runtime record")
-		return
-	}
-
-	files := make([]lockfile.LockedFileInfo, len(manifestInfo.Files))
-	for i, f := range manifestInfo.Files {
-		files[i] = lockfile.LockedFileInfo{
-			Path: f.Path,
-			Size: f.Size,
-			Hash: f.Hash,
-			Mode: f.Mode,
-		}
-	}
-
-	print.Verb("recording runtime to lockfile:", pcx.ActualRuntime.Version, pcx.ActualRuntime.Platform, string(pcx.ActualRuntime.RuntimeType))
-	pcx.lockfileResolver.RecordRuntime(
-		pcx.ActualRuntime.Version,
-		pcx.ActualRuntime.Platform,
-		string(pcx.ActualRuntime.RuntimeType),
-		files,
-	)
-}
-
-func (pcx *PackageContext) RecordBuildToLockfile(compilerVersion, compilerPreset, entry, output string) {
-	if pcx.lockfileResolver == nil {
-		return
-	}
-
-	outputHash := ""
-	if output != "" && fs.Exists(output) {
-		hash, err := hashOutputFile(output)
-		if err != nil {
-			print.Warn("failed to hash output file:", err)
-		} else {
-			outputHash = hash
-		}
-	}
-
-	pcx.lockfileResolver.RecordBuild(compilerVersion, compilerPreset, entry, output, outputHash)
-}
-
-func hashOutputFile(path string) (string, error) {
+func hashOutputFile(path string) (hash string, err error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	h := sha256.New()
 	if _, err := io.Copy(h, file); err != nil {

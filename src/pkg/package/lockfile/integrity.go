@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	git "github.com/go-git/go-git/v5"
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
@@ -52,7 +53,6 @@ func CalculateDirectoryIntegrity(dir string) (string, error) {
 
 		return nil
 	})
-
 	if err != nil {
 		return "", errors.Wrap(err, "failed to walk directory")
 	}
@@ -77,12 +77,16 @@ func CalculateDirectoryIntegrity(dir string) (string, error) {
 	return IntegrityPrefix + hash, nil
 }
 
-func hashFileContent(hasher io.Writer, path string) error {
+func hashFileContent(hasher io.Writer, path string) (err error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	_, err = io.Copy(hasher, file)
 	return err
@@ -104,6 +108,16 @@ func VerifyIntegrity(dir, expectedHash string) (bool, error) {
 		return true, nil
 	}
 
+	integrityType, value := ParseIntegrity(expectedHash)
+	switch integrityType {
+	case "commit":
+		return verifyCommitIntegrity(dir, value)
+	case "sha256", "":
+		// Continue with directory hashing below.
+	default:
+		return false, errors.Errorf("unsupported integrity type: %s", integrityType)
+	}
+
 	actualHash, err := CalculateDirectoryIntegrity(dir)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to calculate integrity hash")
@@ -117,6 +131,34 @@ func VerifyIntegrity(dir, expectedHash string) (bool, error) {
 	}
 
 	return matches, nil
+}
+
+func verifyCommitIntegrity(dir, expectedCommit string) (bool, error) {
+	repo, err := git.PlainOpen(dir)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to open repository")
+	}
+
+	head, err := repo.Head()
+	if err != nil {
+		return false, errors.Wrap(err, "failed to read repository head")
+	}
+
+	if head.Hash().String() != expectedCommit {
+		return false, nil
+	}
+
+	worktree, err := repo.Worktree()
+	if err != nil {
+		return false, errors.Wrap(err, "failed to get repository worktree")
+	}
+
+	status, err := worktree.Status()
+	if err != nil {
+		return false, errors.Wrap(err, "failed to read repository status")
+	}
+
+	return status.IsClean(), nil
 }
 
 func CalculateCommitIntegrity(commitSHA string) string {

@@ -11,7 +11,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/stretchr/testify/require"
 
-	"github.com/Southclaws/sampctl/src/pkg/build/build"
+	"github.com/Southclaws/sampctl/src/pkg/build"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
@@ -123,10 +123,10 @@ func TestBuildPrepareAddsLocalComponentAndPluginIncludePaths(t *testing.T) {
 			Output:    "gamemodes/test.amx",
 			Build:     &build.Config{},
 		},
-		AllPlugins: []versioning.DependencyMeta{
+		PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{
 			{Scheme: "component", Local: "components/test", User: "local", Repo: "test"},
 			{Scheme: "plugin", Local: "plugins/plug", User: "local", Repo: "plug"},
-		},
+		}},
 	}
 
 	config, err := pcx.buildPrepare(context.Background(), "", false, false)
@@ -154,7 +154,14 @@ func TestBuildPrepareKeepsLegacyDependencyIncludePathsWhenComponentSchemePresent
 	legacyDir := filepath.Join(t.TempDir(), "legacy")
 	writePkg(legacyDir, []string{"pawn-lang/samp-stdlib"})
 
-	pcxLegacy, err := NewPackageContext(gh, gitAuth, true, legacyDir, runtime.GOOS, cacheDir, "", false)
+	pcxLegacy, err := NewPackageContext(NewPackageContextOptions{
+		GitHub:   gh,
+		Auth:     gitAuth,
+		Parent:   true,
+		Dir:      legacyDir,
+		Platform: runtime.GOOS,
+		CacheDir: cacheDir,
+	})
 	require.NoError(t, err)
 
 	configLegacy, err := pcxLegacy.buildPrepare(context.Background(), "", false, false)
@@ -169,7 +176,14 @@ func TestBuildPrepareKeepsLegacyDependencyIncludePathsWhenComponentSchemePresent
 	writePkg(mixedDir, []string{"pawn-lang/samp-stdlib", "component://local/components/test"})
 	require.NoError(t, os.MkdirAll(filepath.Join(mixedDir, "components", "test"), 0o755))
 
-	pcxMixed, err := NewPackageContext(gh, gitAuth, true, mixedDir, runtime.GOOS, cacheDir, "", false)
+	pcxMixed, err := NewPackageContext(NewPackageContextOptions{
+		GitHub:   gh,
+		Auth:     gitAuth,
+		Parent:   true,
+		Dir:      mixedDir,
+		Platform: runtime.GOOS,
+		CacheDir: cacheDir,
+	})
 	require.NoError(t, err)
 
 	configMixed, err := pcxMixed.buildPrepare(context.Background(), "", false, false)
@@ -202,7 +216,14 @@ func TestBuildPrepareKeepsResourceIncludePathsWhenComponentSchemePresent(t *test
 	baseDir := filepath.Join(t.TempDir(), "base")
 	writePkg(baseDir, []string{"sampctl/package-resource-test"})
 
-	pcxBase, err := NewPackageContext(gh, gitAuth, true, baseDir, runtime.GOOS, cacheDir, "", false)
+	pcxBase, err := NewPackageContext(NewPackageContextOptions{
+		GitHub:   gh,
+		Auth:     gitAuth,
+		Parent:   true,
+		Dir:      baseDir,
+		Platform: runtime.GOOS,
+		CacheDir: cacheDir,
+	})
 	require.NoError(t, err)
 
 	configBase, err := pcxBase.buildPrepare(context.Background(), "", true, false)
@@ -222,7 +243,14 @@ func TestBuildPrepareKeepsResourceIncludePathsWhenComponentSchemePresent(t *test
 	writePkg(mixedDir, []string{"sampctl/package-resource-test", "component://local/components/test"})
 	require.NoError(t, os.MkdirAll(filepath.Join(mixedDir, "components", "test"), 0o755))
 
-	pcxMixed, err := NewPackageContext(gh, gitAuth, true, mixedDir, runtime.GOOS, cacheDir, "", false)
+	pcxMixed, err := NewPackageContext(NewPackageContextOptions{
+		GitHub:   gh,
+		Auth:     gitAuth,
+		Parent:   true,
+		Dir:      mixedDir,
+		Platform: runtime.GOOS,
+		CacheDir: cacheDir,
+	})
 	require.NoError(t, err)
 
 	configMixed, err := pcxMixed.buildPrepare(context.Background(), "", true, false)
@@ -282,8 +310,8 @@ func TestBuildPrepareGeneratesBuildFileWithConstants(t *testing.T) {
 	t.Setenv("BUILD_ENV_VALUE", "from-env")
 
 	pcx := &PackageContext{
-		AppVersion: "2.3.4",
-		Platform:   "linux",
+		PackageServices:       PackageServices{Platform: "linux"},
+		PackageExecutionState: PackageExecutionState{AppVersion: "2.3.4"},
 		Package: pawnpackage.Package{
 			LocalPath: tempDir,
 			Entry:     "gamemodes/test.pwn",
@@ -327,8 +355,8 @@ func TestBuildPrepareGeneratesBuildFileByDefault(t *testing.T) {
 	tempDir := t.TempDir()
 
 	pcx := &PackageContext{
-		AppVersion: "1.2.3",
-		Platform:   "windows",
+		PackageServices:       PackageServices{Platform: "windows"},
+		PackageExecutionState: PackageExecutionState{AppVersion: "1.2.3"},
 		Package: pawnpackage.Package{
 			LocalPath: tempDir,
 			Entry:     "gamemodes/test.pwn",
@@ -356,8 +384,8 @@ func TestBuildPrepareAllowsBuildFileDefaultsToBeOverridden(t *testing.T) {
 	tempDir := t.TempDir()
 
 	pcx := &PackageContext{
-		AppVersion: "1.2.3",
-		Platform:   "linux",
+		PackageServices:       PackageServices{Platform: "linux"},
+		PackageExecutionState: PackageExecutionState{AppVersion: "1.2.3"},
 		Package: pawnpackage.Package{
 			LocalPath: tempDir,
 			Entry:     "gamemodes/test.pwn",

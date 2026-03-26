@@ -39,9 +39,9 @@ func TestTagTaglessDependencies_DoesNotModifyAlreadyVersioned(t *testing.T) {
 	require.NoError(t, err)
 	pkg.Parent = true
 	pkg.LocalPath = projectDir
-	pkg.DependencyMeta = versioning.DependencyMeta{User: "local", Repo: "project"}
+	pkg.SetDependencyMeta(versioning.DependencyMeta{User: "local", Repo: "project"})
 
-	pcx := pkgcontext.PackageContext{Package: pkg, CacheDir: cacheDir, Platform: "linux"}
+	pcx := pkgcontext.PackageContext{Package: pkg, PackageServices: pkgcontext.PackageServices{CacheDir: cacheDir, Platform: "linux"}}
 	updated, err := pcx.TagTaglessDependencies(context.Background(), false)
 	require.NoError(t, err)
 	require.False(t, updated)
@@ -73,9 +73,9 @@ func TestTagTaglessDependencies_TagsMultipleAndDevDependencies(t *testing.T) {
 	require.NoError(t, err)
 	pkg.Parent = true
 	pkg.LocalPath = projectDir
-	pkg.DependencyMeta = versioning.DependencyMeta{User: "local", Repo: "project"}
+	pkg.SetDependencyMeta(versioning.DependencyMeta{User: "local", Repo: "project"})
 
-	pcx := pkgcontext.PackageContext{Package: pkg, CacheDir: cacheDir, Platform: "linux"}
+	pcx := pkgcontext.PackageContext{Package: pkg, PackageServices: pkgcontext.PackageServices{CacheDir: cacheDir, Platform: "linux"}}
 	updated, err := pcx.TagTaglessDependencies(context.Background(), false)
 	require.NoError(t, err)
 	require.True(t, updated)
@@ -111,9 +111,9 @@ func TestTagTaglessDependencies_TagsDependencyWithPath(t *testing.T) {
 	require.NoError(t, err)
 	pkg.Parent = true
 	pkg.LocalPath = projectDir
-	pkg.DependencyMeta = versioning.DependencyMeta{User: "local", Repo: "project"}
+	pkg.SetDependencyMeta(versioning.DependencyMeta{User: "local", Repo: "project"})
 
-	pcx := pkgcontext.PackageContext{Package: pkg, CacheDir: cacheDir, Platform: "linux"}
+	pcx := pkgcontext.PackageContext{Package: pkg, PackageServices: pkgcontext.PackageServices{CacheDir: cacheDir, Platform: "linux"}}
 	updated, err := pcx.TagTaglessDependencies(context.Background(), false)
 	require.NoError(t, err)
 	require.True(t, updated)
@@ -164,9 +164,9 @@ func TestTagTaglessDependencies_UsesGitHubFallbackWhenNoTagsInCache(t *testing.T
 	require.NoError(t, err)
 	pkg.Parent = true
 	pkg.LocalPath = projectDir
-	pkg.DependencyMeta = versioning.DependencyMeta{User: "local", Repo: "project"}
+	pkg.SetDependencyMeta(versioning.DependencyMeta{User: "local", Repo: "project"})
 
-	pcx := pkgcontext.PackageContext{Package: pkg, CacheDir: cacheDir, Platform: "linux", GitHub: gh}
+	pcx := pkgcontext.PackageContext{Package: pkg, PackageServices: pkgcontext.PackageServices{CacheDir: cacheDir, Platform: "linux", GitHub: gh}}
 	updated, err := pcx.TagTaglessDependencies(context.Background(), false)
 	require.NoError(t, err)
 	require.True(t, updated)
@@ -199,9 +199,9 @@ func TestTagTaglessDependencies_DoesNotTagWhenNoTagsAndNoGitHub(t *testing.T) {
 	require.NoError(t, err)
 	pkg.Parent = true
 	pkg.LocalPath = projectDir
-	pkg.DependencyMeta = versioning.DependencyMeta{User: "local", Repo: "project"}
+	pkg.SetDependencyMeta(versioning.DependencyMeta{User: "local", Repo: "project"})
 
-	pcx := pkgcontext.PackageContext{Package: pkg, CacheDir: cacheDir, Platform: "linux"}
+	pcx := pkgcontext.PackageContext{Package: pkg, PackageServices: pkgcontext.PackageServices{CacheDir: cacheDir, Platform: "linux"}}
 	updated, err := pcx.TagTaglessDependencies(context.Background(), false)
 	require.NoError(t, err)
 	require.False(t, updated)

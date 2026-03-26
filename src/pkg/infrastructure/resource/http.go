@@ -2,15 +2,16 @@ package resource
 
 import (
 	"context"
+	"time"
 
 	"github.com/pkg/errors"
 )
 
 // HTTPResource represents a resource downloaded from an HTTP URL
 type HTTPResource struct {
-	*BaseResource
-	url      string
-	filename string
+	baseResource *BaseResource
+	url          string
+	filename     string
 }
 
 // NewHTTPResource creates a new HTTPResource
@@ -21,22 +22,52 @@ func NewHTTPResource(url, filename, version string, resourceType ResourceType) *
 	}
 
 	hr := &HTTPResource{
-		BaseResource: NewBaseResource(identifier, version, resourceType),
+		baseResource: NewBaseResource(identifier, version, resourceType),
 		url:          url,
 		filename:     filename,
 	}
 
-	hr.SetDownloadURL(url)
+	hr.baseResource.SetDownloadURL(url)
 	return hr
+}
+
+// Version returns the resource version.
+func (hr *HTTPResource) Version() string {
+	return hr.baseResource.Version()
+}
+
+// Type returns the resource type.
+func (hr *HTTPResource) Type() ResourceType {
+	return hr.baseResource.Type()
+}
+
+// Identifier returns the unique resource identifier.
+func (hr *HTTPResource) Identifier() string {
+	return hr.baseResource.Identifier()
+}
+
+// Cached reports whether the resource is already cached.
+func (hr *HTTPResource) Cached(version string) (bool, string) {
+	return hr.baseResource.Cached(version)
+}
+
+// SetCacheDir overrides the cache directory for this resource.
+func (hr *HTTPResource) SetCacheDir(cacheDir string) {
+	hr.baseResource.SetCacheDir(cacheDir)
+}
+
+// SetCacheTTL overrides the cache TTL for this resource.
+func (hr *HTTPResource) SetCacheTTL(ttl time.Duration) {
+	hr.baseResource.SetCacheTTL(ttl)
 }
 
 // Ensure acquires the HTTP resource, downloading it if necessary
 func (hr *HTTPResource) Ensure(ctx context.Context, version, path string) error {
-	if hr.BaseResource == nil {
+	if hr.baseResource == nil {
 		return errors.New("HTTPResource has no BaseResource")
 	}
-	hr.SetDownloadURL(hr.url)
-	return hr.EnsureFromURL(ctx, version, path)
+	hr.baseResource.SetDownloadURL(hr.url)
+	return hr.baseResource.EnsureFromURL(ctx, version, path)
 }
 
 // GetURL returns the download URL

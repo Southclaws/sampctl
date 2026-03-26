@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/pkg/errors"
@@ -12,37 +11,39 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
-var packageBuildFlags = []cli.Flag{
-	cli.StringFlag{
-		Name:  "dir",
-		Value: ".",
-		Usage: "working directory for the project - by default, uses the current directory",
-	},
-	cli.BoolFlag{
-		Name:  "forceEnsure",
-		Usage: "forces dependency ensure before build",
-	},
-	cli.BoolFlag{
-		Name:  "dryRun",
-		Usage: "does not run the build but outputs the command necessary to do so",
-	},
-	cli.BoolFlag{
-		Name:  "watch",
-		Usage: "keeps sampctl running and triggers builds whenever source files change",
-	},
-	cli.StringFlag{
-		Name:  "buildFile",
-		Value: "",
-		Usage: "declares a file to store the incrementing build number for easy versioning",
-	},
-	cli.BoolFlag{
-		Name:  "relativePaths",
-		Usage: "force compiler output to use relative paths instead of absolute",
-	},
-	cli.BoolFlag{
-		Name:  "no-lock",
-		Usage: "disable lockfile support",
-	},
+func packageBuildFlags() []cli.Flag {
+	return []cli.Flag{
+		cli.StringFlag{
+			Name:  "dir",
+			Value: ".",
+			Usage: "working directory for the project - by default, uses the current directory",
+		},
+		cli.BoolFlag{
+			Name:  "forceEnsure",
+			Usage: "forces dependency ensure before build",
+		},
+		cli.BoolFlag{
+			Name:  "dryRun",
+			Usage: "does not run the build but outputs the command necessary to do so",
+		},
+		cli.BoolFlag{
+			Name:  "watch",
+			Usage: "keeps sampctl running and triggers builds whenever source files change",
+		},
+		cli.StringFlag{
+			Name:  "buildFile",
+			Value: "",
+			Usage: "declares a file to store the incrementing build number for easy versioning",
+		},
+		cli.BoolFlag{
+			Name:  "relativePaths",
+			Usage: "force compiler output to use relative paths instead of absolute",
+		},
+		cli.BoolFlag{
+			Name:  "no-lock",
+			Usage: "disable lockfile support",
+		},
+	}
 }
 
 func packageBuild(c *cli.Context) error {
@@ -57,30 +58,38 @@ func packageBuild(c *cli.Context) error {
 
 	build := c.Args().Get(0)
 
-	env, err := getCommandEnv(c)
-	if err != nil {
-		return err
-	}
-
-	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, env.Platform, env.CacheDir, "", false)
+	pcx, _, err := loadPackageContext(c, dir, false)
 	if err != nil {
 		return errors.Wrap(err, "failed to interpret directory as Pawn package")
 	}
 
 	if useLockfile {
-		err = pcx.InitLockfileResolver(sampctlVersion)
-		if err != nil {
+		if err = initLockfileResolver(c, pcx); err != nil {
 			print.Warn("failed to initialize lockfile resolver:", err)
 		}
 	}
 
+	ctx, cancel := newCommandContext()
+	defer cancel()
+
 	if watch {
-		err := pcx.BuildWatch(context.Background(), build, forceEnsure, buildFile, relativePaths, nil)
+		err := pcx.BuildWatch(ctx, pkgcontext.BuildOptions{
+			Name:      build,
+			Ensure:    forceEnsure,
+			BuildFile: buildFile,
+			Relative:  relativePaths,
+		})
 		if err != nil {
 			return cli.NewExitError(err.Error(), 1)
 		}
 	} else {
-		problems, result, err := pcx.Build(context.Background(), build, forceEnsure, dryRun, relativePaths, buildFile)
+		problems, result, err := pcx.Build(ctx, pkgcontext.BuildOptions{
+			Name:      build,
+			Ensure:    forceEnsure,
+			DryRun:    dryRun,
+			Relative:  relativePaths,
+			BuildFile: buildFile,
+		})
 		if err != nil {
 			return cli.NewExitError(err.Error(), 1)
 		}
@@ -112,13 +121,13 @@ func packageBuild(c *cli.Context) error {
 		if useLockfile && !problems.Fatal() && len(problems.Errors()) == 0 {
 			config := pcx.Package.GetBuildConfig(build)
 			if config != nil {
-				pcx.RecordBuildToLockfile(
+				if saveErr := persistBuildLockfile(
+					pcx,
 					config.Compiler.Version,
 					config.Compiler.Preset,
 					pcx.Package.Entry,
 					pcx.Package.Output,
-				)
-				if saveErr := pcx.SaveLockfile(); saveErr != nil {
+				); saveErr != nil {
 					print.Warn("failed to save lockfile:", saveErr)
 				}
 			}
@@ -130,12 +139,7 @@ func packageBuild(c *cli.Context) error {
 
 func packageBuildBash(c *cli.Context) {
 	dir := fs.MustAbs(c.String("dir"))
-	env, err := getCommandEnv(c)
-	if err != nil {
-		return
-	}
-
-	pcx, err := pkgcontext.NewPackageContext(gh, gitAuth, true, dir, env.Platform, env.CacheDir, "", false)
+	pcx, _, err := loadPackageContext(c, dir, false)
 	if err != nil {
 		return
 	}

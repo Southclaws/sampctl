@@ -6,12 +6,12 @@ import (
 	"github.com/jedib0t/go-pretty/v6/table"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Southclaws/sampctl/src/pkg/build/build"
+	"github.com/Southclaws/sampctl/src/pkg/build"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 )
 
-var compilerFlags = []cli.Flag{
-	//
+func compilerFlags() []cli.Flag {
+	return nil
 }
 
 func compilerList(c *cli.Context) error {

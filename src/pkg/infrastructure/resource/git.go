@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"time"
 
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -15,7 +16,7 @@ import (
 
 // GitResource represents a resource from a Git repository (GitHub, GitLab, etc.)
 type GitResource struct {
-	*BaseResource
+	baseResource   *BaseResource
 	dependencyMeta versioning.DependencyMeta
 }
 
@@ -34,14 +35,48 @@ func NewGitResource(depMeta versioning.DependencyMeta, resourceType ResourceType
 	}
 
 	return &GitResource{
-		BaseResource:   NewBaseResource(identifier, version, resourceType),
+		baseResource:   NewBaseResource(identifier, version, resourceType),
 		dependencyMeta: depMeta,
 	}
 }
 
+// Version returns the resource version.
+func (gr *GitResource) Version() string {
+	return gr.baseResource.Version()
+}
+
+// Type returns the resource type.
+func (gr *GitResource) Type() ResourceType {
+	return gr.baseResource.Type()
+}
+
+// Identifier returns the unique resource identifier.
+func (gr *GitResource) Identifier() string {
+	return gr.baseResource.Identifier()
+}
+
+// Cached reports whether the resource is already cached.
+func (gr *GitResource) Cached(version string) (bool, string) {
+	return gr.baseResource.Cached(version)
+}
+
+// SetCacheDir overrides the cache directory for this resource.
+func (gr *GitResource) SetCacheDir(cacheDir string) {
+	gr.baseResource.SetCacheDir(cacheDir)
+}
+
+// SetCacheTTL overrides the cache TTL for this resource.
+func (gr *GitResource) SetCacheTTL(ttl time.Duration) {
+	gr.baseResource.SetCacheTTL(ttl)
+}
+
+func (gr *GitResource) getCachePath(version string) string {
+	return gr.baseResource.getCachePath(version)
+}
+
 // Ensure acquires the Git resource, cloning/updating the repository as needed
 func (gr *GitResource) Ensure(ctx context.Context, version, path string) error {
-	cachePath, err := gr.cachePath(version)
+	cachePath, err := gr.baseResource.cachePath(version)
 	if err != nil {
 		return err
 	}
@@ -49,7 +84,7 @@ func (gr *GitResource) Ensure(ctx context.Context, version, path string) error {
 	// Check if already cached
 	if cached, cachedPath := gr.Cached(version); cached {
 		// Mark as recently accessed
-		if err := gr.MarkCached(cachedPath); err != nil {
+		if err := gr.baseResource.MarkCached(cachedPath); err != nil {
 			return errors.Wrap(err, "failed to update cache timestamp")
 		}
 
@@ -61,7 +96,7 @@ func (gr *GitResource) Ensure(ctx context.Context, version, path string) error {
 	}
 
 	// Ensure cache directory exists
-	if err := gr.ensureCacheDir(cachePath); err != nil {
+	if err := gr.baseResource.ensureCacheDir(cachePath); err != nil {
 		return errors.Wrap(err, "failed to create cache directory")
 	}
 
@@ -71,7 +106,9 @@ func (gr *GitResource) Ensure(ctx context.Context, version, path string) error {
 	}
 
 	// If the path exists (potentially because cache TTL expired), remove it so clone succeeds.
-	_ = os.RemoveAll(cachePath)
+	if err := os.RemoveAll(cachePath); err != nil {
+		return errors.Wrap(err, "failed to remove expired git cache path")
+	}
 	if err := os.MkdirAll(filepath.Dir(cachePath), 0o700); err != nil {
 		return errors.Wrap(err, "failed to create parent cache directory")
 	}
