@@ -94,7 +94,7 @@ loop:
 				continue
 			}
 
-			fmt.Println("watch-run: executing package code")
+			print.Verb("watch-run: executing package code")
 			runtime.Restart(ctx, pcx.startWatchedRuntime)
 		}
 	}
@@ -232,7 +232,7 @@ func (pcx *PackageContext) startWatchedRuntime(ctx context.Context, running *ato
 			print.Erro(err)
 		}
 
-		fmt.Println("watch-run: finished")
+		print.Verb("watch-run: finished")
 		done <- err
 	}()
 	return done

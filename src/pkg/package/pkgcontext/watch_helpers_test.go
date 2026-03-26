@@ -2,6 +2,7 @@ package pkgcontext
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -126,4 +127,40 @@ func TestWatchedRuntimeRestartStopsPendingStartup(t *testing.T) {
 	assert.Equal(t, int32(2), stopped.Load())
 	assert.Nil(t, runtime.done)
 	assert.Nil(t, runtime.cancel)
+}
+
+func TestWatchedRuntimeStopUsesInjectedLogger(t *testing.T) {
+	t.Parallel()
+
+	parent := context.Background()
+	ready := make(chan struct{}, 1)
+
+	starter := func(ctx context.Context, running *atomic.Bool) <-chan error {
+		done := make(chan error, 1)
+		go func() {
+			running.Store(true)
+			ready <- struct{}{}
+			<-ctx.Done()
+			running.Store(false)
+			done <- ctx.Err()
+			close(done)
+		}()
+		return done
+	}
+
+	logged := make([]string, 0, 2)
+	runtime := watchedRuntime{
+		logf: func(a ...interface{}) {
+			logged = append(logged, fmt.Sprint(a...))
+		},
+	}
+
+	runtime.Restart(parent, starter)
+	<-ready
+	runtime.Stop()
+
+	assert.Equal(t, []string{
+		"watch-run: killing existing runtime process",
+		"watch-run: killed existing runtime process",
+	}, logged)
 }

@@ -2,12 +2,13 @@ package pkgcontext
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/signal"
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 )
 
 func newTerminationSignals() (chan os.Signal, func()) {
@@ -85,6 +86,7 @@ type watchedRuntime struct {
 	running atomic.Bool
 	cancel  context.CancelFunc
 	done    <-chan error
+	logf    func(...interface{})
 }
 
 func (w *watchedRuntime) Restart(parent context.Context, starter func(context.Context, *atomic.Bool) <-chan error) {
@@ -94,15 +96,24 @@ func (w *watchedRuntime) Restart(parent context.Context, starter func(context.Co
 	w.done = starter(runCtx, &w.running)
 }
 
+func (w *watchedRuntime) log(a ...interface{}) {
+	if w.logf != nil {
+		w.logf(a...)
+		return
+	}
+
+	print.Verb(a...)
+}
+
 func (w *watchedRuntime) Stop() {
 	if w.done == nil {
 		return
 	}
 
-	fmt.Println("watch-run: killing existing runtime process")
+	w.log("watch-run: killing existing runtime process")
 	w.cancel()
 	<-w.done
-	fmt.Println("watch-run: killed existing runtime process")
+	w.log("watch-run: killed existing runtime process")
 	w.cancel = nil
 	w.done = nil
 }
