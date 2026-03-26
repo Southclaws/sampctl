@@ -21,8 +21,21 @@ import (
 // ErrNotRemotePackage describes a repository that does not contain a package definition file
 var ErrNotRemotePackage = errors.New("remote repository does not declare a package")
 
-// EnsureDependencies traverses package dependencies and ensures they are up to date
+// EnsureDependencies traverses package dependencies and ensures they are up to date.
 func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate bool) (err error) {
+	request := DependencyUpdateRequest{}
+	if forceUpdate {
+		request.Enabled = true
+		request.Force = true
+	}
+
+	return pcx.ensureDependencies(ctx, request)
+}
+
+func (pcx *PackageContext) ensureDependencies(
+	ctx context.Context,
+	request DependencyUpdateRequest,
+) (err error) {
 	if pcx.Package.LocalPath == "" {
 		return errors.New("package does not represent a locally stored package")
 	}
@@ -32,6 +45,7 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 	}
 
 	pcx.Package.Vendor = filepath.Join(pcx.Package.LocalPath, "dependencies")
+	directDependencies := pcx.directDependencySet()
 
 	for _, dependency := range pcx.AllDependencies {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -39,6 +53,8 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 		}
 
 		dep := dependency
+		_, direct := directDependencies[dependencyUpdateIdentity(dep)]
+		forceDependencyUpdate := request.ShouldForceDependency(dep, direct)
 		r := retrier.New(retrier.ConstantBackoff(1, 100*time.Millisecond), nil)
 		err := r.Run(func() error {
 			if ctxErr := ctx.Err(); ctxErr != nil {
@@ -46,7 +62,7 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 			}
 
 			print.Verb("attempting to ensure dependency", dep)
-			errInner := pcx.ensurePackage(ctx, dep, forceUpdate)
+			errInner := pcx.ensurePackage(ctx, dep, forceDependencyUpdate)
 			if errInner != nil {
 				print.Warn(errors.Wrapf(errInner, "failed to ensure package %s", dep))
 				return errInner
@@ -79,15 +95,15 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 }
 
 // EnsureProject applies the full project ensure flow used by user-facing commands.
-// It pins tagless dependencies where possible, ensures dependency/runtime files,
-// and persists the lockfile when lockfile support is enabled.
-func (pcx *PackageContext) EnsureProject(ctx context.Context, forceUpdate bool) (bool, error) {
-	updated, err := pcx.TagTaglessDependencies(ctx, forceUpdate)
+// It updates direct dependency references when requested, ensures dependency/runtime
+// files, and persists the lockfile when lockfile support is enabled.
+func (pcx *PackageContext) EnsureProject(ctx context.Context, request DependencyUpdateRequest) (bool, error) {
+	updated, err := pcx.UpdateDependencyReferences(ctx, request)
 	if err != nil {
 		return false, err
 	}
 
-	if err := pcx.EnsureDependencies(ctx, forceUpdate); err != nil {
+	if err := pcx.ensureDependencies(ctx, request); err != nil {
 		return updated, err
 	}
 

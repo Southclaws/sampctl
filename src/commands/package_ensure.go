@@ -9,6 +9,7 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
@@ -16,14 +17,14 @@ type ensureCommandTarget interface {
 	pkgcontext.LockfileInitializer
 	pkgcontext.LockfileController
 	pkgcontext.LockfileUpdater
-	EnsureProject(ctx context.Context, forceUpdate bool) (bool, error)
+	EnsureProject(ctx context.Context, request pkgcontext.DependencyUpdateRequest) (bool, error)
 }
 
 type ensureCommandOptions struct {
 	version     string
-	forceUpdate bool
 	useLockfile bool
 	lockOnly    bool
+	update      pkgcontext.DependencyUpdateRequest
 }
 
 func packageEnsureFlags() []cli.Flag {
@@ -35,7 +36,11 @@ func packageEnsureFlags() []cli.Flag {
 		},
 		cli.BoolFlag{
 			Name:  "update",
-			Usage: "update cached dependencies to latest version, ignoring lockfile",
+			Usage: "update dynamic dependencies (`user/repo` or `user/repo:latest`) to the latest tagged release",
+		},
+		cli.BoolFlag{
+			Name:  "force",
+			Usage: "with `--update`, also update dependencies pinned to explicit tags",
 		},
 		cli.BoolFlag{
 			Name:  "no-lock",
@@ -50,7 +55,10 @@ func packageEnsureFlags() []cli.Flag {
 
 func packageEnsure(c *cli.Context) error {
 	dir := fs.MustAbs(c.String("dir"))
-	forceUpdate := c.Bool("update")
+	updateRequest, err := parseEnsureUpdateRequest(c)
+	if err != nil {
+		return err
+	}
 	noLock := c.Bool("no-lock")
 	lockOnly := c.Bool("lock-only")
 	useLockfile := !noLock
@@ -71,10 +79,42 @@ func packageEnsure(c *cli.Context) error {
 
 	return runPackageEnsure(ctx, pcx, ensureCommandOptions{
 		version:     state.version,
-		forceUpdate: forceUpdate,
 		useLockfile: useLockfile,
 		lockOnly:    lockOnly,
+		update:      updateRequest,
 	})
+}
+
+func parseEnsureUpdateRequest(c *cli.Context) (pkgcontext.DependencyUpdateRequest, error) {
+	request := pkgcontext.DependencyUpdateRequest{
+		Enabled: c.Bool("update"),
+		Force:   c.Bool("force"),
+	}
+
+	if request.Force && !request.Enabled {
+		return pkgcontext.DependencyUpdateRequest{}, errors.New("cannot use --force without --update")
+	}
+
+	if len(c.Args()) > 1 {
+		return pkgcontext.DependencyUpdateRequest{}, errors.New("ensure accepts at most one dependency argument")
+	}
+
+	if len(c.Args()) == 1 {
+		if !request.Enabled {
+			return pkgcontext.DependencyUpdateRequest{}, errors.New("dependency arguments require --update")
+		}
+
+		target := c.Args().First()
+		targetMeta, err := versioning.DependencyString(target).Explode()
+		if err != nil {
+			return pkgcontext.DependencyUpdateRequest{}, errors.Wrap(err, "failed to parse dependency selector")
+		}
+
+		request.Target = target
+		request.TargetMeta = targetMeta
+	}
+
+	return request, nil
 }
 
 func runPackageEnsure(ctx context.Context, target ensureCommandTarget, opts ensureCommandOptions) error {
@@ -83,14 +123,14 @@ func runPackageEnsure(ctx context.Context, target ensureCommandTarget, opts ensu
 			return errors.Wrap(err, "failed to initialize lockfile resolver")
 		}
 
-		describeEnsureLockfile(target, opts.forceUpdate)
+		describeEnsureLockfile(target, opts.update.Force && !opts.update.HasTarget())
 	}
 
 	if opts.lockOnly {
 		if err := requireLockfileSupport(target); err != nil {
 			return err
 		}
-		if err := target.UpdateLockfile(ctx, opts.forceUpdate); err != nil {
+		if err := target.UpdateLockfile(ctx, opts.update); err != nil {
 			return errors.Wrap(err, "failed to update lockfile")
 		}
 		if err := saveCommandLockfile(target); err != nil {
@@ -100,7 +140,7 @@ func runPackageEnsure(ctx context.Context, target ensureCommandTarget, opts ensu
 		return nil
 	}
 
-	updated, err := target.EnsureProject(ctx, opts.forceUpdate)
+	updated, err := target.EnsureProject(ctx, opts.update)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure dependencies")
 	}

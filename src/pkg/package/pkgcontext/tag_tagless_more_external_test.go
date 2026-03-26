@@ -86,10 +86,10 @@ func TestTagTaglessDependencies_TagsMultipleAndDevDependencies(t *testing.T) {
 	require.NoError(t, json.Unmarshal(finalBytes, &final))
 
 	depsAny := final["dependencies"].([]any)
-	require.Equal(t, []any{"u1/r1:1.0.0", "u2/r2:2.3.4"}, depsAny)
+	require.Equal(t, []any{"u1/r1:latest", "u2/r2:latest"}, depsAny)
 
 	devAny := final["dev_dependencies"].([]any)
-	require.Equal(t, []any{"u3/r3:0.9.0"}, devAny)
+	require.Equal(t, []any{"u3/r3:latest"}, devAny)
 }
 
 func TestTagTaglessDependencies_TagsDependencyWithPath(t *testing.T) {
@@ -124,7 +124,7 @@ func TestTagTaglessDependencies_TagsDependencyWithPath(t *testing.T) {
 	require.NoError(t, json.Unmarshal(finalBytes, &final))
 
 	depsAny := final["dependencies"].([]any)
-	require.Equal(t, []any{"u/r/include:1.2.3"}, depsAny)
+	require.Equal(t, []any{"u/r/include:latest"}, depsAny)
 }
 
 func TestTagTaglessDependencies_UsesGitHubFallbackWhenNoTagsInCache(t *testing.T) {
@@ -177,7 +177,7 @@ func TestTagTaglessDependencies_UsesGitHubFallbackWhenNoTagsInCache(t *testing.T
 	require.NoError(t, json.Unmarshal(finalBytes, &final))
 
 	depsAny := final["dependencies"].([]any)
-	require.Equal(t, []any{"testuser/testrepo:stable"}, depsAny)
+	require.Equal(t, []any{"testuser/testrepo:latest"}, depsAny)
 }
 
 func TestTagTaglessDependencies_DoesNotTagWhenNoTagsAndNoGitHub(t *testing.T) {

@@ -85,14 +85,14 @@ func TestEnsureProjectInitialisesLockfileAndPinsDependencies(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, pcx.InitLockfileResolver("dev"))
 
-	updated, err := pcx.EnsureProject(context.Background(), false)
+	updated, err := pcx.EnsureProject(context.Background(), DependencyUpdateRequest{Enabled: true})
 	require.NoError(t, err)
 	assert.True(t, updated)
 
 	finalPkg, err := pawnpackage.PackageFromDir(projectDir)
 	require.NoError(t, err)
 	require.Len(t, finalPkg.Dependencies, 1)
-	assert.Equal(t, versioning.DependencyString("testuser/testrepo:1.0.0"), finalPkg.Dependencies[0])
+	assert.Equal(t, versioning.DependencyString("testuser/testrepo:latest"), finalPkg.Dependencies[0])
 
 	lf, err := lockfile.Load(projectDir)
 	require.NoError(t, err)
@@ -154,7 +154,7 @@ func TestEnsureProjectRecordsLocalDependenciesAndPrunesRemovedEntries(t *testing
 	require.NoError(t, err)
 	require.NoError(t, pcx.InitLockfileResolver("dev"))
 
-	updated, err := pcx.EnsureProject(context.Background(), false)
+	updated, err := pcx.EnsureProject(context.Background(), DependencyUpdateRequest{})
 	require.NoError(t, err)
 	assert.False(t, updated)
 
@@ -173,7 +173,7 @@ func TestEnsureProjectRecordsLocalDependenciesAndPrunesRemovedEntries(t *testing
 	require.NoError(t, err)
 	require.NoError(t, pcx.InitLockfileResolver("dev"))
 
-	updated, err = pcx.EnsureProject(context.Background(), false)
+	updated, err = pcx.EnsureProject(context.Background(), DependencyUpdateRequest{})
 	require.NoError(t, err)
 	assert.False(t, updated)
 
@@ -182,6 +182,97 @@ func TestEnsureProjectRecordsLocalDependenciesAndPrunesRemovedEntries(t *testing
 	require.NotNil(t, lf)
 	assert.NotContains(t, lf.Dependencies, lockfile.DependencyKey(depMeta))
 	assert.Contains(t, lf.Dependencies, lockfile.DependencyKey(versioning.DependencyMeta{Scheme: "includes", Local: "includes"}))
+}
+
+func TestEnsureProjectWithoutUpdateDoesNotRewriteTaglessDependencies(t *testing.T) {
+	t.Parallel()
+
+	cacheDir := t.TempDir()
+	projectDir := t.TempDir()
+
+	depMeta := versioning.DependencyMeta{User: "testuser", Repo: "testrepo"}
+	seedEnsureProjectDependencyRepo(t, cacheDir, depMeta, []string{"1.0.0"})
+
+	rootConfig := map[string]any{
+		"entry":        "main.pwn",
+		"output":       "gamemodes/main.amx",
+		"dependencies": []string{"testuser/testrepo"},
+		"runtime": map[string]any{
+			"version": "0.3.7",
+		},
+	}
+	configBytes, err := json.MarshalIndent(rootConfig, "", "\t")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), configBytes, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "main.pwn"), []byte("main() {}"), 0o644))
+
+	seedStagedRuntime(t, cacheDir, run.Runtime{Version: "0.3.7", Platform: "linux"})
+
+	pcx, err := NewPackageContext(NewPackageContextOptions{
+		Parent:   true,
+		Dir:      projectDir,
+		Platform: "linux",
+		CacheDir: cacheDir,
+	})
+	require.NoError(t, err)
+	require.NoError(t, pcx.InitLockfileResolver("dev"))
+
+	updated, err := pcx.EnsureProject(context.Background(), DependencyUpdateRequest{})
+	require.NoError(t, err)
+	assert.False(t, updated)
+
+	finalPkg, err := pawnpackage.PackageFromDir(projectDir)
+	require.NoError(t, err)
+	require.Len(t, finalPkg.Dependencies, 1)
+	assert.Equal(t, versioning.DependencyString("testuser/testrepo"), finalPkg.Dependencies[0])
+}
+
+func TestEnsureProjectForceUpdateRewritesPinnedTarget(t *testing.T) {
+	t.Parallel()
+
+	cacheDir := t.TempDir()
+	projectDir := t.TempDir()
+
+	depMeta := versioning.DependencyMeta{User: "testuser", Repo: "testrepo"}
+	seedEnsureProjectDependencyRepo(t, cacheDir, depMeta, []string{"1.0.0", "2.0.0"})
+
+	rootConfig := map[string]any{
+		"entry":        "main.pwn",
+		"output":       "gamemodes/main.amx",
+		"dependencies": []string{"testuser/testrepo:1.0.0"},
+		"runtime": map[string]any{
+			"version": "0.3.7",
+		},
+	}
+	configBytes, err := json.MarshalIndent(rootConfig, "", "\t")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), configBytes, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "main.pwn"), []byte("main() {}"), 0o644))
+
+	seedStagedRuntime(t, cacheDir, run.Runtime{Version: "0.3.7", Platform: "linux"})
+
+	pcx, err := NewPackageContext(NewPackageContextOptions{
+		Parent:   true,
+		Dir:      projectDir,
+		Platform: "linux",
+		CacheDir: cacheDir,
+	})
+	require.NoError(t, err)
+	require.NoError(t, pcx.InitLockfileResolver("dev"))
+
+	updated, err := pcx.EnsureProject(context.Background(), DependencyUpdateRequest{
+		Enabled:    true,
+		Force:      true,
+		Target:     "testuser/testrepo",
+		TargetMeta: depMeta,
+	})
+	require.NoError(t, err)
+	assert.True(t, updated)
+
+	finalPkg, err := pawnpackage.PackageFromDir(projectDir)
+	require.NoError(t, err)
+	require.Len(t, finalPkg.Dependencies, 1)
+	assert.Equal(t, versioning.DependencyString("testuser/testrepo:2.0.0"), finalPkg.Dependencies[0])
 }
 
 func seedStagedRuntime(t *testing.T, cacheDir string, cfg run.Runtime) {
@@ -217,4 +308,40 @@ func headHashForEnsureProject(repo *git.Repository, t *testing.T) plumbing.Hash 
 	head, err := repo.Head()
 	require.NoError(t, err)
 	return head.Hash()
+}
+
+func seedEnsureProjectDependencyRepo(
+	t *testing.T,
+	cacheDir string,
+	meta versioning.DependencyMeta,
+	tags []string,
+) {
+	t.Helper()
+
+	cachePath := meta.CachePath(cacheDir)
+	require.NoError(t, os.MkdirAll(cachePath, 0o755))
+
+	repo, err := git.PlainInit(cachePath, false)
+	require.NoError(t, err)
+
+	wt, err := repo.Worktree()
+	require.NoError(t, err)
+
+	for index, tagName := range tags {
+		require.NoError(t, os.WriteFile(filepath.Join(cachePath, "pawn.json"), []byte(`{"entry":"dep.pwn","output":"gamemodes/dep.amx"}`), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(cachePath, "dep.pwn"), []byte("main() { /* "+tagName+" */ }"), 0o644))
+		_, err = wt.Add("pawn.json")
+		require.NoError(t, err)
+		_, err = wt.Add("dep.pwn")
+		require.NoError(t, err)
+
+		hash, err := wt.Commit(tagName, &git.CommitOptions{
+			Author:    &object.Signature{Name: "test", Email: "test@example.com", When: time.Unix(int64(100+index), 0)},
+			Committer: &object.Signature{Name: "test", Email: "test@example.com", When: time.Unix(int64(100+index), 0)},
+		})
+		require.NoError(t, err)
+
+		_, err = repo.CreateTag(tagName, hash, nil)
+		require.NoError(t, err)
+	}
 }

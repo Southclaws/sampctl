@@ -81,6 +81,24 @@ func TestResolveDynamicDependencyReferenceLatestForceUpdatePrefersFreshRelease(t
 	assert.Equal(t, "v1.1.0", resolved.Tag)
 }
 
+func TestResolveDynamicDependencyReferenceLatestFallsBackToDefaultBranchWithoutTags(t *testing.T) {
+	t.Parallel()
+
+	cacheDir := t.TempDir()
+	meta := versioning.DependencyMeta{User: "fixture", Repo: "dep", Tag: "latest"}
+	seedLatestRepoWithoutTags(t, cacheDir, meta)
+
+	pctx := &PackageContext{
+		PackageServices: PackageServices{CacheDir: cacheDir},
+	}
+
+	resolved, err := pctx.resolveDynamicDependencyReference(context.Background(), meta, meta, true)
+	require.NoError(t, err)
+	assert.Empty(t, resolved.Tag)
+	assert.Empty(t, resolved.Branch)
+	assert.Empty(t, resolved.Commit)
+}
+
 func TestEnsurePackageLatestForceUpdateUsesResolvedTag(t *testing.T) {
 	t.Parallel()
 
@@ -139,4 +157,26 @@ func seedLatestTagRepo(t *testing.T, cacheDir string, meta versioning.Dependency
 		_, err = repo.CreateTag(tagName, hash, nil)
 		require.NoError(t, err)
 	}
+}
+
+func seedLatestRepoWithoutTags(t *testing.T, cacheDir string, meta versioning.DependencyMeta) {
+	t.Helper()
+
+	cachePath := meta.CachePath(cacheDir)
+	require.NoError(t, os.MkdirAll(cachePath, 0o755))
+
+	repo, err := git.PlainInit(cachePath, false)
+	require.NoError(t, err)
+	wt, err := repo.Worktree()
+	require.NoError(t, err)
+
+	require.NoError(t, os.WriteFile(filepath.Join(cachePath, "file.txt"), []byte("main"), 0o644))
+	_, err = wt.Add("file.txt")
+	require.NoError(t, err)
+
+	_, err = wt.Commit("main", &git.CommitOptions{
+		Author:    &object.Signature{Name: "test", Email: "test@example.com", When: time.Unix(100, 0)},
+		Committer: &object.Signature{Name: "test", Email: "test@example.com", When: time.Unix(100, 0)},
+	})
+	require.NoError(t, err)
 }
