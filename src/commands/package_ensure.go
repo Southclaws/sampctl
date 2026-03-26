@@ -9,6 +9,7 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/sys/gitcheck"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
@@ -54,6 +55,10 @@ func packageEnsureFlags() []cli.Flag {
 }
 
 func packageEnsure(c *cli.Context) error {
+	if err := gitcheck.RequireInstalled(); err != nil {
+		return err
+	}
+
 	dir := fs.MustAbs(c.String("dir"))
 	updateRequest, err := parseEnsureUpdateRequest(c)
 	if err != nil {
