@@ -143,27 +143,36 @@ func TestCloneWithoutDefaults(t *testing.T) {
 	hostname := "Custom"
 	maxPlayers := 75
 	language := "English"
+	connectCookies := false
+	maxBots := 10
 	mode := MainOnly
 	runtimeType := RuntimeTypeOpenMP
 	mapname := "San Andreas"
+	game := map[string]any{"weather": "sunny"}
+	extra := map[string]string{"feature": "enabled"}
 
 	rt := &Runtime{
-		WorkingDir:    "/tmp/project",
-		Platform:      "linux",
-		Format:        "json",
-		Version:       "v1.0.0-openmp",
-		Mode:          mode,
-		RuntimeType:   runtimeType,
-		RootLink:      rootLink,
-		Gamemodes:     []string{"gm"},
-		Filterscripts: []string{"fs"},
-		Plugins:       []Plugin{"plugin"},
-		RCONPassword:  &rconPassword,
-		Port:          &port,
-		Hostname:      &hostname,
-		MaxPlayers:    &maxPlayers,
-		Language:      &language,
-		Mapname:       &mapname,
+		WorkingDir:     "/tmp/project",
+		Platform:       "linux",
+		Format:         "json",
+		Version:        "v1.0.0-openmp",
+		Mode:           mode,
+		RuntimeType:    runtimeType,
+		RootLink:       rootLink,
+		Gamemodes:      []string{"gm"},
+		Filterscripts:  []string{"fs"},
+		Plugins:        []Plugin{"plugin"},
+		Components:     []Plugin{"Pawn"},
+		RCONPassword:   &rconPassword,
+		Port:           &port,
+		Hostname:       &hostname,
+		MaxPlayers:     &maxPlayers,
+		Language:       &language,
+		Mapname:        &mapname,
+		ConnectCookies: &connectCookies,
+		Extra:          extra,
+		MaxBots:        &maxBots,
+		Game:           game,
 	}
 
 	cloned := CloneWithoutDefaults(rt)
@@ -178,6 +187,13 @@ func TestCloneWithoutDefaults(t *testing.T) {
 	assert.Equal(t, maxPlayers, *cloned.MaxPlayers)
 	assert.Equal(t, language, *cloned.Language)
 	assert.Equal(t, mapname, *cloned.Mapname)
+	assert.Equal(t, rt.Components, cloned.Components)
+	require.NotNil(t, cloned.ConnectCookies)
+	assert.Equal(t, connectCookies, *cloned.ConnectCookies)
+	assert.Equal(t, extra, cloned.Extra)
+	require.NotNil(t, cloned.MaxBots)
+	assert.Equal(t, maxBots, *cloned.MaxBots)
+	assert.Equal(t, game, cloned.Game)
 
 	defaultLanguage := "-"
 	defaultPort := 8192

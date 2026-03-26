@@ -100,10 +100,7 @@ func packageTemplateRun(c *cli.Context) (err error) {
 	pcx.BuildFile = ""
 	pcx.Relative = false
 
-	pcx.Package.Runtime = &run.Runtime{
-		Version: version,
-		Mode:    run.RunMode(mode),
-	}
+	pcx.Package.Runtime = templateRunRuntime(pcx.Package.Runtime, version, run.RunMode(mode))
 
 	err = pcx.Run(ctx, os.Stdout, os.Stdin)
 	if err != nil {
@@ -111,4 +108,19 @@ func packageTemplateRun(c *cli.Context) (err error) {
 	}
 
 	return nil
+}
+
+func templateRunRuntime(base *run.Runtime, version string, mode run.RunMode) *run.Runtime {
+	if base == nil {
+		return &run.Runtime{
+			Version: version,
+			Mode:    mode,
+		}
+	}
+
+	cloned := *base
+	cloned.Version = version
+	cloned.Mode = mode
+
+	return &cloned
 }
