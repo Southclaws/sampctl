@@ -43,7 +43,7 @@ func GetPackageListWithClientContext(ctx context.Context, cacheDir string, clien
 		TTL:      time.Hour * 24 * 7,
 		DirPerm:  fs.PermDirPrivate,
 		FilePerm: fs.PermFileShared,
-		Fetch: func(ctx context.Context) ([]pawnpackage.Package, error) {
+		Fetch: func(ctx context.Context) (out []pawnpackage.Package, err error) {
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://list.packages.sampctl.com", nil)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to create request")
@@ -52,11 +52,14 @@ func GetPackageListWithClientContext(ctx context.Context, cacheDir string, clien
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to download package list")
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+					err = errors.Wrap(closeErr, "failed to close package list response body")
+				}
+			}()
 			if resp.StatusCode != 200 {
 				return nil, errors.Errorf("package list status %s", resp.Status)
 			}
-			var out []pawnpackage.Package
 			if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 				return nil, errors.Wrap(err, "failed to decode package list")
 			}
@@ -99,7 +102,7 @@ func UpdatePackageListWithClientContext(ctx context.Context, cacheDir string, cl
 		TTL:      -1,
 		DirPerm:  fs.PermDirPrivate,
 		FilePerm: fs.PermFileShared,
-		Fetch: func(ctx context.Context) ([]pawnpackage.Package, error) {
+		Fetch: func(ctx context.Context) (out []pawnpackage.Package, err error) {
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://list.packages.sampctl.com", nil)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to create request")
@@ -108,11 +111,14 @@ func UpdatePackageListWithClientContext(ctx context.Context, cacheDir string, cl
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to download package list")
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+					err = errors.Wrap(closeErr, "failed to close package list response body")
+				}
+			}()
 			if resp.StatusCode != 200 {
 				return nil, errors.Errorf("package list status %s", resp.Status)
 			}
-			var out []pawnpackage.Package
 			if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 				return nil, errors.Wrap(err, "failed to decode package list")
 			}

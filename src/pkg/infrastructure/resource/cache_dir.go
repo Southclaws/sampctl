@@ -13,7 +13,9 @@ func ensureCacheDir(cacheDirPath string) error {
 		// Backward compatibility: older cache layout may have stored a file
 		// where we now expect a directory.
 		if info, statErr := os.Stat(cacheDirPath); statErr == nil && !info.IsDir() {
-			_ = os.Remove(cacheDirPath)
+			if removeErr := os.Remove(cacheDirPath); removeErr != nil {
+				return errors.Wrap(removeErr, "failed to remove stale cache file")
+			}
 			if retryErr := fs.EnsureDir(cacheDirPath, fs.PermDirPrivate); retryErr == nil {
 				return nil
 			}

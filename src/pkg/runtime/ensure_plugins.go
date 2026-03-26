@@ -277,11 +277,10 @@ func detectArchiveExt(filename string) string {
 	if err != nil {
 		return ""
 	}
-	defer f.Close()
 
 	var b [4]byte
 	_, err = f.Read(b[:])
-	if err != nil {
+	if errClose := f.Close(); err != nil || errClose != nil {
 		return ""
 	}
 

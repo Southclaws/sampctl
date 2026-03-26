@@ -412,14 +412,18 @@ func (pcx PackageContext) cloneRepository(from, to, branch string, ssh bool) (*g
 	repo, err := pcx.PackageServices.repositoryStore().Clone(to, false, cloneOpts)
 	if err != nil {
 		print.Verb("clone failed, cleaning up:", err)
-		os.RemoveAll(to)
+		if removeErr := os.RemoveAll(to); removeErr != nil {
+			print.Warn("failed to clean up clone directory:", removeErr)
+		}
 		return nil, errors.Wrap(err, "failed to clone repository")
 	}
 
 	valid, validationErr := pcx.PackageServices.repositoryHealth().Validate(to)
 	if validationErr != nil || !valid {
 		print.Verb("cloned repository failed validation")
-		os.RemoveAll(to)
+		if removeErr := os.RemoveAll(to); removeErr != nil {
+			print.Warn("failed to clean up invalid clone directory:", removeErr)
+		}
 		if validationErr != nil {
 			return nil, errors.Wrap(validationErr, "cloned repository is invalid")
 		}

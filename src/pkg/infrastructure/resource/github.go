@@ -131,7 +131,9 @@ func (ghr *GitHubReleaseResource) cachedResolvedLatest() (bool, string) {
 			path:    cachedPath,
 			modTime: info.ModTime(),
 		}
-		candidate.semver, _ = semver.NewVersion(entry.Name())
+		if parsedVersion, versionErr := semver.NewVersion(entry.Name()); versionErr == nil {
+			candidate.semver = parsedVersion
+		}
 
 		if !found || candidateIsNewer(candidate, best) {
 			best = candidate
@@ -312,7 +314,9 @@ func (ghr *GitHubReleaseResource) Ensure(ctx context.Context, version, path stri
 				if copyErr := util.CopyFile(filename, newFilename); copyErr != nil {
 					return errors.Wrap(err, "failed to move downloaded asset")
 				}
-				_ = os.Remove(filename)
+				if removeErr := os.Remove(filename); removeErr != nil && !os.IsNotExist(removeErr) {
+					return errors.Wrap(removeErr, "failed to remove original downloaded asset after copy")
+				}
 			}
 			filename = newFilename
 		}

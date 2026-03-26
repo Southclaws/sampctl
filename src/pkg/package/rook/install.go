@@ -51,7 +51,9 @@ func Get(options GetOptions) (err error) {
 	valid, validationErr := pkgcontext.ValidateRepository(options.Dir)
 	if validationErr != nil || !valid {
 		print.Verb("cloned repository failed validation, cleaning up")
-		os.RemoveAll(options.Dir)
+		if removeErr := os.RemoveAll(options.Dir); removeErr != nil {
+			print.Warn("failed to clean up invalid clone:", removeErr)
+		}
 		if validationErr != nil {
 			return errors.Wrap(validationErr, "cloned repository is invalid")
 		}
@@ -61,7 +63,9 @@ func Get(options GetOptions) (err error) {
 	_, err = repo.Head()
 	if err != nil {
 		print.Verb("cloned repository has invalid HEAD, cleaning up")
-		os.RemoveAll(options.Dir)
+		if removeErr := os.RemoveAll(options.Dir); removeErr != nil {
+			print.Warn("failed to clean up clone with invalid HEAD:", removeErr)
+		}
 		return errors.Wrap(err, "cloned repository has invalid HEAD")
 	}
 

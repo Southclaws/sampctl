@@ -106,7 +106,9 @@ func (gr *GitResource) Ensure(ctx context.Context, version, path string) error {
 	}
 
 	// If the path exists (potentially because cache TTL expired), remove it so clone succeeds.
-	_ = os.RemoveAll(cachePath)
+	if err := os.RemoveAll(cachePath); err != nil {
+		return errors.Wrap(err, "failed to remove expired git cache path")
+	}
 	if err := os.MkdirAll(filepath.Dir(cachePath), 0o700); err != nil {
 		return errors.Wrap(err, "failed to create parent cache directory")
 	}

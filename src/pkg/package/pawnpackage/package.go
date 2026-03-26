@@ -269,7 +269,9 @@ func (pkg Package) GetBuildConfig(name string) (config *build.Config) {
 			config = selected
 
 			if pkg.Build != nil && config != pkg.Build {
-				_ = mergo.Merge(config, pkg.Build)
+				if mergeErr := mergo.Merge(config, pkg.Build); mergeErr != nil {
+					print.Warn("failed to merge build config defaults:", mergeErr)
+				}
 			}
 		}
 	}
@@ -319,7 +321,10 @@ func (pkg Package) GetRuntimeConfig(name string) (config run.Runtime, err error)
 		config = *selected
 
 		if pkg.Runtime != nil {
-			_ = mergo.Merge(&config, pkg.Runtime, mergo.WithOverride)
+			if mergeErr := mergo.Merge(&config, pkg.Runtime, mergo.WithOverride); mergeErr != nil {
+				err = errors.Wrap(mergeErr, "failed to merge runtime config defaults")
+				return
+			}
 		}
 
 		if name == "" {

@@ -98,3 +98,26 @@ func TestWriteConfigWritesJSONFile(t *testing.T) {
 	require.NotNil(t, got.HideVersionUpdateMessage)
 	assert.True(t, *got.HideVersionUpdateMessage)
 }
+
+func TestLoadOrCreateConfigAppliesEnvironmentOverrides(t *testing.T) {
+	t.Setenv("SAMPCTL_DEFAULT_USER", "env-user")
+	t.Setenv("SAMPCTL_GITHUB_TOKEN", "env-token")
+	t.Setenv("SAMPCTL_GIT_USERNAME", "env-git-user")
+	t.Setenv("SAMPCTL_GIT_PASSWORD", "env-git-password")
+	t.Setenv("SAMPCTL_HIDE_VERSION_UPDATE_MESSAGE", "true")
+	t.Setenv("CI", "1")
+
+	cacheDir := t.TempDir()
+	contents := []byte(`{"default_user":"file-user","hide_version_update_message":false}`)
+	require.NoError(t, os.WriteFile(filepath.Join(cacheDir, "config.json"), contents, 0o600))
+
+	cfg, err := LoadOrCreateConfig(cacheDir)
+	require.NoError(t, err)
+	assert.Equal(t, "env-user", cfg.DefaultUser)
+	assert.Equal(t, "env-token", cfg.GitHubToken)
+	assert.Equal(t, "env-git-user", cfg.GitUsername)
+	assert.Equal(t, "env-git-password", cfg.GitPassword)
+	require.NotNil(t, cfg.HideVersionUpdateMessage)
+	assert.True(t, *cfg.HideVersionUpdateMessage)
+	assert.Equal(t, "1", cfg.CI)
+}

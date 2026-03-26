@@ -316,7 +316,7 @@ func fetchRemoteDefinition(ctx context.Context, client *http.Client, candidates 
 	return Package{}, lastErr
 }
 
-func fetchCandidate(ctx context.Context, client *http.Client, candidate remoteCandidate) (Package, error) {
+func fetchCandidate(ctx context.Context, client *http.Client, candidate remoteCandidate) (pkg Package, err error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, candidate.url, nil)
 	if err != nil {
 		return Package{}, errors.Wrap(err, "failed to build remote definition request")
@@ -330,7 +330,11 @@ func fetchCandidate(ctx context.Context, client *http.Client, candidate remoteCa
 	if err != nil {
 		return Package{}, errors.Wrap(err, "failed to fetch remote definition")
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+			err = errors.Wrap(closeErr, "failed to close remote definition response body")
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		if candidate.onStatusError != nil {
@@ -339,7 +343,6 @@ func fetchCandidate(ctx context.Context, client *http.Client, candidate remoteCa
 		return Package{}, errors.Errorf("remote responded with %d for %s", resp.StatusCode, candidate.url)
 	}
 
-	var pkg Package
 	switch candidate.format {
 	case "json":
 		err = json.NewDecoder(resp.Body).Decode(&pkg)

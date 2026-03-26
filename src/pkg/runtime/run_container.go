@@ -105,7 +105,7 @@ func RunContainer(
 	ctxPrepare, cancel := context.WithTimeout(ctx, time.Minute*10)
 	defer cancel()
 
-	var cnt container.ContainerCreateCreatedBody
+	var cnt container.CreateResponse
 	cnt, err = cli.ContainerCreate(
 		ctxPrepare,
 		containerConfig,
@@ -158,7 +158,7 @@ func RunContainer(
 	}()
 
 	print.Info("Starting container...")
-	err = cli.ContainerStart(ctx, cnt.ID, types.ContainerStartOptions{})
+	err = cli.ContainerStart(ctx, cnt.ID, container.StartOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to start container")
 	}
@@ -168,7 +168,7 @@ func RunContainer(
 
 	// Get logs and wait for exit
 
-	reader, err := cli.ContainerLogs(runCtx, cnt.ID, types.ContainerLogsOptions{
+	reader, err := cli.ContainerLogs(runCtx, cnt.ID, container.LogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 		Follow:     true,
@@ -229,15 +229,15 @@ func RunContainer(
 
 type containerStopper interface {
 	ContainerKill(ctx context.Context, containerID, signal string) error
-	ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.ContainerWaitOKBody, <-chan error)
+	ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.WaitResponse, <-chan error)
 }
 
 type containerRemover interface {
-	ContainerRemove(ctx context.Context, containerID string, options types.ContainerRemoveOptions) error
+	ContainerRemove(ctx context.Context, containerID string, options container.RemoveOptions) error
 }
 
 type containerWaiter interface {
-	ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.ContainerWaitOKBody, <-chan error)
+	ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.WaitResponse, <-chan error)
 }
 
 func stopContainer(ctx context.Context, cli containerStopper, containerID string) error {
@@ -270,7 +270,7 @@ func removeContainer(ctx context.Context, cli containerRemover, containerID stri
 	removeCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	return cli.ContainerRemove(removeCtx, containerID, types.ContainerRemoveOptions{Force: true})
+	return cli.ContainerRemove(removeCtx, containerID, container.RemoveOptions{Force: true})
 }
 
 func waitForContainerExit(ctx context.Context, cli containerWaiter, containerID string) error {

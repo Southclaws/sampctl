@@ -238,18 +238,6 @@ func (pcx *PackageContext) startWatchedRuntime(ctx context.Context, running *ato
 	return done
 }
 
-func stopWatchedRuntime(stop context.CancelFunc, done <-chan error, running *atomic.Bool) <-chan error {
-	if done == nil || !running.Load() {
-		return done
-	}
-
-	fmt.Println("watch-run: killing existing runtime process")
-	stop()
-	<-done
-	fmt.Println("watch-run: killed existing runtime process")
-	return nil
-}
-
 func hasBlockingBuildProblem(problems build.Problems) bool {
 	for _, problem := range problems {
 		if problem.Severity > build.ProblemWarning {

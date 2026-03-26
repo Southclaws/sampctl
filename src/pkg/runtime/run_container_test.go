@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/stretchr/testify/require"
 )
@@ -14,10 +13,10 @@ import (
 type fakeContainerRemover struct {
 	called      bool
 	containerID string
-	options     types.ContainerRemoveOptions
+	options     container.RemoveOptions
 }
 
-func (f *fakeContainerRemover) ContainerRemove(_ context.Context, containerID string, options types.ContainerRemoveOptions) error {
+func (f *fakeContainerRemover) ContainerRemove(_ context.Context, containerID string, options container.RemoveOptions) error {
 	f.called = true
 	f.containerID = containerID
 	f.options = options
@@ -45,12 +44,12 @@ func TestRemoveContainerSkipsEmptyID(t *testing.T) {
 }
 
 type fakeContainerWaiter struct {
-	response container.ContainerWaitOKBody
+	response container.WaitResponse
 	err      error
 }
 
-func (f fakeContainerWaiter) ContainerWait(_ context.Context, _ string, _ container.WaitCondition) (<-chan container.ContainerWaitOKBody, <-chan error) {
-	responseCh := make(chan container.ContainerWaitOKBody, 1)
+func (f fakeContainerWaiter) ContainerWait(_ context.Context, _ string, _ container.WaitCondition) (<-chan container.WaitResponse, <-chan error) {
+	responseCh := make(chan container.WaitResponse, 1)
 	errCh := make(chan error, 1)
 
 	if f.err != nil {
@@ -66,7 +65,7 @@ func TestWaitForContainerExitAllowsZeroStatus(t *testing.T) {
 	t.Parallel()
 
 	err := waitForContainerExit(context.Background(), fakeContainerWaiter{
-		response: container.ContainerWaitOKBody{StatusCode: 0},
+		response: container.WaitResponse{StatusCode: 0},
 	}, "container-id")
 	require.NoError(t, err)
 }
@@ -75,9 +74,9 @@ func TestWaitForContainerExitRejectsNonZeroStatus(t *testing.T) {
 	t.Parallel()
 
 	err := waitForContainerExit(context.Background(), fakeContainerWaiter{
-		response: container.ContainerWaitOKBody{
+		response: container.WaitResponse{
 			StatusCode: 137,
-			Error:      &container.ContainerWaitOKBodyError{Message: "terminated"},
+			Error:      &container.WaitExitError{Message: "terminated"},
 		},
 	}, "container-id")
 	require.EqualError(t, err, "container exited with status code 137: terminated")
@@ -87,7 +86,7 @@ type fakeContainerStopper struct {
 	killCalled   bool
 	killSignal   string
 	killErr      error
-	waitResponse container.ContainerWaitOKBody
+	waitResponse container.WaitResponse
 	waitErr      error
 	waitDelay    time.Duration
 }
@@ -98,8 +97,8 @@ func (f *fakeContainerStopper) ContainerKill(_ context.Context, _ string, signal
 	return f.killErr
 }
 
-func (f *fakeContainerStopper) ContainerWait(ctx context.Context, _ string, _ container.WaitCondition) (<-chan container.ContainerWaitOKBody, <-chan error) {
-	responseCh := make(chan container.ContainerWaitOKBody, 1)
+func (f *fakeContainerStopper) ContainerWait(ctx context.Context, _ string, _ container.WaitCondition) (<-chan container.WaitResponse, <-chan error) {
+	responseCh := make(chan container.WaitResponse, 1)
 	errCh := make(chan error, 1)
 
 	go func() {
@@ -125,7 +124,7 @@ func (f *fakeContainerStopper) ContainerWait(ctx context.Context, _ string, _ co
 func TestStopContainerSendsSIGINTAndWaits(t *testing.T) {
 	t.Parallel()
 
-	cli := &fakeContainerStopper{waitResponse: container.ContainerWaitOKBody{StatusCode: 0}}
+	cli := &fakeContainerStopper{waitResponse: container.WaitResponse{StatusCode: 0}}
 	err := stopContainer(context.Background(), cli, "container-id")
 	require.NoError(t, err)
 	require.True(t, cli.killCalled)

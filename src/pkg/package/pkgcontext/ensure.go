@@ -308,12 +308,16 @@ func (pcx *PackageContext) ensureFilterscriptDependency(ctx context.Context, met
 	return nil
 }
 
-func hashOutputFile(path string) (string, error) {
+func hashOutputFile(path string) (hash string, err error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	h := sha256.New()
 	if _, err := io.Copy(h, file); err != nil {

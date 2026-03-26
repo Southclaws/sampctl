@@ -78,7 +78,9 @@ func packageConfig(c *cli.Context) error {
 		}
 	}
 
-	config.WriteConfig(env.CacheDir, *cnf)
+	if err := config.WriteConfig(env.CacheDir, *cnf); err != nil {
+		return err
+	}
 	print.Info("successfully set config field", field, "to", value)
 
 	return nil

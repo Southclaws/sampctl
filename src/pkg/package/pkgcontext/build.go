@@ -94,7 +94,11 @@ func (pcx *PackageContext) BuildWatch(ctx context.Context, options BuildOptions)
 	if err != nil {
 		return errors.Wrap(err, "failed to create new filesystem watcher")
 	}
-	defer watcher.Close()
+	defer func() {
+		if closeErr := watcher.Close(); closeErr != nil && err == nil {
+			err = errors.Wrap(closeErr, "failed to close filesystem watcher")
+		}
+	}()
 
 	watchPath := pcx.Package.LocalPath
 	if pcx.Package.Entry != "" {

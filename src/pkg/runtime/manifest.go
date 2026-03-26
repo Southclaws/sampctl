@@ -99,15 +99,19 @@ func buildRuntimeManifest(root string, cfg run.Runtime) (runtimeManifest, error)
 	return manifest, nil
 }
 
-func hashFile(path string) (string, int64, error) {
+func hashFile(path string) (hash string, size int64, err error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return "", 0, err
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	h := sha256.New()
-	size, err := io.Copy(h, file)
+	size, err = io.Copy(h, file)
 	if err != nil {
 		return "", 0, err
 	}
@@ -180,20 +184,30 @@ func copyFileWithMode(src, dest string, mode os.FileMode) error {
 	if err != nil {
 		return err
 	}
-	defer in.Close()
-
 	out, err := os.OpenFile(dest, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, mode)
 	if err != nil {
+		if closeErr := in.Close(); closeErr != nil {
+			return closeErr
+		}
 		return err
 	}
-	defer func() {
-		_ = out.Close()
-	}()
 
 	if _, err := io.Copy(out, in); err != nil {
+		if closeErr := out.Close(); closeErr != nil {
+			return closeErr
+		}
+		if closeErr := in.Close(); closeErr != nil {
+			return closeErr
+		}
 		return err
 	}
-	return out.Close()
+	if err := out.Close(); err != nil {
+		if closeErr := in.Close(); closeErr != nil {
+			return closeErr
+		}
+		return err
+	}
+	return in.Close()
 }
 
 func removeRuntimeFiles(manifest runtimeManifest, root string) error {
@@ -220,7 +234,9 @@ func removeRuntimeFiles(manifest runtimeManifest, root string) error {
 		if dir == root || dir == "." {
 			continue
 		}
-		_ = os.Remove(dir)
+		if err := removeEmptyRuntimeDir(dir); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -239,6 +255,26 @@ func manifestsEqual(a, b runtimeManifest) bool {
 		}
 	}
 	return true
+}
+
+func removeEmptyRuntimeDir(dir string) error {
+	err := os.Remove(dir)
+	if err == nil || os.IsNotExist(err) {
+		return nil
+	}
+
+	entries, readErr := os.ReadDir(dir)
+	if readErr == nil && len(entries) > 0 {
+		return nil
+	}
+	if os.IsNotExist(readErr) {
+		return nil
+	}
+	if readErr != nil {
+		return errors.Wrapf(readErr, "failed to inspect runtime directory %s", dir)
+	}
+
+	return errors.Wrapf(err, "failed to remove runtime directory %s", dir)
 }
 
 func runtimeManifestPath(root string) string {

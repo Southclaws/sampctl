@@ -57,7 +57,7 @@ func GetRuntimeListWithClientContext(ctx context.Context, cacheDir string, clien
 		TTL:      time.Hour * 24 * 7,
 		DirPerm:  fs.PermDirPrivate,
 		FilePerm: fs.PermFileShared,
-		Fetch: func(ctx context.Context) (Runtimes, error) {
+		Fetch: func(ctx context.Context) (out Runtimes, err error) {
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://raw.githubusercontent.com/sampctl/runtimes/master/runtimes.json", nil)
 			if err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to create request")
@@ -66,11 +66,14 @@ func GetRuntimeListWithClientContext(ctx context.Context, cacheDir string, clien
 			if err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to download package list")
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+					err = errors.Wrap(closeErr, "failed to close runtime list response body")
+				}
+			}()
 			if resp.StatusCode != 200 {
 				return Runtimes{}, errors.Errorf("package list status %s", resp.Status)
 			}
-			var out Runtimes
 			if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to decode package list")
 			}
@@ -110,7 +113,7 @@ func UpdateRuntimeListWithClientContext(ctx context.Context, cacheDir string, cl
 		TTL:      -1,
 		DirPerm:  fs.PermDirPrivate,
 		FilePerm: fs.PermFileShared,
-		Fetch: func(ctx context.Context) (Runtimes, error) {
+		Fetch: func(ctx context.Context) (out Runtimes, err error) {
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://raw.githubusercontent.com/sampctl/runtimes/master/runtimes.json", nil)
 			if err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to create request")
@@ -119,11 +122,14 @@ func UpdateRuntimeListWithClientContext(ctx context.Context, cacheDir string, cl
 			if err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to download package list")
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+					err = errors.Wrap(closeErr, "failed to close runtime list response body")
+				}
+			}()
 			if resp.StatusCode != 200 {
 				return Runtimes{}, errors.Errorf("package list status %s", resp.Status)
 			}
-			var out Runtimes
 			if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to decode package list")
 			}

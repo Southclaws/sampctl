@@ -7,9 +7,7 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 )
 
-var (
-	version = "master"
-)
+var version = "master"
 
 func main() {
 	if err := commands.Run(os.Args, version); err != nil {

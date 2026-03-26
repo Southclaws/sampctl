@@ -1,6 +1,6 @@
 package run
 
-// RuntimeDefaults holds the default values that configor applies to Runtime fields.
+// RuntimeDefaults holds the default values that the runtime loader applies to Runtime fields.
 // Keeping these values alongside the Runtime type ensures writers can stay in sync
 // with loader behaviour when new fields are introduced.
 type RuntimeDefaults struct {
@@ -11,7 +11,7 @@ type RuntimeDefaults struct {
 	Language     string
 }
 
-// GetRuntimeDefaultValues returns the configor defaults for runtime fields that
+// GetRuntimeDefaultValues returns the runtime loader defaults for fields that
 // we serialise conditionally.
 func GetRuntimeDefaultValues() RuntimeDefaults {
 	return RuntimeDefaults{

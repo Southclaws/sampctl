@@ -516,24 +516,40 @@ func (p *compilerOutputParser) handleResultLine(line string) {
 	}
 
 	if g := matchHeader.FindStringSubmatch(line); len(g) == 2 {
-		p.result.Header, _ = strconv.Atoi(g[1])
+		if value, err := strconv.Atoi(g[1]); err == nil {
+			p.result.Header = value
+		}
 		return
 	}
 	if g := matchCode.FindStringSubmatch(line); len(g) == 2 {
-		p.result.Code, _ = strconv.Atoi(g[1])
+		if value, err := strconv.Atoi(g[1]); err == nil {
+			p.result.Code = value
+		}
 		return
 	}
 	if g := matchData.FindStringSubmatch(line); len(g) == 2 {
-		p.result.Data, _ = strconv.Atoi(g[1])
+		if value, err := strconv.Atoi(g[1]); err == nil {
+			p.result.Data = value
+		}
 		return
 	}
 	if g := matchStack.FindStringSubmatch(line); len(g) == 3 {
-		p.result.StackHeap, _ = strconv.Atoi(g[1])
-		p.result.Estimate, _ = strconv.Atoi(g[2])
+		stackHeap, err := strconv.Atoi(g[1])
+		if err != nil {
+			return
+		}
+		estimate, err := strconv.Atoi(g[2])
+		if err != nil {
+			return
+		}
+		p.result.StackHeap = stackHeap
+		p.result.Estimate = estimate
 		return
 	}
 	if g := matchTotal.FindStringSubmatch(line); len(g) == 2 {
-		p.result.Total, _ = strconv.Atoi(g[1])
+		if value, err := strconv.Atoi(g[1]); err == nil {
+			p.result.Total = value
+		}
 		return
 	}
 

@@ -71,7 +71,7 @@ func defaultDependencyOverridesCachePath() (string, error) {
 }
 
 // downloadRemoteOverrides downloads dependency overrides from the remote URL.
-func downloadRemoteOverrides(ctx context.Context, url, cachePath string) error {
+func downloadRemoteOverrides(ctx context.Context, url, cachePath string) (err error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
@@ -80,7 +80,11 @@ func downloadRemoteOverrides(ctx context.Context, url, cachePath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to download overrides: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("failed to close overrides response body: %w", closeErr)
+		}
+	}()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to download overrides: HTTP %d", resp.StatusCode)
 	}

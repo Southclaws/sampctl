@@ -589,7 +589,11 @@ func splitRepositorySpec(spec string) (user, repo string, err error) {
 }
 
 func validateRepositorySpec(ans any) error {
-	_, _, err := splitRepositorySpec(ans.(string))
+	value, ok := ans.(string)
+	if !ok {
+		return errors.New("repository must be a string")
+	}
+	_, _, err := splitRepositorySpec(value)
 	return err
 }
 
@@ -765,14 +769,22 @@ func templateFileContents(ctx context.Context, filename string, answers Answers)
 }
 
 func validateUser(ans any) (err error) {
-	if strings.ContainsAny(ans.(string), ` :;/\\~`) {
+	value, ok := ans.(string)
+	if !ok {
+		return errors.New("user must be a string")
+	}
+	if strings.ContainsAny(value, ` :;/\\~`) {
 		return errors.New("Contains invalid characters")
 	}
 	return
 }
 
 func validateRepo(ans any) (err error) {
-	if strings.ContainsAny(ans.(string), ` :;/\\~`) {
+	value, ok := ans.(string)
+	if !ok {
+		return errors.New("repo must be a string")
+	}
+	if strings.ContainsAny(value, ` :;/\\~`) {
 		return errors.New("Contains invalid characters")
 	}
 	return

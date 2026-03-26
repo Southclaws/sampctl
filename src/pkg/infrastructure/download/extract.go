@@ -149,7 +149,9 @@ loop:
 				return nil, errors.Wrap(err, "failed to open extract target file")
 			}
 			if _, err = io.Copy(file, tr); err != nil {
-				_ = file.Close()
+				if errClose := file.Close(); errClose != nil {
+					print.Warn("failed to close extract target file after copy error:", errClose)
+				}
 				return nil, errors.Wrap(err, "failed to copy archive file to destination")
 			}
 			if errClose := file.Close(); errClose != nil {
@@ -228,18 +230,26 @@ func UnzipWithIgnore(src, dst string, paths map[string]string, ignorePatterns []
 			var file *os.File
 			file, err = os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, header.Mode())
 			if err != nil {
-				_ = archivedFile.Close()
+				if errClose := archivedFile.Close(); errClose != nil {
+					print.Warn("failed to close archived file after open error:", errClose)
+				}
 				return nil, errors.Wrap(err, "failed to open extract target file")
 			}
 
 			_, err = io.Copy(file, archivedFile)
 			if err != nil {
-				_ = file.Close()
-				_ = archivedFile.Close()
+				if errClose := file.Close(); errClose != nil {
+					print.Warn("failed to close extract target file after copy error:", errClose)
+				}
+				if errClose := archivedFile.Close(); errClose != nil {
+					print.Warn("failed to close archived file after copy error:", errClose)
+				}
 				return nil, errors.Wrap(err, "failed to copy archive file to destination")
 			}
 			if errClose := file.Close(); errClose != nil {
-				_ = archivedFile.Close()
+				if archivedCloseErr := archivedFile.Close(); archivedCloseErr != nil {
+					print.Warn("failed to close archived file after target close error:", archivedCloseErr)
+				}
 				return nil, errors.Wrap(errClose, "failed to close extract target file")
 			}
 			if errClose := archivedFile.Close(); errClose != nil {

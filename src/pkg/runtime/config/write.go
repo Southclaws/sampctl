@@ -1,7 +1,7 @@
 package run
 
 // CloneWithoutDefaults creates a copy of Runtime with default values removed so
-// configor-applied defaults are not persisted back to disk.
+// loader-applied defaults are not persisted back to disk.
 func CloneWithoutDefaults(rt *Runtime) *Runtime {
 	if rt == nil {
 		return nil

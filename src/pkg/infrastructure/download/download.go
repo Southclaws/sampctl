@@ -4,6 +4,7 @@ package download
 
 import (
 	"context"
+	stderrors "errors"
 	"io"
 	"math/rand/v2"
 	"mime"
@@ -132,27 +133,22 @@ func MigrateOldConfig(cacheDir string) error {
 }
 
 // FromCache first checks if a file is cached, then extracts it if present.
-func FromCache(request CacheExtractRequest) (hit bool, err error) {
+func FromCache(request CacheExtractRequest) (bool, error) {
 	path := filepath.Join(request.CacheDir, request.Filename)
 
 	if !fs.Exists(path) {
-		hit = false
-		return
+		return false, nil
 	}
 
-	var files map[string]string
-	files, err = request.Method(path, request.Dir, request.Paths)
+	files, err := request.Method(path, request.Dir, request.Paths)
 	if err != nil {
-		hit = false
-		err = errors.Wrapf(err, "failed to unzip package %s", path)
-		return
+		return false, errors.Wrapf(err, "failed to unzip package %s", path)
 	}
 
 	if fs.IsPosixPlatform(request.Platform) {
 		print.Verb("setting permissions for binaries")
 	}
 	if err := fs.ChmodAllIfPosix(request.Platform, files, fs.PermFileExec); err != nil {
-		hit = false
 		return false, err
 	}
 
@@ -200,8 +196,10 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 
 		if resp.StatusCode != http.StatusOK {
 			retryable := (resp.StatusCode >= 500 && resp.StatusCode <= 599) || resp.StatusCode == http.StatusTooManyRequests
-			_, _ = io.CopyN(io.Discard, resp.Body, 32*1024)
-			_ = resp.Body.Close()
+			if _, copyErr := io.CopyN(io.Discard, resp.Body, 32*1024); copyErr != nil && !stderrors.Is(copyErr, io.EOF) {
+				print.Warn("failed to drain unsuccessful download response:", copyErr)
+			}
+			closeWithWarning(resp.Body, "download response body")
 			lastErr = errors.Errorf("unexpected status code given %d", resp.StatusCode)
 			err = lastErr
 			if !retryable {
@@ -231,7 +229,7 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 		if ct != "" {
 			if t, _, parseErr := mime.ParseMediaType(ct); parseErr == nil {
 				if !(strings.HasPrefix(t, "application/") || strings.HasPrefix(t, "text/")) {
-					_ = resp.Body.Close()
+					closeWithWarning(resp.Body, "download response body")
 					lastErr = errors.Errorf("content has unexpected content type %s", t)
 					err = lastErr
 					if attempt < maxAttempts {
@@ -244,7 +242,7 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 		}
 
 		if writeErr := fs.WriteFromReaderAtomic(cachePath, resp.Body, fs.PermDirPrivate, fs.PermFileShared); writeErr != nil {
-			_ = resp.Body.Close()
+			closeWithWarning(resp.Body, "download response body")
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return "", ctxErr
 			}
@@ -258,7 +256,9 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 			}
 			return "", err
 		}
-		_ = resp.Body.Close()
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			return "", errors.Wrap(closeErr, "failed to close download response body")
+		}
 		return cachePath, nil
 	}
 
@@ -393,9 +393,12 @@ func downloadReleaseAsset(request ReleaseAssetDownloadRequest) (string, error) {
 		if rc == nil {
 			return "", errors.New("empty response body for release asset download")
 		}
-		defer rc.Close()
 		if writeErr := fs.WriteFromReaderAtomic(request.Destination, rc, fs.PermDirPrivate, fs.PermFileShared); writeErr != nil {
+			closeWithWarning(rc, "release asset response body")
 			return "", errors.Wrap(writeErr, "failed to write package to cache")
+		}
+		if closeErr := rc.Close(); closeErr != nil {
+			return "", errors.Wrap(closeErr, "failed to close release asset response body")
 		}
 		return request.Destination, nil
 	}
@@ -404,6 +407,15 @@ func downloadReleaseAsset(request ReleaseAssetDownloadRequest) (string, error) {
 		return "", errors.New("release asset has no download URL")
 	}
 	return FromNet(request.Context, *request.Asset.BrowserDownloadURL, request.Destination)
+}
+
+func closeWithWarning(closer io.Closer, label string) {
+	if closer == nil {
+		return
+	}
+	if err := closer.Close(); err != nil {
+		print.Warn("failed to close", label+":", err)
+	}
 }
 
 func getLatestReleaseOrPreRelease(

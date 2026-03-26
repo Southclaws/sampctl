@@ -77,12 +77,16 @@ func CalculateDirectoryIntegrity(dir string) (string, error) {
 	return IntegrityPrefix + hash, nil
 }
 
-func hashFileContent(hasher io.Writer, path string) error {
+func hashFileContent(hasher io.Writer, path string) (err error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	_, err = io.Copy(hasher, file)
 	return err

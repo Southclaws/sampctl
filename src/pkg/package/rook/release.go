@@ -3,6 +3,7 @@ package rook
 import (
 	"archive/zip"
 	"context"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"os"
@@ -144,7 +145,11 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 				Default: "0.1.0",
 			},
 			Validate: func(ans interface{}) (err error) {
-				if _, err = semver.NewVersion(ans.(string)); err != nil {
+				value, ok := ans.(string)
+				if !ok {
+					return errors.New("version must be a string")
+				}
+				if _, err = semver.NewVersion(value); err != nil {
 					return err
 				}
 				return
@@ -352,7 +357,6 @@ func generateChangelog(repo *git.Repository, tags versioning.VersionedTags) (str
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get commit log")
 	}
-	defer commits.Close()
 
 	var changesList []string
 	err = commits.ForEach(func(c *object.Commit) error {
@@ -374,8 +378,10 @@ func generateChangelog(repo *git.Repository, tags versioning.VersionedTags) (str
 		return nil
 	})
 	if err != nil && err != storer.ErrStop {
+		commits.Close()
 		return "", errors.Wrap(err, "failed to iterate commits")
 	}
+	commits.Close()
 
 	if len(changesList) == 0 {
 		changelog.WriteString("No significant changes.\n")
@@ -397,10 +403,7 @@ func createReleaseArchive(pkg pawnpackage.Package, version *semver.Version) (str
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create archive file")
 	}
-	defer archiveFile.Close()
-
 	zipWriter := zip.NewWriter(archiveFile)
-	defer zipWriter.Close()
 
 	includePath := pkg.IncludePath
 	if includePath == "" {
@@ -446,18 +449,46 @@ func createReleaseArchive(pkg pawnpackage.Package, version *semver.Version) (str
 		if err != nil {
 			return errors.Wrap(err, "failed to open source file")
 		}
-		defer file.Close()
 
 		_, err = io.Copy(writer, file)
 		if err != nil {
+			if closeErr := file.Close(); closeErr != nil {
+				print.Warn("failed to close source file after archive write error:", closeErr)
+			}
 			return errors.Wrap(err, "failed to write file to archive")
+		}
+		if closeErr := file.Close(); closeErr != nil {
+			return errors.Wrap(closeErr, "failed to close source file")
 		}
 
 		return nil
 	})
 	if err != nil {
-		os.Remove(archivePath)
+		if closeErr := zipWriter.Close(); closeErr != nil {
+			print.Warn("failed to close archive writer after error:", closeErr)
+		}
+		if closeErr := archiveFile.Close(); closeErr != nil {
+			print.Warn("failed to close archive file after error:", closeErr)
+		}
+		if removeErr := os.Remove(archivePath); removeErr != nil && !os.IsNotExist(removeErr) {
+			print.Warn("failed to remove incomplete release archive:", removeErr)
+		}
 		return "", errors.Wrap(err, "failed to create archive contents")
+	}
+	if err := zipWriter.Close(); err != nil {
+		if closeErr := archiveFile.Close(); closeErr != nil {
+			print.Warn("failed to close archive file after writer error:", closeErr)
+		}
+		if removeErr := os.Remove(archivePath); removeErr != nil && !os.IsNotExist(removeErr) {
+			print.Warn("failed to remove incomplete release archive:", removeErr)
+		}
+		return "", errors.Wrap(err, "failed to finalize archive")
+	}
+	if err := archiveFile.Close(); err != nil {
+		if removeErr := os.Remove(archivePath); removeErr != nil && !os.IsNotExist(removeErr) {
+			print.Warn("failed to remove incomplete release archive:", removeErr)
+		}
+		return "", errors.Wrap(err, "failed to close archive file")
 	}
 
 	print.Info("Created release archive:", archiveName)
@@ -473,12 +504,16 @@ type releaseAssetUploadRequest struct {
 }
 
 // uploadReleaseAsset uploads the release archive as an asset to the GitHub release.
-func uploadReleaseAsset(request releaseAssetUploadRequest) error {
+func uploadReleaseAsset(request releaseAssetUploadRequest) (err error) {
 	file, err := os.Open(request.ArchivePath)
 	if err != nil {
 		return errors.Wrap(err, "failed to open archive file")
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil && !stderrors.Is(closeErr, os.ErrClosed) && err == nil {
+			err = errors.Wrap(closeErr, "failed to close archive file")
+		}
+	}()
 
 	fileInfo, err := file.Stat()
 	if err != nil {

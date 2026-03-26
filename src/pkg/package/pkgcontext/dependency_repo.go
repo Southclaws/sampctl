@@ -37,14 +37,18 @@ func (pcx *PackageContext) cloneDependencyFromCache(meta versioning.DependencyMe
 	repo, err := pcx.EnsureDependencyFromCache(meta, dependencyPath, false)
 	if err != nil {
 		print.Verb(meta, "failed to clone from cache:", err)
-		os.RemoveAll(dependencyPath)
+		if removeErr := os.RemoveAll(dependencyPath); removeErr != nil {
+			print.Warn("failed to clean up dependency clone:", removeErr)
+		}
 		return nil, errors.Wrap(err, "failed to clone dependency from cache")
 	}
 
 	valid, validationErr := pcx.PackageServices.repositoryHealth().Validate(dependencyPath)
 	if validationErr != nil || !valid {
 		print.Verb(meta, "cloned repository failed validation")
-		os.RemoveAll(dependencyPath)
+		if removeErr := os.RemoveAll(dependencyPath); removeErr != nil {
+			print.Warn("failed to clean up invalid dependency clone:", removeErr)
+		}
 		if validationErr != nil {
 			return nil, errors.Wrap(validationErr, "cloned repository is invalid")
 		}

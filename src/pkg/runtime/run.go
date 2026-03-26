@@ -179,10 +179,13 @@ func executeRuntime(ctx context.Context, execCfg runtimeExecution) error {
 		killTrackedProcess(tracker.current())
 	}
 
-	cancel()
 	<-runnerDone
 	closeOutputPipe(outputWriter)
+	if flushErr := flushRuntimeOutput(execCfg.output, streamCh); flushErr != nil && term.err == nil {
+		term.err = flushErr
+	}
 	<-readerDone
+	cancel()
 
 	return wrapRuntimeError(term.err)
 }
@@ -197,7 +200,10 @@ func shouldKillTrackedProcess(term termination) bool {
 	if errors.Is(term.err, context.Canceled) || errors.Is(term.err, context.DeadlineExceeded) {
 		return true
 	}
-	return strings.Contains(term.err.Error(), "received signal:")
+	if strings.Contains(term.err.Error(), "received signal:") {
+		return true
+	}
+	return strings.Contains(term.err.Error(), "failed to write runtime output")
 }
 
 func waitForRuntimeTermination(request runtimeTerminationRequest) termination {
@@ -208,7 +214,9 @@ func waitForRuntimeTermination(request runtimeTerminationRequest) termination {
 				request.StreamCh = nil
 				continue
 			}
-			fmt.Fprintln(request.Output, line)
+			if _, err := fmt.Fprintln(request.Output, line); err != nil {
+				return termination{err: errors.Wrap(err, "failed to write runtime output")}
+			}
 
 		case sig := <-request.SigCh:
 			return termination{err: errors.Errorf("received signal: %v", sig)}
@@ -220,6 +228,21 @@ func waitForRuntimeTermination(request runtimeTerminationRequest) termination {
 			return termination{err: request.Context.Err()}
 		}
 	}
+}
+
+func flushRuntimeOutput(output io.Writer, streamCh <-chan string) error {
+	var writeErr error
+
+	for line := range streamCh {
+		if writeErr != nil {
+			continue
+		}
+		if _, err := fmt.Fprintln(output, line); err != nil {
+			writeErr = errors.Wrap(err, "failed to write runtime output")
+		}
+	}
+
+	return writeErr
 }
 
 func startBinaryRunner(ctx context.Context, cfg binaryRunConfig) <-chan struct{} {
