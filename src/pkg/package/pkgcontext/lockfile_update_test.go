@@ -33,7 +33,7 @@ func TestUpdateLockfileRecordsRequiredByForTransitiveDependencies(t *testing.T) 
 	require.NoError(t, err)
 	require.NoError(t, pcx.InitLockfileResolver("dev"))
 
-	require.NoError(t, pcx.UpdateLockfile(context.Background(), false))
+	require.NoError(t, pcx.UpdateLockfile(context.Background(), DependencyUpdateRequest{}))
 
 	lf := pcx.GetLockfile()
 	require.NotNil(t, lf)

@@ -362,7 +362,10 @@ func Init(options InitOptions) (err error) {
 		return errors.Wrap(err, "failed to initialize lockfile resolver")
 	}
 
-	_, err = pcx.EnsureProject(ctx, true)
+	_, err = pcx.EnsureProject(ctx, pkgcontext.DependencyUpdateRequest{
+		Enabled: true,
+		Force:   true,
+	})
 	if err != nil {
 		return
 	}
