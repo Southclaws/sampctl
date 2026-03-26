@@ -119,6 +119,7 @@ func TestResolverLifecycle(t *testing.T) {
 		Output:          "main.amx",
 		OutputHash:      "sha256:abc",
 	})
+	require.NoError(t, resolver.RecordResolution(meta, DependencyResolution{Commit: commit, Resolved: "1.2.3"}, false, ""))
 	require.NoError(t, resolver.Save())
 	assert.True(t, Exists(dir))
 
@@ -131,6 +132,10 @@ func TestResolverLifecycle(t *testing.T) {
 	resolver.ForceUpdate()
 	assert.False(t, resolver.HasLockfile())
 	assert.Empty(t, resolver.GetLockfile().Dependencies)
+	previous, ok := resolver.GetPreviousDependency(meta)
+	require.True(t, ok)
+	assert.Equal(t, "1.2.3", previous.Resolved)
+	assert.Equal(t, commit, previous.Commit)
 	assert.True(t, resolver.modified)
 }
 

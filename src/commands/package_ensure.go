@@ -9,7 +9,21 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
+	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
+
+type ensureCommandTarget interface {
+	pkgcontext.LockfileInitializer
+	pkgcontext.LockfileController
+	EnsureProject(ctx context.Context, forceUpdate bool) (bool, error)
+}
+
+type ensureCommandOptions struct {
+	version     string
+	forceUpdate bool
+	useLockfile bool
+	lockOnly    bool
+}
 
 func packageEnsureFlags() []cli.Flag {
 	return []cli.Flag{
@@ -46,32 +60,43 @@ func packageEnsure(c *cli.Context) error {
 		return errors.Wrap(err, "failed to create package context")
 	}
 
-	// Initialize lockfile resolver if lockfile support is enabled
-	if useLockfile {
-		if err = initLockfileResolver(c, pcx); err != nil {
+	state, err := getCommandState(c)
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
+	defer cancel()
+
+	return runPackageEnsure(ctx, pcx, ensureCommandOptions{
+		version:     state.version,
+		forceUpdate: forceUpdate,
+		useLockfile: useLockfile,
+		lockOnly:    lockOnly,
+	})
+}
+
+func runPackageEnsure(ctx context.Context, target ensureCommandTarget, opts ensureCommandOptions) error {
+	if opts.useLockfile {
+		if err := target.InitLockfileResolver(opts.version); err != nil {
 			return errors.Wrap(err, "failed to initialize lockfile resolver")
 		}
 
-		describeEnsureLockfile(pcx, forceUpdate)
+		describeEnsureLockfile(target, opts.forceUpdate)
 	}
 
-	// If lock-only mode, just save the lockfile without ensuring dependencies
-	if lockOnly {
-		if err := requireLockfileSupport(pcx); err != nil {
+	if opts.lockOnly {
+		if err := requireLockfileSupport(target); err != nil {
 			return err
 		}
-		err = saveCommandLockfile(pcx)
-		if err != nil {
+		if err := saveCommandLockfile(target); err != nil {
 			return errors.Wrap(err, "failed to save lockfile")
 		}
 		print.Verb("lockfile updated")
 		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
-	defer cancel()
-
-	updated, err := pcx.EnsureProject(ctx, forceUpdate)
+	updated, err := target.EnsureProject(ctx, opts.forceUpdate)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure dependencies")
 	}
@@ -79,8 +104,8 @@ func packageEnsure(c *cli.Context) error {
 		print.Verb("updated package dependencies with latest tags")
 	}
 
-	if useLockfile {
-		count := lockfileDependencyCount(pcx)
+	if opts.useLockfile {
+		count := lockfileDependencyCount(target)
 		if count > 0 {
 			print.Verb("lockfile saved with", count, "dependencies")
 		}

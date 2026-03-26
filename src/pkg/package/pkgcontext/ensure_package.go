@@ -61,6 +61,10 @@ func (pcx *PackageContext) ensureManagedPackage(request ensurePackageRequest) er
 	}
 
 	effectiveMeta := pcx.PackageLockfileState.LockedVersion(request.Meta, request.ForceUpdate)
+	effectiveMeta, err := pcx.resolveDynamicDependencyReference(request.Context, effectiveMeta, request.Meta, request.ForceUpdate)
+	if err != nil {
+		return errors.Wrap(err, "failed to resolve dependency reference")
+	}
 	dependencyPath := filepath.Join(pcx.Package.Vendor, effectiveMeta.Repo)
 
 	if err := pcx.removeInvalidDependencyRepo(effectiveMeta, dependencyPath); err != nil {

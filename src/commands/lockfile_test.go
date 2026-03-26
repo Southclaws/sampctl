@@ -16,6 +16,7 @@ type fakeCommandLockfile struct {
 	initVersion       string
 	initErr           error
 	saveErr           error
+	saved             bool
 	lockfile          *lockfile.Lockfile
 	hasLockfile       bool
 	hasResolver       bool
@@ -34,6 +35,7 @@ func (f *fakeCommandLockfile) InitLockfileResolver(sampctlVersion string) error 
 }
 
 func (f *fakeCommandLockfile) SaveLockfile() error {
+	f.saved = true
 	return f.saveErr
 }
 

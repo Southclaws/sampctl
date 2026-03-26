@@ -90,6 +90,13 @@ func (state *PackageLockfileState) LockedVersion(meta versioning.DependencyMeta,
 	return state.lockfileResolver.GetLockedVersion(meta)
 }
 
+func (state *PackageLockfileState) PreviousDependency(meta versioning.DependencyMeta) (lockfile.LockedDependency, bool) {
+	if state == nil || state.lockfileResolver == nil {
+		return lockfile.LockedDependency{}, false
+	}
+	return state.lockfileResolver.GetPreviousDependency(meta)
+}
+
 func (state *PackageLockfileState) RecordDependencyResolution(
 	meta versioning.DependencyMeta,
 	resolution lockfile.DependencyResolution,

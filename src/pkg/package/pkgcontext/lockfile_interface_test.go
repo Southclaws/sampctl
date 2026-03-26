@@ -12,6 +12,8 @@ import (
 
 type fakeDependencyLock struct {
 	lockfile         *lockfile.Lockfile
+	previous         lockfile.LockedDependency
+	hasPrevious      bool
 	saved            bool
 	forced           bool
 	hasLocked        bool
@@ -40,6 +42,13 @@ func (f *fakeDependencyLock) RecordResolution(meta versioning.DependencyMeta, re
 	f.lastTransitive = transitive
 	f.lastRequiredBy = requiredBy
 	return nil
+}
+
+func (f *fakeDependencyLock) GetPreviousDependency(versioning.DependencyMeta) (lockfile.LockedDependency, bool) {
+	if !f.hasPrevious {
+		return lockfile.LockedDependency{}, false
+	}
+	return f.previous, true
 }
 
 func (f *fakeDependencyLock) RecordLocalDependency(versioning.DependencyMeta) error {

@@ -57,6 +57,8 @@ func TestPackageLockfileStateMethods(t *testing.T) {
 
 	assert.Equal(t, fake.lockedVersion, state.LockedVersion(meta, false))
 	assert.Equal(t, meta, state.LockedVersion(meta, true))
+	_, ok := state.PreviousDependency(meta)
+	assert.False(t, ok)
 	require.NoError(t, state.RecordDependencyResolution(meta, resolution, true, "parent/repo"))
 	state.RecordRuntime("1.2.3", "linux", "server", files)
 	state.RecordBuild(record)
@@ -81,6 +83,8 @@ func TestPackageLockfileStateMethods(t *testing.T) {
 
 	state.lockfileResolver = nil
 	assert.Equal(t, meta, state.LockedVersion(meta, false))
+	_, ok = state.PreviousDependency(meta)
+	assert.False(t, ok)
 	assert.NoError(t, state.RecordDependencyResolution(meta, resolution, false, ""))
 	state.RecordRuntime("1.2.3", "linux", "server", files)
 	state.RecordBuild(record)

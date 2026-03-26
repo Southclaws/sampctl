@@ -11,6 +11,7 @@ import (
 
 type Resolver struct {
 	lockfile       *Lockfile
+	previous       *Lockfile
 	dir            string
 	sampctlVersion string
 	useLockfile    bool
@@ -64,6 +65,22 @@ func (r *Resolver) GetLockedVersion(meta versioning.DependencyMeta) versioning.D
 	}
 
 	return meta
+}
+
+func (r *Resolver) GetPreviousDependency(meta versioning.DependencyMeta) (LockedDependency, bool) {
+	if !r.useLockfile {
+		return LockedDependency{}, false
+	}
+
+	if r.previous != nil {
+		return r.previous.GetDependency(DependencyKey(meta))
+	}
+
+	if r.lockfile != nil {
+		return r.lockfile.GetDependency(DependencyKey(meta))
+	}
+
+	return LockedDependency{}, false
 }
 
 func (r *Resolver) RecordResolution(meta versioning.DependencyMeta, resolution DependencyResolution, transitive bool, requiredBy string) error {
@@ -169,6 +186,7 @@ func (r *Resolver) Save() error {
 
 func (r *Resolver) ForceUpdate() {
 	if r.lockfile != nil {
+		r.previous = r.lockfile
 		r.lockfile = New(r.sampctlVersion)
 		r.modified = true
 		print.Info("lockfile cleared for fresh resolution")
