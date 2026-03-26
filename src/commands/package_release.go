@@ -1,8 +1,6 @@
 package commands
 
 import (
-	"context"
-
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
@@ -32,7 +30,10 @@ func packageRelease(c *cli.Context) error {
 		return err
 	}
 
-	err = rook.Release(context.Background(), state.gh, state.gitAuth, pcx.Package)
+	ctx, cancel := newCommandContext()
+	defer cancel()
+
+	err = rook.Release(ctx, state.gh, state.gitAuth, pcx.Package)
 	if err != nil {
 		return errors.Wrap(err, "failed to release")
 	}

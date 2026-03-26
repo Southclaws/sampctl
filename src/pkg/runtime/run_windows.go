@@ -4,10 +4,11 @@
 package runtime
 
 import (
+	"context"
 	"io"
 	"os"
 	"os/exec"
-	"sync"
+	"strings"
 	"syscall"
 
 	"github.com/UserExistsError/conpty"
@@ -26,12 +27,24 @@ func platformRun(cmd *exec.Cmd, w io.Writer, r io.Reader) (err error) {
 }
 
 func usePty(cmd *exec.Cmd, w io.Writer, r io.Reader) (err error) {
-	cpty, err := conpty.Start(cmd.Path)
+	options := []conpty.ConPtyOption{}
+	if cmd.Dir != "" {
+		options = append(options, conpty.ConPtyWorkDir(cmd.Dir))
+	}
+	if len(cmd.Env) > 0 {
+		options = append(options, conpty.ConPtyEnv(cmd.Env))
+	}
+
+	cpty, err := conpty.Start(buildConPtyCommandLine(cmd), options...)
 	if err != nil {
 		return errors.Wrap(err, "failed to start pty")
 	}
 	if cpty == nil {
 		return errors.New("failed to create new pty, cpty is null")
+	}
+
+	if process, findErr := os.FindProcess(cpty.Pid()); findErr == nil {
+		cmd.Process = process
 	}
 
 	defer func() {
@@ -44,35 +57,50 @@ func usePty(cmd *exec.Cmd, w io.Writer, r io.Reader) (err error) {
 		}
 	}()
 
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-
-	rdErrCh := make(chan error, 1)
 	wrErrCh := make(chan error, 1)
 
 	go func() {
-		_, errInner := io.Copy(cpty, r)
-		rdErrCh <- errInner
-		wg.Done()
+		if r == nil {
+			return
+		}
+		_, _ = io.Copy(cpty, r)
 	}()
 	go func() {
 		_, errInner := io.Copy(w, cpty)
 		wrErrCh <- errInner
-		wg.Done()
 	}()
 
-	wg.Wait()
-
-	errRead := <-rdErrCh
-	if errRead != nil {
-		print.Verb("read error", errRead)
+	exitCode, waitErr := cpty.Wait(context.Background())
+	if waitErr != nil {
+		return errors.Wrap(waitErr, "failed to wait for pty process")
 	}
+
 	errWrite := <-wrErrCh
-	if errWrite != nil {
+	if errWrite != nil && errWrite != io.EOF {
 		print.Verb("write error", errWrite)
 	}
 
-	return
+	if exitCode == 0 || exitCode == 1 {
+		return nil
+	}
+
+	return errors.Errorf("exit status %d", exitCode)
+}
+
+func buildConPtyCommandLine(cmd *exec.Cmd) string {
+	args := append([]string(nil), cmd.Args...)
+	if len(args) == 0 {
+		args = []string{cmd.Path}
+	} else if cmd.Path != "" {
+		args[0] = cmd.Path
+	}
+
+	quoted := make([]string, 0, len(args))
+	for _, arg := range args {
+		quoted = append(quoted, syscall.EscapeArg(arg))
+	}
+
+	return strings.Join(quoted, " ")
 }
 
 func useTty(cmd *exec.Cmd, w io.Writer, r io.Reader) (err error) {

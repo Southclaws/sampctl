@@ -165,6 +165,9 @@ func FromNet(ctx context.Context, location, cachePath string) (result string, er
 
 func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath string) (result string, err error) {
 	print.Verb("attempting to download package from", location, "to", cachePath)
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if client == nil {
 		client = fromNetClientFactory()
 	}
@@ -182,9 +185,14 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 
 		resp, doErr := client.Do(req)
 		if doErr != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return "", ctxErr
+			}
 			lastErr = errors.Wrapf(doErr, "failed to download package from %s", location)
 			if attempt < maxAttempts {
-				fromNetSleep(backoff(attempt))
+				if sleepErr := sleepRetryBackoff(ctx, backoff(attempt)); sleepErr != nil {
+					return "", sleepErr
+				}
 				continue
 			}
 			return "", lastErr
@@ -204,12 +212,16 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 				if resp.StatusCode == http.StatusTooManyRequests {
 					if ra := resp.Header.Get("Retry-After"); ra != "" {
 						if secs, convErr := strconv.Atoi(strings.TrimSpace(ra)); convErr == nil && secs > 0 && secs <= 10 {
-							fromNetSleep(time.Duration(secs) * time.Second)
+							if sleepErr := sleepRetryBackoff(ctx, time.Duration(secs)*time.Second); sleepErr != nil {
+								return "", sleepErr
+							}
 							continue
 						}
 					}
 				}
-				fromNetSleep(backoff(attempt))
+				if sleepErr := sleepRetryBackoff(ctx, backoff(attempt)); sleepErr != nil {
+					return "", sleepErr
+				}
 				continue
 			}
 			return "", err
@@ -233,10 +245,15 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 
 		if writeErr := fs.WriteFromReaderAtomic(cachePath, resp.Body, fs.PermDirPrivate, fs.PermFileShared); writeErr != nil {
 			_ = resp.Body.Close()
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return "", ctxErr
+			}
 			lastErr = errors.Wrap(writeErr, "failed to write package to cache")
 			err = lastErr
 			if attempt < maxAttempts {
-				fromNetSleep(backoff(attempt))
+				if sleepErr := sleepRetryBackoff(ctx, backoff(attempt)); sleepErr != nil {
+					return "", sleepErr
+				}
 				continue
 			}
 			return "", err
@@ -249,6 +266,30 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 		lastErr = errors.New("download failed")
 	}
 	return "", lastErr
+}
+
+func sleepRetryBackoff(ctx context.Context, duration time.Duration) error {
+	if duration <= 0 {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			return nil
+		}
+	}
+
+	done := make(chan struct{})
+	go func() {
+		fromNetSleep(duration)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // ReleaseAssetByPattern downloads a resource file, which is a GitHub release asset

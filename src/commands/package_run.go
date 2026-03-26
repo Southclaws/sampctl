@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"os"
 
 	"github.com/pkg/errors"
@@ -83,10 +82,13 @@ func packageRun(c *cli.Context) error {
 	pcx.BuildFile = buildFile
 	pcx.Relative = relativePaths
 
+	ctx, cancel := newCommandContext()
+	defer cancel()
+
 	if watch {
-		err = pcx.RunWatch(context.Background())
+		err = pcx.RunWatch(ctx)
 	} else {
-		err = pcx.Run(context.Background(), os.Stdout, os.Stdin)
+		err = pcx.Run(ctx, os.Stdout, os.Stdin)
 	}
 	if err != nil {
 		return cli.NewExitError(err.Error(), 1)

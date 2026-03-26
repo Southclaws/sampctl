@@ -211,6 +211,26 @@ func TestGetTemplateFileUsesLocalReadmeTemplateForLocalPackages(t *testing.T) {
 	assert.NotContains(t, string(contents), "your-github-user")
 }
 
+func TestFetchInitTemplatesReturnsError(t *testing.T) {
+	tmpDir := t.TempDir()
+	answers := Answers{Repo: "my-repo", PublishMode: publishGitHub}
+	profile := starterProfile{GitIgnore: true, Readme: true, Editor: "vscode", EditorConfig: true}
+
+	oldTransport := http.DefaultTransport
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		<-req.Context().Done()
+		return nil, req.Context().Err()
+	})
+	defer func() { http.DefaultTransport = oldTransport }()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := fetchInitTemplates(ctx, tmpDir, profile, answers)
+	require.ErrorIs(t, err, context.Canceled)
+	require.ErrorContains(t, err, "failed to fetch template files")
+}
+
 func TestGeneratedHarnessContents(t *testing.T) {
 	t.Parallel()
 

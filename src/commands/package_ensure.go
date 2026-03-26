@@ -66,7 +66,7 @@ func packageEnsure(c *cli.Context) error {
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
+	ctx, cancel := newCommandTimeoutContext(time.Hour)
 	defer cancel()
 
 	return runPackageEnsure(ctx, pcx, ensureCommandOptions{

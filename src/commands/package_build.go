@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/pkg/errors"
@@ -70,8 +69,11 @@ func packageBuild(c *cli.Context) error {
 		}
 	}
 
+	ctx, cancel := newCommandContext()
+	defer cancel()
+
 	if watch {
-		err := pcx.BuildWatch(context.Background(), pkgcontext.BuildOptions{
+		err := pcx.BuildWatch(ctx, pkgcontext.BuildOptions{
 			Name:      build,
 			Ensure:    forceEnsure,
 			BuildFile: buildFile,
@@ -81,7 +83,7 @@ func packageBuild(c *cli.Context) error {
 			return cli.NewExitError(err.Error(), 1)
 		}
 	} else {
-		problems, result, err := pcx.Build(context.Background(), pkgcontext.BuildOptions{
+		problems, result, err := pcx.Build(ctx, pkgcontext.BuildOptions{
 			Name:      build,
 			Ensure:    forceEnsure,
 			DryRun:    dryRun,

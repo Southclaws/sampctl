@@ -1,8 +1,6 @@
 package commands
 
 import (
-	"context"
-
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
@@ -48,7 +46,10 @@ func packageInstall(c *cli.Context) error {
 		return errors.Wrap(err, "failed to initialize lockfile resolver")
 	}
 
-	err = pcx.Install(context.Background(), deps, development)
+	ctx, cancel := newCommandContext()
+	defer cancel()
+
+	err = pcx.Install(ctx, deps, development)
 	if err != nil {
 		return err
 	}

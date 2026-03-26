@@ -87,4 +87,10 @@ func TestRunBuildCommands(t *testing.T) {
 		err := RunPreBuildCommands(context.Background(), cfg, &bytes.Buffer{})
 		require.Error(t, err)
 	})
+
+	t.Run("rejects empty command", func(t *testing.T) {
+		cfg := build.Config{PostBuildCommands: [][]string{{}}}
+		err := RunPostBuildCommands(context.Background(), cfg, &bytes.Buffer{})
+		require.EqualError(t, err, "post-build command is empty")
+	})
 }

@@ -544,11 +544,11 @@ func (p *compilerOutputParser) handleResultLine(line string) {
 // RunPostBuildCommands executes commands after a build is ran for a certain build config
 func RunPostBuildCommands(ctx context.Context, cfg build.Config, output io.Writer) (err error) {
 	for _, command := range cfg.PostBuildCommands {
+		if len(command) == 0 {
+			return errors.New("post-build command is empty")
+		}
 		print.Verb("running post-build commands", command)
-		ctxInner, cancel := context.WithCancel(ctx)
-		defer cancel()
-
-		cmd := exec.CommandContext(ctxInner, command[0], command[1:]...) //nolint:gas
+		cmd := exec.CommandContext(ctx, command[0], command[1:]...) //nolint:gas
 		cmd.Stdout = output
 		cmd.Stderr = output
 
@@ -564,11 +564,11 @@ func RunPostBuildCommands(ctx context.Context, cfg build.Config, output io.Write
 // RunPreBuildCommands executes commands before a build is ran for a certain build config
 func RunPreBuildCommands(ctx context.Context, cfg build.Config, output io.Writer) (err error) {
 	for _, command := range cfg.PreBuildCommands {
+		if len(command) == 0 {
+			return errors.New("pre-build command is empty")
+		}
 		print.Verb("running pre-build commands", command)
-		ctxInner, cancel := context.WithCancel(ctx)
-		defer cancel()
-
-		cmd := exec.CommandContext(ctxInner, command[0], command[1:]...) //nolint:gas
+		cmd := exec.CommandContext(ctx, command[0], command[1:]...) //nolint:gas
 		cmd.Stdout = output
 		cmd.Stderr = output
 

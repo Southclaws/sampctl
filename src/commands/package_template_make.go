@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"path/filepath"
 	"time"
@@ -69,7 +68,7 @@ func packageTemplateMake(c *cli.Context) (err error) {
 		return errors.Wrap(err, "failed to create package context")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
+	ctx, cancel := newCommandTimeoutContext(time.Hour)
 	defer cancel()
 
 	err = pcx.EnsureDependencies(ctx, forceUpdate)

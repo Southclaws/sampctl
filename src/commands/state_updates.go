@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"runtime"
 	"time"
 
@@ -26,7 +25,7 @@ func (s *commandState) checkForUpdates() {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := newCommandTimeoutContext(10 * time.Second)
 	defer cancel()
 
 	release, _, err := s.gh.Repositories.GetLatestRelease(ctx, "Southclaws", "sampctl")

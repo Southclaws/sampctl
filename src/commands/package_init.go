@@ -1,8 +1,6 @@
 package commands
 
 import (
-	"context"
-
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
@@ -54,8 +52,11 @@ func packageInit(c *cli.Context) error {
 		return err
 	}
 
+	ctx, cancel := newCommandContext()
+	defer cancel()
+
 	err = rook.Init(rook.InitOptions{
-		Context:  context.Background(),
+		Context:  ctx,
 		GitHub:   state.gh,
 		Dir:      dir,
 		Config:   cfg,

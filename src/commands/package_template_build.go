@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"path/filepath"
 
@@ -51,7 +50,10 @@ func packageTemplateBuild(c *cli.Context) (err error) {
 		return errors.Wrap(err, "failed to copy target script to template package directory")
 	}
 
-	problems, result, err := pcx.Build(context.Background(), pkgcontext.BuildOptions{
+	ctx, cancel := newCommandContext()
+	defer cancel()
+
+	problems, result, err := pcx.Build(ctx, pkgcontext.BuildOptions{
 		Relative: true,
 	})
 	if err != nil {

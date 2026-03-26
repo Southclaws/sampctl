@@ -1,8 +1,6 @@
 package commands
 
 import (
-	"context"
-
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
@@ -39,8 +37,11 @@ func packageGet(c *cli.Context) error {
 		dir = fs.MustAbs(".")
 	}
 
+	ctx, cancel := newCommandContext()
+	defer cancel()
+
 	err = rook.Get(rook.GetOptions{
-		Context:  context.Background(),
+		Context:  ctx,
 		GitHub:   state.gh,
 		Meta:     dep,
 		Dir:      dir,

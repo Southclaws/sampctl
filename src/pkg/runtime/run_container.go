@@ -220,6 +220,10 @@ func RunContainer(
 		return errors.New("received signal, stopped container")
 	}
 
+	if waitErr := waitForContainerExit(runCtx, cli, cnt.ID); waitErr != nil {
+		return errors.Wrap(waitErr, "container execution failed")
+	}
+
 	return nil
 }
 
@@ -230,6 +234,10 @@ type containerStopper interface {
 
 type containerRemover interface {
 	ContainerRemove(ctx context.Context, containerID string, options types.ContainerRemoveOptions) error
+}
+
+type containerWaiter interface {
+	ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.ContainerWaitOKBody, <-chan error)
 }
 
 func stopContainer(ctx context.Context, cli containerStopper, containerID string) error {
@@ -263,4 +271,26 @@ func removeContainer(ctx context.Context, cli containerRemover, containerID stri
 	defer cancel()
 
 	return cli.ContainerRemove(removeCtx, containerID, types.ContainerRemoveOptions{Force: true})
+}
+
+func waitForContainerExit(ctx context.Context, cli containerWaiter, containerID string) error {
+	waitCh, errCh := cli.ContainerWait(ctx, containerID, container.WaitConditionNotRunning)
+
+	select {
+	case waitResp := <-waitCh:
+		if waitResp.Error != nil && waitResp.Error.Message != "" {
+			return errors.Errorf("container exited with status code %d: %s", waitResp.StatusCode, waitResp.Error.Message)
+		}
+		if waitResp.StatusCode != 0 {
+			return errors.Errorf("container exited with status code %d", waitResp.StatusCode)
+		}
+		return nil
+	case err := <-errCh:
+		if err == nil {
+			return nil
+		}
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }

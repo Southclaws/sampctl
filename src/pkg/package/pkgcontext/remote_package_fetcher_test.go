@@ -18,6 +18,8 @@ type fakeRemotePackageFetcher struct {
 	err    error
 }
 
+type testContextKey string
+
 func (f *fakeRemotePackageFetcher) Fetch(ctx context.Context, _ versioning.DependencyMeta) (pawnpackage.Package, error) {
 	f.called = true
 	f.ctx = ctx
@@ -43,7 +45,7 @@ func TestInstallPackageResourcesUsesInjectedRemoteFetcher(t *testing.T) {
 		},
 	}
 
-	ctx := context.WithValue(context.Background(), "test-key", "test-value")
+	ctx := context.WithValue(context.Background(), testContextKey("test-key"), "test-value")
 
 	err := pcx.installPackageResources(
 		ctx,

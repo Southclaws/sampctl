@@ -20,8 +20,10 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 	tests := []struct {
 		name     string
 		pcx      PackageContext
+		ctx      func() context.Context
 		wantDeps []versioning.DependencyMeta
 		wantErr  bool
+		wantIs   error
 	}{
 		{
 			"basic",
@@ -35,11 +37,35 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 					{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib"},
 				}},
 			},
+			func() context.Context { return context.Background() },
 			[]versioning.DependencyMeta{
 				{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
 				{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib"},
 			},
 			false,
+			nil,
+		},
+		{
+			"canceled context",
+			PackageContext{
+				Package: pawnpackage.Package{
+					LocalPath: fs.MustAbs("./tests/deps-basic"),
+					User:      "local", Repo: "local",
+				},
+				PackageResolvedState: PackageResolvedState{AllDependencies: []versioning.DependencyMeta{
+					{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
+				}},
+			},
+			func() context.Context {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+				return ctx
+			},
+			[]versioning.DependencyMeta{
+				{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
+			},
+			true,
+			context.Canceled,
 		},
 	}
 	for _, tt := range tests {
@@ -51,11 +77,14 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 		tt.pcx.CacheDir = "./tests/cache"
 
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.pcx.EnsureDependencies(context.Background(), true)
+			err := tt.pcx.EnsureDependencies(tt.ctx(), true)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
+			}
+			if tt.wantIs != nil {
+				assert.ErrorIs(t, err, tt.wantIs)
 			}
 
 			assert.Equal(t, tt.wantDeps, tt.pcx.AllDependencies)

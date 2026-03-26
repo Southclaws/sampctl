@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -66,7 +65,10 @@ func packageTemplateRun(c *cli.Context) (err error) {
 		return errors.Wrap(err, "failed to copy target script to template package directory")
 	}
 
-	problems, result, err := pcx.Build(context.Background(), pkgcontext.BuildOptions{
+	ctx, cancel := newCommandContext()
+	defer cancel()
+
+	problems, result, err := pcx.Build(ctx, pkgcontext.BuildOptions{
 		Relative: true,
 	})
 	if err != nil {
@@ -104,7 +106,7 @@ func packageTemplateRun(c *cli.Context) (err error) {
 	pcx.Package.Runtime = new(run.Runtime)
 	pcx.Package.Runtime.Mode = run.RunMode(mode)
 
-	err = pcx.Run(context.Background(), os.Stdout, os.Stdin)
+	err = pcx.Run(ctx, os.Stdout, os.Stdin)
 	if err != nil {
 		return
 	}

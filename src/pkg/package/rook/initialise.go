@@ -308,59 +308,6 @@ func Init(options InitOptions) (err error) {
 		return errors.Errorf("unsupported init mode: %s", answers.InitMode)
 	}
 
-	wg := sync.WaitGroup{}
-
-	if profile.GitIgnore {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			errInner := getTemplateFile(ctx, dir, ".gitignore", answers)
-			if errInner != nil {
-				print.Erro("Failed to get .gitignore template:", errInner)
-			}
-		}()
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			errInner := getTemplateFile(ctx, dir, ".gitattributes", answers)
-			if errInner != nil {
-				print.Erro("Failed to get .gitattributes template:", errInner)
-			}
-		}()
-	}
-
-	if profile.Readme {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			errInner := getTemplateFile(ctx, dir, "README.md", answers)
-			if errInner != nil {
-				print.Erro("Failed to get readme template:", errInner)
-			}
-		}()
-	}
-
-	switch profile.Editor {
-	case "vscode":
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			errInner := getTemplateFile(ctx, dir, ".vscode/tasks.json", answers)
-			if errInner != nil {
-				print.Erro("Failed to get tasks.json template:", errInner)
-			}
-		}()
-	case "sublime":
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			errInner := getTemplateFile(ctx, dir, "{{.Repo}}.sublime-project", answers)
-			if errInner != nil {
-				print.Erro("Failed to get tasks.json template:", errInner)
-			}
-		}()
-	}
-
 	pkg.Dependencies = appendUniqueDependencies(pkg.Dependencies, stdDependenciesForPreset(answers.Preset)...)
 	pkg.Dependencies = appendUniqueDependencies(pkg.Dependencies, detectedIncludeDependencies(dir, incFiles)...)
 
@@ -372,17 +319,6 @@ func Init(options InitOptions) (err error) {
 		if releaseHint := releaseHintForPublishMode(answers.PublishMode); releaseHint != "" {
 			print.Info(releaseHint)
 		}
-	}
-
-	if profile.EditorConfig {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			errInner := getTemplateFile(ctx, dir, ".editorconfig", answers)
-			if errInner != nil {
-				print.Erro("Failed to get .editorconfig template:", errInner)
-			}
-		}()
 	}
 
 	if err := fs.EnsurePackageLayout(dir, answers.Preset == "openmp"); err != nil {
@@ -397,7 +333,9 @@ func Init(options InitOptions) (err error) {
 		print.Erro(err)
 	}
 
-	wg.Wait()
+	if err := fetchInitTemplates(ctx, dir, profile, answers); err != nil {
+		return err
+	}
 
 	pcx, err := pkgcontext.NewPackageContext(pkgcontext.NewPackageContextOptions{
 		GitHub:   gh,
@@ -422,6 +360,59 @@ func Init(options InitOptions) (err error) {
 	}
 
 	return nil
+}
+
+func fetchInitTemplates(ctx context.Context, dir string, profile starterProfile, answers Answers) error {
+	templateFiles := make([]string, 0, 5)
+	if profile.GitIgnore {
+		templateFiles = append(templateFiles, ".gitignore", ".gitattributes")
+	}
+	if profile.Readme {
+		templateFiles = append(templateFiles, "README.md")
+	}
+	switch profile.Editor {
+	case "vscode":
+		templateFiles = append(templateFiles, ".vscode/tasks.json")
+	case "sublime":
+		templateFiles = append(templateFiles, "{{.Repo}}.sublime-project")
+	}
+	if profile.EditorConfig {
+		templateFiles = append(templateFiles, ".editorconfig")
+	}
+	if len(templateFiles) == 0 {
+		return nil
+	}
+
+	var (
+		mu          sync.Mutex
+		wg          sync.WaitGroup
+		failedFiles []string
+		firstErr    error
+	)
+
+	for _, templateFile := range templateFiles {
+		file := templateFile
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			if err := getTemplateFile(ctx, dir, file, answers); err != nil {
+				mu.Lock()
+				defer mu.Unlock()
+				failedFiles = append(failedFiles, file)
+				if firstErr == nil {
+					firstErr = err
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+	if firstErr == nil {
+		return nil
+	}
+
+	return errors.Wrapf(firstErr, "failed to fetch template files: %s", strings.Join(failedFiles, ", "))
 }
 
 func initModeOptions(pwnFiles, incFiles []string) []string {

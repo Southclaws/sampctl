@@ -95,7 +95,7 @@ func (w *watchedRuntime) Restart(parent context.Context, starter func(context.Co
 }
 
 func (w *watchedRuntime) Stop() {
-	if w.done == nil || !w.running.Load() {
+	if w.done == nil {
 		return
 	}
 

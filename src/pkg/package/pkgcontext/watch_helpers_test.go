@@ -79,3 +79,51 @@ func TestWatchedRuntimeRestartStopsPreviousRun(t *testing.T) {
 	assert.Nil(t, runtime.done)
 	assert.Nil(t, runtime.cancel)
 }
+
+func TestWatchedRuntimeRestartStopsPendingStartup(t *testing.T) {
+	t.Parallel()
+
+	parent := context.Background()
+	started := atomic.Int32{}
+	stopped := atomic.Int32{}
+	release := make(chan struct{})
+	ready := make(chan struct{}, 1)
+
+	starter := func(ctx context.Context, running *atomic.Bool) <-chan error {
+		done := make(chan error, 1)
+		started.Add(1)
+
+		go func() {
+			defer close(done)
+
+			select {
+			case <-release:
+				running.Store(true)
+				ready <- struct{}{}
+			case <-ctx.Done():
+				stopped.Add(1)
+				done <- ctx.Err()
+				return
+			}
+
+			<-ctx.Done()
+			running.Store(false)
+			stopped.Add(1)
+			done <- ctx.Err()
+		}()
+
+		return done
+	}
+
+	var runtime watchedRuntime
+	runtime.Restart(parent, starter)
+	runtime.Restart(parent, starter)
+	close(release)
+	<-ready
+	runtime.Stop()
+
+	assert.Equal(t, int32(2), started.Load())
+	assert.Equal(t, int32(2), stopped.Load())
+	assert.Nil(t, runtime.done)
+	assert.Nil(t, runtime.cancel)
+}

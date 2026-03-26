@@ -2,6 +2,7 @@ package download
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -91,4 +92,46 @@ func TestDownloadRetriesOn500ThenSucceeds(t *testing.T) {
 	data, readErr := os.ReadFile(outPath)
 	require.NoError(t, readErr)
 	require.Equal(t, []byte("ok"), data)
+}
+
+func TestDownloadStopsRetryingWhenContextCanceledDuringBackoff(t *testing.T) {
+	oldMax := fromNetMaxAttempts
+	oldSleep := fromNetSleep
+	oldClientFactory := fromNetClientFactory
+	oldBackoff := fromNetBackoff
+	defer func() {
+		fromNetMaxAttempts = oldMax
+		fromNetSleep = oldSleep
+		fromNetClientFactory = oldClientFactory
+		fromNetBackoff = oldBackoff
+	}()
+
+	fromNetMaxAttempts = 5
+	fromNetBackoff = func(int) time.Duration { return time.Second }
+
+	sleepStarted := make(chan struct{}, 1)
+	sleepRelease := make(chan struct{})
+	fromNetSleep = func(time.Duration) {
+		sleepStarted <- struct{}{}
+		<-sleepRelease
+	}
+	fromNetClientFactory = func() *http.Client {
+		return &http.Client{Transport: roundTripClient(func(*http.Request) (*http.Response, error) {
+			return nil, errors.New("temporary failure")
+		})}
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		_, err := FromNet(ctx, "https://example.invalid/test", filepath.Join(t.TempDir(), "out.bin"))
+		done <- err
+	}()
+
+	<-sleepStarted
+	cancel()
+	close(sleepRelease)
+
+	err := <-done
+	require.ErrorIs(t, err, context.Canceled)
 }
