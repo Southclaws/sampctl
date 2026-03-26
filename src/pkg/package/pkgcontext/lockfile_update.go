@@ -18,12 +18,12 @@ type lockfileDependencyState struct {
 }
 
 // UpdateLockfile refreshes lockfile dependency entries without installing dependencies into the working tree.
-func (pcx *PackageContext) UpdateLockfile(ctx context.Context, forceUpdate bool) error {
+func (pcx *PackageContext) UpdateLockfile(ctx context.Context, request DependencyUpdateRequest) error {
 	if !pcx.PackageLockfileState.HasLockfileResolver() {
 		return nil
 	}
 
-	if err := pcx.EnsureDependenciesCached(); err != nil {
+	if err := pcx.refreshDependencyGraph(request); err != nil {
 		return errors.Wrap(err, "failed to refresh dependency cache")
 	}
 
@@ -34,6 +34,7 @@ func (pcx *PackageContext) UpdateLockfile(ctx context.Context, forceUpdate bool)
 
 	for _, dep := range deps {
 		meta := dep.Meta
+		forceDependencyUpdate := request.ShouldForceDependency(meta, dep.Direct)
 		if meta.IsLocalScheme() {
 			if err := pcx.PackageLockfileState.RecordLocalDependency(meta); err != nil {
 				return errors.Wrap(err, "failed to record local dependency")
@@ -41,12 +42,12 @@ func (pcx *PackageContext) UpdateLockfile(ctx context.Context, forceUpdate bool)
 			continue
 		}
 
-		resolvedMeta, err := pcx.resolveLockfileDependencyMeta(ctx, meta, forceUpdate)
+		resolvedMeta, err := pcx.resolveLockfileDependencyMeta(ctx, meta, forceDependencyUpdate)
 		if err != nil {
 			return errors.Wrapf(err, "failed to resolve dependency %s", meta)
 		}
 
-		repo, err := pcx.EnsureDependencyCached(resolvedMeta, forceUpdate)
+		repo, err := pcx.EnsureDependencyCached(resolvedMeta, forceDependencyUpdate)
 		if err != nil {
 			return errors.Wrapf(err, "failed to ensure cached dependency %s", resolvedMeta)
 		}
@@ -77,6 +78,21 @@ func (pcx *PackageContext) resolveLockfileDependencyMeta(
 	resolvedMeta, err := pcx.resolveDynamicDependencyReference(ctx, resolvedMeta, meta, forceUpdate)
 	if err != nil {
 		return versioning.DependencyMeta{}, err
+	}
+
+	if forceUpdate && isPinnedTagDependency(meta) {
+		tag, err := pcx.resolveLatestTag(ctx, meta, true)
+		if err != nil {
+			if isMissingLatestReleaseError(err) {
+				print.Warn(meta, "does not publish tags or releases, leaving pinned dependency unchanged in the lockfile")
+				return resolvedMeta, nil
+			}
+
+			return versioning.DependencyMeta{}, err
+		}
+		if tag != "" {
+			resolvedMeta.Tag = tag
+		}
 	}
 
 	if resolvedMeta.Tag == "" && resolvedMeta.Branch == "" && resolvedMeta.Commit == "" {

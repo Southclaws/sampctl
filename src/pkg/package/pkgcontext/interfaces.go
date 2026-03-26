@@ -43,7 +43,7 @@ type LockfileController interface {
 
 // LockfileUpdater updates lockfile contents without installing dependencies into the working tree.
 type LockfileUpdater interface {
-	UpdateLockfile(ctx context.Context, forceUpdate bool) error
+	UpdateLockfile(ctx context.Context, request DependencyUpdateRequest) error
 }
 
 // BuildLockfileController extends LockfileController with build recording behavior.

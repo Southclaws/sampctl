@@ -21,6 +21,14 @@ func (pcx *PackageContext) resolveDynamicDependencyReference(
 
 	resolvedTag, err := pcx.resolveLatestTag(ctx, effectiveMeta, forceUpdate)
 	if err != nil {
+		if isMissingLatestReleaseError(err) {
+			print.Warn(originalMeta, "uses :latest but does not publish tags or releases, using the default branch instead")
+
+			updatedMeta := effectiveMeta
+			updatedMeta.Tag = ""
+			return updatedMeta, nil
+		}
+
 		return versioning.DependencyMeta{}, err
 	}
 	if resolvedTag == "" {

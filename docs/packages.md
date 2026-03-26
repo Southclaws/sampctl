@@ -46,10 +46,22 @@ sampctl ensure
 
 ![Ensure dependencies](images/sampctl-package-ensure.gif)
 
-Update cached dependencies to their latest versions:
+Update direct dependencies that are unpinned or already use `:latest`:
 
 ```bash
 sampctl ensure --update
+```
+
+Update a single dependency:
+
+```bash
+sampctl ensure --update pawn-lang/samp-stdlib
+```
+
+Force pinned tag dependencies to move to the newest tagged release:
+
+```bash
+sampctl ensure --update --force
 ```
 
 By default, dependencies are cloned into `./dependencies/`.

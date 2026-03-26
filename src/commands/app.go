@@ -121,7 +121,7 @@ func newInitCommand(global []cli.Flag) cli.Command {
 func newEnsureCommand(global []cli.Flag) cli.Command {
 	return cli.Command{
 		Name:        "ensure",
-		Usage:       "sampctl ensure",
+		Usage:       "sampctl ensure [dependency]",
 		Description: "Ensures dependencies are up to date based on the `dependencies` field in `pawn.json`/`pawn.yaml`.",
 		Action:      packageEnsure,
 		Flags:       withGlobalFlags(global, packageEnsureFlags()),

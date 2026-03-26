@@ -8,29 +8,31 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/lockfile"
+	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
 type fakeEnsureCommandTarget struct {
 	fakeCommandLockfile
-	ensureCalled              bool
-	ensureForceUpdate         bool
-	ensureUpdated             bool
-	ensureErr                 error
-	updateLockfileCalled      bool
-	updateLockfileForceUpdate bool
-	updateLockfileErr         error
+	ensureCalled          bool
+	ensureRequest         pkgcontext.DependencyUpdateRequest
+	ensureUpdated         bool
+	ensureErr             error
+	updateLockfileCalled  bool
+	updateLockfileRequest pkgcontext.DependencyUpdateRequest
+	updateLockfileErr     error
 }
 
-func (f *fakeEnsureCommandTarget) EnsureProject(_ context.Context, forceUpdate bool) (bool, error) {
+func (f *fakeEnsureCommandTarget) EnsureProject(_ context.Context, request pkgcontext.DependencyUpdateRequest) (bool, error) {
 	f.ensureCalled = true
-	f.ensureForceUpdate = forceUpdate
+	f.ensureRequest = request
 	return f.ensureUpdated, f.ensureErr
 }
 
-func (f *fakeEnsureCommandTarget) UpdateLockfile(_ context.Context, forceUpdate bool) error {
+func (f *fakeEnsureCommandTarget) UpdateLockfile(_ context.Context, request pkgcontext.DependencyUpdateRequest) error {
 	f.updateLockfileCalled = true
-	f.updateLockfileForceUpdate = forceUpdate
+	f.updateLockfileRequest = request
 	return f.updateLockfileErr
 }
 
@@ -47,15 +49,50 @@ func TestRunPackageEnsureForceUpdate(t *testing.T) {
 
 	err := runPackageEnsure(context.Background(), target, ensureCommandOptions{
 		version:     "dev",
-		forceUpdate: true,
 		useLockfile: true,
 		lockOnly:    false,
+		update: pkgcontext.DependencyUpdateRequest{
+			Enabled: true,
+			Force:   true,
+		},
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "dev", target.initVersion)
 	assert.True(t, target.forceUpdateCalled)
 	assert.True(t, target.ensureCalled)
-	assert.True(t, target.ensureForceUpdate)
+	assert.True(t, target.ensureRequest.Enabled)
+	assert.True(t, target.ensureRequest.Force)
+}
+
+func TestRunPackageEnsureTargetedForceDoesNotClearWholeLockfile(t *testing.T) {
+	t.Parallel()
+
+	targetSelector := "user/repo"
+	targetMeta, err := versioning.DependencyString(targetSelector).Explode()
+	require.NoError(t, err)
+
+	target := &fakeEnsureCommandTarget{
+		fakeCommandLockfile: fakeCommandLockfile{
+			hasLockfile: true,
+			hasResolver: true,
+			lockfile:    lockfile.New("dev"),
+		},
+	}
+
+	err = runPackageEnsure(context.Background(), target, ensureCommandOptions{
+		version:     "dev",
+		useLockfile: true,
+		update: pkgcontext.DependencyUpdateRequest{
+			Enabled:    true,
+			Force:      true,
+			Target:     targetSelector,
+			TargetMeta: targetMeta,
+		},
+	})
+	require.NoError(t, err)
+	assert.False(t, target.forceUpdateCalled)
+	assert.True(t, target.ensureCalled)
+	assert.Equal(t, targetMeta, target.ensureRequest.TargetMeta)
 }
 
 func TestRunPackageEnsureLockOnlySkipsEnsure(t *testing.T) {
@@ -69,14 +106,14 @@ func TestRunPackageEnsureLockOnlySkipsEnsure(t *testing.T) {
 
 	err := runPackageEnsure(context.Background(), target, ensureCommandOptions{
 		version:     "dev",
-		forceUpdate: false,
 		useLockfile: true,
 		lockOnly:    true,
+		update:      pkgcontext.DependencyUpdateRequest{},
 	})
 	require.NoError(t, err)
 	assert.False(t, target.ensureCalled)
 	assert.True(t, target.updateLockfileCalled)
-	assert.False(t, target.updateLockfileForceUpdate)
+	assert.False(t, target.updateLockfileRequest.Force)
 	assert.True(t, target.saved)
 }
 
@@ -90,14 +127,17 @@ func TestRunPackageEnsureLockOnlyReturnsUpdateError(t *testing.T) {
 
 	err := runPackageEnsure(context.Background(), target, ensureCommandOptions{
 		version:     "dev",
-		forceUpdate: true,
 		useLockfile: true,
 		lockOnly:    true,
+		update: pkgcontext.DependencyUpdateRequest{
+			Enabled: true,
+			Force:   true,
+		},
 	})
 	require.Error(t, err)
 	assert.EqualError(t, err, "failed to update lockfile: boom")
 	assert.True(t, target.updateLockfileCalled)
-	assert.True(t, target.updateLockfileForceUpdate)
+	assert.True(t, target.updateLockfileRequest.Force)
 	assert.False(t, target.ensureCalled)
 }
 

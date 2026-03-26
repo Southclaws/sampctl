@@ -18,56 +18,15 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
 
-// TagTaglessDependencies updates the root package definition file so any dependency
-// without an explicit tag/branch/commit gets pinned to the latest available tag.
+var ErrDependencyHasNoTagsOrReleases = errors.New("dependency does not publish tags or releases")
+
+// TagTaglessDependencies preserves the legacy helper name for updating direct
+// dependency references during an ensure/update flow.
 func (pcx *PackageContext) TagTaglessDependencies(ctx context.Context, forceUpdate bool) (bool, error) {
-	if !pcx.Package.Parent {
-		return false, nil
-	}
-	if pcx.Package.LocalPath == "" {
-		return false, errors.New("package has no local path")
-	}
-
-	definitionPath, definitionPerm, originalDefinition, err := pcx.readDefinitionSnapshot()
-	if err != nil {
-		return false, errors.Wrap(err, "failed to read package definition")
-	}
-
-	originalDeps := append([]versioning.DependencyString(nil), pcx.Package.Dependencies...)
-	originalDev := append([]versioning.DependencyString(nil), pcx.Package.Development...)
-
-	changedDeps, err := pcx.tagTaglessDependencyList(ctx, pcx.Package.Dependencies, forceUpdate)
-	if err != nil {
-		return false, err
-	}
-	changedDev, err := pcx.tagTaglessDependencyList(ctx, pcx.Package.Development, forceUpdate)
-	if err != nil {
-		return false, err
-	}
-
-	changed := changedDeps.changed || changedDev.changed
-	if !changed {
-		return false, nil
-	}
-
-	pcx.Package.Dependencies = changedDeps.updated
-	pcx.Package.Development = changedDev.updated
-
-	if err := pcx.Package.WriteDefinition(); err != nil {
-		return false, errors.Wrap(err, "failed to write updated package definition")
-	}
-
-	if err := pcx.EnsureDependenciesCached(); err != nil {
-		pcx.Package.Dependencies = originalDeps
-		pcx.Package.Development = originalDev
-		restoreErr := fs.WriteFileAtomic(definitionPath, originalDefinition, fs.PermDirPrivate, definitionPerm)
-		if restoreErr != nil {
-			return false, errors.Wrapf(err, "failed to refresh dependency tree after tagging, rollback failed: %v", restoreErr)
-		}
-		return false, errors.Wrap(err, "failed to refresh dependency tree after tagging, rolling back changes")
-	}
-
-	return true, nil
+	return pcx.UpdateDependencyReferences(ctx, DependencyUpdateRequest{
+		Enabled: true,
+		Force:   forceUpdate,
+	})
 }
 
 func (pcx *PackageContext) readDefinitionSnapshot() (path string, perm os.FileMode, contents []byte, err error) {
@@ -95,60 +54,6 @@ func (pcx *PackageContext) readDefinitionSnapshot() (path string, perm os.FileMo
 		return
 	}
 	return
-}
-
-type tagListResult struct {
-	updated []versioning.DependencyString
-	changed bool
-}
-
-func (pcx *PackageContext) tagTaglessDependencyList(ctx context.Context, deps []versioning.DependencyString, forceUpdate bool) (tagListResult, error) {
-	res := tagListResult{updated: make([]versioning.DependencyString, 0, len(deps))}
-	for _, depStr := range deps {
-		meta, err := depStr.Explode()
-		if err != nil {
-			print.Warn("invalid dependency string, skipping tag resolution:", depStr, "(", err, ")")
-			res.updated = append(res.updated, depStr)
-			continue
-		}
-
-		if meta.IsLocalScheme() {
-			res.updated = append(res.updated, depStr)
-			continue
-		}
-		if meta.Tag != "" || meta.Branch != "" || meta.Commit != "" {
-			res.updated = append(res.updated, depStr)
-			continue
-		}
-		if meta.User == "" || meta.Repo == "" {
-			res.updated = append(res.updated, depStr)
-			continue
-		}
-
-		tag, err := pcx.resolveLatestTag(ctx, meta, forceUpdate)
-		if err != nil {
-			if strings.Contains(err.Error(), "failed to refresh dependency cache") {
-				print.Warn(meta, "failed to resolve latest tag:", err)
-			} else {
-				print.Verb(meta, "failed to resolve latest tag:", err)
-			}
-			res.updated = append(res.updated, depStr)
-			continue
-		}
-		if tag == "" {
-			res.updated = append(res.updated, depStr)
-			continue
-		}
-
-		meta.Tag = tag
-		newStr := versioning.DependencyString(formatPinnedDependency(meta))
-		res.updated = append(res.updated, newStr)
-		if newStr != depStr {
-			res.changed = true
-			print.Verb("tagged dependency", depStr, "->", newStr)
-		}
-	}
-	return res, nil
 }
 
 func formatPinnedDependency(meta versioning.DependencyMeta) string {
@@ -181,6 +86,9 @@ func (pcx *PackageContext) resolveLatestTag(ctx context.Context, meta versioning
 			return tag, nil
 		}
 		if err != nil {
+			if isMissingLatestReleaseError(err) {
+				return "", ErrDependencyHasNoTagsOrReleases
+			}
 			print.Verb(meta, "failed to resolve fresh latest tag:", err)
 		}
 	}
@@ -207,6 +115,9 @@ func (pcx *PackageContext) resolveLatestTag(ctx context.Context, meta versioning
 
 	tag, err = pcx.latestTagFromCache(meta)
 	if err != nil {
+		if isMissingLatestReleaseError(err) {
+			return "", ErrDependencyHasNoTagsOrReleases
+		}
 		return "", errors.Wrap(err, "failed to read tags after refreshing dependency cache")
 	}
 	return tag, nil
@@ -233,10 +144,27 @@ func (pcx *PackageContext) resolveFreshLatestTag(ctx context.Context, meta versi
 
 	tag, err := pcx.latestTagFromCache(meta)
 	if err != nil {
+		if isMissingLatestReleaseError(err) {
+			return "", ErrDependencyHasNoTagsOrReleases
+		}
 		return "", errors.Wrap(err, "failed to read tags after refreshing dependency cache")
 	}
 
 	return tag, nil
+}
+
+func isMissingLatestReleaseError(err error) bool {
+	switch errors.Cause(err) {
+	case ErrDependencyHasNoTagsOrReleases:
+		return true
+	}
+
+	switch errors.Cause(err).Error() {
+	case "no tags", "no releases", "no usable release tag":
+		return true
+	default:
+		return false
+	}
 }
 
 func (pcx *PackageContext) cachedRepoHasNoOrigin(meta versioning.DependencyMeta) bool {

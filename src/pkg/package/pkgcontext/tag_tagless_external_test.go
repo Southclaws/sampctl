@@ -87,7 +87,7 @@ func TestTagTaglessDependencies_PinsLatestTagFromCache(t *testing.T) {
 	require.NoError(t, json.Unmarshal(finalBytes, &final))
 
 	depsAny := final["dependencies"].([]any)
-	require.Equal(t, []any{depUser + "/" + depRepo + ":2.0.0"}, depsAny)
+	require.Equal(t, []any{depUser + "/" + depRepo + ":latest"}, depsAny)
 }
 
 func headHash(repo *git.Repository, t *testing.T) plumbing.Hash {
