@@ -17,15 +17,18 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 )
 
-func platformRun(cmd *exec.Cmd, w io.Writer, r io.Reader) (err error) {
+func platformRun(cmd *exec.Cmd, w io.Writer, r io.Reader, onStart func(*os.Process)) (err error) {
 	cmd.SysProcAttr = getRuntimePtySysProcAttr()
 	ptmx, err := pty.Start(cmd)
 	if err != nil {
 		print.Verb("PTY allocation failed, falling back to regular execution:", err)
-		return platformRunFallback(cmd, w, r)
+		return platformRunFallback(cmd, w, r, onStart)
 	}
 	if ptmx == nil {
 		return errors.New("failed to create new pty, ptmx is null")
+	}
+	if onStart != nil && cmd.Process != nil {
+		onStart(cmd.Process)
 	}
 
 	var closeOnce sync.Once
@@ -83,7 +86,7 @@ func platformRun(cmd *exec.Cmd, w io.Writer, r io.Reader) (err error) {
 	return cmdErr
 }
 
-func platformRunFallback(cmd *exec.Cmd, w io.Writer, r io.Reader) error {
+func platformRunFallback(cmd *exec.Cmd, w io.Writer, r io.Reader, onStart func(*os.Process)) error {
 	cmd.SysProcAttr = getRuntimeSysProcAttr()
 	cmd.Stdout = w
 	cmd.Stderr = w
@@ -92,6 +95,9 @@ func platformRunFallback(cmd *exec.Cmd, w io.Writer, r io.Reader) error {
 	err := cmd.Start()
 	if err != nil {
 		return errors.Wrap(err, "failed to start command")
+	}
+	if onStart != nil && cmd.Process != nil {
+		onStart(cmd.Process)
 	}
 
 	return cmd.Wait()

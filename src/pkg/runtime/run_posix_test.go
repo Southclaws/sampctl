@@ -60,7 +60,7 @@ func TestPlatformRunFallbackCopiesIO(t *testing.T) {
 	input := bytes.NewBufferString("hello from stdin")
 	var output bytes.Buffer
 
-	err := platformRunFallback(cmd, &output, input)
+	err := platformRunFallback(cmd, &output, input, nil)
 	require.NoError(t, err)
 	require.Equal(t, "hello from stdin", output.String())
 }
@@ -114,7 +114,7 @@ func TestPlatformRunReturnsWhenProcessExitsWithBlockingInput(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		cmd := exec.Command("/bin/sh", "-c", "exit 0") //nolint:gosec
-		done <- platformRun(cmd, io.Discard, blockingReader{release: release})
+		done <- platformRun(cmd, io.Discard, blockingReader{release: release}, nil)
 	}()
 
 	select {

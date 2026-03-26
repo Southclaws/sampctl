@@ -11,6 +11,13 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 )
 
+func init() {
+	cli.VersionFlag = cli.BoolFlag{
+		Name:  "appVersion, V, version",
+		Usage: "sampctl version",
+	}
+}
+
 func Run(args []string, version string) error {
 	cacheDir, err := fs.ConfigDir()
 	if err != nil {
@@ -41,11 +48,6 @@ func newCLIApp(version string, state *commandState) *cli.App {
 	app.Usage = "The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer."
 	app.Version = version
 	app.EnableBashCompletion = true
-
-	cli.VersionFlag = cli.BoolFlag{
-		Name:  "appVersion, V, version",
-		Usage: "sampctl version",
-	}
 
 	global := globalFlags()
 	app.Flags = global

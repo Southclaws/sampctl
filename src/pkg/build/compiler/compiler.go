@@ -142,7 +142,7 @@ func PrepareCommand(ctx context.Context, request PrepareCommandRequest) (cmd *ex
 	constantArgs := buildConstantArgs(request.Config.Constants)
 	args = append(args, constantArgs...)
 
-	cmd = exec.CommandContext(ctx, filepath.Join(runtimeDir, pkg.Binary), args...) //nolint:gas
+	cmd = exec.CommandContext(ctx, filepath.Join(runtimeDir, pkg.Binary), args...) //nolint:gosec
 	cmd.Env = []string{
 		fmt.Sprintf("LD_LIBRARY_PATH=%s", runtimeDir),
 		fmt.Sprintf("DYLD_LIBRARY_PATH=%s", runtimeDir),
@@ -548,7 +548,7 @@ func RunPostBuildCommands(ctx context.Context, cfg build.Config, output io.Write
 			return errors.New("post-build command is empty")
 		}
 		print.Verb("running post-build commands", command)
-		cmd := exec.CommandContext(ctx, command[0], command[1:]...) //nolint:gas
+		cmd := exec.CommandContext(ctx, command[0], command[1:]...) //nolint:gosec
 		cmd.Stdout = output
 		cmd.Stderr = output
 
@@ -568,7 +568,7 @@ func RunPreBuildCommands(ctx context.Context, cfg build.Config, output io.Writer
 			return errors.New("pre-build command is empty")
 		}
 		print.Verb("running pre-build commands", command)
-		cmd := exec.CommandContext(ctx, command[0], command[1:]...) //nolint:gas
+		cmd := exec.CommandContext(ctx, command[0], command[1:]...) //nolint:gosec
 		cmd.Stdout = output
 		cmd.Stderr = output
 

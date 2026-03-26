@@ -18,15 +18,15 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/sys/osversion"
 )
 
-func platformRun(cmd *exec.Cmd, w io.Writer, r io.Reader) (err error) {
+func platformRun(cmd *exec.Cmd, w io.Writer, r io.Reader, onStart func(*os.Process)) (err error) {
 	version := osversion.Get()
 	if version.Build >= osversion.V1809 {
-		return usePty(cmd, w, r)
+		return usePty(cmd, w, r, onStart)
 	}
-	return useTty(cmd, w, r)
+	return useTty(cmd, w, r, onStart)
 }
 
-func usePty(cmd *exec.Cmd, w io.Writer, r io.Reader) (err error) {
+func usePty(cmd *exec.Cmd, w io.Writer, r io.Reader, onStart func(*os.Process)) (err error) {
 	options := []conpty.ConPtyOption{}
 	if cmd.Dir != "" {
 		options = append(options, conpty.ConPtyWorkDir(cmd.Dir))
@@ -45,6 +45,9 @@ func usePty(cmd *exec.Cmd, w io.Writer, r io.Reader) (err error) {
 
 	if process, findErr := os.FindProcess(cpty.Pid()); findErr == nil {
 		cmd.Process = process
+		if onStart != nil {
+			onStart(process)
+		}
 	}
 
 	defer func() {
@@ -103,11 +106,17 @@ func buildConPtyCommandLine(cmd *exec.Cmd) string {
 	return strings.Join(quoted, " ")
 }
 
-func useTty(cmd *exec.Cmd, w io.Writer, r io.Reader) (err error) {
+func useTty(cmd *exec.Cmd, w io.Writer, r io.Reader, onStart func(*os.Process)) (err error) {
 	cmd.Stderr = w
 	cmd.Stdout = w
 	cmd.Stdin = r
-	err = cmd.Run()
+	if err = cmd.Start(); err != nil {
+		return err
+	}
+	if onStart != nil && cmd.Process != nil {
+		onStart(cmd.Process)
+	}
+	err = cmd.Wait()
 	// process kill on windows: "exit status 1"
 	if err != nil && err.Error() == "exit status 1" {
 		err = nil

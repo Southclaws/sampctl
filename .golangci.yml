@@ -1,24 +1,48 @@
+version: "2"
+
 run:
+  go: "1.25.0"
+  relative-path-mode: gomod
+  modules-download-mode: readonly
   tests: false
-
-  go: "1.18"
-
-  issues-exit-code: 0
-
-severity:
-  default-severity: warn
+  timeout: 5m
 
 linters:
-  fast: true
+  default: none
+  enable:
+    - bodyclose
+    - errcheck
+    - govet
+    - ineffassign
+    - revive
+    - staticcheck
+
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: error-return
+        - name: error-strings
+
+    staticcheck:
+      checks:
+        - all
+        - -QF*
+        - -ST1000
+
+formatters:
   enable:
     - gci
-  presets:
-    - bugs
+    - gofumpt
 
-linters-settings:
-  gci:
-    local-prefixes: github.com/Southclaws/sampctl
-    sections:
-      - standard
-      - default
-      - prefix(github.com/Southclaws/sampctl)
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/Southclaws/sampctl)

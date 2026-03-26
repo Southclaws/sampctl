@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"syscall"
 	"testing"
@@ -342,9 +341,9 @@ func TestCommandTracker(t *testing.T) {
 	tracker := &commandTracker{}
 	assert.Nil(t, tracker.current())
 
-	cmd := &exec.Cmd{}
-	tracker.set(cmd)
-	assert.Same(t, cmd, tracker.current())
+	process := &os.Process{Pid: 42}
+	tracker.set(process)
+	assert.Same(t, process, tracker.current())
 }
 
 func TestWrapRuntimeError(t *testing.T) {

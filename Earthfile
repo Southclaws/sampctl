@@ -1,7 +1,7 @@
 VERSION 0.8
 
 deps:
-    FROM golang:1.24-bookworm
+    FROM golang:1.25-bookworm
     WORKDIR /workspace
     
     RUN dpkg --add-architecture i386 && \
@@ -14,6 +14,58 @@ deps:
 
     RUN go mod verify
 
+quality-deps:
+    FROM golang:1.25-bookworm
+    WORKDIR /workspace
+
+    RUN dpkg --add-architecture i386 && \
+        apt-get update && \
+        apt-get install -y g++-multilib git && \
+        rm -rf /var/lib/apt/lists/*
+
+    COPY go.mod go.sum ./
+    COPY .golangci.yml ./
+
+    RUN go mod download
+    RUN GOBIN=/usr/local/bin go install tool
+
+quality-src:
+    FROM +quality-deps
+
+    COPY --dir src ./
+    COPY .git ./.git
+
+quality-vet:
+    FROM +quality-src
+
+    RUN go vet ./...
+
+quality-lint:
+    FROM +quality-src
+
+    ARG LINT_FLAGS=""
+
+    RUN sh -eu -c 'golangci-lint run ${LINT_FLAGS}'
+
+quality-staticcheck:
+    FROM +quality-src
+
+    RUN staticcheck ./...
+
+quality-vuln:
+    FROM +quality-src
+
+    RUN govulncheck ./...
+
+quality:
+    BUILD +quality-vet
+    BUILD +quality-lint
+
+quality-full:
+    BUILD +quality
+    BUILD +quality-staticcheck
+    BUILD +quality-vuln
+
 src:
     FROM +deps
     
@@ -24,7 +76,7 @@ src:
 test:
     FROM +src
     
-    RUN go test -race -v -timeout=10m ./src/...
+    RUN go test -race -v -timeout=10m ./...
 
 build:
     FROM +src

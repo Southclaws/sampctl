@@ -62,7 +62,7 @@ type binaryRunConfig struct {
 	outputWriter io.Writer
 	input        io.Reader
 	termCh       chan<- termination
-	onStart      func(*exec.Cmd)
+	onStart      func(*os.Process)
 }
 
 type runtimeTerminationRequest struct {
@@ -95,8 +95,8 @@ type outputModeState struct {
 }
 
 type commandTracker struct {
-	mu  sync.Mutex
-	cmd *exec.Cmd
+	mu      sync.Mutex
+	process *os.Process
 }
 
 // Run handles the actual running of the server process - it collects log output too.
@@ -324,14 +324,11 @@ func shouldSkipPreambleLine(state *outputModeState, line string) bool {
 func runBinary(ctx context.Context, cfg binaryRunConfig) {
 	backoff := time.Second
 	for {
-		cmd := exec.CommandContext(ctx, cfg.binary) //nolint:gas
-		if cfg.onStart != nil {
-			cfg.onStart(cmd)
-		}
+		cmd := exec.CommandContext(ctx, cfg.binary) //nolint:gosec
 		cmd.Dir = filepath.Dir(cfg.binary)
 
 		startedAt := time.Now()
-		runErr := platformRun(cmd, cfg.outputWriter, cfg.input)
+		runErr := platformRun(cmd, cfg.outputWriter, cfg.input, cfg.onStart)
 		logCommandResult(cmd, runErr)
 
 		term, nextBackoff, retry := evaluateRunResult(runResultRequest{
@@ -422,24 +419,24 @@ func sendOutputLine(ctx context.Context, streamCh chan<- string, line string) bo
 	}
 }
 
-func (tracker *commandTracker) set(cmd *exec.Cmd) {
+func (tracker *commandTracker) set(process *os.Process) {
 	tracker.mu.Lock()
 	defer tracker.mu.Unlock()
-	tracker.cmd = cmd
+	tracker.process = process
 }
 
-func (tracker *commandTracker) current() *exec.Cmd {
+func (tracker *commandTracker) current() *os.Process {
 	tracker.mu.Lock()
 	defer tracker.mu.Unlock()
-	return tracker.cmd
+	return tracker.process
 }
 
-func killTrackedProcess(cmd *exec.Cmd) {
-	if cmd == nil || cmd.Process == nil {
-		print.Verb("not attempting to kill server: cmd.Process is nil")
+func killTrackedProcess(process *os.Process) {
+	if process == nil {
+		print.Verb("not attempting to kill server: process is nil")
 		return
 	}
-	if err := terminateRuntimeProcess(cmd.Process); err != nil {
+	if err := terminateRuntimeProcess(process); err != nil {
 		print.Erro("Failed to kill", err)
 		return
 	}

@@ -37,7 +37,7 @@ func GenerateDocs(app *cli.App) (result string) {
 	return buffer.String()
 }
 
-//nolint:gas
+//nolint:gosec
 func generateCommandDocs(prefix string, command cli.Command, buffer *bytes.Buffer) {
 	buffer.WriteString(fmt.Sprintf("### `%s %s`\n\n", prefix, command.Name))
 	if command.Usage != "" {

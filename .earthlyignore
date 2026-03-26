@@ -10,7 +10,6 @@ sampctl
 test_project/
 
 # Development files
-.git/
 .vscode/
 *.log
 

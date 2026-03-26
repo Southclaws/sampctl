@@ -1,4 +1,4 @@
-//nolint:dupl,golint
+//nolint:dupl
 package download
 
 import (
@@ -81,7 +81,7 @@ func GetRuntimeListWithClientContext(ctx context.Context, cacheDir string, clien
 		return Runtimes{}, err
 	}
 	if refreshed {
-		fmt.Fprintln(os.Stderr, "updating runtimes list...") // nolint:gas
+		fmt.Fprintln(os.Stderr, "updating runtimes list...") //nolint:gosec
 	}
 	return runtimes, nil
 }
