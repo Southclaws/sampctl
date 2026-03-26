@@ -32,25 +32,29 @@ func TestRunOptionsWithDefaults(t *testing.T) {
 func TestRunExecutesResolvedBinary(t *testing.T) {
 	t.Parallel()
 
-	cacheDir := t.TempDir()
-	workingDir := t.TempDir()
-	platform := currentTestPlatform()
-	writeRuntimeFixtureManifest(t, cacheDir, "https://fixtures.example/linux", "https://fixtures.example/windows", "", "")
+	const attempts = 100
 
-	binaryName := expectedRuntimeBinary(platform)
-	binaryPath := filepath.Join(workingDir, binaryName)
-	require.NoError(t, os.WriteFile(binaryPath, []byte("#!/bin/sh\nprintf 'run wrapper ok\\n'\n"), 0o755))
+	for attempt := 0; attempt < attempts; attempt++ {
+		cacheDir := t.TempDir()
+		workingDir := t.TempDir()
+		platform := currentTestPlatform()
+		writeRuntimeFixtureManifest(t, cacheDir, "https://fixtures.example/linux", "https://fixtures.example/windows", "", "")
 
-	var output bytes.Buffer
-	err := Run(context.Background(), run.Runtime{
-		WorkingDir: workingDir,
-		Platform:   platform,
-		Version:    "0.3.7",
-		Mode:       run.Server,
-	}, RunOptions{CacheDir: cacheDir, Output: &output})
+		binaryName := expectedRuntimeBinary(platform)
+		binaryPath := filepath.Join(workingDir, binaryName)
+		require.NoError(t, os.WriteFile(binaryPath, []byte("#!/bin/sh\nprintf 'run wrapper ok\\n'\n"), 0o755))
 
-	require.NoError(t, err)
-	assert.Contains(t, output.String(), "run wrapper ok")
+		var output bytes.Buffer
+		err := Run(context.Background(), run.Runtime{
+			WorkingDir: workingDir,
+			Platform:   platform,
+			Version:    "0.3.7",
+			Mode:       run.Server,
+		}, RunOptions{CacheDir: cacheDir, Output: &output})
+
+		require.NoError(t, err, "attempt %d", attempt)
+		assert.Contains(t, output.String(), "run wrapper ok", "attempt %d", attempt)
+	}
 }
 
 func TestWaitForRuntimeTermination(t *testing.T) {

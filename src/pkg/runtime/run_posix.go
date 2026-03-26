@@ -78,13 +78,12 @@ func platformRun(ctx context.Context, cmd *exec.Cmd, w io.Writer, r io.Reader, o
 	}()
 
 	cmdErr := <-cmdErrCh
-	if errClose := closePty(); errClose != nil && !isBenignPtyCopyError(errClose) {
-		print.Verb("failed to close pty after command exit:", errClose)
-	}
-
 	errWrite := <-wrErrCh
 	if errWrite != nil && !isBenignPtyCopyError(errWrite) {
 		print.Verb("write error", errWrite)
+	}
+	if errClose := closePty(); errClose != nil && !isBenignPtyCopyError(errClose) {
+		print.Verb("failed to close pty after command exit:", errClose)
 	}
 
 	return cmdErr
