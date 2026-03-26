@@ -1,7 +1,12 @@
 package commands
 
 import (
+	"context"
 	"flag"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -75,6 +80,44 @@ func TestNewGitHubClient(t *testing.T) {
 
 	assert.NotNil(t, newGitHubClient(""))
 	assert.NotNil(t, newGitHubClient("token"))
+}
+
+func TestNewGitHubClientFallsBackToAnonymousForPublicGetRequests(t *testing.T) {
+	t.Parallel()
+
+	var authenticatedRequests int32
+	var anonymousRequests int32
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/repos/fixture/repo/contents/pawn.json" {
+			http.NotFound(w, r)
+			return
+		}
+
+		if r.Header.Get("Authorization") != "" {
+			atomic.AddInt32(&authenticatedRequests, 1)
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"message":"Bad credentials"}`))
+			return
+		}
+
+		atomic.AddInt32(&anonymousRequests, 1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"type":"file","encoding":"base64","content":"e30="}`))
+	}))
+	defer server.Close()
+
+	client := newGitHubClient("bad-token")
+	baseURL, err := url.Parse(server.URL + "/")
+	require.NoError(t, err)
+	client.BaseURL = baseURL
+	client.UploadURL = baseURL
+
+	fileContent, _, _, err := client.Repositories.GetContents(context.Background(), "fixture", "repo", "pawn.json", nil)
+	require.NoError(t, err)
+	require.NotNil(t, fileContent)
+	assert.EqualValues(t, 1, atomic.LoadInt32(&authenticatedRequests))
+	assert.EqualValues(t, 1, atomic.LoadInt32(&anonymousRequests))
 }
 
 func TestGenerateDocsIncludesCommandsAndFlags(t *testing.T) {
