@@ -25,6 +25,7 @@ import (
 	"github.com/Southclaws/sampctl/src/config"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/sys/gitcheck"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
@@ -335,6 +336,13 @@ func Init(options InitOptions) (err error) {
 
 	if err := fetchInitTemplates(ctx, dir, profile, answers); err != nil {
 		return err
+	}
+
+	if !gitcheck.IsInstalled() {
+		print.Warn("Git is not installed. Skipping dependency resolution.")
+		print.Warn("Please install Git from https://git-scm.com")
+		print.Warn("After installing Git, run 'sampctl ensure' to install dependencies.")
+		return nil
 	}
 
 	pcx, err := pkgcontext.NewPackageContext(pkgcontext.NewPackageContextOptions{
