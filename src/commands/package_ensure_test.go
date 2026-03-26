@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/lockfile"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
@@ -66,6 +67,10 @@ func TestRunPackageEnsureForceUpdate(t *testing.T) {
 func TestRunPackageEnsureTargetedForceDoesNotClearWholeLockfile(t *testing.T) {
 	t.Parallel()
 
+	targetSelector := "user/repo"
+	targetMeta, err := versioning.DependencyString(targetSelector).Explode()
+	require.NoError(t, err)
+
 	target := &fakeEnsureCommandTarget{
 		fakeCommandLockfile: fakeCommandLockfile{
 			hasLockfile: true,
@@ -74,19 +79,20 @@ func TestRunPackageEnsureTargetedForceDoesNotClearWholeLockfile(t *testing.T) {
 		},
 	}
 
-	err := runPackageEnsure(context.Background(), target, ensureCommandOptions{
+	err = runPackageEnsure(context.Background(), target, ensureCommandOptions{
 		version:     "dev",
 		useLockfile: true,
 		update: pkgcontext.DependencyUpdateRequest{
 			Enabled:    true,
 			Force:      true,
-			Target:     "user/repo",
-			TargetMeta: pkgcontext.DependencyUpdateRequest{}.TargetMeta,
+			Target:     targetSelector,
+			TargetMeta: targetMeta,
 		},
 	})
 	require.NoError(t, err)
 	assert.False(t, target.forceUpdateCalled)
 	assert.True(t, target.ensureCalled)
+	assert.Equal(t, targetMeta, target.ensureRequest.TargetMeta)
 }
 
 func TestRunPackageEnsureLockOnlySkipsEnsure(t *testing.T) {
