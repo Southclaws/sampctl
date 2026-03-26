@@ -35,6 +35,8 @@ func TestGetServerBinary(t *testing.T) {
 
 	assert.Equal(t, filepath.Join("bin", "samp03svr"), getServerBinary(cacheDir, "latest", "linux"))
 	assert.Equal(t, filepath.Join("bin", "samp-server.exe"), getServerBinary(cacheDir, "0.3.7", "windows"))
+	assert.Equal(t, "omp-server", getServerBinary(cacheDir, "openmp", "linux"))
+	assert.Equal(t, "omp-server.exe", getServerBinary(cacheDir, "openmp", "windows"))
 	assert.Equal(t, "omp-server", getServerBinary(cacheDir, "v1.0.0-openmp", "linux"))
 	assert.Equal(t, "omp-server.exe", getServerBinary(cacheDir, "v1.0.0-openmp", "windows"))
 	assert.Empty(t, getServerBinary(cacheDir, "0.3.7", "plan9"))

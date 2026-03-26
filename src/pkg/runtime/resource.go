@@ -16,12 +16,11 @@ import (
 )
 
 func getServerBinary(cacheDir, version, platform string) (binary string) {
+	runtimeType := run.DetectRuntimeType(version)
 	pkg, err := FindPackage(cacheDir, version)
 	if err != nil {
-		return
+		return defaultServerBinary(platform, runtimeType)
 	}
-
-	runtimeType := run.DetectRuntimeType(version)
 
 	var (
 		paths map[string]string
@@ -54,8 +53,28 @@ func getServerBinary(cacheDir, version, platform string) (binary string) {
 			break
 		}
 	}
+	if binary != "" {
+		return binary
+	}
 
-	return
+	return defaultServerBinary(platform, runtimeType)
+}
+
+func defaultServerBinary(platform string, runtimeType run.RuntimeType) string {
+	switch platform {
+	case "windows":
+		if runtimeType == run.RuntimeTypeOpenMP {
+			return "omp-server.exe"
+		}
+		return "samp-server.exe"
+	case "linux", "darwin":
+		if runtimeType == run.RuntimeTypeOpenMP {
+			return "omp-server"
+		}
+		return "samp03svr"
+	default:
+		return ""
+	}
 }
 
 // MatchesChecksum checks if the file at the given path src is the correct file for the specified

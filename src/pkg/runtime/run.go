@@ -351,7 +351,7 @@ func runBinary(ctx context.Context, cfg binaryRunConfig) {
 		cmd.Dir = filepath.Dir(cfg.binary)
 
 		startedAt := time.Now()
-		runErr := platformRun(cmd, cfg.outputWriter, cfg.input, cfg.onStart)
+		runErr := platformRun(ctx, cmd, cfg.outputWriter, cfg.input, cfg.onStart)
 		logCommandResult(cmd, runErr)
 
 		term, nextBackoff, retry := evaluateRunResult(runResultRequest{

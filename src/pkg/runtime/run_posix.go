@@ -4,6 +4,7 @@
 package runtime
 
 import (
+	"context"
 	stderrors "errors"
 	"io"
 	"os"
@@ -17,12 +18,15 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 )
 
-func platformRun(cmd *exec.Cmd, w io.Writer, r io.Reader, onStart func(*os.Process)) (err error) {
+func platformRun(ctx context.Context, cmd *exec.Cmd, w io.Writer, r io.Reader, onStart func(*os.Process)) (err error) {
 	cmd.SysProcAttr = getRuntimePtySysProcAttr()
 	ptmx, err := pty.Start(cmd)
 	if err != nil {
+		if cmd.Process != nil {
+			return errors.Wrap(err, "failed to start command with pty")
+		}
 		print.Verb("PTY allocation failed, falling back to regular execution:", err)
-		return platformRunFallback(cmd, w, r, onStart)
+		return platformRunFallback(cloneRuntimeCommand(ctx, cmd), w, r, onStart)
 	}
 	if ptmx == nil {
 		return errors.New("failed to create new pty, ptmx is null")
@@ -84,6 +88,30 @@ func platformRun(cmd *exec.Cmd, w io.Writer, r io.Reader, onStart func(*os.Proce
 	}
 
 	return cmdErr
+}
+
+func cloneRuntimeCommand(ctx context.Context, cmd *exec.Cmd) *exec.Cmd {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	path := cmd.Path
+	if path == "" && len(cmd.Args) > 0 {
+		path = cmd.Args[0]
+	}
+
+	args := make([]string, 0, max(0, len(cmd.Args)-1))
+	if len(cmd.Args) > 1 {
+		args = append(args, cmd.Args[1:]...)
+	}
+
+	cloned := exec.CommandContext(ctx, path, args...) //nolint:gosec
+	cloned.Dir = cmd.Dir
+	if len(cmd.Env) > 0 {
+		cloned.Env = append([]string(nil), cmd.Env...)
+	}
+
+	return cloned
 }
 
 func platformRunFallback(cmd *exec.Cmd, w io.Writer, r io.Reader, onStart func(*os.Process)) error {

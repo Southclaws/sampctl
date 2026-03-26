@@ -18,7 +18,7 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/sys/osversion"
 )
 
-func platformRun(cmd *exec.Cmd, w io.Writer, r io.Reader, onStart func(*os.Process)) (err error) {
+func platformRun(_ context.Context, cmd *exec.Cmd, w io.Writer, r io.Reader, onStart func(*os.Process)) (err error) {
 	version := osversion.Get()
 	if version.Build >= osversion.V1809 {
 		return usePty(cmd, w, r, onStart)

@@ -114,7 +114,7 @@ func TestPlatformRunReturnsWhenProcessExitsWithBlockingInput(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		cmd := exec.Command("/bin/sh", "-c", "exit 0") //nolint:gosec
-		done <- platformRun(cmd, io.Discard, blockingReader{release: release}, nil)
+		done <- platformRun(context.Background(), cmd, io.Discard, blockingReader{release: release}, nil)
 	}()
 
 	select {

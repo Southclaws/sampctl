@@ -3,7 +3,7 @@
         "TZ": "Europe/London"
     },
     "name": "sampctl-dev",
-    "postCreateCommand": "~/.windows.sh && go mod download && go mod tidy",
+    "postCreateCommand": "~/.windows.sh && go mod download && go mod tidy && GOBIN=/usr/local/bin go install tool",
     "dockerComposeFile": "docker-compose.yml",
     "overrideCommand": true,
     "service": "vscode",
@@ -34,6 +34,11 @@
         {
             "source": "${localEnv:HOME}/.ssh",
             "target": "/mnt/ssh",
+            "type": "bind"
+        },
+        {
+            "source": "${localEnv:HOME}/.agents",
+            "target": "/root/.agents",
             "type": "bind"
         },
         // Docker socket to access the host Docker server
