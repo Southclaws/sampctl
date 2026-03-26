@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver"
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 
@@ -28,10 +29,26 @@ type GitHubReleaseResource struct {
 	extractPaths   map[string]string
 }
 
+type cacheCandidate struct {
+	version string
+	path    string
+	modTime time.Time
+	semver  *semver.Version
+}
+
 // Cached checks if the resource is cached and returns the cached file path if present.
 // Unlike BaseResource, GitHubReleaseResource stores the downloaded asset under its
 // original filename inside a stable cache directory.
 func (ghr *GitHubReleaseResource) Cached(version string) (bool, string) {
+	ok, cachedPath := ghr.cachedExact(version)
+	if ok || version != "latest" {
+		return ok, cachedPath
+	}
+
+	return ghr.cachedResolvedLatest()
+}
+
+func (ghr *GitHubReleaseResource) cachedExact(version string) (bool, string) {
 	cacheDir, err := ghr.baseResource.cachePath(version)
 	if err != nil {
 		return false, ""
@@ -77,6 +94,71 @@ func (ghr *GitHubReleaseResource) Cached(version string) (bool, string) {
 	}
 
 	return true, cachedFile
+}
+
+func (ghr *GitHubReleaseResource) cachedResolvedLatest() (bool, string) {
+	cacheRoot, err := ghr.baseResource.resolveCacheDir()
+	if err != nil {
+		return false, ""
+	}
+
+	versionRoot := filepath.Join(cacheRoot, string(ghr.baseResource.resourceType), ghr.baseResource.identifier)
+	entries, err := os.ReadDir(versionRoot)
+	if err != nil {
+		return false, ""
+	}
+
+	var best cacheCandidate
+	found := false
+
+	for _, entry := range entries {
+		if !entry.IsDir() || entry.Name() == "latest" {
+			continue
+		}
+
+		ok, cachedPath := ghr.cachedExact(entry.Name())
+		if !ok {
+			continue
+		}
+
+		info, err := os.Stat(cachedPath)
+		if err != nil {
+			continue
+		}
+
+		candidate := cacheCandidate{
+			version: entry.Name(),
+			path:    cachedPath,
+			modTime: info.ModTime(),
+		}
+		candidate.semver, _ = semver.NewVersion(entry.Name())
+
+		if !found || candidateIsNewer(candidate, best) {
+			best = candidate
+			found = true
+		}
+	}
+
+	if !found {
+		return false, ""
+	}
+
+	ghr.baseResource.version = best.version
+
+	return true, best.path
+}
+
+func candidateIsNewer(candidate, current cacheCandidate) bool {
+	switch {
+	case candidate.semver != nil && current.semver != nil:
+		return candidate.semver.GreaterThan(current.semver)
+	case candidate.semver != nil:
+		return true
+	case current.semver != nil:
+		return false
+	default:
+		return candidate.modTime.After(current.modTime)
+	}
 }
 
 // NewGitHubReleaseResource creates a new GitHubReleaseResource

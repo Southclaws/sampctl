@@ -2,13 +2,16 @@ package runtime
 
 import (
 	"context"
+	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
+	infraresource "github.com/Southclaws/sampctl/src/pkg/infrastructure/resource"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	res "github.com/Southclaws/sampctl/src/pkg/package/resource"
 	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
@@ -178,4 +181,37 @@ func TestHasExplicitDependencyReference(t *testing.T) {
 			assert.Equal(t, tt.want, hasExplicitDependencyReference(tt.meta))
 		})
 	}
+}
+
+func TestPluginFromCacheLatestUsesResolvedTagAsset(t *testing.T) {
+	t.Parallel()
+
+	cacheDir := filepath.Join(t.TempDir(), "cache")
+	meta := versioning.DependencyMeta{User: "fixture", Repo: "streamer", Tag: "latest"}
+	resourceDef := res.Resource{
+		Name:     `^streamer-v1\.2\.3\.tar\.gz$`,
+		Platform: "linux",
+		Archive:  true,
+		Plugins:  []string{"plugins/streamer.so"},
+	}
+
+	seedCachedPluginPackage(t, cacheDir, meta, pluginFixturePackage(meta, []res.Resource{resourceDef}), "placeholder.txt", map[string]string{"placeholder.txt": "fixture"})
+
+	assetPath := filepath.Join(t.TempDir(), "streamer-v1.2.3.tar.gz")
+	require.NoError(t, os.WriteFile(assetPath, []byte("fixture"), 0o644))
+
+	matcher := regexp.MustCompile(resourceDef.Name)
+	ghr := infraresource.NewGitHubReleaseResource(meta, matcher, infraresource.ResourceTypePlugin, nil)
+	ghr.SetCacheDir(cacheDir)
+	ghr.SetCacheTTL(0)
+	ghr.SetLocalPath(assetPath)
+	require.NoError(t, ghr.EnsureFromLocal(context.Background(), "v1.2.3", ""))
+	_, expectedPath := ghr.Cached("v1.2.3")
+
+	hit, filename, resource, err := PluginFromCache(meta, "linux", "0.3.7", cacheDir)
+	require.NoError(t, err)
+	assert.True(t, hit)
+	assert.Equal(t, expectedPath, filename)
+	require.NotNil(t, resource)
+	assert.Equal(t, resourceDef.Name, resource.Name)
 }
