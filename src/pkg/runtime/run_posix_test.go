@@ -1,10 +1,10 @@
 //go:build !windows
-// +build !windows
 
 package runtime
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -51,6 +51,58 @@ func (buffer *safeBuffer) String() string {
 func (reader blockingReader) Read(_ []byte) (int, error) {
 	<-reader.release
 	return 0, io.EOF
+}
+
+func TestPlatformRunFallbackCopiesIO(t *testing.T) {
+	t.Parallel()
+
+	cmd := exec.Command("sh", "-c", "cat")
+	input := bytes.NewBufferString("hello from stdin")
+	var output bytes.Buffer
+
+	err := platformRunFallback(cmd, &output, input)
+	require.NoError(t, err)
+	require.Equal(t, "hello from stdin", output.String())
+}
+
+func TestGetRuntimeSysProcAttr(t *testing.T) {
+	t.Parallel()
+
+	attr := getRuntimeSysProcAttr()
+	require.NotNil(t, attr)
+	require.True(t, attr.Setpgid)
+	require.Equal(t, syscall.SIGTERM, attr.Pdeathsig)
+}
+
+func TestGetRuntimePtySysProcAttr(t *testing.T) {
+	t.Parallel()
+
+	attr := getRuntimePtySysProcAttr()
+	require.NotNil(t, attr)
+	require.Equal(t, syscall.SIGTERM, attr.Pdeathsig)
+}
+
+func TestTerminateRuntimeProcess(t *testing.T) {
+	t.Parallel()
+
+	cmd := exec.Command("sh", "-c", "sleep 30")
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	require.NoError(t, cmd.Start())
+
+	err := terminateRuntimeProcess(cmd.Process)
+	require.NoError(t, err)
+
+	waitDone := make(chan error, 1)
+	go func() {
+		waitDone <- cmd.Wait()
+	}()
+
+	select {
+	case waitErr := <-waitDone:
+		require.Error(t, waitErr)
+	case <-time.After(2 * time.Second):
+		t.Fatal("process was not terminated")
+	}
 }
 
 func TestPlatformRunReturnsWhenProcessExitsWithBlockingInput(t *testing.T) {

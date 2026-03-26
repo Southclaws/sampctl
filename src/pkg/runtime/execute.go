@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 
@@ -20,7 +21,7 @@ func PrepareRuntimeDirectory(cacheDir, version, platform, scriptfiles string) (e
 		return errors.Wrap(err, "failed to create temporary directory")
 	}
 
-	err = GetServerPackage(version, dir, platform)
+	err = getServerPackageContext(context.Background(), cacheDir, version, dir, platform)
 	if err != nil {
 		return errors.Wrap(err, "failed to get server package")
 	}

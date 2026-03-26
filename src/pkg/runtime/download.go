@@ -36,6 +36,10 @@ func GetServerPackageContext(ctx context.Context, version, dir, platform string)
 		return errors.Wrap(err, "failed to get config dir")
 	}
 
+	return getServerPackageContext(ctx, cacheDir, version, dir, platform)
+}
+
+func getServerPackageContext(ctx context.Context, cacheDir, version, dir, platform string) (err error) {
 	hit, err := FromCacheContext(ServerPackageRequest{
 		Context:  ctx,
 		CacheDir: cacheDir,

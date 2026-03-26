@@ -1,11 +1,12 @@
 package commands
 
 import (
+	"github.com/pkg/errors"
+	"gopkg.in/urfave/cli.v1"
+
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
-	"github.com/pkg/errors"
-	"gopkg.in/urfave/cli.v1"
 )
 
 func packageInstallFlags() []cli.Flag {

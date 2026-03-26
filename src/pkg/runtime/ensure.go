@@ -166,7 +166,7 @@ func ensureStagedRuntime(ctx context.Context, cacheDir string, cfg run.Runtime) 
 		return runtimeManifest{}, "", errors.Wrap(err, "failed to create runtime staging directory")
 	}
 
-	if err := GetServerPackageContext(ctx, cfg.Version, stageDir, cfg.Platform); err != nil {
+	if err := getServerPackageContext(ctx, cacheDir, cfg.Version, stageDir, cfg.Platform); err != nil {
 		return runtimeManifest{}, "", errors.Wrap(err, "failed to download runtime package")
 	}
 

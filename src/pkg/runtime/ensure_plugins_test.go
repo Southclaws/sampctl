@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -214,4 +215,144 @@ func TestPluginFromCacheLatestUsesResolvedTagAsset(t *testing.T) {
 	assert.Equal(t, expectedPath, filename)
 	require.NotNil(t, resource)
 	assert.Equal(t, resourceDef.Name, resource.Name)
+}
+
+func TestDetectArchiveExt(t *testing.T) {
+	t.Parallel()
+
+	zipPath := filepath.Join(t.TempDir(), "fixture.zip")
+	createRuntimeZipArchive(t, zipPath, map[string]string{"plugins/test.dll": "fixture"})
+	assert.Equal(t, ".zip", detectArchiveExt(zipPath))
+
+	gzPath := filepath.Join(t.TempDir(), "fixture.tar.gz")
+	createRuntimeTgzArchive(t, gzPath, map[string]string{"plugins/test.so": "fixture"})
+	assert.Equal(t, ".gz", detectArchiveExt(gzPath))
+
+	plainPath := filepath.Join(t.TempDir(), "plain.bin")
+	require.NoError(t, os.WriteFile(plainPath, []byte("text"), 0o644))
+	assert.Empty(t, detectArchiveExt(plainPath))
+
+	shortPath := filepath.Join(t.TempDir(), "short.bin")
+	require.NoError(t, os.WriteFile(shortPath, []byte{0x1f}, 0o644))
+	assert.Empty(t, detectArchiveExt(shortPath))
+
+	assert.Empty(t, detectArchiveExt(filepath.Join(t.TempDir(), "missing.bin")))
+}
+
+func TestCachedPackageResourceAsset(t *testing.T) {
+	t.Parallel()
+
+	cachePath := filepath.Join(t.TempDir(), "cache")
+	require.NoError(t, os.MkdirAll(filepath.Join(cachePath, ".git"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(cachePath, "assets"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(cachePath, ".git", "ignored.zip"), []byte("fixture"), 0o644))
+	want := filepath.Join(cachePath, "assets", "streamer.zip")
+	require.NoError(t, os.WriteFile(want, []byte("fixture"), 0o644))
+
+	got, hit := cachedPackageResourceAsset(cachePath, regexp.MustCompile(`\.zip$`))
+	assert.True(t, hit)
+	assert.Equal(t, want, got)
+
+	got, hit = cachedPackageResourceAsset(cachePath, nil)
+	assert.False(t, hit)
+	assert.Empty(t, got)
+
+	got, hit = cachedPackageResourceAsset(filepath.Join(t.TempDir(), "missing"), regexp.MustCompile(`\.zip$`))
+	assert.False(t, hit)
+	assert.Empty(t, got)
+}
+
+func TestEnsureVersionedPluginCachedUsesLocalPackageAsset(t *testing.T) {
+	t.Parallel()
+
+	cacheDir := filepath.Join(t.TempDir(), "cache")
+	meta := versioning.DependencyMeta{User: "fixture", Repo: "streamer", Tag: "v1.0.0"}
+	resourceDef := res.Resource{
+		Name:     `^streamer\.so$`,
+		Platform: "linux",
+		Plugins:  []string{"streamer.so"},
+	}
+	assetPath := seedCachedSinglePluginAsset(t, cacheDir, meta, resourceDef, "streamer.so")
+
+	filename, resource, err := EnsureVersionedPluginCached(EnsureVersionedPluginCachedRequest{
+		Context:  context.Background(),
+		Meta:     meta,
+		Platform: "linux",
+		Version:  "0.3.7",
+		CacheDir: cacheDir,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, resource)
+	assert.Equal(t, assetPath, filename)
+	assert.Equal(t, resourceDef.Name, resource.Name)
+}
+
+func TestEnsureVersionedPluginSingleFile(t *testing.T) {
+	t.Parallel()
+
+	cacheDir := filepath.Join(t.TempDir(), "cache")
+	workDir := filepath.Join(t.TempDir(), "work")
+	meta := versioning.DependencyMeta{User: "fixture", Repo: "streamer", Tag: "v1.0.0"}
+	resourceDef := res.Resource{
+		Name:     `^streamer\.so$`,
+		Platform: "linux",
+		Plugins:  []string{"streamer.so"},
+	}
+	seedCachedSinglePluginAsset(t, cacheDir, meta, resourceDef, "streamer.so")
+
+	files, err := EnsureVersionedPlugin(EnsureVersionedPluginRequest{
+		Context:       context.Background(),
+		Meta:          meta,
+		Dir:           workDir,
+		Platform:      "linux",
+		Version:       "0.3.7",
+		CacheDir:      cacheDir,
+		PluginDestDir: "plugins",
+		Plugins:       true,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []run.Plugin{"streamer.so"}, files)
+	assert.True(t, fs.Exists(filepath.Join(workDir, "plugins", "streamer.so")))
+}
+
+func TestEnsureVersionedPluginSingleFileRequiresDestination(t *testing.T) {
+	t.Parallel()
+
+	cacheDir := filepath.Join(t.TempDir(), "cache")
+	meta := versioning.DependencyMeta{User: "fixture", Repo: "streamer", Tag: "v1.0.0"}
+	resourceDef := res.Resource{
+		Name:     `^streamer\.so$`,
+		Platform: "linux",
+		Plugins:  []string{"streamer.so"},
+	}
+	seedCachedSinglePluginAsset(t, cacheDir, meta, resourceDef, "streamer.so")
+
+	_, err := EnsureVersionedPlugin(EnsureVersionedPluginRequest{
+		Context:  context.Background(),
+		Meta:     meta,
+		Dir:      filepath.Join(t.TempDir(), "work"),
+		Platform: "linux",
+		Version:  "0.3.7",
+		CacheDir: cacheDir,
+		Plugins:  true,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "pluginDestDir is required")
+}
+
+func seedCachedSinglePluginAsset(t *testing.T, cacheDir string, meta versioning.DependencyMeta, resourceDef res.Resource, filename string) string {
+	t.Helper()
+
+	cachePath := meta.CachePath(cacheDir)
+	require.NoError(t, os.MkdirAll(cachePath, 0o700))
+
+	pkg := pluginFixturePackage(meta, []res.Resource{resourceDef})
+	data, err := json.Marshal(pkg)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(cachePath, "pawn.json"), data, 0o644))
+
+	assetPath := filepath.Join(cachePath, filename)
+	require.NoError(t, os.WriteFile(assetPath, []byte("fixture"), 0o644))
+
+	return assetPath
 }
