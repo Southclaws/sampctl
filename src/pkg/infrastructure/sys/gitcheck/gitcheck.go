@@ -15,8 +15,8 @@ func RequireInstalled() error {
 		return nil
 	}
 	return fmt.Errorf(
-		"Git is not installed on your system.\n" +
+		"git is not installed on your system.\n" +
 			"sampctl requires Git to manage dependencies.\n" +
-			"Please install Git from https://git-scm.com and try again",
+			"please install Git from https://git-scm.com and try again",
 	)
 }
