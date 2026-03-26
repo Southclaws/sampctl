@@ -184,12 +184,14 @@ func TestCloneWithoutDefaults(t *testing.T) {
 	defaultHost := "SA-MP Server"
 	defaultPlayers := 50
 	rt2 := &Runtime{Language: &defaultLanguage, Port: &defaultPort, Hostname: &defaultHost, MaxPlayers: &defaultPlayers}
-	cloned2 := CloneWithoutDefaults(rt2)
-	require.NotNil(t, cloned2)
-	assert.Nil(t, cloned2.Language)
-	assert.Nil(t, cloned2.Port)
-	assert.Nil(t, cloned2.Hostname)
-	assert.Nil(t, cloned2.MaxPlayers)
+	assert.Nil(t, CloneWithoutDefaults(rt2))
+
+	assert.Nil(t, CloneWithoutDefaults(&Runtime{}))
+	assert.Nil(t, CloneWithoutDefaults(&Runtime{
+		WorkingDir: "/tmp/project",
+		Platform:   "linux",
+		Format:     "json",
+	}))
 
 	assert.Nil(t, CloneWithoutDefaults(nil))
 }

@@ -9,7 +9,6 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
-	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 )
 
 func TestPackageFromDir(t *testing.T) {
@@ -37,7 +36,7 @@ func TestPackageFromDir(t *testing.T) {
 					"pawn-lang/samp-stdlib:0.3.7-R2-2-1",
 					"Southclaws/pawn-errors:1.2.3",
 				},
-				Runtime: &run.Runtime{},
+				Runtime: nil,
 			},
 			false,
 		},
@@ -56,7 +55,7 @@ func TestPackageFromDir(t *testing.T) {
 					"pawn-lang/samp-stdlib:0.3.7-R2-2-1",
 					"Southclaws/pawn-errors:1.2.3",
 				},
-				Runtime: &run.Runtime{},
+				Runtime: nil,
 			},
 			false,
 		},

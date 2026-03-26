@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
@@ -133,6 +134,66 @@ func TestPackageContextDoesNotApplyDefaultsToPackageRuntime(t *testing.T) {
 	assert.Equal(t, "", string(pcx.Package.Runtime.Mode), "Mode should remain empty (not defaulted)")
 	assert.Nil(t, pcx.Package.Runtime.Hostname, "Hostname should remain nil (not defaulted)")
 	assert.Nil(t, pcx.Package.Runtime.MaxPlayers, "MaxPlayers should remain nil (not defaulted)")
+}
+
+func TestWriteDefinitionOmitsEmptyRuntimeConfig(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	testCases := []struct {
+		name     string
+		fileName string
+		contents string
+	}{
+		{
+			name:     "json",
+			fileName: "pawn.json",
+			contents: `{"user":"fixture","repo":"project","entry":"main.pwn","output":"gamemodes/main.amx","dependencies":[]}`,
+		},
+		{
+			name:     "yaml",
+			fileName: "pawn.yaml",
+			contents: "user: fixture\nrepo: project\nentry: main.pwn\noutput: gamemodes/main.amx\ndependencies: []\n",
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			configPath := filepath.Join(tmpDir, tt.fileName)
+			require.NoError(t, os.WriteFile(configPath, []byte(tt.contents), 0o644))
+
+			cacheDir := t.TempDir()
+			pcx, err := NewPackageContext(NewPackageContextOptions{
+				Parent:   true,
+				Dir:      tmpDir,
+				Platform: "linux",
+				CacheDir: cacheDir,
+			})
+			require.NoError(t, err)
+			assert.Nil(t, pcx.Package.Runtime)
+
+			pcx.Package.Dependencies = append(pcx.Package.Dependencies, "test-user/test-package:1.0.0")
+			require.NoError(t, pcx.Package.WriteDefinition())
+
+			writtenBytes, err := os.ReadFile(configPath)
+			require.NoError(t, err)
+
+			var writtenConfig map[string]any
+			switch tt.fileName {
+			case "pawn.json":
+				require.NoError(t, json.Unmarshal(writtenBytes, &writtenConfig))
+			case "pawn.yaml":
+				require.NoError(t, yaml.Unmarshal(writtenBytes, &writtenConfig))
+			default:
+				t.Fatalf("unexpected config file: %s", tt.fileName)
+			}
+
+			_, hasRuntime := writtenConfig["runtime"]
+			assert.False(t, hasRuntime, "runtime should be omitted when empty")
+		})
+	}
 }
 
 // TestActualRuntimeHasDefaults verifies that ActualRuntime (used for execution)

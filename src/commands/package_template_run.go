@@ -86,9 +86,6 @@ func packageTemplateRun(c *cli.Context) (err error) {
 		result.Total,
 	))
 
-	// override the version with the one passed by --version
-	pcx.Package.Runtime.Version = version
-
 	if !problems.IsValid() {
 		return errors.New("cannot run with build errors")
 	}
@@ -103,8 +100,10 @@ func packageTemplateRun(c *cli.Context) (err error) {
 	pcx.BuildFile = ""
 	pcx.Relative = false
 
-	pcx.Package.Runtime = new(run.Runtime)
-	pcx.Package.Runtime.Mode = run.RunMode(mode)
+	pcx.Package.Runtime = &run.Runtime{
+		Version: version,
+		Mode:    run.RunMode(mode),
+	}
 
 	err = pcx.Run(ctx, os.Stdout, os.Stdin)
 	if err != nil {

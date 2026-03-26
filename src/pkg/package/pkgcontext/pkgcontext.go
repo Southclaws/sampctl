@@ -12,7 +12,6 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/lockfile"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
-	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 )
 
 var _ DependencyLock = (*lockfile.Resolver)(nil)
@@ -168,14 +167,6 @@ func (pcx *PackageContext) loadPackageDefinition(options NewPackageContextOption
 			}
 			pcx.Package.Repo = "<local>"
 		}
-	}
-
-	// if there is no runtime configuration, initialize an empty one
-	// Note: We don't apply defaults here because they would be persisted when
-	// WriteDefinition() is called. Defaults are only applied to ActualRuntime
-	// during execution
-	if pcx.Package.Runtime == nil {
-		pcx.Package.Runtime = new(run.Runtime)
 	}
 
 	return nil
