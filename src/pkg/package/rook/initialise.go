@@ -339,9 +339,8 @@ func Init(options InitOptions) (err error) {
 	}
 
 	if !gitcheck.IsInstalled() {
-		print.Warn("Git is not installed. Skipping dependency resolution.")
-		print.Warn("Please install Git from https://git-scm.com")
-		print.Warn("After installing Git, run 'sampctl ensure' to install dependencies.")
+		print.Warn(gitcheck.NotInstalledMessage())
+		print.Warn("skipping dependency resolution. run 'sampctl ensure' after installing git.")
 		return nil
 	}
 
