@@ -23,7 +23,7 @@ func (pcx *PackageContext) UpdateLockfile(ctx context.Context, request Dependenc
 		return nil
 	}
 
-	if err := pcx.EnsureDependenciesCached(); err != nil {
+	if err := pcx.refreshDependencyGraph(request); err != nil {
 		return errors.Wrap(err, "failed to refresh dependency cache")
 	}
 

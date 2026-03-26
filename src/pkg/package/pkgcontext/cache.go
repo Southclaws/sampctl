@@ -32,7 +32,11 @@ type repoEnsureWithMetaRequest struct {
 
 // EnsureDependenciesCached will recursively visit a parent package dependencies
 // in the cache, pulling them if they do not exist yet.
-func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
+func (pcx *PackageContext) EnsureDependenciesCached() error {
+	return pcx.refreshDependencyGraph(DependencyUpdateRequest{})
+}
+
+func (pcx *PackageContext) refreshDependencyGraph(request DependencyUpdateRequest) (errOuter error) {
 	if !pcx.Package.Parent {
 		errOuter = errors.New("package is not a parent package")
 		return
@@ -45,7 +49,7 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 	// This recursive operation requires quite a lot of state! There is probably
 	// a better method to break this up but so far, this has worked fine.
 	var (
-		recurse        func(meta versioning.DependencyMeta)
+		recurse        func(meta versioning.DependencyMeta, direct bool)
 		visited        = make(map[string]bool)
 		dependencyPath = pcx.Package.LocalPath
 		firstIter      = true
@@ -56,6 +60,8 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 	// clear the dependencies list in case this function is being called on an
 	// already initialised context that already has some dependencies listed.
 	pcx.AllDependencies = nil
+	pcx.AllPlugins = nil
+	pcx.AllIncludePaths = nil
 
 	// set the parent package visited state to true, just in case it depends on
 	// itself or a dependency depends on it. This should never happen but if it
@@ -65,21 +71,26 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 	// keep track of recursion depth
 	verboseDepth := 0
 
-	recurse = func(currentMeta versioning.DependencyMeta) {
+	recurse = func(currentMeta versioning.DependencyMeta, direct bool) {
 		// this makes visualising the dependency tree easier with --verbose
 		verboseDepth++
 		prefix := strings.Repeat("|-", verboseDepth)
+		currentIsParent := firstIter
 
 		// the first iteration of this recursive function is called on the
 		// parent package. This means it does not need to be cloned to the cache
 		// and the path will be it's true, user-defined location.
-		if firstIter {
+		if currentIsParent {
 			currentPackage = pcx.Package // set the current package to the parent
 			print.Verb(prefix, currentPackage, "is parent")
 		} else {
 			dependencyPath = currentMeta.CachePath(pcx.CacheDir)
 
-			_, errInner = pcx.EnsureDependencyCached(currentMeta, false)
+			forceDependencyUpdate := request.ShouldForceDependency(currentMeta, direct)
+			if forceDependencyUpdate && pcx.cachedRepoHasNoOrigin(currentMeta) {
+				forceDependencyUpdate = false
+			}
+			_, errInner = pcx.EnsureDependencyCached(currentMeta, forceDependencyUpdate)
 			if errInner != nil {
 				print.Erro(errInner)
 				return
@@ -163,7 +174,7 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 			} else {
 				// Regular dependency handling
 				if _, ok := visited[subPackageDepMeta.Repo]; !ok {
-					recurse(subPackageDepMeta)
+					recurse(subPackageDepMeta, currentIsParent)
 				} else {
 					print.Verb(prefix, "already visited", subPackageDepMeta)
 				}
@@ -171,7 +182,7 @@ func (pcx *PackageContext) EnsureDependenciesCached() (errOuter error) {
 		}
 		verboseDepth--
 	}
-	recurse(pcx.Package.Dependency())
+	recurse(pcx.Package.Dependency(), false)
 
 	if errInner != nil {
 		return errors.New("Failed to clone the repo")

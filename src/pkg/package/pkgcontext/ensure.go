@@ -102,6 +102,11 @@ func (pcx *PackageContext) EnsureProject(ctx context.Context, request Dependency
 	if err != nil {
 		return false, err
 	}
+	if request.Enabled && !updated {
+		if err := pcx.refreshDependencyGraph(request); err != nil {
+			return updated, err
+		}
+	}
 
 	if err := pcx.ensureDependencies(ctx, request); err != nil {
 		return updated, err

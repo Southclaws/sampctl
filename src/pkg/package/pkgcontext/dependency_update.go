@@ -27,7 +27,15 @@ func (request DependencyUpdateRequest) Matches(meta versioning.DependencyMeta) b
 		return true
 	}
 
-	return dependencyUpdateIdentity(meta) == dependencyUpdateIdentity(request.TargetMeta)
+	if dependencyUpdateIdentity(meta) != dependencyUpdateIdentity(request.TargetMeta) {
+		return false
+	}
+
+	if !hasExplicitDependencyConstraint(request.TargetMeta) {
+		return true
+	}
+
+	return sameDependencyConstraint(meta, request.TargetMeta)
 }
 
 func (request DependencyUpdateRequest) ShouldForceDependency(meta versioning.DependencyMeta, direct bool) bool {
@@ -73,6 +81,14 @@ func isDynamicDependencyConstraint(meta versioning.DependencyMeta) bool {
 
 func isPinnedTagDependency(meta versioning.DependencyMeta) bool {
 	return meta.Tag != "" && meta.Tag != "latest" && meta.Branch == "" && meta.Commit == ""
+}
+
+func hasExplicitDependencyConstraint(meta versioning.DependencyMeta) bool {
+	return meta.Tag != "" || meta.Branch != "" || meta.Commit != ""
+}
+
+func sameDependencyConstraint(left versioning.DependencyMeta, right versioning.DependencyMeta) bool {
+	return left.Tag == right.Tag && left.Branch == right.Branch && left.Commit == right.Commit
 }
 
 type dependencyUpdateResult struct {
@@ -125,7 +141,7 @@ func (pcx *PackageContext) UpdateDependencyReferences(
 		return false, errors.Wrap(err, "failed to write updated package definition")
 	}
 
-	if err := pcx.EnsureDependenciesCached(); err != nil {
+	if err := pcx.refreshDependencyGraph(request); err != nil {
 		pcx.Package.Dependencies = originalDeps
 		pcx.Package.Development = originalDev
 		restoreErr := fs.WriteFileAtomic(definitionPath, originalDefinition, fs.PermDirPrivate, definitionPerm)

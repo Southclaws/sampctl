@@ -89,3 +89,56 @@ func TestDependencyUpdateRequestShouldForceDependency(t *testing.T) {
 		})
 	}
 }
+
+func TestDependencyUpdateRequestMatches(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		request DependencyUpdateRequest
+		meta    versioning.DependencyMeta
+		want    bool
+	}{
+		{
+			name:    "empty target matches any dependency",
+			request: DependencyUpdateRequest{},
+			meta:    versioning.DependencyMeta{User: "u", Repo: "r", Tag: "1.0.0"},
+			want:    true,
+		},
+		{
+			name: "bare target matches dependency regardless of version",
+			request: DependencyUpdateRequest{
+				Target:     "u/r",
+				TargetMeta: versioning.DependencyMeta{User: "u", Repo: "r"},
+			},
+			meta: versioning.DependencyMeta{User: "u", Repo: "r", Tag: "2.0.0"},
+			want: true,
+		},
+		{
+			name: "versioned target only matches the exact version",
+			request: DependencyUpdateRequest{
+				Target:     "u/r:1.0.0",
+				TargetMeta: versioning.DependencyMeta{User: "u", Repo: "r", Tag: "1.0.0"},
+			},
+			meta: versioning.DependencyMeta{User: "u", Repo: "r", Tag: "2.0.0"},
+			want: false,
+		},
+		{
+			name: "branch target does not match a tag selector",
+			request: DependencyUpdateRequest{
+				Target:     "u/r@main",
+				TargetMeta: versioning.DependencyMeta{User: "u", Repo: "r", Branch: "main"},
+			},
+			meta: versioning.DependencyMeta{User: "u", Repo: "r", Tag: "1.0.0"},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, tt.request.Matches(tt.meta))
+		})
+	}
+}
