@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
+	"github.com/Southclaws/sampctl/src/pkg/package/lockfile"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
 
@@ -69,4 +70,25 @@ func TestResourcePackageDefinitionReturnsEmptyPackageWithoutRemoteFetcher(t *tes
 	require.NoError(t, err)
 	assert.Empty(t, pkg.Format)
 	assert.Nil(t, pkg.Runtime)
+}
+
+func TestResourceDependencyMetaUsesResolvedTagForLatest(t *testing.T) {
+	t.Parallel()
+
+	meta := versioning.DependencyMeta{User: "fixture", Repo: "dep", Tag: "latest"}
+	lf := lockfile.New("dev")
+	lf.AddDependency(lockfile.DependencyKey(meta), lockfile.LockedDependency{
+		Constraint: ":latest",
+		Resolved:   "v1.2.3",
+		Commit:     "abcdef0123456789abcdef0123456789abcdef01",
+	})
+
+	pcx := &PackageContext{
+		PackageLockfileState: PackageLockfileState{lockfileResolver: &fakeDependencyLock{lockfile: lf}},
+	}
+
+	resourceMeta := pcx.resourceDependencyMeta(meta, versioning.DependencyMeta{User: "fixture", Repo: "dep", Commit: "abcdef0123456789abcdef0123456789abcdef01"})
+	assert.Equal(t, "v1.2.3", resourceMeta.Tag)
+	assert.Empty(t, resourceMeta.Commit)
+	assert.Empty(t, resourceMeta.Branch)
 }

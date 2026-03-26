@@ -15,6 +15,7 @@ import (
 type ensureCommandTarget interface {
 	pkgcontext.LockfileInitializer
 	pkgcontext.LockfileController
+	pkgcontext.LockfileUpdater
 	EnsureProject(ctx context.Context, forceUpdate bool) (bool, error)
 }
 
@@ -88,6 +89,9 @@ func runPackageEnsure(ctx context.Context, target ensureCommandTarget, opts ensu
 	if opts.lockOnly {
 		if err := requireLockfileSupport(target); err != nil {
 			return err
+		}
+		if err := target.UpdateLockfile(ctx, opts.forceUpdate); err != nil {
+			return errors.Wrap(err, "failed to update lockfile")
 		}
 		if err := saveCommandLockfile(target); err != nil {
 			return errors.Wrap(err, "failed to save lockfile")

@@ -49,6 +49,11 @@ func (r *Resolver) GetLockedVersion(meta versioning.DependencyMeta) versioning.D
 		return meta
 	}
 
+	if r.lockfile.IsOutdated(meta) {
+		print.Verb(meta, "lockfile constraint changed, resolving fresh version")
+		return meta
+	}
+
 	key := DependencyKey(meta)
 	locked, ok := r.lockfile.Dependencies[key]
 	if !ok {

@@ -18,6 +18,8 @@ type fakeDependencyLock struct {
 	forced           bool
 	hasLocked        bool
 	lockedVersion    versioning.DependencyMeta
+	localDeps        []versioning.DependencyMeta
+	prunedDeps       []versioning.DependencyMeta
 	lastResolution   lockfile.DependencyResolution
 	lastResolutionIn versioning.DependencyMeta
 	lastTransitive   bool
@@ -51,8 +53,13 @@ func (f *fakeDependencyLock) GetPreviousDependency(versioning.DependencyMeta) (l
 	return f.previous, true
 }
 
-func (f *fakeDependencyLock) RecordLocalDependency(versioning.DependencyMeta) error {
+func (f *fakeDependencyLock) RecordLocalDependency(meta versioning.DependencyMeta) error {
+	f.localDeps = append(f.localDeps, meta)
 	return nil
+}
+
+func (f *fakeDependencyLock) PruneMissing(current []versioning.DependencyMeta) {
+	f.prunedDeps = append([]versioning.DependencyMeta(nil), current...)
 }
 
 func (f *fakeDependencyLock) RecordRuntime(version, platform, runtimeType string, files []lockfile.LockedFileInfo) {

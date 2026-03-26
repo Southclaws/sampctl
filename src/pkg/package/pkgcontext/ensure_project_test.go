@@ -103,6 +103,87 @@ func TestEnsureProjectInitialisesLockfileAndPinsDependencies(t *testing.T) {
 	assert.FileExists(t, filepath.Join(projectDir, "server"))
 }
 
+func TestEnsureProjectRecordsLocalDependenciesAndPrunesRemovedEntries(t *testing.T) {
+	t.Parallel()
+
+	cacheDir := t.TempDir()
+	projectDir := t.TempDir()
+	includeDir := filepath.Join(projectDir, "includes")
+	require.NoError(t, os.MkdirAll(includeDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(includeDir, "local.inc"), []byte("#define LOCAL 1\n"), 0o644))
+
+	depMeta := versioning.DependencyMeta{User: "testuser", Repo: "testrepo", Tag: "1.0.0"}
+	cachePath := depMeta.CachePath(cacheDir)
+	require.NoError(t, os.MkdirAll(cachePath, 0o755))
+
+	repo, err := git.PlainInit(cachePath, false)
+	require.NoError(t, err)
+	wt, err := repo.Worktree()
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(cachePath, "pawn.json"), []byte(`{"entry":"dep.pwn","output":"gamemodes/dep.amx"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(cachePath, "dep.pwn"), []byte("main() {}"), 0o644))
+	_, err = wt.Add("pawn.json")
+	require.NoError(t, err)
+	_, err = wt.Add("dep.pwn")
+	require.NoError(t, err)
+	_, err = wt.Commit("initial", &git.CommitOptions{
+		Author:    &object.Signature{Name: "test", Email: "test@example.com", When: time.Unix(100, 0)},
+		Committer: &object.Signature{Name: "test", Email: "test@example.com", When: time.Unix(100, 0)},
+	})
+	require.NoError(t, err)
+	_, err = repo.CreateTag("1.0.0", headHashForEnsureProject(repo, t), nil)
+	require.NoError(t, err)
+
+	rootConfig := map[string]any{
+		"entry":  "main.pwn",
+		"output": "gamemodes/main.amx",
+		"dependencies": []string{
+			"testuser/testrepo:1.0.0",
+			"includes://local/includes",
+		},
+		"runtime": map[string]any{"version": "0.3.7"},
+	}
+	configBytes, err := json.MarshalIndent(rootConfig, "", "\t")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), configBytes, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "main.pwn"), []byte("main() {}"), 0o644))
+
+	seedStagedRuntime(t, cacheDir, run.Runtime{Version: "0.3.7", Platform: "linux"})
+
+	pcx, err := NewPackageContext(NewPackageContextOptions{Parent: true, Dir: projectDir, Platform: "linux", CacheDir: cacheDir})
+	require.NoError(t, err)
+	require.NoError(t, pcx.InitLockfileResolver("dev"))
+
+	updated, err := pcx.EnsureProject(context.Background(), false)
+	require.NoError(t, err)
+	assert.False(t, updated)
+
+	lf, err := lockfile.Load(projectDir)
+	require.NoError(t, err)
+	require.NotNil(t, lf)
+	assert.Contains(t, lf.Dependencies, lockfile.DependencyKey(depMeta))
+	assert.Contains(t, lf.Dependencies, lockfile.DependencyKey(versioning.DependencyMeta{Scheme: "includes", Local: "includes"}))
+
+	rootConfig["dependencies"] = []string{"includes://local/includes"}
+	configBytes, err = json.MarshalIndent(rootConfig, "", "\t")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), configBytes, 0o644))
+
+	pcx, err = NewPackageContext(NewPackageContextOptions{Parent: true, Dir: projectDir, Platform: "linux", CacheDir: cacheDir})
+	require.NoError(t, err)
+	require.NoError(t, pcx.InitLockfileResolver("dev"))
+
+	updated, err = pcx.EnsureProject(context.Background(), false)
+	require.NoError(t, err)
+	assert.False(t, updated)
+
+	lf, err = lockfile.Load(projectDir)
+	require.NoError(t, err)
+	require.NotNil(t, lf)
+	assert.NotContains(t, lf.Dependencies, lockfile.DependencyKey(depMeta))
+	assert.Contains(t, lf.Dependencies, lockfile.DependencyKey(versioning.DependencyMeta{Scheme: "includes", Local: "includes"}))
+}
+
 func seedStagedRuntime(t *testing.T, cacheDir string, cfg run.Runtime) {
 	t.Helper()
 

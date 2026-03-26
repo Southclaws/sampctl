@@ -45,7 +45,11 @@ func TestInstallPackageResourcesUsesInjectedRemoteFetcher(t *testing.T) {
 
 	ctx := context.WithValue(context.Background(), "test-key", "test-value")
 
-	err := pcx.installPackageResources(ctx, versioning.DependencyMeta{User: "fixture", Repo: "repo"})
+	err := pcx.installPackageResources(
+		ctx,
+		versioning.DependencyMeta{User: "fixture", Repo: "repo"},
+		versioning.DependencyMeta{User: "fixture", Repo: "repo"},
+	)
 	require.NoError(t, err)
 	assert.True(t, fetcher.called)
 	assert.Equal(t, ctx, fetcher.ctx)

@@ -80,9 +80,18 @@ func (pcx *PackageContext) ensureManagedPackage(request ensurePackageRequest) er
 		return errors.Wrap(err, "failed to update repository state")
 	}
 
+	if err := pcx.verifyDependencyIntegrityWithRecovery(effectiveMeta, dependencyPath, request.ForceUpdate); err != nil {
+		return errors.Wrap(err, "failed to verify dependency integrity")
+	}
+
+	repo, err = pcx.PackageServices.repositoryStore().Open(dependencyPath)
+	if err != nil {
+		return errors.Wrap(err, "failed to reopen dependency repository after integrity verification")
+	}
+
 	pcx.recordDependencyResolution(request.Meta, request.ParentRepo, repo)
 
-	if err := pcx.installPackageResources(request.Context, effectiveMeta); err != nil {
+	if err := pcx.installPackageResources(request.Context, request.Meta, effectiveMeta); err != nil {
 		return errors.Wrap(err, "failed to install package resources")
 	}
 

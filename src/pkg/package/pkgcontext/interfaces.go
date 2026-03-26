@@ -18,6 +18,7 @@ type DependencyLock interface {
 	GetPreviousDependency(meta versioning.DependencyMeta) (lockfile.LockedDependency, bool)
 	RecordResolution(meta versioning.DependencyMeta, resolution lockfile.DependencyResolution, transitive bool, requiredBy string) error
 	RecordLocalDependency(meta versioning.DependencyMeta) error
+	PruneMissing(currentDeps []versioning.DependencyMeta)
 	RecordRuntime(version, platform, runtimeType string, files []lockfile.LockedFileInfo)
 	RecordBuild(record lockfile.BuildRecord)
 	Save() error
@@ -38,6 +39,11 @@ type LockfileController interface {
 	ForceUpdateLockfile()
 	HasLockfileResolver() bool
 	GetLockfile() *lockfile.Lockfile
+}
+
+// LockfileUpdater updates lockfile contents without installing dependencies into the working tree.
+type LockfileUpdater interface {
+	UpdateLockfile(ctx context.Context, forceUpdate bool) error
 }
 
 // BuildLockfileController extends LockfileController with build recording behavior.

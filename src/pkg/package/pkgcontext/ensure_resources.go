@@ -9,18 +9,21 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
+	"github.com/Southclaws/sampctl/src/pkg/package/lockfile"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 	"github.com/Southclaws/sampctl/src/pkg/package/resource"
 	"github.com/Southclaws/sampctl/src/pkg/runtime"
 )
 
 // installPackageResources handles resource installation from cached package.
-func (pcx *PackageContext) installPackageResources(ctx context.Context, meta versioning.DependencyMeta) error {
-	pkg, err := pcx.resourcePackageDefinition(ctx, meta)
-	applyDependencyMetaToPackage(&pkg, meta)
-
-	// The cached copy can carry the latest tag, so re-apply the actual installed tag before ensuring resources.
-	pkg.Tag = meta.Tag
+func (pcx *PackageContext) installPackageResources(
+	ctx context.Context,
+	originalMeta versioning.DependencyMeta,
+	installedMeta versioning.DependencyMeta,
+) error {
+	pkg, err := pcx.resourcePackageDefinition(ctx, installedMeta)
+	resourceMeta := pcx.resourceDependencyMeta(originalMeta, installedMeta)
+	applyDependencyMetaToPackage(&pkg, resourceMeta)
 
 	for _, resource := range pkg.Resources {
 		if resource.Platform != pcx.Platform || len(resource.Includes) == 0 {
@@ -35,6 +38,52 @@ func (pcx *PackageContext) installPackageResources(ctx context.Context, meta ver
 	}
 
 	return err
+}
+
+func (pcx *PackageContext) resourceDependencyMeta(
+	originalMeta versioning.DependencyMeta,
+	installedMeta versioning.DependencyMeta,
+) versioning.DependencyMeta {
+	resourceMeta := installedMeta
+	locked, hasLocked := pcx.currentLockedDependency(originalMeta)
+
+	switch {
+	case originalMeta.Commit != "":
+		resourceMeta.Commit = originalMeta.Commit
+		resourceMeta.Tag = ""
+		resourceMeta.Branch = ""
+	case originalMeta.Branch != "":
+		resourceMeta.Branch = originalMeta.Branch
+		resourceMeta.Tag = ""
+		resourceMeta.Commit = ""
+	case originalMeta.Tag == "latest":
+		resourceMeta.Commit = ""
+		resourceMeta.Branch = ""
+		if hasLocked && locked.Resolved != "" && locked.Resolved != "HEAD" {
+			resourceMeta.Tag = locked.Resolved
+		} else {
+			resourceMeta.Tag = originalMeta.Tag
+		}
+	case originalMeta.Tag != "":
+		resourceMeta.Tag = originalMeta.Tag
+		resourceMeta.Branch = ""
+		resourceMeta.Commit = ""
+	case hasLocked && locked.Resolved != "" && locked.Resolved != "HEAD":
+		resourceMeta.Tag = locked.Resolved
+		resourceMeta.Branch = ""
+		resourceMeta.Commit = ""
+	}
+
+	return resourceMeta
+}
+
+func (pcx *PackageContext) currentLockedDependency(meta versioning.DependencyMeta) (lockfile.LockedDependency, bool) {
+	lf := pcx.PackageLockfileState.GetLockfile()
+	if lf == nil {
+		return lockfile.LockedDependency{}, false
+	}
+
+	return lf.GetDependency(lockfile.DependencyKey(meta))
 }
 
 func (pcx *PackageContext) resourcePackageDefinition(ctx context.Context, meta versioning.DependencyMeta) (pawnpackage.Package, error) {

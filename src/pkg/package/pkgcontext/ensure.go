@@ -76,6 +76,13 @@ func (pcx *PackageContext) EnsureProject(ctx context.Context, forceUpdate bool) 
 		return updated, err
 	}
 
+	deps, err := pcx.currentLockfileDependencies()
+	if err != nil {
+		return updated, err
+	}
+	pcx.recordRootLocalDependencies()
+	pcx.pruneLockfileDependencies(lockfileDependencyMetas(deps))
+
 	if err := pcx.PackageLockfileState.SaveLockfile(); err != nil {
 		return updated, err
 	}

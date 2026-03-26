@@ -139,6 +139,54 @@ func TestResolverLifecycle(t *testing.T) {
 	assert.True(t, resolver.modified)
 }
 
+func TestResolverIgnoresLockedVersionWhenConstraintChanges(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	resolver, err := NewResolver(dir, "1.0.0", true)
+	require.NoError(t, err)
+
+	oldMeta := versioning.DependencyMeta{User: "u", Repo: "r", Tag: "1.2.3"}
+	_, commit := seedGitRepo(t, map[string]string{"pawn.json": "{}"}, "1.2.3")
+	require.NoError(t, resolver.RecordResolution(oldMeta, DependencyResolution{Commit: commit, Resolved: "1.2.3"}, false, ""))
+
+	newMeta := versioning.DependencyMeta{User: "u", Repo: "r", Tag: "2.0.0"}
+	lockedMeta := resolver.GetLockedVersion(newMeta)
+	assert.Equal(t, newMeta, lockedMeta)
+	assert.Empty(t, lockedMeta.Commit)
+	assert.Equal(t, "2.0.0", lockedMeta.Tag)
+	assert.True(t, resolver.GetLockfile().IsOutdated(newMeta))
+	assert.True(t, resolver.IsLocked(oldMeta))
+	assert.True(t, resolver.HasLockfile())
+	assert.Equal(t, CalculateCommitIntegrity(commit), resolver.GetLockfile().Dependencies[DependencyKey(oldMeta)].Integrity)
+	assert.Equal(t, ":1.2.3", resolver.GetLockfile().Dependencies[DependencyKey(oldMeta)].Constraint)
+	assert.Equal(t, "1.2.3", resolver.GetLockfile().Dependencies[DependencyKey(oldMeta)].Resolved)
+	assert.Equal(t, commit, resolver.GetLockfile().Dependencies[DependencyKey(oldMeta)].Commit)
+	assert.NotEqual(t, commit, lockedMeta.Commit)
+	assert.False(t, resolver.GetLockfile().IsOutdated(oldMeta))
+	assert.Equal(t, commit, resolver.GetLockedVersion(oldMeta).Commit)
+	assert.Empty(t, resolver.GetLockedVersion(oldMeta).Tag)
+	assert.Empty(t, resolver.GetLockedVersion(oldMeta).Branch)
+}
+
+func TestVerifyIntegrityCommitChecksHeadAndDirtyState(t *testing.T) {
+	t.Parallel()
+
+	repo, commit := seedGitRepo(t, map[string]string{"pawn.json": "{}", "main.pwn": "main() {}"}, "1.2.3")
+	worktree, err := repo.Worktree()
+	require.NoError(t, err)
+
+	root := worktree.Filesystem.Root()
+	ok, err := VerifyIntegrity(root, CalculateCommitIntegrity(commit))
+	require.NoError(t, err)
+	assert.True(t, ok)
+
+	require.NoError(t, os.WriteFile(filepath.Join(root, "main.pwn"), []byte("main() { print(1); }"), 0o644))
+	ok, err = VerifyIntegrity(root, CalculateCommitIntegrity(commit))
+	require.NoError(t, err)
+	assert.False(t, ok)
+}
+
 func TestDefaultResolvedVersionFallbacks(t *testing.T) {
 	t.Run("uses tag", func(t *testing.T) {
 		assert.Equal(t, "1.2.3", defaultResolvedVersion(versioning.DependencyMeta{User: "u", Repo: "r", Tag: "1.2.3"}, "abcdef"))

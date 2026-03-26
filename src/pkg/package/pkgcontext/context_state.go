@@ -109,6 +109,20 @@ func (state *PackageLockfileState) RecordDependencyResolution(
 	return state.lockfileResolver.RecordResolution(meta, resolution, transitive, requiredBy)
 }
 
+func (state *PackageLockfileState) RecordLocalDependency(meta versioning.DependencyMeta) error {
+	if state == nil || state.lockfileResolver == nil {
+		return nil
+	}
+	return state.lockfileResolver.RecordLocalDependency(meta)
+}
+
+func (state *PackageLockfileState) PruneMissingDependencies(current []versioning.DependencyMeta) {
+	if state == nil || state.lockfileResolver == nil {
+		return
+	}
+	state.lockfileResolver.PruneMissing(current)
+}
+
 func (state *PackageLockfileState) RecordRuntime(
 	version string,
 	platform string,
