@@ -23,7 +23,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/oauth2 v0.35.0
 	golang.org/x/sys v0.42.0
-	golang.org/x/text v0.35.0
+	golang.org/x/text v0.36.0
 	gopkg.in/AlecAivazis/survey.v1 v1.8.8
 	gopkg.in/eapache/go-resiliency.v1 v1.2.0
 	gopkg.in/urfave/cli.v1 v1.20.0
