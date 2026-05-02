@@ -10,7 +10,7 @@ require (
 	github.com/docker/docker v25.0.13+incompatible
 	github.com/docker/go-connections v0.6.0
 	github.com/fatih/color v1.19.0
-	github.com/fsnotify/fsnotify v1.9.0
+	github.com/fsnotify/fsnotify v1.10.0
 	github.com/go-git/go-git/v5 v5.18.0
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/jedib0t/go-pretty/v6 v6.7.10
