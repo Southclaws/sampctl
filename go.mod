@@ -8,7 +8,7 @@ require (
 	github.com/UserExistsError/conpty v0.1.4
 	github.com/creack/pty v1.1.24
 	github.com/docker/docker v25.0.13+incompatible
-	github.com/docker/go-connections v0.6.0
+	github.com/docker/go-connections v0.7.0
 	github.com/fatih/color v1.19.0
 	github.com/fsnotify/fsnotify v1.10.0
 	github.com/go-git/go-git/v5 v5.18.0
