@@ -11,7 +11,7 @@ require (
 	github.com/docker/go-connections v0.6.0
 	github.com/fatih/color v1.19.0
 	github.com/fsnotify/fsnotify v1.10.0
-	github.com/go-git/go-git/v5 v5.19.0
+	github.com/go-git/go-git/v5 v5.19.1
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/jedib0t/go-pretty/v6 v6.7.10
 	github.com/joho/godotenv v1.5.1
