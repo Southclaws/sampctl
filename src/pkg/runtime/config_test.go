@@ -354,3 +354,115 @@ func TestOpenMPConfigGenerateWithoutExtraServerCfg(t *testing.T) {
 	serverCfgPath := filepath.Join(tmpDir, "server.cfg")
 	assert.NoFileExists(t, serverCfgPath)
 }
+
+func TestOpenMPWebsiteKey(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "openmp_website_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	website := "example.com"
+	cfg := &run.Runtime{
+		WorkingDir: tmpDir,
+		Platform:   "linux",
+		Version:    "1.2.0-openmp",
+		Mode:       run.Server,
+		Website:    &website,
+	}
+
+	require.NoError(t, GenerateConfig(cfg))
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "config.json"))
+	require.NoError(t, err)
+
+	var config map[string]any
+	require.NoError(t, json.Unmarshal(content, &config))
+	assert.Equal(t, "example.com", config["website"])
+}
+
+func TestOpenMPWebsiteKeyTakesPrecedenceOverWeburl(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "openmp_website_weburl_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	website := "explicit.com"
+	weburl := "legacy.com"
+	cfg := &run.Runtime{
+		WorkingDir: tmpDir,
+		Platform:   "linux",
+		Version:    "1.2.0-openmp",
+		Mode:       run.Server,
+		Website:    &website,
+		Weburl:     &weburl,
+	}
+
+	require.NoError(t, GenerateConfig(cfg))
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "config.json"))
+	require.NoError(t, err)
+
+	var config map[string]any
+	require.NoError(t, json.Unmarshal(content, &config))
+	assert.Equal(t, "explicit.com", config["website"])
+}
+
+func TestOpenMPExcludeComponents(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "openmp_exclude_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	cfg := &run.Runtime{
+		WorkingDir: tmpDir,
+		Platform:   "linux",
+		Version:    "1.2.0-openmp",
+		Mode:       run.Server,
+		Components: []run.Plugin{"pawnraknet", "pawn-memory", "samp-node"},
+		Exclude:    []run.Plugin{"pawn-memory"},
+	}
+
+	require.NoError(t, GenerateConfig(cfg))
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "config.json"))
+	require.NoError(t, err)
+
+	var config map[string]any
+	require.NoError(t, json.Unmarshal(content, &config))
+
+	pawn, ok := config["pawn"].(map[string]any)
+	require.True(t, ok)
+
+	components, ok := pawn["components"].([]any)
+	require.True(t, ok)
+	assert.Contains(t, components, "pawnraknet")
+	assert.Contains(t, components, "samp-node")
+	assert.NotContains(t, components, "pawn-memory")
+}
+
+func TestOpenMPExcludeComponentsWithExtensions(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "openmp_exclude_ext_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	cfg := &run.Runtime{
+		WorkingDir: tmpDir,
+		Platform:   "linux",
+		Version:    "1.2.0-openmp",
+		Mode:       run.Server,
+		Components: []run.Plugin{"pawnraknet.so", "pawn-memory", "Pawn.RakNet"},
+		Exclude:    []run.Plugin{"pawnraknet", "Pawn.RakNet.so"},
+	}
+
+	require.NoError(t, GenerateConfig(cfg))
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "config.json"))
+	require.NoError(t, err)
+
+	var config map[string]any
+	require.NoError(t, json.Unmarshal(content, &config))
+
+	pawn, ok := config["pawn"].(map[string]any)
+	require.True(t, ok)
+
+	components, ok := pawn["components"].([]any)
+	require.True(t, ok)
+	assert.Equal(t, []any{"pawn-memory"}, components)
+}
