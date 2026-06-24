@@ -233,7 +233,9 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 					lastErr = errors.Errorf("content has unexpected content type %s", t)
 					err = lastErr
 					if attempt < maxAttempts {
-						fromNetSleep(backoff(attempt))
+						if sleepErr := sleepRetryBackoff(ctx, backoff(attempt)); sleepErr != nil {
+							return "", sleepErr
+						}
 						continue
 					}
 					return "", err
@@ -308,7 +310,7 @@ func ReleaseAssetByPattern(request ReleaseAssetRequest) (filename, tag string, e
 func ReleaseAssetByPatternWithAPI(request ReleaseAssetAPIRequest) (filename, tag string, err error) {
 	var (
 		asset  *github.ReleaseAsset
-		assets = make([]string, 1)
+		assets = make([]string, 0)
 	)
 
 	var release *github.RepositoryRelease
