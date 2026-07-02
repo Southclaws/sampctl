@@ -658,14 +658,14 @@ func writeGeneratedEntryFile(path string, contents []byte) error {
 func stdDependenciesForPreset(preset string) []versioning.DependencyString {
 	if preset == "openmp" {
 		return []versioning.DependencyString{
-			versioning.DependencyString("openmultiplayer/omp-stdlib"),
+			versioning.DependencyString("openmultiplayer/omp-stdlib@master"),
 			versioning.DependencyString("pawn-lang/samp-stdlib@open.mp"),
 			versioning.DependencyString("pawn-lang/pawn-stdlib@open.mp"),
 		}
 	}
 
 	return []versioning.DependencyString{
-		versioning.DependencyString("pawn-lang/samp-stdlib"),
+		versioning.DependencyString("pawn-lang/samp-stdlib@master"),
 	}
 }
 
