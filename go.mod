@@ -23,7 +23,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/oauth2 v0.35.0
 	golang.org/x/sys v0.46.0
-	golang.org/x/text v0.39.0
+	golang.org/x/text v0.40.0
 	gopkg.in/AlecAivazis/survey.v1 v1.8.8
 	gopkg.in/eapache/go-resiliency.v1 v1.2.0
 	gopkg.in/urfave/cli.v1 v1.20.0
@@ -267,7 +267,7 @@ require (
 	golang.org/x/exp/typeparams v0.0.0-20260209203927-2842357ff358 // indirect
 	golang.org/x/mod v0.37.0 // indirect
 	golang.org/x/net v0.56.0 // indirect
-	golang.org/x/sync v0.21.0 // indirect
+	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/telemetry v0.0.0-20260625142307-59b4966ccb57 // indirect
 	golang.org/x/time v0.2.0 // indirect
 	golang.org/x/tools v0.47.0 // indirect
