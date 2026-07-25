@@ -89,8 +89,8 @@ type Runtime struct {
 	MaxBots     *int     `ignore:"1" required:"0" json:"max_bots,omitempty"     yaml:"max_bots,omitempty"`
 	UseDynTicks *bool    `ignore:"1" required:"0" json:"use_dyn_ticks,omitempty" yaml:"use_dyn_ticks,omitempty"`
 	Logo        *string  `ignore:"1" required:"0" json:"logo,omitempty"         yaml:"logo,omitempty"`
-	Website     *string  `ignore:"1" required:"0" json:"website,omitempty"      yaml:"website,omitempty"` // alias for weburl, takes precedence when both are set
-	Exclude     []Plugin `ignore:"1" required:"0" json:"exclude,omitempty"      yaml:"exclude,omitempty"` // components left out of pawn.components
+	Website     *string  `ignore:"1" required:"0" json:"website,omitempty"      yaml:"website,omitempty"` 
+	Exclude     []Plugin `ignore:"1" required:"0" json:"exclude,omitempty"      yaml:"exclude,omitempty"`
 
 	Game    map[string]any `ignore:"1" required:"0" json:"game,omitempty"     yaml:"game,omitempty"`
 	Network map[string]any `ignore:"1" required:"0" json:"network,omitempty"  yaml:"network,omitempty"`
