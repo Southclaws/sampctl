@@ -109,10 +109,10 @@ func TestRemoteDefinitionRefsOrder(t *testing.T) {
 		Branch: "release",
 		Commit: "deadbeef",
 	})
-	require.Equal(t, []string{"deadbeef", "release", "v1.2.3", ""}, refs)
+	require.Equal(t, []string{"deadbeef", "release", "v1.2.3"}, refs)
 
 	refs = remoteDefinitionRefs(versioning.DependencyMeta{Branch: "release", Tag: "v1.2.3"})
-	require.Equal(t, []string{"release", "v1.2.3", ""}, refs)
+	require.Equal(t, []string{"release", "v1.2.3"}, refs)
 }
 
 func TestGetRemotePackage_OfficialFallback_Offline(t *testing.T) {

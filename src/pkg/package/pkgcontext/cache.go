@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/pkg/errors"
 
@@ -22,6 +23,7 @@ type repoEnsureRequest struct {
 	To          string
 	Branch      string
 	SSH         bool
+	FullClone   bool
 	ForceUpdate bool
 }
 
@@ -98,7 +100,7 @@ func (pcx *PackageContext) refreshDependencyGraph(request DependencyUpdateReques
 			pcx.AllDependencies = append(pcx.AllDependencies, currentMeta)
 			print.Verb(prefix, currentMeta, "ensured")
 
-			currentPackage, errInner = pawnpackage.PackageFromDir(dependencyPath)
+			currentPackage, errInner = pcx.packageFromCachedRevision(currentMeta, dependencyPath)
 			if errInner != nil {
 				print.Verb(prefix, currentMeta, "is not a package:", errInner)
 				return
@@ -189,6 +191,79 @@ func (pcx *PackageContext) refreshDependencyGraph(request DependencyUpdateReques
 	}
 
 	return nil
+}
+
+func (pcx PackageContext) packageFromCachedRevision(
+	meta versioning.DependencyMeta,
+	path string,
+) (pawnpackage.Package, error) {
+	if (meta.Tag == "" || meta.Tag == "latest") && meta.Commit == "" {
+		return pawnpackage.PackageFromDir(path)
+	}
+
+	repo, err := pcx.PackageServices.repositoryStore().Open(path)
+	if err != nil {
+		return pawnpackage.Package{}, err
+	}
+
+	var ref *plumbing.Reference
+	if meta.Tag != "" {
+		ref, err = versioning.RefFromTag(repo, meta)
+	} else {
+		ref, err = versioning.RefFromCommit(repo, meta)
+	}
+	if err != nil {
+		return pawnpackage.Package{}, err
+	}
+
+	commit, err := repo.CommitObject(ref.Hash())
+	if err != nil {
+		return pawnpackage.Package{}, err
+	}
+	tree, err := commit.Tree()
+	if err != nil {
+		return pawnpackage.Package{}, err
+	}
+
+	var (
+		pkg      pawnpackage.Package
+		found    bool
+		lastPath string
+	)
+	for _, definition := range []struct {
+		path   string
+		format string
+	}{
+		{path: "pawn.json", format: "json"},
+		{path: "pawn.yaml", format: "yaml"},
+	} {
+		file, fileErr := tree.File(definition.path)
+		if fileErr == object.ErrFileNotFound {
+			continue
+		}
+		if fileErr != nil {
+			return pawnpackage.Package{}, fileErr
+		}
+		if found {
+			return pawnpackage.Package{}, errors.Errorf(
+				"found both %s and %s; please keep only one package definition file",
+				lastPath,
+				definition.path,
+			)
+		}
+		contents, contentErr := file.Contents()
+		if contentErr != nil {
+			return pawnpackage.Package{}, contentErr
+		}
+		pkg, err = pawnpackage.PackageFromDefinition([]byte(contents), definition.format)
+		if err != nil {
+			return pawnpackage.Package{}, err
+		}
+		found = true
+		lastPath = definition.path
+	}
+
+	return pkg, nil
 }
 
 // handleURLSchemeCaching handles URL scheme dependencies during the caching phase
@@ -338,6 +413,7 @@ func (pcx PackageContext) EnsureDependencyFromCache(
 			To:          path,
 			Branch:      meta.Branch,
 			SSH:         meta.SSH != "",
+			FullClone:   meta.Tag != "" || meta.Commit != "",
 			ForceUpdate: forceUpdate,
 		},
 	})
@@ -356,6 +432,7 @@ func (pcx PackageContext) EnsureDependencyCached(
 			To:          meta.CachePath(pcx.CacheDir),
 			Branch:      meta.Branch,
 			SSH:         meta.SSH != "",
+			FullClone:   meta.Tag != "" || meta.Commit != "",
 			ForceUpdate: forceUpdate,
 		},
 	})
@@ -380,7 +457,7 @@ func (pcx PackageContext) ensureRepoExists(request repoEnsureRequest) (repo *git
 	repo, err = pcx.PackageServices.repositoryStore().Open(request.To)
 	if err != nil {
 		// Repository doesn't exist or can't be opened - clone it
-		return pcx.cloneRepository(request.From, request.To, request.Branch, request.SSH)
+		return pcx.cloneRepository(request.From, request.To, request.Branch, request.SSH, request.FullClone)
 	}
 
 	if request.ForceUpdate {
@@ -391,7 +468,7 @@ func (pcx PackageContext) ensureRepoExists(request repoEnsureRequest) (repo *git
 }
 
 // cloneRepository performs a fresh clone with validation
-func (pcx PackageContext) cloneRepository(from, to, branch string, ssh bool) (*git.Repository, error) {
+func (pcx PackageContext) cloneRepository(from, to, branch string, ssh bool, fullClone bool) (*git.Repository, error) {
 	print.Verb("cloning repository from", from, "to", to)
 
 	if fs.Exists(to) {
@@ -408,9 +485,9 @@ func (pcx PackageContext) cloneRepository(from, to, branch string, ssh bool) (*g
 	}
 
 	// Configure clone options
-	cloneOpts := &git.CloneOptions{
-		URL:   from,
-		Depth: 1000, // TODO: We might want to consider removing depth for better reliability, or add a configurable option
+	cloneOpts := &git.CloneOptions{URL: from, Depth: 1000}
+	if fullClone {
+		cloneOpts.Depth = 0
 	}
 	if branch != "" {
 		cloneOpts.ReferenceName = plumbing.ReferenceName("refs/heads/" + branch)
@@ -453,7 +530,7 @@ func (pcx PackageContext) updateRepository(repo *git.Repository, request repoEns
 	if err != nil {
 		// Worktree error often indicates corruption - re-clone
 		print.Verb("worktree error, repository may be corrupted:", err)
-		return pcx.recoverByReclone(request.From, request.To, request.Branch, request.SSH)
+		return pcx.recoverByReclone(request.From, request.To, request.Branch, request.SSH, request.FullClone)
 	}
 
 	// Configure pull options
@@ -480,14 +557,20 @@ func (pcx PackageContext) updateRepository(repo *git.Repository, request repoEns
 		}
 
 		print.Verb("repair unsuccessful, re-cloning repository")
-		return pcx.recoverByReclone(request.From, request.To, request.Branch, request.SSH)
+		return pcx.recoverByReclone(request.From, request.To, request.Branch, request.SSH, request.FullClone)
 	}
 
 	return repo, nil
 }
 
 // recoverByReclone removes a repository and clones it fresh
-func (pcx PackageContext) recoverByReclone(from, to, branch string, ssh bool) (*git.Repository, error) {
+func (pcx PackageContext) recoverByReclone(
+	from string,
+	to string,
+	branch string,
+	ssh bool,
+	fullClone bool,
+) (*git.Repository, error) {
 	print.Verb("recovering repository by re-cloning")
 
 	err := os.RemoveAll(to)
@@ -495,7 +578,7 @@ func (pcx PackageContext) recoverByReclone(from, to, branch string, ssh bool) (*
 		return nil, errors.Wrap(err, "failed to remove corrupted repository for recovery")
 	}
 
-	return pcx.cloneRepository(from, to, branch, ssh)
+	return pcx.cloneRepository(from, to, branch, ssh, fullClone)
 }
 
 // ensureRepoExistsWithMeta wraps ensureRepoExists and provides improved error handling
@@ -509,6 +592,7 @@ func (pcx PackageContext) ensureRepoExistsWithMeta(request repoEnsureWithMetaReq
 			To:          request.To,
 			Branch:      request.Branch,
 			SSH:         true,
+			FullClone:   request.FullClone,
 			ForceUpdate: request.ForceUpdate,
 		})
 	}
