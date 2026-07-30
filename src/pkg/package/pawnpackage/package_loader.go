@@ -66,13 +66,25 @@ func readPackageDefinition(path, format string) (pkg Package, err error) {
 		return pkg, err
 	}
 
-	if format == "json" {
-		err = json.Unmarshal(data, &pkg)
-	} else {
-		err = yaml.Unmarshal(data, &pkg)
-	}
+	pkg, err = PackageFromDefinition(data, format)
 	if err != nil {
 		return pkg, errors.Wrapf(err, "failed to parse configuration from '%s'", path)
+	}
+
+	return pkg, nil
+}
+
+// PackageFromDefinition parses a package definition.
+func PackageFromDefinition(data []byte, format string) (pkg Package, err error) {
+	if format == "json" {
+		err = json.Unmarshal(data, &pkg)
+	} else if format == "yaml" {
+		err = yaml.Unmarshal(data, &pkg)
+	} else {
+		return pkg, errors.Errorf("unsupported package definition format %q", format)
+	}
+	if err != nil {
+		return pkg, err
 	}
 
 	pkg.Format = format
@@ -159,7 +171,9 @@ func remoteDefinitionRefs(meta versioning.DependencyMeta) []string {
 	if meta.Tag != "" {
 		add(meta.Tag)
 	}
-	add("") // default branch
+	if len(refs) == 0 {
+		add("") // default branch
+	}
 
 	return refs
 }

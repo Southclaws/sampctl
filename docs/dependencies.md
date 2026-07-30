@@ -23,6 +23,8 @@ You can pin dependencies to specific versions.
 - Branch: `user/repo@branch-name`
 - Commit: `user/repo#<sha1>`
 
+Pinned dependencies use the package definition from that revision.
+
 Examples:
 
 - `pawn-lang/YSI-Includes@5.x`

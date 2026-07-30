@@ -89,7 +89,7 @@ func (pcx *PackageContext) currentLockedDependency(meta versioning.DependencyMet
 func (pcx *PackageContext) resourcePackageDefinition(ctx context.Context, meta versioning.DependencyMeta) (pawnpackage.Package, error) {
 	// Resource installation needs a package definition (`pawn.json`/`pawn.yaml`). Prefer the cached copy,
 	// then the checked-out dependency, and finally the remote definition to avoid dropping include paths.
-	pkg, err := pawnpackage.GetCachedPackage(meta, pcx.CacheDir)
+	pkg, err := pcx.packageFromCachedRevision(meta, meta.CachePath(pcx.CacheDir))
 	if err != nil {
 		print.Verb(meta, "failed to read cached package definition:", err)
 	}

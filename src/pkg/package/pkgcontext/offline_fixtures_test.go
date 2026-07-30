@@ -51,7 +51,7 @@ func seedPkgContextFixtures(cacheDir string) error {
 			Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib",
 			Dependencies: []versioning.DependencyString{"pawn-lang/pawn-stdlib"},
 		},
-		[]string{"0.3z-R4"},
+		[]string{"0.3z-R4", "0.3.7-R2-2-1"},
 		"",
 		map[string]string{"a_samp.inc": "// fixture\n"},
 	)
@@ -65,7 +65,7 @@ func seedPkgContextFixtures(cacheDir string) error {
 		pawnpackage.Package{
 			Site: "github.com", User: "Southclaws", Repo: "pawn-errors",
 		},
-		nil,
+		[]string{"1.2.3"},
 		"v2",
 		map[string]string{"pawn-errors.inc": "// fixture\n"},
 	); err != nil {

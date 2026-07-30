@@ -155,6 +155,48 @@ func TestEnsureRepoExistsUsesInjectedRepositoryStoreForClone(t *testing.T) {
 	assert.True(t, valid)
 }
 
+func TestEnsureDependencyCachedUsesFullCloneForPinnedRevision(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeRepositoryStore{
+		openFn: func(string) (*git.Repository, error) {
+			return nil, git.ErrRepositoryNotExists
+		},
+		cloneFn: func(path string, _ bool, opts *git.CloneOptions) (*git.Repository, error) {
+			assert.Zero(t, opts.Depth)
+
+			repo, err := git.PlainInit(path, false)
+			require.NoError(t, err)
+			require.NoError(t, os.WriteFile(filepath.Join(path, "README.md"), []byte("ok"), 0o644))
+			wt, err := repo.Worktree()
+			require.NoError(t, err)
+			_, err = wt.Add("README.md")
+			require.NoError(t, err)
+			_, err = wt.Commit("init", &git.CommitOptions{
+				Author: &object.Signature{Name: "test", Email: "test@example.com"},
+			})
+			require.NoError(t, err)
+			return repo, nil
+		},
+	}
+	health := &fakeRepositoryHealth{
+		validateFn: func(string) (bool, error) { return true, nil },
+		repairFn:   func(string) error { return nil },
+	}
+	pcx := PackageContext{PackageServices: PackageServices{
+		CacheDir:   t.TempDir(),
+		RepoStore:  store,
+		RepoHealth: health,
+	}}
+
+	_, err := pcx.EnsureDependencyCached(versioning.DependencyMeta{
+		User: "fixture",
+		Repo: "repo",
+		Tag:  "1.0.0",
+	}, false)
+	require.NoError(t, err)
+}
+
 func TestEnsureDependencyRepositoryUsesInjectedRepositoryStoreForOpen(t *testing.T) {
 	t.Parallel()
 
