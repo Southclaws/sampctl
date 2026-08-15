@@ -1,6 +1,7 @@
 package pawnpackage
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -60,4 +61,19 @@ func TestEffectiveLocal_ExplicitOverride(t *testing.T) {
 
 	pkg = Package{Parent: true, Local: &falseVal}
 	require.False(t, pkg.EffectiveLocal())
+}
+
+func TestRuntimeWorkingDirDefaultsToPackageRoot(t *testing.T) {
+	pkg := Package{LocalPath: "/project"}
+	require.Equal(t, "/project", pkg.RuntimeWorkingDir())
+}
+
+func TestRuntimeWorkingDirResolvesRelativePathFromPackageRoot(t *testing.T) {
+	pkg := Package{LocalPath: "/project", RuntimeDir: "server"}
+	require.Equal(t, filepath.Join("/project", "server"), pkg.RuntimeWorkingDir())
+}
+
+func TestRuntimeWorkingDirPreservesAbsolutePath(t *testing.T) {
+	pkg := Package{LocalPath: "/project", RuntimeDir: "/tmp/samp-server"}
+	require.Equal(t, "/tmp/samp-server", pkg.RuntimeWorkingDir())
 }

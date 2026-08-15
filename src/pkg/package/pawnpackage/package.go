@@ -72,6 +72,7 @@ type Package struct {
 	Dependencies          []versioning.DependencyString `json:"dependencies,omitempty" yaml:"dependencies,omitempty"`                       // list of packages that the package depends on
 	Development           []versioning.DependencyString `json:"dev_dependencies,omitempty" yaml:"dev_dependencies,omitempty"`               // list of packages that only the package builds depend on
 	Local                 *bool                         `json:"local,omitempty" yaml:"local,omitempty"`                                     // run package in local dir instead of in a temporary runtime (nil = inferred)
+	RuntimeDir            string                        `json:"runtime_dir,omitempty" yaml:"runtime_dir,omitempty"`                         // directory for local runtime files, relative to the package root
 	Runtime               *run.Runtime                  `json:"runtime,omitempty" yaml:"runtime,omitempty"`                                 // runtime configuration
 	Runtimes              []*run.Runtime                `json:"runtimes,omitempty" yaml:"runtimes,omitempty"`                               // multiple runtime configurations
 	Build                 *build.Config                 `json:"build,omitempty" yaml:"build,omitempty"`                                     // build configuration
@@ -193,6 +194,21 @@ func (pkg Package) EffectiveLocal() bool {
 	}
 
 	return pkg.Parent
+}
+
+// RuntimeWorkingDir resolves the working directory for a local runtime.
+// Relative runtime directories are resolved from the package root, while
+// absolute paths are used as provided.
+func (pkg Package) RuntimeWorkingDir() string {
+	if pkg.LocalPath == "" || pkg.RuntimeDir == "" {
+		return pkg.LocalPath
+	}
+
+	if filepath.IsAbs(pkg.RuntimeDir) {
+		return filepath.Clean(pkg.RuntimeDir)
+	}
+
+	return filepath.Join(pkg.LocalPath, pkg.RuntimeDir)
 }
 
 // GetAllDependencies returns the Dependencies and the Development dependencies in one list

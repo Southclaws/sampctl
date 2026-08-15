@@ -160,7 +160,7 @@ func (pcx *PackageContext) RunPrepare(ctx context.Context) (err error) {
 		}
 	} else {
 		print.Verb(pcx.Package, "package is local, using working directory")
-		pcx.ActualRuntime.WorkingDir = pcx.Package.LocalPath
+		pcx.ActualRuntime.WorkingDir = pcx.Package.RuntimeWorkingDir()
 		pcx.ActualRuntime.Format = pcx.Package.Format
 		if err = pcx.ActualRuntime.Validate(); err != nil {
 			return

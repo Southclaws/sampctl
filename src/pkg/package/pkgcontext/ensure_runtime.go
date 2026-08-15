@@ -17,7 +17,7 @@ func (pcx *PackageContext) ensureParentRuntime(ctx context.Context) error {
 		return errors.Wrap(err, "failed to get runtime config")
 	}
 
-	cfg.WorkingDir = pcx.Package.LocalPath
+	cfg.WorkingDir = pcx.Package.RuntimeWorkingDir()
 	cfg.Platform = pcx.Platform
 	cfg.Format = pcx.Package.Format
 

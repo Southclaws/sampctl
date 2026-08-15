@@ -9,6 +9,7 @@ For an introduction and a minimal example, see: [Packages](packages.md)
 - `preset`: selects defaults for runtime/compiler. Common values: `samp`, `openmp`.
 - `entry`: the `.pwn` file to compile.
 - `output`: where the `.amx` output should be written.
+- `runtime_dir`: directory where local runtime files should be installed; relative paths are resolved from the package root, and the package root is used by default. This applies to both SA-MP and open.mp runtimes.
 - `dependencies`: packages to download for building/running.
 - `dev_dependencies`: packages only needed for building/testing.
 
