@@ -64,6 +64,7 @@ func TestEnsureProjectInitialisesLockfileAndPinsDependencies(t *testing.T) {
 	rootConfig := map[string]any{
 		"entry":        "main.pwn",
 		"output":       "gamemodes/main.amx",
+		"runtime_dir":  "server",
 		"dependencies": []string{"testuser/testrepo"},
 		"runtime": map[string]any{
 			"version": "0.3.7",
@@ -100,7 +101,17 @@ func TestEnsureProjectInitialisesLockfileAndPinsDependencies(t *testing.T) {
 	assert.True(t, lf.HasRuntime())
 	assert.Contains(t, lf.Dependencies, lockfile.DependencyKey(depMeta))
 	assert.FileExists(t, filepath.Join(projectDir, lockfile.Filename))
-	assert.FileExists(t, filepath.Join(projectDir, "server"))
+	assert.DirExists(t, filepath.Join(projectDir, "server"))
+	assert.DirExists(t, filepath.Join(projectDir, "server", "gamemodes"))
+	assert.DirExists(t, filepath.Join(projectDir, "server", "filterscripts"))
+	assert.DirExists(t, filepath.Join(projectDir, "server", "plugins"))
+	assert.DirExists(t, filepath.Join(projectDir, "server", "scriptfiles"))
+	assert.DirExists(t, filepath.Join(projectDir, "server", "npcmodes"))
+	assert.NoDirExists(t, filepath.Join(projectDir, "gamemodes"))
+	assert.NoDirExists(t, filepath.Join(projectDir, "filterscripts"))
+	assert.NoDirExists(t, filepath.Join(projectDir, "plugins"))
+	assert.NoDirExists(t, filepath.Join(projectDir, "scriptfiles"))
+	assert.NoDirExists(t, filepath.Join(projectDir, "npcmodes"))
 }
 
 func TestEnsureProjectRecordsLocalDependenciesAndPrunesRemovedEntries(t *testing.T) {
