@@ -35,6 +35,8 @@ To place local server/runtime files in a separate directory, configure the optio
 
 The same field works with both SA-MP 0.3.7 and open.mp. Other package fields, including `entry` and `output`, remain independent and can be configured according to the project's layout. If `runtime_dir` is omitted, the package root remains the runtime directory. Relative values are resolved from the package root, and the setting applies to local `config.json`/`server.cfg`, binaries, plugins, components, and runtime directories.
 
+When running locally, sampctl copies the compiled output file by basename into `<runtime_dir>/gamemodes/` before starting the server. This allows an output such as `build/main.amx` to be used with `runtime_dir: "server"` without requiring the build output itself to be located inside the runtime directory.
+
 ## Install and update dependencies
 
 Add a dependency (adds it to `pawn.json` / `pawn.yaml`):

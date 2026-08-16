@@ -134,4 +134,10 @@ func TestRunPrepareUsesConfiguredRuntimeDirectory(t *testing.T) {
 	assert.True(t, fakeEnv.generateCalled)
 	expectedRuntimeDir := filepath.Join(projectDir, "server")
 	assert.Equal(t, expectedRuntimeDir, fakeEnv.lastWorkingDir)
+
+	runtimeOutputPath := filepath.Join(expectedRuntimeDir, "gamemodes", "main.amx")
+	assert.FileExists(t, runtimeOutputPath)
+	runtimeOutput, err := os.ReadFile(runtimeOutputPath)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("amx"), runtimeOutput)
 }

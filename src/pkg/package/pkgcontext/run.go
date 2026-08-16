@@ -89,7 +89,7 @@ loop:
 				print.Erro(err)
 				continue
 			}
-			if err = pcx.copyRuntimeBinary(outputPath); err != nil {
+			if err = pcx.stageRuntimeOutput(outputPath); err != nil {
 				print.Erro(err)
 				continue
 			}
@@ -181,6 +181,12 @@ func (pcx *PackageContext) RunPrepare(ctx context.Context) (err error) {
 		return
 	}
 
+	if pcx.Package.EffectiveLocal() {
+		if err = pcx.copyOutputToLocalRuntime(filename); err != nil {
+			return err
+		}
+	}
+
 	print.Verb("generating server configuration file")
 	err = pcx.PackageServices.runtimeEnvironment().GenerateConfig(&pcx.ActualRuntime)
 	if err != nil {
@@ -206,6 +212,43 @@ func (pcx *PackageContext) runtimeOutputPath() (string, error) {
 		return "", errors.Wrap(err, "failed to resolve package output path")
 	}
 	return outputPath, nil
+}
+
+func (pcx *PackageContext) stageRuntimeOutput(outputPath string) error {
+	if pcx.Package.EffectiveLocal() {
+		return pcx.copyOutputToLocalRuntime(outputPath)
+	}
+
+	return pcx.copyRuntimeBinary(outputPath)
+}
+
+func (pcx *PackageContext) copyOutputToLocalRuntime(outputPath string) error {
+	targetPath := filepath.Join(pcx.ActualRuntime.WorkingDir, "gamemodes", filepath.Base(outputPath))
+
+	sourceInfo, err := os.Stat(outputPath)
+	if err != nil {
+		return errors.Wrap(err, "failed to stat package output")
+	}
+
+	targetInfo, targetErr := os.Stat(targetPath)
+	if targetErr == nil && os.SameFile(sourceInfo, targetInfo) {
+		return nil
+	}
+	if targetErr != nil && !os.IsNotExist(targetErr) {
+		return errors.Wrap(targetErr, "failed to stat runtime output")
+	}
+
+	source, err := os.Open(outputPath)
+	if err != nil {
+		return errors.Wrap(err, "failed to open package output")
+	}
+	defer source.Close()
+
+	if err := fs.WriteFromReaderAtomic(targetPath, source, fs.PermDirShared, fs.PermFileShared); err != nil {
+		return errors.Wrap(err, "failed to copy package output to local runtime")
+	}
+
+	return nil
 }
 
 func (pcx *PackageContext) copyRuntimeBinary(outputPath string) error {
