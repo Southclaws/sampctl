@@ -242,10 +242,14 @@ func (pcx *PackageContext) copyOutputToLocalRuntime(outputPath string) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to open package output")
 	}
-	defer source.Close()
 
-	if err := fs.WriteFromReaderAtomic(targetPath, source, fs.PermDirShared, fs.PermFileShared); err != nil {
-		return errors.Wrap(err, "failed to copy package output to local runtime")
+	copyErr := fs.WriteFromReaderAtomic(targetPath, source, fs.PermDirShared, fs.PermFileShared)
+	closeErr := source.Close()
+	if copyErr != nil {
+		return errors.Wrap(copyErr, "failed to copy package output to local runtime")
+	}
+	if closeErr != nil {
+		return errors.Wrap(closeErr, "failed to close package output")
 	}
 
 	return nil
