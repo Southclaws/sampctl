@@ -181,7 +181,7 @@ func (pcx *PackageContext) RunPrepare(ctx context.Context) (err error) {
 		return
 	}
 
-	if pcx.Package.EffectiveLocal() {
+	if pcx.Package.EffectiveLocal() && pcx.Package.RuntimeDir != "" {
 		if err = pcx.copyOutputToLocalRuntime(filename); err != nil {
 			return err
 		}
@@ -215,7 +215,7 @@ func (pcx *PackageContext) runtimeOutputPath() (string, error) {
 }
 
 func (pcx *PackageContext) stageRuntimeOutput(outputPath string) error {
-	if pcx.Package.EffectiveLocal() {
+	if pcx.Package.EffectiveLocal() && pcx.Package.RuntimeDir != "" {
 		return pcx.copyOutputToLocalRuntime(outputPath)
 	}
 
