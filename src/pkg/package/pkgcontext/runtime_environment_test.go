@@ -97,3 +97,82 @@ func TestRunPrepareUsesInjectedRuntimeEnvironment(t *testing.T) {
 	assert.Equal(t, outputPath, fakeEnv.lastBinaryPath)
 	assert.Equal(t, filepath.Join(pcx.CacheDir, "runtime", "0.3.7"), fakeEnv.lastWorkingDir)
 }
+
+func TestRunPrepareUsesConfiguredRuntimeDirectory(t *testing.T) {
+	t.Parallel()
+
+	projectDir := t.TempDir()
+	outputPath := filepath.Join(projectDir, "build", "main.amx")
+	require.NoError(t, os.MkdirAll(filepath.Dir(outputPath), 0o755))
+	require.NoError(t, os.WriteFile(outputPath, []byte("amx"), 0o644))
+
+	config := map[string]any{
+		"entry":       "source/main.pwn",
+		"output":      "build/main.amx",
+		"runtime_dir": "server",
+		"runtime": map[string]any{
+			"version": "0.3.7",
+		},
+	}
+	data, err := json.Marshal(config)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), data, 0o644))
+
+	fakeEnv := &fakeRuntimeEnvironment{}
+	pcx, err := NewPackageContext(NewPackageContextOptions{
+		Parent:   true,
+		Dir:      projectDir,
+		Platform: "linux",
+		CacheDir: t.TempDir(),
+	})
+	require.NoError(t, err)
+	pcx.RuntimeEnv = fakeEnv
+
+	err = pcx.RunPrepare(context.Background())
+	require.NoError(t, err)
+	assert.True(t, fakeEnv.ensureCalled)
+	assert.True(t, fakeEnv.generateCalled)
+	expectedRuntimeDir := filepath.Join(projectDir, "server")
+	assert.Equal(t, expectedRuntimeDir, fakeEnv.lastWorkingDir)
+
+	runtimeOutputPath := filepath.Join(expectedRuntimeDir, "gamemodes", "main.amx")
+	assert.FileExists(t, runtimeOutputPath)
+	runtimeOutput, err := os.ReadFile(runtimeOutputPath)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("amx"), runtimeOutput)
+}
+
+func TestRunPreparePreservesLocalRuntimeWithoutRuntimeDir(t *testing.T) {
+	t.Parallel()
+
+	projectDir := t.TempDir()
+	outputPath := filepath.Join(projectDir, "build", "main.amx")
+	require.NoError(t, os.MkdirAll(filepath.Dir(outputPath), 0o755))
+	require.NoError(t, os.WriteFile(outputPath, []byte("amx"), 0o644))
+
+	config := map[string]any{
+		"entry":  "source/main.pwn",
+		"output": "build/main.amx",
+		"runtime": map[string]any{
+			"version": "0.3.7",
+		},
+	}
+	data, err := json.Marshal(config)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), data, 0o644))
+
+	fakeEnv := &fakeRuntimeEnvironment{}
+	pcx, err := NewPackageContext(NewPackageContextOptions{
+		Parent:   true,
+		Dir:      projectDir,
+		Platform: "linux",
+		CacheDir: t.TempDir(),
+	})
+	require.NoError(t, err)
+	pcx.RuntimeEnv = fakeEnv
+
+	require.NoError(t, pcx.RunPrepare(context.Background()))
+	assert.False(t, fakeEnv.copyCalled)
+	assert.Equal(t, projectDir, fakeEnv.lastWorkingDir)
+	assert.NoDirExists(t, filepath.Join(projectDir, "gamemodes"))
+}

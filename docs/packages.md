@@ -20,9 +20,22 @@ Common fields you’ll see:
 
 - `entry`: the `.pwn` file to compile
 - `output`: where the `.amx` file should be written
+- `runtime_dir`: directory where local runtime files should be installed
 - `dependencies`: GitHub packages to download (includes/libraries)
 
 See also: [Package definition reference](package-definition-reference.md)
+
+To place local server/runtime files in a separate directory, configure the optional `runtime_dir` field:
+
+```json
+{
+  "runtime_dir": "server"
+}
+```
+
+The same field works with both SA-MP 0.3.7 and open.mp. Other package fields, including `entry` and `output`, remain independent and can be configured according to the project's layout. If `runtime_dir` is omitted, the package root remains the runtime directory. Relative values are resolved from the package root, and the setting applies to local `config.json`/`server.cfg`, binaries, plugins, components, and runtime directories.
+
+When running locally with `runtime_dir` explicitly configured, sampctl copies the compiled output file by basename into `<runtime_dir>/gamemodes/` before starting the server. This allows an output such as `build/main.amx` to be used with `runtime_dir: "server"` without requiring the build output itself to be located inside the runtime directory. If `runtime_dir` is omitted, the existing local-runtime behavior is preserved.
 
 ## Install and update dependencies
 

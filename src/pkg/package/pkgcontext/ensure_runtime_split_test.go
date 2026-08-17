@@ -99,6 +99,57 @@ func TestEnsureParentRuntimeUsesInjectedRuntimeProvisioner(t *testing.T) {
 	assert.Equal(t, []lockfile.LockedFileInfo{{Path: "server", Size: 128, Hash: "abc123", Mode: 0o755}}, resolver.runtimeFiles)
 }
 
+func TestEnsureParentRuntimeUsesConfiguredRuntimeDirectory(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		version     string
+		runtimeType string
+		openMP      bool
+	}{
+		{name: "samp", version: "0.3.7", runtimeType: "samp"},
+		{name: "openmp", version: "openmp", runtimeType: "openmp", openMP: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			projectDir := t.TempDir()
+			data, err := json.Marshal(map[string]any{
+				"runtime_dir": "server",
+				"runtime":     map[string]any{"version": tt.version},
+			})
+			require.NoError(t, err)
+			require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), data, 0o644))
+
+			provisioner := &fakeRuntimeProvisioner{
+				manifestInfo: &runtime.RuntimeManifestInfo{
+					Version:     tt.version,
+					Platform:    "linux",
+					RuntimeType: tt.runtimeType,
+				},
+			}
+			pcx, err := NewPackageContext(NewPackageContextOptions{
+				Parent:      true,
+				Dir:         projectDir,
+				Platform:    "linux",
+				CacheDir:    t.TempDir(),
+				RuntimeProv: provisioner,
+			})
+			require.NoError(t, err)
+
+			err = pcx.ensureParentRuntime(context.Background())
+			require.NoError(t, err)
+			expectedDir := filepath.Join(projectDir, "server")
+			assert.Equal(t, expectedDir, provisioner.workingDir)
+			assert.Equal(t, expectedDir, provisioner.config.WorkingDir)
+			assert.Equal(t, tt.openMP, provisioner.isOpenMP)
+		})
+	}
+}
+
 func TestRecordRuntimeToLockfileCopiesManifestFiles(t *testing.T) {
 	t.Parallel()
 
