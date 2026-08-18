@@ -86,9 +86,13 @@ type Runtime struct {
 	Extra map[string]string `required:"0" json:"extra,omitempty" yaml:"extra,omitempty"`
 
 	// open.mp specific properties
-	MaxBots     *int    `ignore:"1" required:"0" json:"max_bots,omitempty"     yaml:"max_bots,omitempty"`
-	UseDynTicks *bool   `ignore:"1" required:"0" json:"use_dyn_ticks,omitempty" yaml:"use_dyn_ticks,omitempty"`
-	Logo        *string `ignore:"1" required:"0" json:"logo,omitempty"         yaml:"logo,omitempty"`
+	MaxBots     *int     `ignore:"1" required:"0" json:"max_bots,omitempty"     yaml:"max_bots,omitempty"`
+	UseDynTicks *bool    `ignore:"1" required:"0" json:"use_dyn_ticks,omitempty" yaml:"use_dyn_ticks,omitempty"`
+	Logo        *string  `ignore:"1" required:"0" json:"logo,omitempty"         yaml:"logo,omitempty"`
+	// open.mp-native alias for weburl; takes precedence when both are set
+	Website     *string  `ignore:"1" required:"0" json:"website,omitempty"      yaml:"website,omitempty"`
+	// components to exclude from the generated pawn.components list
+	Exclude     []Plugin `ignore:"1" required:"0" json:"exclude,omitempty"      yaml:"exclude,omitempty"`
 
 	Game    map[string]any `ignore:"1" required:"0" json:"game,omitempty"     yaml:"game,omitempty"`
 	Network map[string]any `ignore:"1" required:"0" json:"network,omitempty"  yaml:"network,omitempty"`
