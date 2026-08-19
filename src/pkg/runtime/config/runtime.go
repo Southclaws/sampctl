@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -120,6 +121,27 @@ const (
 	YTesting RunMode = "y_testing"
 )
 
+const outputTimeoutModePrefix = "timeout:"
+
+// OutputTimeout returns the inactivity timeout encoded by a timeout run mode.
+// Non-timeout modes return zero without an error.
+func (mode RunMode) OutputTimeout() (time.Duration, error) {
+	if !strings.HasPrefix(string(mode), outputTimeoutModePrefix) {
+		return 0, nil
+	}
+
+	rawDuration := strings.TrimPrefix(string(mode), outputTimeoutModePrefix)
+	duration, err := time.ParseDuration(rawDuration)
+	if err != nil {
+		return 0, errors.Wrapf(err, "invalid runtime timeout mode %q", mode)
+	}
+	if duration <= 0 {
+		return 0, errors.Errorf("invalid runtime timeout mode %q: duration must be positive", mode)
+	}
+
+	return duration, nil
+}
+
 // RuntimeType represents the type of runtime being used
 type RuntimeType string
 
@@ -155,6 +177,9 @@ func (cfg Runtime) Validate() (err error) {
 
 	if cfg.Mode == "" {
 		return errors.New("Mode empty")
+	}
+	if _, err := cfg.Mode.OutputTimeout(); err != nil {
+		return err
 	}
 
 	if cfg.Echo == nil {
