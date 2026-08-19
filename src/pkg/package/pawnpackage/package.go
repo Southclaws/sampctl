@@ -61,8 +61,9 @@ type Package struct {
 	Scheme         string                    `json:"scheme,omitempty" yaml:"scheme,omitempty"`
 
 	// Metadata, set by the package author to describe the package
-	Contributors []string `json:"contributors,omitempty" yaml:"contributors,omitempty"` // list of contributors
-	Website      string   `json:"website,omitempty" yaml:"website,omitempty"`           // website or forum topic associated with the package
+	Contributors []string         `json:"contributors,omitempty" yaml:"contributors,omitempty"` // list of contributors
+	Website      string           `json:"website,omitempty" yaml:"website,omitempty"`           // website or forum topic associated with the package
+	Deprecated   *DeprecationInfo `json:"deprecated,omitempty" yaml:"deprecated,omitempty"`     // deprecation notice and optional replacement package
 
 	// Functional, set by the package author to declare relevant files and dependencies
 	Preset                string                        `json:"preset,omitempty" yaml:"preset,omitempty"`                                   // package preset controlling default runtime/compiler (samp, openmp)
@@ -80,6 +81,27 @@ type Package struct {
 	IncludePath           string                        `json:"include_path,omitempty" yaml:"include_path,omitempty"`                       // include path within the repository, so users don't need to specify the path explicitly
 	Resources             []resource.Resource           `json:"resources,omitempty" yaml:"resources,omitempty"`                             // list of additional resources associated with the package
 	ExtractIgnorePatterns []string                      `json:"extract_ignore_patterns,omitempty" yaml:"extract_ignore_patterns,omitempty"` // patterns of files to skip when extracting plugin archives
+}
+
+// DeprecationInfo describes why a package is deprecated and, optionally, what to use instead.
+type DeprecationInfo struct {
+	Message     string `json:"message,omitempty" yaml:"message,omitempty"`
+	Replacement string `json:"replacement,omitempty" yaml:"replacement,omitempty"`
+}
+
+// Notice returns the human-readable warning shown when a deprecated package is ensured.
+func (info DeprecationInfo) Notice() string {
+	details := make([]string, 0, 2)
+	if message := strings.TrimSpace(info.Message); message != "" {
+		details = append(details, message)
+	}
+	if replacement := strings.TrimSpace(info.Replacement); replacement != "" {
+		details = append(details, fmt.Sprintf("use %s instead", replacement))
+	}
+	if len(details) == 0 {
+		return "package is deprecated"
+	}
+	return "package is deprecated: " + strings.Join(details, "; ")
 }
 
 // ExperimentalConfig contains experimental feature flags for package behavior.

@@ -50,6 +50,20 @@ See also: [Build configuration reference](build-configuration-reference.md)
 - `extract_ignore_patterns`: patterns to skip when extracting plugin archives.
 - `experimental.build_file`: control generation of the build-time include file (`sampctl_build_file.inc`) containing build constants and git metadata. This is enabled by default; set it to `false` to disable it.
 - `contributors`, `website`: optional metadata (useful for published packages).
+- `deprecated`: optional deprecation metadata for published packages. It may contain a `message` and a `replacement` package identifier.
+
+Example:
+
+```json
+{
+  "deprecated": {
+    "message": "This package is no longer maintained.",
+    "replacement": "new-user/new-package"
+  }
+}
+```
+
+When a deprecated package is ensured as a dependency, sampctl prints a warning. The `replacement` field is informational and does not automatically rewrite dependencies.
 
 ### Experimental build file (`experimental.build_file`)
 
