@@ -279,8 +279,9 @@ func offlineCompilerArchiveFiles(platform string) map[string]string {
 		}
 	case "windows":
 		return map[string]string{
-			"pawncc.exe": "fixture",
-			"pawnc.dll":  "fixture",
+			"compiler/bin/pawncc.exe": "fixture",
+			"compiler/bin/pawnc.dll":  "fixture",
+			"compiler/bin/mylib.dll":  "extra compiler library",
 		}
 	default:
 		return map[string]string{}

@@ -79,7 +79,7 @@ func Test_CompilerFromNet(t *testing.T) {
 	}{
 		{"linux-v3.10.8", versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.8"}, "linux", []string{"pawncc", "libpawnc.so"}},
 		{"darwin-v3.10.8", versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.8"}, "darwin", []string{"pawncc", "libpawnc.dylib"}},
-		{"windows-v3.10.8", versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.8"}, "windows", []string{"pawncc.exe", "pawnc.dll"}},
+		{"windows-v3.10.8", versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.8"}, "windows", []string{"pawncc.exe", "pawnc.dll", "compiler/bin/mylib.dll"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -117,7 +117,7 @@ func Test_CompilerFromCache(t *testing.T) {
 	}{
 		{"linux-v3.10.8", versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.8"}, "linux", []string{"pawncc", "libpawnc.so"}},
 		{"darwin-v3.10.8", versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.8"}, "darwin", []string{"pawncc", "libpawnc.dylib"}},
-		{"windows-v3.10.8", versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.8"}, "windows", []string{"pawncc.exe", "pawnc.dll"}},
+		{"windows-v3.10.8", versioning.DependencyMeta{User: "pawn-lang", Repo: "compiler", Tag: "v3.10.8"}, "windows", []string{"pawncc.exe", "pawnc.dll", "compiler/bin/mylib.dll"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

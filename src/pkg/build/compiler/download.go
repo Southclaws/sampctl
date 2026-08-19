@@ -125,7 +125,7 @@ func (f *compilerPackageFetcher) fromCache(dir string) (download.Compiler, bool,
 		return download.Compiler{}, false, nil
 	}
 
-	files, err := f.extract(assetPath, dir, f.compiler.Paths)
+	files, err := f.extractCompilerPackage(assetPath, dir)
 	if err != nil {
 		return download.Compiler{}, false, errors.Wrapf(err, "failed to extract package %s", assetPath)
 	}
@@ -181,7 +181,7 @@ func (f *compilerPackageFetcher) fromNetwork(
 		return download.Compiler{}, errors.New("failed to locate downloaded compiler asset")
 	}
 
-	files, err := f.extract(assetPath, dir, f.compiler.Paths)
+	files, err := f.extractCompilerPackage(assetPath, dir)
 	if err != nil {
 		return download.Compiler{}, errors.Wrapf(err, "failed to extract package %s", assetPath)
 	}
@@ -194,6 +194,33 @@ func (f *compilerPackageFetcher) fromNetwork(
 	}
 
 	return f.compiler, nil
+}
+
+func (f *compilerPackageFetcher) extractCompilerPackage(assetPath, dir string) (map[string]string, error) {
+	var (
+		files map[string]string
+		err   error
+	)
+	switch f.compiler.Method {
+	case download.ExtractZip:
+		files, err = download.UnzipAll(assetPath, dir)
+	case download.ExtractTgz:
+		files, err = download.UntarAll(assetPath, dir)
+	default:
+		return nil, errors.Errorf("invalid extract type: %s", f.compiler.Method)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	mappedFiles, err := f.extract(assetPath, dir, f.compiler.Paths)
+	if err != nil {
+		return nil, err
+	}
+	for source, target := range mappedFiles {
+		files[source] = target
+	}
+	return files, nil
 }
 
 func compilerPackageInstalled(dir string, pkg download.Compiler) bool {

@@ -37,6 +37,21 @@ func shouldIgnoreFile(filename string, ignorePatterns []string) bool {
 	return false
 }
 
+func extractTargetPath(dst, target string, extractAll bool) (string, error) {
+	if !extractAll {
+		if !filepath.IsAbs(target) {
+			return filepath.Join(dst, target), nil
+		}
+		return target, nil
+	}
+
+	target = filepath.Clean(filepath.FromSlash(target))
+	if filepath.IsAbs(target) || target == ".." || strings.HasPrefix(target, ".."+string(filepath.Separator)) {
+		return "", errors.Errorf("archive entry escapes destination: %q", target)
+	}
+	return filepath.Join(dst, target), nil
+}
+
 // Untar takes a destination path and a reader; a tar reader loops over the tarfile
 // creating the file structure at 'dst' along the way, and writing any files
 // from https://medium.com/@skdomino/taring-untaring-files-in-go-6b07cf56bc07
@@ -45,8 +60,17 @@ func Untar(src, dst string, paths map[string]string) (files map[string]string, e
 	return UntarWithIgnore(src, dst, paths, nil)
 }
 
-// UntarWithIgnore is like Untar but accepts ignore patterns for files that should not be overwritten
+// UntarWithIgnore is like Untar but accepts ignore patterns for files that should not be overwritten.
 func UntarWithIgnore(src, dst string, paths map[string]string, ignorePatterns []string) (files map[string]string, err error) {
+	return untarWithOptions(src, dst, paths, ignorePatterns, false)
+}
+
+// UntarAll extracts every archive entry while preserving its relative path below dst.
+func UntarAll(src, dst string) (files map[string]string, err error) {
+	return untarWithOptions(src, dst, nil, nil, true)
+}
+
+func untarWithOptions(src, dst string, paths map[string]string, ignorePatterns []string, extractAll bool) (files map[string]string, err error) {
 	reader, err := os.Open(src)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open archive")
@@ -114,14 +138,20 @@ loop:
 
 		// path checking and dir extraction
 
-		found, source, target := nameInPaths(header.Name, paths)
+		var found bool
+		var source, target string
+		if extractAll {
+			found, source, target = true, header.Name, filepath.FromSlash(header.Name)
+		} else {
+			found, source, target = nameInPaths(header.Name, paths)
+		}
 		if !found {
 			continue
 		}
 
-		// if the target is not absolute, make relative to destination dir
-		if !filepath.IsAbs(target) {
-			target = filepath.Join(dst, target)
+		target, err = extractTargetPath(dst, target, extractAll)
+		if err != nil {
+			return nil, err
 		}
 
 		if header.FileInfo().IsDir() {
@@ -173,8 +203,17 @@ func Unzip(src, dst string, paths map[string]string) (files map[string]string, e
 	return UnzipWithIgnore(src, dst, paths, nil)
 }
 
-// UnzipWithIgnore is like Unzip but accepts ignore patterns for files that should not be overwritten
+// UnzipWithIgnore is like Unzip but accepts ignore patterns for files that should not be overwritten.
 func UnzipWithIgnore(src, dst string, paths map[string]string, ignorePatterns []string) (files map[string]string, err error) {
+	return unzipWithOptions(src, dst, paths, ignorePatterns, false)
+}
+
+// UnzipAll extracts every archive entry while preserving its relative path below dst.
+func UnzipAll(src, dst string) (files map[string]string, err error) {
+	return unzipWithOptions(src, dst, nil, nil, true)
+}
+
+func unzipWithOptions(src, dst string, paths map[string]string, ignorePatterns []string, extractAll bool) (files map[string]string, err error) {
 	reader, err := zip.OpenReader(src)
 	if err != nil {
 		return nil, err
@@ -194,13 +233,16 @@ func UnzipWithIgnore(src, dst string, paths map[string]string, ignorePatterns []
 
 		// path checking and dir extraction
 		found, source, target := nameInPaths(header.Name, paths)
+		if extractAll {
+			found, source, target = true, header.Name, filepath.FromSlash(header.Name)
+		}
 		if !found {
 			continue
 		}
 
-		// if the target is not absolute, make relative to destination dir
-		if !filepath.IsAbs(target) {
-			target = filepath.Join(dst, target)
+		target, err = extractTargetPath(dst, target, extractAll)
+		if err != nil {
+			return nil, err
 		}
 
 		if header.FileInfo().IsDir() {
