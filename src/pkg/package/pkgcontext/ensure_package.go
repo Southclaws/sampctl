@@ -11,6 +11,7 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
+	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
 
 type ensurePackageRequest struct {
@@ -90,12 +91,28 @@ func (pcx *PackageContext) ensureManagedPackage(request ensurePackageRequest) er
 	}
 
 	pcx.recordDependencyResolution(request.Meta, request.ParentRepo, repo)
+	pcx.warnDeprecatedPackage(effectiveMeta, dependencyPath)
 
 	if err := pcx.installPackageResources(request.Context, request.Meta, effectiveMeta); err != nil {
 		return errors.Wrap(err, "failed to install package resources")
 	}
 
 	return nil
+}
+
+func (pcx *PackageContext) warnDeprecatedPackage(meta versioning.DependencyMeta, dependencyPath string) {
+	if notice := deprecatedPackageNotice(dependencyPath); notice != "" {
+		print.Warn(meta, notice)
+	}
+}
+
+func deprecatedPackageNotice(dependencyPath string) string {
+	pkg, err := pawnpackage.PackageFromDir(dependencyPath)
+	if err != nil || pkg.Deprecated == nil {
+		return ""
+	}
+
+	return pkg.Deprecated.Notice()
 }
 
 func (pcx *PackageContext) removeInvalidDependencyRepo(meta versioning.DependencyMeta, dependencyPath string) error {
