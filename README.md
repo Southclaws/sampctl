@@ -22,6 +22,7 @@ scripts**. It includes a **package manager**, a **build tool** and a
 - Server + runtime configuration: [docs/server.md](docs/server.md) and [docs/configuration.md](docs/configuration.md)
 - Commands: [docs/command-reference.md](docs/command-reference.md)
 - Troubleshooting: [docs/troubleshooting.md](docs/troubleshooting.md)
+- Contributing: [docs/contributing.md](docs/contributing.md)
 
 ## Quick start
 
