@@ -42,9 +42,9 @@ var (
 	}
 )
 
-// ExtractFunc represents a function responsible for extracting a set of files from an archive to
-// a directory. The map argument contains a map of source files in the archive to target file
-// locations on the host filesystem (absolute paths).
+// ExtractFunc represents a function responsible for extracting a set of mapped files from an
+// archive to a directory. The map argument contains source files in the archive and their target
+// locations on the host filesystem (absolute paths). Use UnzipAll or UntarAll to extract all entries.
 type ExtractFunc func(string, string, map[string]string) (map[string]string, error)
 
 // CacheExtractRequest describes a cached archive extraction operation.

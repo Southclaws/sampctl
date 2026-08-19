@@ -90,6 +90,38 @@ func TestUnzipWithIgnore(t *testing.T) {
 	}, files)
 }
 
+func TestUnzipExtractsAllFilesWhenPathsEmpty(t *testing.T) {
+	t.Parallel()
+
+	archivePath := filepath.Join(t.TempDir(), "compiler.zip")
+	createZipArchive(t, archivePath, map[string]string{
+		"bin/pawncc.exe": "compiler",
+		"bin/mylib.dll":  "extra library",
+	})
+
+	destDir := t.TempDir()
+	files, err := UnzipAll(archivePath, destDir)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{
+		"bin/pawncc.exe": filepath.Join(destDir, "bin", "pawncc.exe"),
+		"bin/mylib.dll":  filepath.Join(destDir, "bin", "mylib.dll"),
+	}, files)
+	assert.FileExists(t, filepath.Join(destDir, "bin", "pawncc.exe"))
+	assert.FileExists(t, filepath.Join(destDir, "bin", "mylib.dll"))
+}
+
+func TestUnzipRejectsPathTraversalWhenPathsEmpty(t *testing.T) {
+	t.Parallel()
+
+	rootDir := t.TempDir()
+	archivePath := filepath.Join(rootDir, "unsafe.zip")
+	createZipArchive(t, archivePath, map[string]string{"../escaped.txt": "payload"})
+
+	_, err := UnzipAll(archivePath, filepath.Join(rootDir, "dest"))
+	require.ErrorContains(t, err, "archive entry escapes destination")
+	assert.NoFileExists(t, filepath.Join(rootDir, "escaped.txt"))
+}
+
 func TestUntarWithIgnore_InvalidArchive(t *testing.T) {
 	t.Parallel()
 
