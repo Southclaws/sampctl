@@ -2,6 +2,8 @@
 
 This page is for **plugin library** maintainers: libraries that ship Pawn includes *and* server binaries (`.dll` / `.so`) via GitHub releases.
 
+For a general overview of resources, including auxiliary files that are not loaded as plugins, see [Resources (plugins, components, includes, and files)](resources.md).
+
 If you’re starting a new library repo (layout, tests, releases), see: [Library creator guide (includes + plugins)](library-creator-guide.md)
 
 To make `sampctl` automatically download and install your binaries, declare `resources` in your `pawn.json` / `pawn.yaml`.
