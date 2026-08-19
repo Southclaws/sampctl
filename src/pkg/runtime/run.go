@@ -24,9 +24,10 @@ import (
 )
 
 var (
-	matchPreamble = regexp.MustCompile(`Loaded [0-9]{1,2} filterscripts\.`)
-	matchMainEnd  = regexp.MustCompile(`Number of vehicle models\: [0-9]*`)
-	matchTestEnd  = regexp.MustCompile(`\*\*\* Test(?:s|): (\d+),(?: Check(?:s|): \d+,|) Fail(?:s|): (\d+)`)
+	matchPreamble          = regexp.MustCompile(`Loaded [0-9]{1,2} filterscripts\.`)
+	matchMainEnd           = regexp.MustCompile(`Number of vehicle models\: [0-9]*`)
+	matchTestEnd           = regexp.MustCompile(`\*\*\* Test(?:s|): (\d+),(?: Check(?:s|): \d+,|) Fail(?:s|): (\d+)`)
+	matchPluginLoadFailure = regexp.MustCompile(`(?i)^\s*(?:\[[^\]\r\n]+\]\s*)?(?:failed\s*\(|(?:failed|could not|unable)\s+to\s+load\s+(?:the\s+)?(?:plugin|component)\b).*`)
 )
 
 type RunOptions struct {
@@ -290,6 +291,14 @@ func processOutputLine(
 	state *outputModeState,
 	line string,
 ) (string, bool, *termination, bool) {
+	if matchPluginLoadFailure.MatchString(line) {
+		term := termination{
+			err:  errors.Errorf("plugin load failed: %s", strings.TrimSpace(line)),
+			exit: true,
+		}
+		return line, true, &term, true
+	}
+
 	switch runType {
 	case run.MainOnly:
 		return processMainOnlyLine(state, line)
