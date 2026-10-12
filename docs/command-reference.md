@@ -29,6 +29,25 @@ You run a server by running a Pawn project:
 - `sampctl get <user/repo>`: clone a GitHub package and ensure it
 - `sampctl release`: create a versioned package release
 
+## Project diagnostics
+
+```bash
+sampctl check
+sampctl check --fix
+sampctl check --verbose
+sampctl check --dir path/to/project
+```
+
+`check` validates global and project settings, file paths, Git availability, installed dependencies, optional `pawn.lock`, compiler files, and cached download lists. It searches the selected directory and its parents; outside a project, only global checks run.
+
+Checks are read-only, with no downloads or compiler execution. Problems appear first: ✓ passed, ✗ failed, ! warning. Redirected output, `--bare`, and `NO_COLOR` disable colour. Use `--verbose` for details; missing prerequisites show “Skipped”.
+
+`--fix` removes invalid download lists and restores execute permissions on managed compiler files, then verifies each repair. Other commands download fresh lists when needed. Project configuration, dependencies, lockfiles, and custom compilers stay unchanged.
+
+Symlinked cache paths and hardlinked compilers need manual repair. Archive integrity and temporary file cleanup aren't covered.
+
+Exit codes: `0` for success, `1` for unresolved problems, `2` for command errors or cancellation. Informational warnings and skipped checks don't cause failure.
+
 ## Templates
 
 - `sampctl template make`: create a template from a package
