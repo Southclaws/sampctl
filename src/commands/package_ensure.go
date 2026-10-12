@@ -62,16 +62,16 @@ func packageEnsure(c *cli.Context) error {
 	dir := fs.MustAbs(c.String("dir"))
 	updateRequest, err := parseEnsureUpdateRequest(c)
 	if err != nil {
-		return err
+		return &commandExitError{code: 1, err: err}
 	}
 	noLock := c.Bool("no-lock")
 	lockOnly := c.Bool("lock-only")
 	useLockfile := !noLock
 
 	// Create package context
-	pcx, _, err := loadPackageContext(c, dir, false)
+	pcx, _, err := loadDependencyOperationContext(c, dir)
 	if err != nil {
-		return errors.Wrap(err, "failed to create package context")
+		return reportDependencyCommandError(c, "ensure", errors.Wrap(err, "failed to create package context"))
 	}
 
 	state, err := getCommandState(c)
@@ -82,15 +82,19 @@ func packageEnsure(c *cli.Context) error {
 	ctx, cancel := newCommandTimeoutContext(time.Hour)
 	defer cancel()
 
-	return runPackageEnsure(ctx, pcx, ensureCommandOptions{
+	err = runPackageEnsure(ctx, pcx, ensureCommandOptions{
 		version:     state.version,
 		useLockfile: useLockfile,
 		lockOnly:    lockOnly,
 		update:      updateRequest,
 	})
+	return reportDependencyCommandError(c, "ensure", err)
 }
 
 func parseEnsureUpdateRequest(c *cli.Context) (pkgcontext.DependencyUpdateRequest, error) {
+	if c.Bool("no-lock") && c.Bool("lock-only") {
+		return pkgcontext.DependencyUpdateRequest{}, errors.New("cannot use --lock-only with --no-lock")
+	}
 	request := pkgcontext.DependencyUpdateRequest{
 		Enabled: c.Bool("update"),
 		Force:   c.Bool("force"),
@@ -125,7 +129,7 @@ func parseEnsureUpdateRequest(c *cli.Context) (pkgcontext.DependencyUpdateReques
 func runPackageEnsure(ctx context.Context, target ensureCommandTarget, opts ensureCommandOptions) error {
 	if opts.useLockfile {
 		if err := target.InitLockfileResolver(opts.version); err != nil {
-			return errors.Wrap(err, "failed to initialize lockfile resolver")
+			return &pkgcontext.OperationError{Operation: "read lockfile", Err: errors.Wrap(err, "failed to initialize lockfile resolver")}
 		}
 
 		describeEnsureLockfile(target, opts.update.Force && !opts.update.HasTarget())
@@ -135,11 +139,8 @@ func runPackageEnsure(ctx context.Context, target ensureCommandTarget, opts ensu
 		if err := requireLockfileSupport(target); err != nil {
 			return err
 		}
-		if err := target.UpdateLockfile(ctx, opts.update); err != nil {
-			return errors.Wrap(err, "failed to update lockfile")
-		}
-		if err := saveCommandLockfile(target); err != nil {
-			return errors.Wrap(err, "failed to save lockfile")
+		if err := updateCommandLockfile(ctx, target, opts.update); err != nil {
+			return err
 		}
 		print.Verb("lockfile updated")
 		return nil
@@ -162,5 +163,23 @@ func runPackageEnsure(ctx context.Context, target ensureCommandTarget, opts ensu
 
 	print.Verb("ensured dependencies for package")
 
+	return nil
+}
+
+func updateCommandLockfile(ctx context.Context, target ensureCommandTarget, request pkgcontext.DependencyUpdateRequest) error {
+	if transactional, ok := target.(interface {
+		UpdateProjectLockfile(context.Context, pkgcontext.DependencyUpdateRequest) error
+	}); ok {
+		if err := transactional.UpdateProjectLockfile(ctx, request); err != nil {
+			return errors.Wrap(err, "failed to update lockfile")
+		}
+		return nil
+	}
+	if err := target.UpdateLockfile(ctx, request); err != nil {
+		return errors.Wrap(err, "failed to update lockfile")
+	}
+	if err := saveCommandLockfile(target); err != nil {
+		return &pkgcontext.OperationError{Operation: "lockfile", Err: errors.Wrap(err, "failed to save lockfile")}
+	}
 	return nil
 }

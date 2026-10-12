@@ -6,13 +6,17 @@ type commandExitError struct {
 	code     int
 	err      error
 	reported bool
+	message  string
 }
 
 func (e *commandExitError) Error() string {
 	if e.err == nil || e.reported {
 		return ""
 	}
-	return e.err.Error()
+	if e.message != "" {
+		return e.message
+	}
+	return redactDiagnosticText(e.err.Error())
 }
 
 func (e *commandExitError) Unwrap() error {

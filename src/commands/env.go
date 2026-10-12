@@ -45,6 +45,14 @@ func getCommandConfig(c *cli.Context) (*config.Config, error) {
 }
 
 func loadPackageContext(c *cli.Context, dir string, init bool) (*pkgcontext.PackageContext, commandEnv, error) {
+	return loadPackageContextWithCache(c, dir, init, true)
+}
+
+func loadDependencyOperationContext(c *cli.Context, dir string) (*pkgcontext.PackageContext, commandEnv, error) {
+	return loadPackageContextWithCache(c, dir, false, false)
+}
+
+func loadPackageContextWithCache(c *cli.Context, dir string, init, cacheDependencies bool) (*pkgcontext.PackageContext, commandEnv, error) {
 	env, err := getCommandEnv(c)
 	if err != nil {
 		return nil, commandEnv{}, err
@@ -55,7 +63,11 @@ func loadPackageContext(c *cli.Context, dir string, init bool) (*pkgcontext.Pack
 		return nil, commandEnv{}, err
 	}
 
-	pcx, err := pkgcontext.NewPackageContext(pkgcontext.NewPackageContextOptions{
+	load := pkgcontext.LoadPackageContext
+	if cacheDependencies {
+		load = pkgcontext.NewPackageContext
+	}
+	pcx, err := load(pkgcontext.NewPackageContextOptions{
 		GitHub:   state.gh,
 		Auth:     state.gitAuth,
 		Parent:   true,
@@ -65,6 +77,9 @@ func loadPackageContext(c *cli.Context, dir string, init bool) (*pkgcontext.Pack
 		Init:     init,
 	})
 	if err != nil {
+		if !cacheDependencies {
+			return nil, commandEnv{}, &pkgcontext.OperationError{Operation: "read manifest", Err: err}
+		}
 		return nil, commandEnv{}, err
 	}
 

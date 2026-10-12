@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/lockfile"
@@ -13,9 +14,12 @@ import (
 )
 
 func checkDependencies(ctx context.Context, pkg pawnpackage.Package, lf *lockfile.Lockfile, overrides map[string]string) ([]diagnostic, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	pending := pkg.GetAllDependencies()
 	visited := make(map[string]bool)
-	var results []diagnostic
+	results := checkDependencyStaging(pkg.Vendor)
 	for len(pending) > 0 {
 		if err := ctx.Err(); err != nil {
 			return results, err
@@ -51,6 +55,32 @@ func checkDependencies(ctx context.Context, pkg pawnpackage.Package, lf *lockfil
 		results = append(results, diagnostic{Name: "dependencies", Status: checkPassed, Message: "No dependencies are declared"})
 	}
 	return results, nil
+}
+
+func checkDependencyStaging(vendor string) []diagnostic {
+	info, err := os.Lstat(vendor)
+	if errors.Is(err, os.ErrNotExist) || err == nil && (!info.IsDir() || info.Mode()&os.ModeSymlink != 0) {
+		return nil
+	}
+	var entries []os.DirEntry
+	if err == nil {
+		entries, err = os.ReadDir(vendor)
+	}
+	if err != nil {
+		return []diagnostic{{Name: "dependency staging", Status: checkWarning, Message: "Cannot inspect temporary dependency directories", Path: vendor, Err: err, Action: "Check read access to the dependencies directory."}}
+	}
+	var results []diagnostic
+	for _, entry := range entries {
+		if !entry.IsDir() || !strings.HasPrefix(entry.Name(), ".sampctl-stage-") {
+			continue
+		}
+		results = append(results, diagnostic{
+			Name: "dependency staging", Status: checkWarning,
+			Message: "Dependency staging directory remains: " + entry.Name(), Path: filepath.Join(vendor, entry.Name()),
+			Action: "Wait for dependency commands to finish. If this directory remains, inspect it with --verbose and keep any backups before deleting temporary files.",
+		})
+	}
+	return results
 }
 
 func checkInstalledDependency(ctx context.Context, pkg pawnpackage.Package, meta versioning.DependencyMeta, lf *lockfile.Lockfile) (diagnostic, *pawnpackage.Package) {

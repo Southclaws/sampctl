@@ -183,7 +183,7 @@ func newUninstallCommand(global []cli.Flag) cli.Command {
 	return cli.Command{
 		Name:        "uninstall",
 		Usage:       "sampctl uninstall [package definition]",
-		Description: "Uninstalls package by removing it from the `dependencies` field in `pawn.json`/`pawn.yaml` and deletes the contents.",
+		Description: "Removes dependency declarations and updates an existing pawn.lock. Installed files remain.",
 		Action:      packageUninstall,
 		Flags:       withGlobalFlags(global, packageUninstallFlags()),
 	}

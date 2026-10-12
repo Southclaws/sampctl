@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"slices"
+
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
@@ -38,17 +40,22 @@ func packageUninstall(c *cli.Context) error {
 		deps = append(deps, versioning.DependencyString(dep))
 	}
 
-	pcx, _, err := loadPackageContext(c, dir, false)
+	pcx, _, err := loadDependencyOperationContext(c, dir)
 	if err != nil {
-		return errors.Wrap(err, "failed to interpret directory as Pawn package")
+		return reportDependencyCommandError(c, "uninstall", errors.Wrap(err, "failed to interpret directory as Pawn package"))
 	}
 
+	previous := slices.Clone(pcx.Package.GetAllDependencies())
 	err = pcx.Uninstall(deps, development)
 	if err != nil {
-		return err
+		return reportDependencyCommandError(c, "uninstall", err)
 	}
 
-	print.Info("successfully removed dependency")
+	if slices.Equal(previous, pcx.Package.GetAllDependencies()) {
+		print.Info("Dependency declarations unchanged")
+	} else {
+		print.Info("Dependency declarations updated")
+	}
 
 	return nil
 }

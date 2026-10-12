@@ -3,6 +3,7 @@ package commands
 import (
 	"bytes"
 	"cmp"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -80,16 +81,36 @@ func checkStatusPriority(status checkStatus) int {
 }
 
 func writeCheckResult(out *bytes.Buffer, result diagnostic, verbose bool, style checkOutputStyle) {
+	result.Message = redactDiagnosticText(result.Message)
 	out.WriteString("  " + style.resultLine(result) + "\n")
 	if result.Action != "" && result.Status != checkPassed && result.Status != checkRepaired {
-		out.WriteString("    " + style.text("→", color.FgCyan) + " " + indentCheckDetail(result.Action) + "\n")
+		out.WriteString("    " + style.text("→", color.FgCyan) + " " + indentCheckDetail(redactDiagnosticText(result.Action)) + "\n")
 	}
 	if verbose && result.Path != "" {
-		out.WriteString("    Path: " + indentCheckDetail(result.Path) + "\n")
+		out.WriteString("    Path: " + indentCheckDetail(redactDiagnosticText(result.Path)) + "\n")
 	}
 	if verbose && result.Err != nil {
-		out.WriteString("    Details: " + indentCheckDetail(result.Err.Error()) + "\n")
+		out.WriteString("    Details: " + indentCheckDetail(redactDiagnosticText(checkErrorDetail(result.Err))) + "\n")
 	}
+}
+
+func checkErrorDetail(err error) string {
+	detail := err.Error()
+	if cause := errors.Unwrap(err); cause != nil {
+		underlying := checkErrorDetail(cause)
+		if !strings.Contains(detail, underlying) {
+			detail += "\nCaused by: " + underlying
+		}
+	}
+	if joined, ok := err.(interface{ Unwrap() []error }); ok {
+		for _, cause := range joined.Unwrap() {
+			underlying := checkErrorDetail(cause)
+			if !strings.Contains(detail, underlying) {
+				detail += "\nCaused by: " + underlying
+			}
+		}
+	}
+	return detail
 }
 
 func indentCheckDetail(text string) string {
