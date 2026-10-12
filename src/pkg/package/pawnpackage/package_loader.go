@@ -12,7 +12,7 @@ import (
 
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"

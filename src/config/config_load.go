@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/joho/godotenv"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"

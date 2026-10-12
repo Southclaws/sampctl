@@ -15,8 +15,8 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.yaml.in/yaml/v3"
 	"gopkg.in/urfave/cli.v1"
-	"gopkg.in/yaml.v3"
 
 	"github.com/Southclaws/sampctl/src/config"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/sys/gitcheck"

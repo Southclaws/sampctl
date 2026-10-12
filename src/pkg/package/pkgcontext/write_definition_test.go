@@ -9,7 +9,7 @@ import (
 	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
