@@ -3,8 +3,6 @@ package pkgcontext
 import (
 	"context"
 
-	"github.com/pkg/errors"
-
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/package/lockfile"
@@ -12,9 +10,12 @@ import (
 )
 
 func (pcx *PackageContext) ensureParentRuntime(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	cfg, err := pcx.Package.GetRuntimeConfig(pcx.Runtime)
 	if err != nil {
-		return errors.Wrap(err, "failed to get runtime config")
+		return &DependencyError{Dependency: "runtime", Operation: "read configuration", Err: err}
 	}
 
 	cfg.WorkingDir = pcx.Package.RuntimeWorkingDir()
@@ -29,12 +30,12 @@ func (pcx *PackageContext) ensureParentRuntime(ctx context.Context) error {
 	pcx.ActualRuntime = cfg
 
 	if err := pcx.PackageServices.runtimeProvisioner().EnsurePackageLayout(cfg.WorkingDir, cfg.IsOpenMP()); err != nil {
-		return errors.Wrap(err, "failed to ensure package layout")
+		return &DependencyError{Dependency: "runtime " + cfg.Version, Operation: "ensure layout", Err: err}
 	}
 
 	runtimeInfo, err := pcx.PackageServices.runtimeProvisioner().EnsureBinaries(ctx, pcx.CacheDir, cfg)
 	if err != nil {
-		return errors.Wrap(err, "failed to ensure runtime binaries")
+		return &DependencyError{Dependency: "runtime " + cfg.Version, Operation: "ensure binaries", Err: err}
 	}
 
 	if err := pcx.PackageServices.runtimeProvisioner().EnsurePlugins(runtimepkg.EnsurePluginsRequest{
@@ -44,12 +45,14 @@ func (pcx *PackageContext) ensureParentRuntime(ctx context.Context) error {
 		CacheDir: pcx.CacheDir,
 		NoCache:  false,
 	}); err != nil {
-		return errors.Wrap(err, "failed to ensure runtime plugins")
+		return &DependencyError{Dependency: "runtime " + cfg.Version, Operation: "ensure plugins", Err: err}
 	}
 
 	pcx.recordRuntimeToLockfile(runtimeInfo)
-	if err := pcx.PackageLockfileState.SaveLockfile(); err != nil {
-		print.Warn("failed to save lockfile after runtime update:", err)
+	if pcx.dependencyInstalls == nil {
+		if err := pcx.PackageLockfileState.SaveLockfile(); err != nil {
+			return &OperationError{Operation: "lockfile", Err: err}
+		}
 	}
 
 	return nil

@@ -134,6 +134,9 @@ func TestCleanInvalidRepository(t *testing.T) {
 		err = os.MkdirAll(repoPath, 0o700)
 		require.NoError(t, err)
 
+		_, err = git.PlainInit(repoPath, false)
+		require.NoError(t, err)
+
 		err = os.WriteFile(filepath.Join(repoPath, "somefile.txt"), []byte("test"), 0o644)
 		require.NoError(t, err)
 

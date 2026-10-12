@@ -117,9 +117,7 @@ func TestEnsureRepoExistsUsesInjectedRepositoryStoreForClone(t *testing.T) {
 		validateFn: func(string) (bool, error) { return true, nil },
 		repairFn:   func(string) error { return nil },
 	}
-	store.openFn = func(string) (*git.Repository, error) {
-		return nil, git.ErrRepositoryNotExists
-	}
+	store.openFn = git.PlainOpen
 	store.cloneFn = func(path string, _ bool, _ *git.CloneOptions) (*git.Repository, error) {
 		repo, err := git.PlainInit(path, false)
 		require.NoError(t, err)
@@ -147,7 +145,7 @@ func TestEnsureRepoExistsUsesInjectedRepositoryStoreForClone(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NotNil(t, repo)
-	assert.Equal(t, 1, store.openCalls)
+	assert.Equal(t, 2, store.openCalls)
 	assert.Equal(t, 1, store.cloneCalls)
 	assert.Equal(t, 1, health.validateCalls)
 	valid, err := ValidateRepository(to)
@@ -159,9 +157,7 @@ func TestEnsureDependencyCachedUsesFullCloneForPinnedRevision(t *testing.T) {
 	t.Parallel()
 
 	store := &fakeRepositoryStore{
-		openFn: func(string) (*git.Repository, error) {
-			return nil, git.ErrRepositoryNotExists
-		},
+		openFn: git.PlainOpen,
 		cloneFn: func(path string, _ bool, opts *git.CloneOptions) (*git.Repository, error) {
 			assert.Zero(t, opts.Depth)
 
@@ -238,9 +234,7 @@ func TestEnsureRepoExistsUsesInjectedRepositoryHealth(t *testing.T) {
 	t.Parallel()
 
 	store := &fakeRepositoryStore{
-		openFn: func(string) (*git.Repository, error) {
-			return nil, git.ErrRepositoryNotExists
-		},
+		openFn: git.PlainOpen,
 		cloneFn: func(path string, _ bool, _ *git.CloneOptions) (*git.Repository, error) {
 			repo, err := git.PlainInit(path, false)
 			require.NoError(t, err)

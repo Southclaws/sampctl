@@ -2,6 +2,7 @@ package pkgcontext
 
 import (
 	"context"
+	stderrors "errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -80,22 +81,31 @@ func formatPinnedDependency(meta versioning.DependencyMeta) string {
 }
 
 func (pcx *PackageContext) resolveLatestTag(ctx context.Context, meta versioning.DependencyMeta, forceUpdate bool) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	if forceUpdate {
 		tag, err := pcx.resolveFreshLatestTag(ctx, meta)
 		if err == nil && tag != "" {
 			return tag, nil
 		}
 		if err != nil {
+			if ctx.Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return "", err
+			}
 			if isMissingLatestReleaseError(err) {
 				return "", ErrDependencyHasNoTagsOrReleases
 			}
-			print.Verb(meta, "failed to resolve fresh latest tag:", err)
+			print.Verb(meta, "failed to resolve fresh latest tag")
 		}
 	}
 
-	tag, err := pcx.latestTagFromCache(meta)
+	tag, err := pcx.latestTagFromCacheContext(ctx, meta)
 	if err == nil && tag != "" {
 		return tag, nil
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, os.ErrInvalid) || errors.Is(err, os.ErrPermission) {
+		return "", err
 	}
 
 	if pcx.GitHub != nil && (meta.Site == "" || meta.Site == "github.com") {
@@ -104,16 +114,27 @@ func (pcx *PackageContext) resolveLatestTag(ctx context.Context, meta versioning
 			return tag, nil
 		}
 		if err != nil {
-			print.Verb(meta, "failed to get latest release tag:", err)
+			if ctx.Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return "", err
+			}
+			print.Verb(meta, "failed to get latest release tag")
 		}
 	}
 
-	_, ensureErr := pcx.EnsureDependencyCached(meta, forceUpdate)
+	refreshCache := forceUpdate
+	if refreshCache {
+		noOrigin, err := pcx.cachedRepoHasNoOriginContext(ctx, meta)
+		if err != nil {
+			return "", err
+		}
+		refreshCache = !noOrigin
+	}
+	_, ensureErr := pcx.EnsureDependencyCachedContext(ctx, meta, refreshCache)
 	if ensureErr != nil {
 		return "", errors.Wrap(ensureErr, "failed to refresh dependency cache")
 	}
 
-	tag, err = pcx.latestTagFromCache(meta)
+	tag, err = pcx.latestTagFromCacheContext(ctx, meta)
 	if err != nil {
 		if isMissingLatestReleaseError(err) {
 			return "", ErrDependencyHasNoTagsOrReleases
@@ -124,25 +145,35 @@ func (pcx *PackageContext) resolveLatestTag(ctx context.Context, meta versioning
 }
 
 func (pcx *PackageContext) resolveFreshLatestTag(ctx context.Context, meta versioning.DependencyMeta) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	if pcx.GitHub != nil && (meta.Site == "" || meta.Site == "github.com") {
 		tag, err := pcx.latestTagFromGitHubRelease(ctx, meta)
 		if err == nil && tag != "" {
 			return tag, nil
 		}
 		if err != nil {
-			print.Verb(meta, "failed to get latest release tag:", err)
+			if ctx.Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return "", err
+			}
+			print.Verb(meta, "failed to get latest release tag")
 		}
 	}
 
-	if pcx.cachedRepoHasNoOrigin(meta) {
-		return pcx.latestTagFromCache(meta)
+	noOrigin, err := pcx.cachedRepoHasNoOriginContext(ctx, meta)
+	if err != nil {
+		return "", err
+	}
+	if noOrigin {
+		return pcx.latestTagFromCacheContext(ctx, meta)
 	}
 
-	if _, err := pcx.EnsureDependencyCached(meta, true); err != nil {
+	if _, err := pcx.EnsureDependencyCachedContext(ctx, meta, true); err != nil {
 		return "", errors.Wrap(err, "failed to refresh dependency cache")
 	}
 
-	tag, err := pcx.latestTagFromCache(meta)
+	tag, err := pcx.latestTagFromCacheContext(ctx, meta)
 	if err != nil {
 		if isMissingLatestReleaseError(err) {
 			return "", ErrDependencyHasNoTagsOrReleases
@@ -167,13 +198,40 @@ func isMissingLatestReleaseError(err error) bool {
 	}
 }
 
-func (pcx *PackageContext) cachedRepoHasNoOrigin(meta versioning.DependencyMeta) bool {
-	repoPath := meta.CachePath(pcx.CacheDir)
+func (pcx *PackageContext) cachedRepoHasNoOriginContext(ctx context.Context, meta versioning.DependencyMeta) (noOrigin bool, err error) {
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	repoPath, err := pcx.cacheRepositoryPath(meta)
+	if err != nil {
+		return false, err
+	}
+	unlock, err := lockRepositoryPath(ctx, repoPath)
+	if err != nil {
+		return false, err
+	}
+	defer func() { err = stderrors.Join(err, unlock()) }()
+	if err := validateRepositoryDestination(repoPath); err != nil {
+		return false, err
+	}
 	repo, err := pcx.PackageServices.repositoryStore().Open(repoPath)
 	if err != nil {
-		return false
+		if errors.Is(err, os.ErrPermission) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return false, err
+		}
+		return false, nil
 	}
-	return getRepositoryOriginURL(repo) == ""
+	remote, err := repo.Remote("origin")
+	if errors.Is(err, git.ErrRemoteNotFound) {
+		return true, nil
+	}
+	if err != nil {
+		if errors.Is(err, os.ErrPermission) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return false, err
+		}
+		return false, nil
+	}
+	return remote == nil || remote.Config() == nil || len(remote.Config().URLs) == 0 || remote.Config().URLs[0] == "", nil
 }
 
 func (pcx *PackageContext) latestTagFromGitHubRelease(ctx context.Context, meta versioning.DependencyMeta) (string, error) {
@@ -209,7 +267,25 @@ func (pcx *PackageContext) latestTagFromGitHubRelease(ctx context.Context, meta 
 }
 
 func (pcx *PackageContext) latestTagFromCache(meta versioning.DependencyMeta) (string, error) {
-	cachePath := meta.CachePath(pcx.CacheDir)
+	return pcx.latestTagFromCacheContext(context.Background(), meta)
+}
+
+func (pcx *PackageContext) latestTagFromCacheContext(ctx context.Context, meta versioning.DependencyMeta) (tag string, err error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	cachePath, err := pcx.cacheRepositoryPath(meta)
+	if err != nil {
+		return "", err
+	}
+	unlock, err := lockRepositoryPath(ctx, cachePath)
+	if err != nil {
+		return "", err
+	}
+	defer func() { err = stderrors.Join(err, unlock()) }()
+	if err := validateRepositoryDestination(cachePath); err != nil {
+		return "", err
+	}
 	gitPath := filepath.Join(cachePath, ".git")
 	if !fs.Exists(gitPath) {
 		return "", errors.New("no cached repository")

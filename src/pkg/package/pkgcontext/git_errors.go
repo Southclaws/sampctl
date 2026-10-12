@@ -1,46 +1,100 @@
 package pkgcontext
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"os"
 	"strings"
+	"syscall"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport"
+	gitHTTP "github.com/go-git/go-git/v5/plumbing/transport/http"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
 
-// WrapGitError provides concise, helpful error messages for Git operations
+type gitOperationError struct {
+	message string
+	cause   error
+}
+
+func (err *gitOperationError) Error() string { return err.message }
+func (err *gitOperationError) Unwrap() error { return err.cause }
+
+// WrapGitError provides concise Git diagnostics and preserves the underlying error.
 func WrapGitError(err error, meta versioning.DependencyMeta) error {
 	if err == nil {
 		return nil
 	}
 
-	errStr := err.Error()
-	dependency := fmt.Sprintf("%s/%s", meta.User, meta.Repo)
-
-	// Handle common Git errors with brief, helpful messages
+	message := "repository could not be accessed; check the repository name and Git credentials"
+	errText := strings.ToLower(err.Error())
 	switch {
-	case strings.Contains(errStr, "authentication required"):
-		return fmt.Errorf("dependency '%s': authentication required (repo may be private or not exist)", dependency)
-
-	case strings.Contains(errStr, "repository not found") ||
-		strings.Contains(errStr, "not found"):
-		return fmt.Errorf("dependency '%s': repository not found (check URL or may be private)", dependency)
-
-	case strings.Contains(errStr, "network is unreachable") ||
-		strings.Contains(errStr, "no such host") ||
-		strings.Contains(errStr, "connection refused") ||
-		strings.Contains(errStr, "timeout"):
-		return fmt.Errorf("dependency '%s': network error - check internet connection", dependency)
-
-	case strings.Contains(errStr, "remote: Repository access blocked"):
-		return fmt.Errorf("dependency '%s': repository access blocked", dependency)
-
-	case err == git.ErrRepositoryNotExists:
-		return fmt.Errorf("dependency '%s': repository does not exist locally (will be cloned)", dependency)
-
-	default:
-		// For unknown errors, provide the original error with context
-		return fmt.Errorf("dependency '%s': %v", dependency, err)
+	case errors.Is(err, context.Canceled):
+		message = "operation canceled"
+	case errors.Is(err, context.DeadlineExceeded):
+		message = "operation timed out"
+	case errors.Is(err, transport.ErrAuthenticationRequired), errors.Is(err, transport.ErrAuthorizationFailed), strings.Contains(errText, "authentication required"):
+		message = "authentication required; check your Git credentials and repository access"
+	case errors.Is(err, transport.ErrRepositoryNotFound), strings.Contains(errText, "repository not found"):
+		message = "repository not found; check the repository name and your Git credentials"
+	case errors.Is(err, os.ErrPermission):
+		message = "permission denied; check access to the dependency and cache directories"
+	case errors.Is(err, os.ErrInvalid):
+		message = "unsafe repository directory; check the dependency and cache directories for symbolic links or unmanaged files"
+	case errors.Is(err, syscall.ENOSPC):
+		message = "not enough disk space; free space in the dependency and cache directories"
+	case isTransientGitError(err):
+		message = "network error; check your internet connection and try again"
+	case errors.Is(err, git.ErrRepositoryNotExists):
+		message = "repository does not exist locally"
+	case strings.Contains(errText, "repository access blocked"):
+		message = "repository access blocked; check your repository access"
 	}
+	return &gitOperationError{message: fmt.Sprintf("dependency '%s/%s': %s", meta.User, meta.Repo, message), cause: err}
+}
+
+func isTransientGitError(err error) bool {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+	var pathErr *os.PathError
+	var permanent *plumbing.PermanentError
+	if errors.As(err, &pathErr) || errors.As(err, &permanent) {
+		return false
+	}
+	var unexpected *plumbing.UnexpectedError
+	if errors.As(err, &unexpected) {
+		return isTransientGitError(unexpected.Err)
+	}
+	var responseErr *gitHTTP.Err
+	if errors.As(err, &responseErr) && responseErr.Response != nil {
+		switch responseErr.Response.StatusCode {
+		case http.StatusTooManyRequests, http.StatusInternalServerError, http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+			return true
+		default:
+			return false
+		}
+	}
+	var dnsErr *net.DNSError
+	if errors.As(err, &dnsErr) && dnsErr.IsNotFound {
+		return false
+	}
+	if dnsErr != nil && dnsErr.IsTemporary {
+		return true
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return true
+	}
+	return errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) ||
+		errors.Is(err, syscall.ECONNRESET) || errors.Is(err, syscall.ECONNREFUSED) ||
+		errors.Is(err, syscall.ENETUNREACH) || errors.Is(err, syscall.EHOSTUNREACH) ||
+		errors.Is(err, syscall.ETIMEDOUT)
 }

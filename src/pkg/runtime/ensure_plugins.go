@@ -38,18 +38,19 @@ type EnsurePluginsRequest struct {
 
 // EnsureVersionedPluginRequest describes plugin acquisition and extraction.
 type EnsureVersionedPluginRequest struct {
-	Context        context.Context
-	GitHub         *github.Client
-	Meta           versioning.DependencyMeta
-	Dir            string
-	Platform       string
-	Version        string
-	CacheDir       string
-	PluginDestDir  string
-	Plugins        bool
-	Includes       bool
-	NoCache        bool
-	IgnorePatterns []string
+	Context            context.Context
+	GitHub             *github.Client
+	Meta               versioning.DependencyMeta
+	Dir                string
+	Platform           string
+	Version            string
+	CacheDir           string
+	PluginDestDir      string
+	Plugins            bool
+	Includes           bool
+	NoCache            bool
+	IgnorePatterns     []string
+	RestrictFilesToDir bool
 }
 
 // EnsureVersionedPluginCachedRequest describes a cache lookup for a versioned plugin asset.
@@ -208,6 +209,9 @@ func EnsureVersionedPlugin(request EnsureVersionedPluginRequest) (files []run.Pl
 			if _, ok := paths[src]; ok {
 				// Don't override plugin/include destinations.
 				continue
+			}
+			if request.RestrictFilesToDir && dest != "" && !filepath.IsLocal(dest) {
+				return nil, errors.Wrapf(os.ErrInvalid, "resource file destination %q must stay inside the dependency directory", dest)
 			}
 			print.Verb(request.Meta, "marking misc file path", src, "for extraction to", dest)
 			paths[src] = dest
