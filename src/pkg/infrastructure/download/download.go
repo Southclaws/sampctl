@@ -11,14 +11,15 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/user"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/go-github/github"
-	"github.com/mitchellh/go-homedir"
 	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
 
@@ -109,7 +110,7 @@ func ExtractFuncFromName(name string) ExtractFunc {
 
 // MigrateOldConfig migrates old config to the new path.
 func MigrateOldConfig(cacheDir string) error {
-	home, err := homedir.Dir()
+	home, err := migrationHomeDir()
 	if err != nil {
 		return errors.Wrap(err, "failed to get home directory")
 	}
@@ -130,6 +131,30 @@ func MigrateOldConfig(cacheDir string) error {
 	}
 
 	return nil
+}
+
+func migrationHomeDir() (string, error) {
+	// Legacy installations honor HOME even on Windows.
+	if home := os.Getenv("HOME"); home != "" {
+		return home, nil
+	}
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		return home, nil
+	}
+	if runtime.GOOS == "windows" {
+		drive, path := os.Getenv("HOMEDRIVE"), os.Getenv("HOMEPATH")
+		if drive != "" && path != "" {
+			return drive + path, nil
+		}
+	}
+	current, err := user.Current()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to look up current user")
+	}
+	if current.HomeDir == "" {
+		return "", errors.New("current user has no home directory")
+	}
+	return current.HomeDir, nil
 }
 
 // FromCache first checks if a file is cached, then extracts it if present.

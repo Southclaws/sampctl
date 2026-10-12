@@ -2,19 +2,17 @@ package download
 
 import (
 	"os"
+	"os/user"
 	"path/filepath"
+	"runtime"
 	"testing"
-
-	"github.com/mitchellh/go-homedir"
 )
 
 func TestMigrateOldConfig_CopiesAndRemovesOldDir(t *testing.T) {
-	t.Cleanup(homedir.Reset)
 	tmpHome := t.TempDir()
 	t.Setenv("HOME", tmpHome)
-	homedir.Reset()
-	if home, err := homedir.Dir(); err != nil || home != tmpHome {
-		t.Fatalf("homedir.Dir() = %q, %v, want temporary home %q, nil", home, err, tmpHome)
+	if home, err := migrationHomeDir(); err != nil || home != tmpHome {
+		t.Fatalf("migrationHomeDir() = %q, %v, want temporary home %q, nil", home, err, tmpHome)
 	}
 
 	oldDir := filepath.Join(tmpHome, ".samp")
@@ -44,12 +42,10 @@ func TestMigrateOldConfig_CopiesAndRemovesOldDir(t *testing.T) {
 }
 
 func TestMigrateOldConfig_NoOldDir(t *testing.T) {
-	t.Cleanup(homedir.Reset)
 	tmpHome := t.TempDir()
 	t.Setenv("HOME", tmpHome)
-	homedir.Reset()
-	if home, err := homedir.Dir(); err != nil || home != tmpHome {
-		t.Fatalf("homedir.Dir() = %q, %v, want temporary home %q, nil", home, err, tmpHome)
+	if home, err := migrationHomeDir(); err != nil || home != tmpHome {
+		t.Fatalf("migrationHomeDir() = %q, %v, want temporary home %q, nil", home, err, tmpHome)
 	}
 
 	newDir := t.TempDir()
@@ -59,5 +55,40 @@ func TestMigrateOldConfig_NoOldDir(t *testing.T) {
 
 	if err := MigrateOldConfig(newDir); err != nil {
 		t.Fatalf("migrate: %v", err)
+	}
+}
+
+func TestMigrationHomeDirUsesCurrentEnvironment(t *testing.T) {
+	first, second := t.TempDir(), t.TempDir()
+	t.Setenv("HOME", first)
+	t.Setenv("USERPROFILE", second)
+	home, err := migrationHomeDir()
+	if err != nil || home != first {
+		t.Fatalf("migrationHomeDir() = %q, %v, want HOME %q, nil", home, err, first)
+	}
+	t.Setenv("HOME", second)
+	home, err = migrationHomeDir()
+	if err != nil || home != second {
+		t.Fatalf("migrationHomeDir() = %q, %v, want updated HOME %q, nil", home, err, second)
+	}
+}
+
+func TestMigrationHomeDirFallsBackToCurrentUser(t *testing.T) {
+	current, err := user.Current()
+	if err != nil {
+		t.Skipf("current user lookup unavailable: %v", err)
+	}
+	if current.HomeDir == "" {
+		t.Skip("current user has no home directory")
+	}
+	for _, key := range []string{"HOME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "home"} {
+		t.Setenv(key, "")
+	}
+	if runtime.GOOS == "android" || runtime.GOOS == "ios" {
+		t.Skip("native home lookup has a platform default")
+	}
+	home, err := migrationHomeDir()
+	if err != nil || home != current.HomeDir {
+		t.Fatalf("migrationHomeDir() = %q, %v, want account home %q, nil", home, err, current.HomeDir)
 	}
 }
