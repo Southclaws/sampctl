@@ -7,14 +7,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kirsle/configdir"
+	"github.com/mitchellh/go-homedir"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/urfave/cli.v1"
 )
 
 func TestRunBareVersion(t *testing.T) {
+	t.Cleanup(configdir.Refresh)
+	t.Cleanup(homedir.Reset)
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("APPDATA", t.TempDir())
+	configdir.Refresh()
+	homedir.Reset()
 
 	require.NoError(t, Run([]string{"sampctl", "--bare", "version"}, "1.2.3"))
 }

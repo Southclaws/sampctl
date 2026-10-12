@@ -7,9 +7,11 @@ import (
 	"testing"
 
 	"github.com/google/go-github/github"
+	"github.com/kirsle/configdir"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
 
@@ -146,15 +148,22 @@ func TestResourceTypes(t *testing.T) {
 }
 
 func TestDefaultResourceManager_CleanCache(t *testing.T) {
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	t.Setenv("HOME", t.TempDir())
+	t.Cleanup(configdir.Refresh)
+	configHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", configHome)
+	t.Setenv("HOME", configHome)
+	t.Setenv("APPDATA", configHome)
+	configdir.Refresh()
+	cacheDir := fs.ConfigDirPath()
+	if rel, err := filepath.Rel(configHome, cacheDir); err != nil || !filepath.IsLocal(rel) {
+		t.Fatalf("ConfigDirPath() = %q, want path inside temporary home %q (relative path %q, error %v)", cacheDir, configHome, rel, err)
+	}
 
 	// Create mock factory
 	factory := NewDefaultResourceFactory(nil)
 	manager := NewDefaultResourceManager(factory)
 
-	// Test that CleanCache doesn't crash - the actual cleaning logic
-	// will depend on the real cache directory structure
+	// Cleaning an empty temporary cache should succeed.
 	err := manager.CleanCache()
 	assert.NoError(t, err)
 }

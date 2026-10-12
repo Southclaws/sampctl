@@ -4,11 +4,18 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/mitchellh/go-homedir"
 )
 
 func TestMigrateOldConfig_CopiesAndRemovesOldDir(t *testing.T) {
+	t.Cleanup(homedir.Reset)
 	tmpHome := t.TempDir()
 	t.Setenv("HOME", tmpHome)
+	homedir.Reset()
+	if home, err := homedir.Dir(); err != nil || home != tmpHome {
+		t.Fatalf("homedir.Dir() = %q, %v, want temporary home %q, nil", home, err, tmpHome)
+	}
 
 	oldDir := filepath.Join(tmpHome, ".samp")
 	if err := os.MkdirAll(oldDir, 0o755); err != nil {
@@ -37,8 +44,13 @@ func TestMigrateOldConfig_CopiesAndRemovesOldDir(t *testing.T) {
 }
 
 func TestMigrateOldConfig_NoOldDir(t *testing.T) {
+	t.Cleanup(homedir.Reset)
 	tmpHome := t.TempDir()
 	t.Setenv("HOME", tmpHome)
+	homedir.Reset()
+	if home, err := homedir.Dir(); err != nil || home != tmpHome {
+		t.Fatalf("homedir.Dir() = %q, %v, want temporary home %q, nil", home, err, tmpHome)
+	}
 
 	newDir := t.TempDir()
 	if err := os.MkdirAll(newDir, 0o755); err != nil {

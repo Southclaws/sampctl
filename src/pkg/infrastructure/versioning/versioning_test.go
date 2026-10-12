@@ -1,12 +1,16 @@
 package versioning
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/kirsle/configdir"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 )
 
 func TestDependencyMeta_String(t *testing.T) {
@@ -185,6 +189,8 @@ func TestURLSchemeString(t *testing.T) {
 }
 
 func TestLoadRemoteOverrides(t *testing.T) {
+	useTemporaryDependencyOverridesConfig(t)
+
 	// Clear any existing cache before testing
 	err := ClearRemoteOverridesCache()
 	assert.NoError(t, err)
@@ -200,6 +206,8 @@ func TestLoadRemoteOverrides(t *testing.T) {
 }
 
 func TestLoadDependencyOverridesWithRemote(t *testing.T) {
+	useTemporaryDependencyOverridesConfig(t)
+
 	// Clear any existing cache before testing
 	err := ClearRemoteOverridesCache()
 	assert.NoError(t, err)
@@ -226,6 +234,8 @@ func TestLoadDependencyOverridesWithRemote(t *testing.T) {
 }
 
 func TestClearRemoteOverridesCache(t *testing.T) {
+	useTemporaryDependencyOverridesConfig(t)
+
 	// Test clearing cache when it doesn't exist (should not error)
 	err := ClearRemoteOverridesCache()
 	assert.NoError(t, err)
@@ -250,4 +260,49 @@ func TestClearRemoteOverridesCache(t *testing.T) {
 	// Verify file is gone
 	_, err = os.Stat(cachePath)
 	assert.True(t, os.IsNotExist(err))
+}
+
+func TestClearRemoteOverridesCacheUsesTemporaryConfigDirectory(t *testing.T) {
+	t.Cleanup(configdir.Refresh)
+	originalHome := t.TempDir()
+	for _, name := range []string{"HOME", "XDG_CONFIG_HOME", "APPDATA"} {
+		t.Setenv(name, originalHome)
+	}
+	configdir.Refresh()
+	originalCacheDir := fs.ConfigDirPath()
+	if rel, err := filepath.Rel(originalHome, originalCacheDir); err != nil || !filepath.IsLocal(rel) {
+		t.Fatalf("ConfigDirPath() = %q, want path inside temporary home %q (relative path %q, error %v)", originalCacheDir, originalHome, rel, err)
+	}
+	originalPath := DefaultDependencyOverridesCachePath()
+	originalContents := []byte(`{"overrides":{"original/repo":"preserved/repo"}}`)
+	if err := os.WriteFile(originalPath, originalContents, 0o600); err != nil {
+		t.Fatalf("WriteFile(%q) = %v, want nil", originalPath, err)
+	}
+
+	home := t.TempDir()
+	for _, name := range []string{"HOME", "XDG_CONFIG_HOME", "APPDATA"} {
+		t.Setenv(name, home)
+	}
+	configdir.Refresh()
+	cacheDir := fs.ConfigDirPath()
+	if rel, err := filepath.Rel(home, cacheDir); err != nil || !filepath.IsLocal(rel) {
+		t.Fatalf("ConfigDirPath() = %q, want path inside temporary home %q (relative path %q, error %v)", cacheDir, home, rel, err)
+	}
+	cachePath := DefaultDependencyOverridesCachePath()
+	if err := os.WriteFile(cachePath, []byte(`{"overrides":{}}`), 0o600); err != nil {
+		t.Fatalf("WriteFile(%q) = %v, want nil", cachePath, err)
+	}
+	if err := ClearRemoteOverridesCache(); err != nil {
+		t.Fatalf("ClearRemoteOverridesCache() = %v, want nil", err)
+	}
+	if _, err := os.Stat(cachePath); !os.IsNotExist(err) {
+		t.Errorf("Stat(%q) = %v, want cache removed", cachePath, err)
+	}
+	got, err := os.ReadFile(originalPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) = %v, want original cache preserved", originalPath, err)
+	}
+	if !bytes.Equal(got, originalContents) {
+		t.Errorf("ReadFile(%q) = %q, want %q", originalPath, got, originalContents)
+	}
 }
