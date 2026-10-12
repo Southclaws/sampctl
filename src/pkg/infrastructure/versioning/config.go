@@ -3,6 +3,7 @@ package versioning
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -187,6 +188,47 @@ func LoadDependencyOverridesContext(ctx context.Context, configPath string) map[
 	}
 
 	return overrides
+}
+
+// LoadLocalDependencyOverrides reads built-in, cached, and user overrides without fetching or writing files.
+func LoadLocalDependencyOverrides(cacheDir string) (map[string]string, error) {
+	overrides := make(map[string]string)
+	for original, replacement := range DependencyOverrides {
+		overrides[original] = replacement
+	}
+	var loadErrors []error
+	for _, name := range []string{"remote-dependency-overrides.json", "dependency-overrides.json"} {
+		path := filepath.Join(cacheDir, name)
+		_, err := os.Lstat(path)
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err == nil {
+			var info os.FileInfo
+			info, err = os.Stat(path)
+			if err == nil && !info.Mode().IsRegular() {
+				err = fmt.Errorf("override path is not a regular file")
+			}
+		}
+		if err != nil {
+			loadErrors = append(loadErrors, fmt.Errorf("read dependency overrides %s: %w", path, err))
+			continue
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			loadErrors = append(loadErrors, fmt.Errorf("read dependency overrides %s: %w", path, err))
+			continue
+		}
+		var config DependencyOverrideConfig
+		if err := json.Unmarshal(data, &config); err != nil {
+			loadErrors = append(loadErrors, fmt.Errorf("parse dependency overrides %s: %w", path, err))
+			continue
+		}
+		for original, replacement := range config.Overrides {
+			overrides[original] = replacement
+		}
+	}
+	return overrides, errors.Join(loadErrors...)
 }
 
 // SaveDependencyOverrides saves dependency overrides to a configuration file

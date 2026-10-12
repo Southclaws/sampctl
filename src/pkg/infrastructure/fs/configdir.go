@@ -8,9 +8,14 @@ import (
 
 const configFolderName = "sampctl"
 
+// ConfigDirPath returns the user's sampctl config path without creating it.
+func ConfigDirPath() string {
+	return configdir.LocalConfig(configFolderName)
+}
+
 // ConfigDir returns the user's sampctl config directory and ensures it exists.
 func ConfigDir() (string, error) {
-	dir := configdir.LocalConfig(configFolderName)
+	dir := ConfigDirPath()
 	if err := EnsureDir(dir, PermDirPrivate); err != nil {
 		return "", fmt.Errorf("failed to create config dir %q: %w", dir, err)
 	}

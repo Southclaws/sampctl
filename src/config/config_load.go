@@ -41,6 +41,15 @@ func configFileCandidates(cacheDir string) []string {
 }
 
 func loadConfigFile(configFile string) (*Config, error) {
+	cfg, err := readConfigFile(configFile)
+	if err != nil {
+		return nil, err
+	}
+	print.Verb("Using configuration:", pretty.Sprint(cfg))
+	return cfg, nil
+}
+
+func readConfigFile(configFile string) (*Config, error) {
 	contents, err := os.ReadFile(configFile)
 	if err != nil {
 		return nil, err
@@ -55,7 +64,6 @@ func loadConfigFile(configFile string) (*Config, error) {
 	}
 
 	normalizeConfig(cfg)
-	print.Verb("Using configuration:", pretty.Sprint(cfg))
 
 	return cfg, nil
 }
