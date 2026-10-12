@@ -67,7 +67,7 @@ func packageInit(c *cli.Context) error {
 		Version:  c.App.Version,
 	})
 
-	return err
+	return reportDependencyCommandError(c, "init", err)
 }
 
 func validateInitDirectory(dir string) error {

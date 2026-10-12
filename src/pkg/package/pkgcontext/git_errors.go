@@ -33,13 +33,15 @@ func WrapGitError(err error, meta versioning.DependencyMeta) error {
 		return nil
 	}
 
-	message := "repository could not be accessed; check the repository name and Git credentials"
+	message := "repository operation failed; use --verbose for details"
 	errText := strings.ToLower(err.Error())
 	switch {
 	case errors.Is(err, context.Canceled):
 		message = "operation canceled"
 	case errors.Is(err, context.DeadlineExceeded):
 		message = "operation timed out"
+	case errors.Is(err, transport.ErrInvalidAuthMethod):
+		message = "Git authentication method does not match the repository transport; use --verbose for details"
 	case errors.Is(err, transport.ErrAuthenticationRequired), errors.Is(err, transport.ErrAuthorizationFailed), strings.Contains(errText, "authentication required"):
 		message = "authentication required; check your Git credentials and repository access"
 	case errors.Is(err, transport.ErrRepositoryNotFound), strings.Contains(errText, "repository not found"):

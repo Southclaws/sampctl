@@ -524,7 +524,7 @@ func (pcx PackageContext) updateRepository(repo *git.Repository, request repoEns
 	if err != nil {
 		return pcx.cloneRepositoryContext(request)
 	}
-	pullOpts := &git.PullOptions{Auth: pcx.authForRemote(request.From, request.SSH)}
+	pullOpts := &git.PullOptions{RemoteURL: request.From, Auth: pcx.authForRemote(request.From, request.SSH)}
 	if request.Branch != "" {
 		pullOpts.ReferenceName = plumbing.ReferenceName("refs/heads/" + request.Branch)
 	}
