@@ -26,7 +26,8 @@ relationship data may keep unused entries until the next successful ensure.
 - Branch: `user/repo@branch-name`
 - Commit: `user/repo#<sha1>`
 
-Pinned dependencies use the package definition from that revision. Examples:
+Pinned dependencies use the package definition from that revision. An unpinned
+transitive dependency uses the project's explicit pin for that repo. Examples:
 
 - `pawn-lang/YSI-Includes@5.x`
 - `samp-incognito/samp-streamer-plugin:2.8.2`

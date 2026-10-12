@@ -51,9 +51,11 @@ func (pcx *PackageContext) ensureDependencies(
 		return err
 	}
 	directDependencies := pcx.directDependencySet()
+	directConstraints := pcx.directDependencyConstraints()
 	failures := pcx.validateLocalDependencyPaths(ctx)
 
 	for _, dependency := range pcx.AllDependencies {
+		dependency = inheritDirectDependencyConstraint(dependency, directConstraints)
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ctxErr
 		}

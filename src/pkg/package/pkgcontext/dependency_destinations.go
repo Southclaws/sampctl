@@ -9,6 +9,7 @@ import (
 )
 
 func (pcx *PackageContext) validateDependencyDestinations() error {
+	constraints := pcx.directDependencyConstraints()
 	candidates := append([]versioning.DependencyMeta(nil), pcx.AllDependencies...)
 	for _, declaration := range pcx.Package.GetAllDependencies() {
 		meta, err := declaration.Explode()
@@ -22,11 +23,39 @@ func (pcx *PackageContext) validateDependencyDestinations() error {
 		if meta.IsLocalScheme() {
 			continue
 		}
-		if err := registerDependencyDestination(seen, meta); err != nil {
+		if err := registerDependencyDestination(seen, inheritDirectDependencyConstraint(meta, constraints)); err != nil {
 			failures = append(failures, err)
 		}
 	}
 	return errors.Join(failures...)
+}
+
+// Unpinned references share the revision selected by the project's direct dependency.
+func (pcx *PackageContext) directDependencyConstraints() map[versioning.DependencyMeta]versioning.DependencyMeta {
+	constraints := make(map[versioning.DependencyMeta]versioning.DependencyMeta)
+	for _, declaration := range pcx.Package.GetAllDependencies() {
+		meta, err := declaration.Explode()
+		if err == nil && !meta.IsLocalScheme() && hasExplicitDependencyConstraint(meta) {
+			constraints[dependencyRepositoryIdentity(meta)] = meta
+		}
+	}
+	return constraints
+}
+
+func inheritDirectDependencyConstraint(meta versioning.DependencyMeta, constraints map[versioning.DependencyMeta]versioning.DependencyMeta) versioning.DependencyMeta {
+	if meta.IsLocalScheme() || hasExplicitDependencyConstraint(meta) {
+		return meta
+	}
+	if direct, ok := constraints[dependencyRepositoryIdentity(meta)]; ok {
+		meta.Tag, meta.Branch, meta.Commit = direct.Tag, direct.Branch, direct.Commit
+	}
+	return meta
+}
+
+func dependencyRepositoryIdentity(meta versioning.DependencyMeta) versioning.DependencyMeta {
+	meta = managedDependencyIdentity(meta)
+	meta.Tag, meta.Branch, meta.Commit = "", "", ""
+	return meta
 }
 
 func registerDependencyDestination(seen map[string]versioning.DependencyMeta, meta versioning.DependencyMeta) error {

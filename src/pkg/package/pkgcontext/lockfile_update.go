@@ -83,6 +83,7 @@ func (pcx *PackageContext) lockfileDependencies(ctx context.Context, request Dep
 	states := make(map[string]*lockfileDependencyState)
 	visited := make(map[string]bool)
 	directDependencies := make(map[string]bool)
+	directConstraints := pcx.directDependencyConstraints()
 	destinations := make(map[string]versioning.DependencyMeta)
 	for _, declaration := range pcx.Package.GetAllDependencies() {
 		if meta, err := declaration.Explode(); err == nil {
@@ -103,7 +104,7 @@ func (pcx *PackageContext) lockfileDependencies(ctx context.Context, request Dep
 				continue
 			}
 
-			normalized := normalizeLockfileDependency(meta)
+			normalized := normalizeLockfileDependency(inheritDirectDependencyConstraint(meta, directConstraints))
 			if !normalized.IsLocalScheme() {
 				if err := registerDependencyDestination(destinations, normalized); err != nil {
 					failures = append(failures, err)

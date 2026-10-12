@@ -200,7 +200,7 @@ func (pcx *PackageContext) updateRepoStateContext(ctx context.Context, repo *git
 		if err != nil {
 			return errors.Wrap(err, "failed to get ref from tag")
 		}
-	case meta.Branch != "":
+	case meta.Branch != "" && meta.Commit == "":
 		print.Verb(meta, "package has branch constraint:", meta.Branch)
 		pullOpts.Depth = 1000
 		pullOpts.ReferenceName = plumbing.ReferenceName("refs/heads/" + meta.Branch)

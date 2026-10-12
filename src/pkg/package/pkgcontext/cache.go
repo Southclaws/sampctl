@@ -78,6 +78,7 @@ func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Cont
 	pcx.AllIncludePaths = nil
 	visited := map[versioning.DependencyMeta]bool{managedDependencyIdentity(pcx.Package.Dependency()): true}
 	directDependencies := make(map[versioning.DependencyMeta]bool)
+	directConstraints := pcx.directDependencyConstraints()
 	for _, declaration := range pcx.Package.GetAllDependencies() {
 		meta, err := declaration.Explode()
 		if err == nil {
@@ -136,6 +137,7 @@ func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Cont
 				failures = append(failures, &DependencyError{Dependency: string(dependency), Operation: "parse", Err: errors.Wrapf(err, "invalid dependency in %s", currentPackage)})
 				continue
 			}
+			subMeta = inheritDirectDependencyConstraint(subMeta, directConstraints)
 			if !subMeta.IsLocalScheme() {
 				if err := registerDependencyDestination(destinations, subMeta); err != nil {
 					failures = append(failures, err)
