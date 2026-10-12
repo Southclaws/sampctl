@@ -2,6 +2,7 @@ package lockfile
 
 import (
 	"path/filepath"
+	"reflect"
 
 	"github.com/pkg/errors"
 
@@ -61,7 +62,7 @@ func (r *Resolver) GetLockedVersion(meta versioning.DependencyMeta) versioning.D
 	}
 
 	if locked.Commit != "" {
-		print.Verb(meta, "using locked commit", locked.Commit[:8])
+		print.Verb(meta, "using locked commit", locked.Commit[:min(8, len(locked.Commit))])
 		lockedMeta := meta
 		lockedMeta.Commit = locked.Commit
 		lockedMeta.Tag = ""
@@ -105,6 +106,13 @@ func (r *Resolver) RecordResolution(meta versioning.DependencyMeta, resolution D
 
 	existing, exists := r.lockfile.Dependencies[key]
 	if exists && existing.Commit == commitSHA {
+		if existing.Constraint != getConstraint(meta) || existing.Transitive != transitive || existing.Resolved != resolvedVersion {
+			existing.Constraint = getConstraint(meta)
+			existing.Transitive = transitive
+			existing.Resolved = resolvedVersion
+			r.lockfile.Dependencies[key] = existing
+			r.modified = true
+		}
 		if transitive && requiredBy != "" {
 			found := false
 			for _, rb := range existing.RequiredBy {
@@ -181,12 +189,55 @@ func (r *Resolver) Save() error {
 		return nil
 	}
 
-	if !r.modified {
+	existing, err := Load(r.dir)
+	if err != nil {
+		return err
+	}
+	if existing != nil && sameLockfileState(existing, r.lockfile) {
+		r.modified = false
+		r.previous = nil
 		print.Verb("lockfile unchanged, skipping save")
 		return nil
 	}
+	if err := Save(r.dir, r.lockfile); err != nil {
+		return err
+	}
+	r.modified = false
+	r.previous = nil
+	return nil
+}
 
-	return Save(r.dir, r.lockfile)
+func sameLockfileState(left, right *Lockfile) bool {
+	l, r := *left, *right
+	l.Generated = r.Generated
+	return reflect.DeepEqual(l, r)
+}
+
+// Reload refreshes pins from disk while preserving an explicit force update.
+func (r *Resolver) Reload() error {
+	if !r.useLockfile {
+		return nil
+	}
+	current, err := Load(r.dir)
+	if err != nil {
+		return err
+	}
+	if r.previous != nil {
+		r.previous = current
+		r.lockfile = New(r.sampctlVersion)
+	} else if current != nil {
+		r.lockfile = current
+	} else {
+		r.lockfile = New(r.sampctlVersion)
+	}
+	return nil
+}
+
+// Restore restores dependency pins after a failed project operation.
+func (r *Resolver) Restore(current *Lockfile) {
+	r.lockfile = current
+	r.previous = nil
+	r.modified = true
 }
 
 func (r *Resolver) ForceUpdate() {
