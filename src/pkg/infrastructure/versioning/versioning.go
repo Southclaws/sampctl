@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/pkg/errors"
 
@@ -14,6 +15,8 @@ import (
 
 // loadedOverrides caches the dependency overrides loaded from configuration
 var loadedOverrides map[string]string
+
+var overridesMu sync.Mutex
 
 // DependencyString represents a git repository via various patterns
 type DependencyString string
@@ -125,6 +128,8 @@ var DependencyOverrides = map[string]string{
 // ApplyDependencyOverrides checks if a dependency string should be replaced with an override
 // and returns the override if one exists, otherwise returns the original string
 func ApplyDependencyOverrides(depStr string) string {
+	overridesMu.Lock()
+	defer overridesMu.Unlock()
 	if loadedOverrides == nil {
 		loadedOverrides = LoadDependencyOverrides("")
 	}
@@ -216,6 +221,8 @@ func ApplyDependencyOverridesWithLogging(depStr string) (string, bool) {
 
 // ResetDependencyOverrides resets the loaded overrides cache (mainly for testing)
 func ResetDependencyOverrides() {
+	overridesMu.Lock()
+	defer overridesMu.Unlock()
 	loadedOverrides = nil
 }
 
