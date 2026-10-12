@@ -1,9 +1,16 @@
 package commands
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"flag"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +19,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/urfave/cli.v1"
+
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 )
 
 func TestRunBareVersion(t *testing.T) {
@@ -53,6 +62,7 @@ func TestNewCLIAppConfiguresMetadataAndCommands(t *testing.T) {
 		"get",
 		"build",
 		"run",
+		"check",
 		"compiler",
 		"template",
 		"version",
@@ -63,6 +73,191 @@ func TestNewCLIAppConfiguresMetadataAndCommands(t *testing.T) {
 	assert.NotNil(t, app.Before)
 	assert.NotNil(t, app.After)
 	assert.NotNil(t, app.OnUsageError)
+}
+
+func TestIsCheckInvocation(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		args []string
+		want bool
+	}{
+		{name: "check", args: []string{"sampctl", "check"}, want: true},
+		{name: "global flags", args: []string{"sampctl", "--verbose", "--platform", "linux", "check", "--fix"}, want: true},
+		{name: "global flag named check", args: []string{"sampctl", "--platform", "check", "version"}},
+		{name: "command argument", args: []string{"sampctl", "get", "check"}},
+		{name: "help command", args: []string{"sampctl", "help", "check"}, want: true},
+		{name: "other help command", args: []string{"sampctl", "help", "version", "check"}},
+		{name: "global help", args: []string{"sampctl", "--help", "check"}, want: true},
+		{name: "separator", args: []string{"sampctl", "--", "check"}, want: true},
+		{name: "invalid global flag", args: []string{"sampctl", "--unknown", "check"}, want: true},
+		{name: "invalid global flag value", args: []string{"sampctl", "--verbose=invalid", "check"}, want: true},
+		{name: "missing executable"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isCheckInvocation(tt.args))
+		})
+	}
+}
+
+func TestExitCode(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{name: "success", want: 0},
+		{name: "existing command error", err: errors.New("failed"), want: 1},
+		{name: "health failure", err: &commandExitError{code: 1}, want: 1},
+		{name: "internal error", err: &commandExitError{code: 2, err: errors.New("failed")}, want: 2},
+		{name: "wrapped internal error", err: fmt.Errorf("check: %w", &commandExitError{code: 2, err: errors.New("failed")}), want: 2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, ExitCode(tt.err))
+		})
+	}
+}
+
+func TestCommandExitErrorPreservesCauseWithoutCLIExitCoder(t *testing.T) {
+	t.Parallel()
+
+	cause := errors.New("fixture failure")
+	err := &commandExitError{code: 2, err: cause}
+	assert.ErrorIs(t, err, cause)
+	assert.Equal(t, cause.Error(), err.Error())
+	assert.Empty(t, (&commandExitError{code: 1}).Error())
+	reported := &commandExitError{code: 2, err: cause, reported: true}
+	assert.Empty(t, reported.Error())
+	assert.ErrorIs(t, reported, cause)
+	_, exits := any(err).(cli.ExitCoder)
+	assert.False(t, exits, "urfave must not exit from library code")
+}
+
+func TestRunCheckHelpDoesNotCreateManagedState(t *testing.T) {
+	t.Cleanup(configdir.Refresh)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("APPDATA", t.TempDir())
+	configdir.Refresh()
+
+	for _, args := range [][]string{
+		{"sampctl", "--verbose", "check", "--help"},
+		{"sampctl", "help", "check"},
+	} {
+		require.NoError(t, Run(args, "1.2.3"))
+		assert.NoDirExists(t, fs.ConfigDirPath())
+	}
+}
+
+func TestRunCheckPreservesLegacyStateAndClassifiesUsageError(t *testing.T) {
+	t.Cleanup(configdir.Refresh)
+	t.Cleanup(homedir.Reset)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("APPDATA", t.TempDir())
+	configdir.Refresh()
+	homedir.Reset()
+	legacyDir := filepath.Join(os.Getenv("HOME"), ".samp")
+	require.NoError(t, os.Mkdir(legacyDir, 0o700))
+	legacyConfig := filepath.Join(legacyDir, "config.json")
+	contents := []byte(`{"default_user":"legacy"}`)
+	require.NoError(t, os.WriteFile(legacyConfig, contents, 0o600))
+
+	for _, args := range [][]string{
+		{"sampctl", "check", "--unknown-check-option"},
+		{"sampctl", "--verbose=invalid", "check"},
+		{"sampctl", "--unknown", "check"},
+	} {
+		err := Run(args, "1.2.3")
+		require.Error(t, err)
+		assert.Equal(t, 2, ExitCode(err))
+		assert.NoDirExists(t, fs.ConfigDirPath())
+		got, err := os.ReadFile(legacyConfig)
+		require.NoError(t, err)
+		assert.Equal(t, contents, got)
+	}
+}
+
+func TestCheckAppSkipsConfigLifecycle(t *testing.T) {
+	t.Parallel()
+
+	cacheDir := t.TempDir()
+	configPath := filepath.Join(cacheDir, "config.json")
+	contents := []byte("{broken")
+	require.NoError(t, os.WriteFile(configPath, contents, 0o600))
+	state := newCommandState("1.2.3", cacheDir)
+	app := newCLIApp("1.2.3", state)
+	app.Writer = io.Discard
+	app.ErrWriter = io.Discard
+	var ran bool
+	for i := range app.Commands {
+		if app.Commands[i].Name == "check" {
+			app.Commands[i].Action = func(*cli.Context) error {
+				ran = true
+				return nil
+			}
+		}
+	}
+
+	require.NoError(t, app.Run([]string{"sampctl", "check"}))
+	assert.True(t, ran)
+	assert.Nil(t, state.cfg)
+	assert.Nil(t, state.gh)
+	assert.Nil(t, state.gitAuth)
+	got, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+	assert.Equal(t, contents, got)
+}
+
+func TestCheckCommandExitCodesAndOutput(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name       string
+		contents   string
+		args       []string
+		code       int
+		diagnostic string
+	}{
+		{name: "outside project", diagnostic: "– Skipped: No project configuration found"},
+		{name: "unhealthy project", contents: "{broken", code: 1, diagnostic: "✗ Project configuration is malformed"},
+		{name: "invalid arguments", args: []string{"unexpected"}, code: 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if tc.contents != "" {
+				require.NoError(t, os.WriteFile(filepath.Join(dir, "pawn.json"), []byte(tc.contents), 0o600))
+			}
+			cacheDir := filepath.Join(t.TempDir(), "missing")
+			state := newCommandState("1.2.3", cacheDir)
+			app := newCLIApp("1.2.3", state)
+			var output bytes.Buffer
+			app.Writer = &output
+			app.ErrWriter = &output
+			args := append([]string{"sampctl", "check", "--dir", dir}, tc.args...)
+			err := app.Run(args)
+			assert.Equal(t, tc.code, ExitCode(err), output.String())
+			assert.NoDirExists(t, cacheDir)
+			if tc.diagnostic != "" {
+				assert.Equal(t, 1, strings.Count(output.String(), tc.diagnostic), output.String())
+			}
+			if tc.code == 1 {
+				require.Error(t, err)
+				assert.Empty(t, err.Error(), "an already rendered health failure must not be printed again")
+				assert.NotContains(t, output.String(), "invalid character")
+			}
+			if tc.code == 2 {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "does not accept positional arguments")
+				assert.Empty(t, output.String())
+			}
+		})
+	}
 }
 
 func TestWithGlobalFlagsAppendsLocalFlags(t *testing.T) {

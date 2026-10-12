@@ -12,6 +12,9 @@ import (
 )
 
 func (s *commandState) configure(c *cli.Context) error {
+	if isCheckCommand(c.Args()) {
+		return nil
+	}
 	loadDotEnv()
 
 	if c.GlobalBool("bare") {

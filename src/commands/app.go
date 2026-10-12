@@ -1,7 +1,10 @@
 package commands
 
 import (
+	stderrors "errors"
+	"flag"
 	"fmt"
+	"io"
 	"runtime"
 
 	"github.com/pkg/errors"
@@ -19,22 +22,55 @@ func init() {
 }
 
 func Run(args []string, version string) error {
-	cacheDir, err := fs.ConfigDir()
-	if err != nil {
-		return errors.Wrap(err, "failed to get config dir")
-	}
-
-	if err := download.MigrateOldConfig(cacheDir); err != nil {
-		return errors.Wrap(err, "failed to migrate old config directory to new config directory")
+	checking := isCheckInvocation(args)
+	cacheDir := fs.ConfigDirPath()
+	if !checking {
+		var err error
+		cacheDir, err = fs.ConfigDir()
+		if err != nil {
+			return errors.Wrap(err, "failed to get config dir")
+		}
+		if err := download.MigrateOldConfig(cacheDir); err != nil {
+			return errors.Wrap(err, "failed to migrate old config directory to new config directory")
+		}
 	}
 
 	state := newCommandState(version, cacheDir)
 	app := newCLIApp(version, state)
 	if err := app.Run(args); err != nil {
+		if checking {
+			var exitErr *commandExitError
+			if !stderrors.As(err, &exitErr) {
+				return &commandExitError{code: 2, err: err}
+			}
+		}
 		return err
+	}
+	if checking {
+		return nil
 	}
 
 	return state.saveConfig()
+}
+
+func isCheckInvocation(args []string) bool {
+	if len(args) < 2 {
+		return false
+	}
+	set := flag.NewFlagSet("sampctl", flag.ContinueOnError)
+	set.SetOutput(io.Discard)
+	flags := withGlobalFlags(globalFlags(), []cli.Flag{cli.HelpFlag, cli.VersionFlag, cli.BashCompletionFlag})
+	for _, f := range flags {
+		f.Apply(set)
+	}
+	if err := set.Parse(args[1:]); err != nil {
+		return isCheckCommand(set.Args())
+	}
+	return isCheckCommand(cli.Args(set.Args()))
+}
+
+func isCheckCommand(args cli.Args) bool {
+	return args.First() == "check" || args.First() == "help" && args.Get(1) == "check"
 }
 
 func newCLIApp(version string, state *commandState) *cli.App {
@@ -54,6 +90,9 @@ func newCLIApp(version string, state *commandState) *cli.App {
 	app.Commands = appCommands(global)
 	app.Before = state.configure
 	app.After = func(c *cli.Context) error {
+		if isCheckCommand(c.Args()) {
+			return nil
+		}
 		state.maybeCheckForUpdates(c)
 		return nil
 	}
@@ -93,6 +132,7 @@ func appCommands(global []cli.Flag) []cli.Command {
 		newGetCommand(global),
 		newBuildCommand(global),
 		newRunCommand(global),
+		newCheckCommand(global),
 		newCompilerCommand(global),
 		newTemplateCommand(global),
 		newVersionCommand(),
