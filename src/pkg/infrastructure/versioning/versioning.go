@@ -128,7 +128,10 @@ func ApplyDependencyOverrides(depStr string) string {
 	if loadedOverrides == nil {
 		loadedOverrides = LoadDependencyOverrides("")
 	}
+	return applyDependencyOverrides(depStr, loadedOverrides)
+}
 
+func applyDependencyOverrides(depStr string, overrides map[string]string) string {
 	overrideHasExplicitVersion := func(s string) bool {
 		trimmed := strings.TrimPrefix(s, "https://")
 		trimmed = strings.TrimPrefix(trimmed, "http://")
@@ -144,12 +147,12 @@ func ApplyDependencyOverrides(depStr string) string {
 	normalized = strings.TrimPrefix(normalized, "http://")
 
 	// Check for exact match first
-	if override, exists := loadedOverrides[depStr]; exists {
+	if override, exists := overrides[depStr]; exists {
 		return override
 	}
 
 	// Check for normalized match (without protocol)
-	if override, exists := loadedOverrides[normalized]; exists {
+	if override, exists := overrides[normalized]; exists {
 		return override
 	}
 
@@ -170,7 +173,7 @@ func ApplyDependencyOverrides(depStr string) string {
 	}
 
 	if baseDep != "" && versionPart != "" {
-		if override, exists := loadedOverrides[baseDep]; exists {
+		if override, exists := overrides[baseDep]; exists {
 			if overrideHasExplicitVersion(override) {
 				return override
 			}
@@ -179,7 +182,7 @@ func ApplyDependencyOverrides(depStr string) string {
 	}
 
 	// Check for partial matches (user/repo format)
-	for original, replacement := range loadedOverrides {
+	for original, replacement := range overrides {
 		// Extract user/repo from original pattern
 		if strings.Contains(original, "/") {
 			parts := strings.Split(original, "/")
@@ -260,13 +263,23 @@ var (
 //	includes://legacy (local include directory)
 //	filterscript://user/repo:tag (remote filterscript)
 func (d DependencyString) Explode() (dep DependencyMeta, err error) {
-	// Apply dependency overrides before parsing
-	originalStr := string(d)
-	overriddenStr, _ := ApplyDependencyOverridesWithLogging(originalStr)
+	overriddenStr, _ := ApplyDependencyOverridesWithLogging(string(d))
+	return explodeDependencyString(DependencyString(overriddenStr))
+}
 
-	// Use the overridden string for parsing
-	depStr := DependencyString(overriddenStr)
+// ExplodeWithOverrides parses a dependency using supplied overrides without loading configuration.
+func (d DependencyString) ExplodeWithOverrides(overrides map[string]string) (DependencyMeta, error) {
+	meta, err := explodeDependencyString(DependencyString(applyDependencyOverrides(string(d), overrides)))
+	if err == nil && meta.IsURLScheme() {
+		err = meta.Validate()
+	}
+	if err != nil {
+		return DependencyMeta{}, err
+	}
+	return meta, nil
+}
 
+func explodeDependencyString(depStr DependencyString) (dep DependencyMeta, err error) {
 	// First, check for URL-like schemes
 	if MatchURLScheme.MatchString(string(depStr)) {
 		return explodeURLScheme(string(depStr))

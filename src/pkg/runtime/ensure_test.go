@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/kirsle/configdir"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -157,9 +158,24 @@ func TestEnsureRejectsInvalidConfig(t *testing.T) {
 }
 
 func TestEnsureUsesConfigDirAndSucceeds(t *testing.T) {
+	t.Cleanup(configdir.Refresh)
+	originalHome := t.TempDir()
+	t.Setenv("HOME", originalHome)
+	t.Setenv("XDG_CONFIG_HOME", originalHome)
+	t.Setenv("APPDATA", originalHome)
+	configdir.Refresh()
+	originalCacheDir := infrafs.ConfigDirPath()
+
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", home)
+	t.Setenv("APPDATA", home)
+	configdir.Refresh()
+
+	cacheDir := infrafs.ConfigDirPath()
+	if rel, err := filepath.Rel(home, cacheDir); err != nil || !filepath.IsLocal(rel) {
+		t.Fatalf("ConfigDirPath() = %q, want path inside temporary home %q (relative path %q, error %v)", cacheDir, home, rel, err)
+	}
 
 	cacheDir, err := infrafs.ConfigDir()
 	require.NoError(t, err)
@@ -180,6 +196,7 @@ func TestEnsureUsesConfigDirAndSucceeds(t *testing.T) {
 	require.NoError(t, err)
 	assert.FileExists(t, filepath.Join(workingDir, expectedRuntimeBinary(platform)))
 	assert.DirExists(t, filepath.Join(workingDir, getPluginDirectory()))
+	assert.NoDirExists(t, originalCacheDir)
 }
 
 func mustHashFile(t *testing.T, path string) string {

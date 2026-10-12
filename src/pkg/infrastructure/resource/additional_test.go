@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/google/go-github/github"
+	"github.com/kirsle/configdir"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -336,8 +337,16 @@ func TestDefaultResourceFactoryGitHubReleaseURL(t *testing.T) {
 }
 
 func TestDefaultResourceManagerEnsureAllAndCleanCache(t *testing.T) {
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	t.Setenv("HOME", t.TempDir())
+	t.Cleanup(configdir.Refresh)
+	configHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", configHome)
+	t.Setenv("HOME", configHome)
+	t.Setenv("APPDATA", configHome)
+	configdir.Refresh()
+	configPath := fs.ConfigDirPath()
+	if rel, err := filepath.Rel(configHome, configPath); err != nil || !filepath.IsLocal(rel) {
+		t.Fatalf("ConfigDirPath() = %q, want path inside temporary home %q (relative path %q, error %v)", configPath, configHome, rel, err)
+	}
 
 	factory := NewDefaultResourceFactory(nil)
 	manager := NewDefaultResourceManager(factory)

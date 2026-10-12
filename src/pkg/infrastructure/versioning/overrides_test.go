@@ -2,15 +2,37 @@ package versioning
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/kirsle/configdir"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 )
 
 func TestMain(m *testing.M) {
+	home, err := os.MkdirTemp("", "sampctl-versioning-tests-")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "create isolated versioning test home:", err)
+		os.Exit(1)
+	}
+	for _, name := range []string{"HOME", "XDG_CONFIG_HOME", "APPDATA"} {
+		if err := os.Setenv(name, home); err != nil {
+			fmt.Fprintln(os.Stderr, "set versioning test environment:", err)
+			os.Exit(1)
+		}
+	}
+	configdir.Refresh()
+	cacheDir := fs.ConfigDirPath()
+	if rel, err := filepath.Rel(home, cacheDir); err != nil || !filepath.IsLocal(rel) {
+		fmt.Fprintf(os.Stderr, "ConfigDirPath() = %q, want path inside test home %q (relative path %q, error %v)\n", cacheDir, home, rel, err)
+		os.Exit(1)
+	}
+
 	originalLoader := remoteOverridesLoader
 	remoteOverridesLoader = func(context.Context) map[string]string {
 		return map[string]string{}
@@ -19,7 +41,25 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 	remoteOverridesLoader = originalLoader
 	ResetDependencyOverrides()
+	if err := os.RemoveAll(home); err != nil {
+		fmt.Fprintln(os.Stderr, "remove versioning test home:", err)
+		code = 1
+	}
 	os.Exit(code)
+}
+
+func useTemporaryDependencyOverridesConfig(t *testing.T) {
+	t.Helper()
+	t.Cleanup(configdir.Refresh)
+	home := t.TempDir()
+	for _, name := range []string{"HOME", "XDG_CONFIG_HOME", "APPDATA"} {
+		t.Setenv(name, home)
+	}
+	configdir.Refresh()
+	cacheDir := fs.ConfigDirPath()
+	if rel, err := filepath.Rel(home, cacheDir); err != nil || !filepath.IsLocal(rel) {
+		t.Fatalf("ConfigDirPath() = %q, want path inside temporary home %q (relative path %q, error %v)", cacheDir, home, rel, err)
+	}
 }
 
 func TestApplyDependencyOverrides(t *testing.T) {

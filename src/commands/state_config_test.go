@@ -30,6 +30,25 @@ func TestCommandStateConfigureBareSkipsConfigLoad(t *testing.T) {
 	assert.NoFileExists(t, filepath.Join(cacheDir, "config.json"))
 }
 
+func TestCommandStateConfigureCheckSkipsConfigLoad(t *testing.T) {
+	t.Parallel()
+
+	cacheDir := t.TempDir()
+	configPath := filepath.Join(cacheDir, "config.json")
+	require.NoError(t, os.WriteFile(configPath, []byte("{broken"), 0o600))
+	state := newCommandState("1.2.3", cacheDir)
+
+	for _, args := range [][]string{{"check"}, {"help", "check"}} {
+		require.NoError(t, state.configure(newGlobalCommandContext(t, args)))
+	}
+	assert.Nil(t, state.cfg)
+	assert.Nil(t, state.gh)
+	assert.Nil(t, state.gitAuth)
+	contents, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+	assert.Equal(t, "{broken", string(contents))
+}
+
 func TestCommandStateConfigureLoadsConfigAndBuildsClients(t *testing.T) {
 	t.Parallel()
 

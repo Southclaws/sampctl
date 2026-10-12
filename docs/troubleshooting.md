@@ -1,5 +1,9 @@
 # Troubleshooting
 
+## Diagnose a project
+
+Run `sampctl check` and follow the reported actions. Add `--verbose` for details or `--fix` for supported repairs. See [Project diagnostics](command-reference.md#project-diagnostics) for coverage and exit codes.
+
 ## “command not found: sampctl”
 
 - Make sure `sampctl` is installed.

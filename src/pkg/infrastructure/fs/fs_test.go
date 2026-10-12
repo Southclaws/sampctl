@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/kirsle/configdir"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -129,12 +130,30 @@ func TestChmodHelpers(t *testing.T) {
 }
 
 func TestConfigDirHelpers(t *testing.T) {
+	t.Cleanup(configdir.Refresh)
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("APPDATA", t.TempDir())
+	configdir.Refresh()
 
 	dir, err := ConfigDir()
 	require.NoError(t, err)
 	assert.DirExists(t, dir)
 	assert.Equal(t, dir, MustConfigDir())
 	assert.Equal(t, configFolderName, filepath.Base(dir))
+}
+
+func TestConfigDirPathDoesNotCreateDirectory(t *testing.T) {
+	t.Cleanup(configdir.Refresh)
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("APPDATA", t.TempDir())
+	configdir.Refresh()
+
+	dir := ConfigDirPath()
+	assert.Equal(t, configFolderName, filepath.Base(dir))
+	assert.NoDirExists(t, dir)
+	created, err := ConfigDir()
+	require.NoError(t, err)
+	assert.Equal(t, dir, created)
 }

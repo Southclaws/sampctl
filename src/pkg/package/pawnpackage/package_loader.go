@@ -1,6 +1,7 @@
 package pawnpackage
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -78,8 +79,21 @@ func readPackageDefinition(path, format string) (pkg Package, err error) {
 func PackageFromDefinition(data []byte, format string) (pkg Package, err error) {
 	if format == "json" {
 		err = json.Unmarshal(data, &pkg)
+		if err == nil {
+			contents := bytes.TrimSpace(data)
+			if len(contents) == 0 || contents[0] != '{' {
+				err = errors.New("package definition must be an object")
+			}
+		}
 	} else if format == "yaml" {
-		err = yaml.Unmarshal(data, &pkg)
+		var document yaml.Node
+		if err = yaml.Unmarshal(data, &document); err == nil {
+			if len(document.Content) != 1 || document.Content[0].Kind != yaml.MappingNode {
+				err = errors.New("package definition must be a mapping")
+			} else {
+				err = document.Content[0].Decode(&pkg)
+			}
+		}
 	} else {
 		return pkg, errors.Errorf("unsupported package definition format %q", format)
 	}

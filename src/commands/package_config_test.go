@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/kirsle/configdir"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/urfave/cli.v1"
@@ -83,9 +84,16 @@ func TestDisplayConfigPrintsFields(t *testing.T) {
 func newPackageConfigTestContext(t *testing.T, args []string) (*cli.Context, *commandState) {
 	t.Helper()
 
+	t.Cleanup(configdir.Refresh)
 	configHome := t.TempDir()
 	t.Setenv("HOME", configHome)
 	t.Setenv("XDG_CONFIG_HOME", configHome)
+	t.Setenv("APPDATA", configHome)
+	configdir.Refresh()
+	cacheDir := fs.ConfigDirPath()
+	if rel, err := filepath.Rel(configHome, cacheDir); err != nil || !filepath.IsLocal(rel) {
+		t.Fatalf("ConfigDirPath() = %q, want path inside temporary home %q (relative path %q, error %v)", cacheDir, configHome, rel, err)
+	}
 
 	falseValue := false
 	state := newCommandState("1.2.3", configHome)

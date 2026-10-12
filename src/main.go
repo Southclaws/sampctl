@@ -11,7 +11,9 @@ var version = "master"
 
 func main() {
 	if err := commands.Run(os.Args, version); err != nil {
-		print.Erro(err)
-		os.Exit(1)
+		if err.Error() != "" {
+			print.Erro(err)
+		}
+		os.Exit(commands.ExitCode(err))
 	}
 }
