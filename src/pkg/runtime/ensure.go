@@ -32,13 +32,13 @@ func Ensure(ctx context.Context, gh *github.Client, cfg *run.Runtime, noCache bo
 		return errors.Wrap(err, "failed to get config dir")
 	}
 
-	print.Verb("ensuring server binaries")
+	print.Verb("checking server binaries")
 	_, err = EnsureBinariesContext(ctx, cacheDir, *cfg)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure runtime binaries")
 	}
 
-	print.Verb("ensuring all dependency and static plugins")
+	print.Verb("checking plugin dependencies and local plugins")
 	err = EnsurePlugins(EnsurePluginsRequest{
 		Context:  ctx,
 		GitHub:   gh,
@@ -50,7 +50,7 @@ func Ensure(ctx context.Context, gh *github.Client, cfg *run.Runtime, noCache bo
 		return errors.Wrap(err, "failed to ensure plugins")
 	}
 
-	print.Verb("ensuring all compiled scripts")
+	print.Verb("checking compiled scripts")
 	err = EnsureScripts(*cfg)
 	if err != nil {
 		return errors.Wrap(err, "failed to ensure scripts")
@@ -91,7 +91,7 @@ func EnsureBinariesContext(ctx context.Context, cacheDir string, cfg run.Runtime
 				}
 				return manifestInfo, nil
 			}
-			print.Warn("installed runtime verification failed, reinstalling:", verifyErr)
+			print.Warn("installed runtime files failed verification; reinstalling:", verifyErr)
 		}
 	} else if verifyErr := verifyRuntimeManifest(manifest, cfg.WorkingDir); verifyErr == nil {
 		print.Verb("runtime binaries already up to date")
@@ -220,7 +220,7 @@ func ensureStagedRuntime(ctx context.Context, cacheDir string, cfg run.Runtime) 
 			if err = validateRuntimePackage(manifest, stageDir); err == nil {
 				return manifest, stageDir, nil
 			}
-			print.Warn("staged runtime verification failed, rebuilding cache:", err)
+			print.Warn("cached runtime files failed verification; rebuilding cache:", err)
 		}
 	}
 
@@ -251,7 +251,7 @@ func ensureStagedRuntime(ctx context.Context, cacheDir string, cfg run.Runtime) 
 		return runtimeManifest{}, "", errors.Wrap(err, "failed to validate runtime package")
 	}
 	if err := writeRuntimeManifest(runtimeManifestPath(prepared), manifest); err != nil {
-		return runtimeManifest{}, "", errors.Wrap(err, "failed to persist runtime manifest")
+		return runtimeManifest{}, "", errors.Wrap(err, "failed to save runtime manifest")
 	}
 	if err := ctx.Err(); err != nil {
 		return runtimeManifest{}, "", err
@@ -278,7 +278,7 @@ func ensureStagedRuntime(ctx context.Context, cacheDir string, cfg run.Runtime) 
 				err = stderrors.Join(err, errors.Wrapf(restoreErr, "previous runtime cache remains at %s", backup))
 			}
 		}
-		return runtimeManifest{}, "", errors.Wrap(err, "failed to promote runtime cache")
+		return runtimeManifest{}, "", errors.Wrap(err, "failed to replace runtime cache")
 	}
 	if backup != "" {
 		if err := os.RemoveAll(backup); err != nil {

@@ -92,16 +92,16 @@ func (dm DependencyMeta) Validate() (err error) {
 			if dm.Local != "" {
 				// Local schemes only need Local path
 				if dm.Local == "" {
-					return errors.New("dependency meta with local scheme missing local path")
+					return errors.New("local dependency path is required")
 				}
 				return nil
 			}
 			// Remote schemes need User and Repo
 			if dm.User == "" {
-				return errors.New("dependency meta with remote scheme missing user")
+				return errors.New("dependency repository owner is required")
 			}
 			if dm.Repo == "" {
-				return errors.New("dependency meta with remote scheme missing repo")
+				return errors.New("dependency repository name is required")
 			}
 			return nil
 		default:
@@ -110,10 +110,10 @@ func (dm DependencyMeta) Validate() (err error) {
 	}
 
 	if dm.User == "" {
-		return errors.New("dependency meta missing user")
+		return errors.New("dependency repository owner is required")
 	}
 	if dm.Repo == "" {
-		return errors.New("dependency meta missing repo")
+		return errors.New("dependency repository name is required")
 	}
 	return
 }
@@ -211,8 +211,8 @@ func ApplyDependencyOverridesWithLogging(depStr string) (string, bool) {
 
 	if overriddenStr != depStr {
 		// An override was applied, log it
-		print.Info(fmt.Sprintf("dependency '%s' was overridden by '%s'", depStr, overriddenStr))
-		print.Verb(fmt.Sprintf("dependency override applied for '%s' -> '%s' (original repository may no longer exist, be deprecated, or have security issues)", depStr, overriddenStr))
+		print.Info(fmt.Sprintf("using '%s' instead of '%s' from dependency overrides", overriddenStr, depStr))
+		print.Verb(fmt.Sprintf("dependency override: '%s' -> '%s'", depStr, overriddenStr))
 		return overriddenStr, true
 	}
 
@@ -346,13 +346,13 @@ func attemptGitSSH(d string) (username, host, path string, success bool) {
 
 func explodeURLScheme(d string) (dep DependencyMeta, err error) {
 	if !MatchURLScheme.MatchString(d) {
-		err = errors.New("URL scheme string does not match pattern")
+		err = errors.New("invalid dependency URL; expected scheme://owner/repository or scheme://local/path")
 		return
 	}
 
 	captures := MatchURLScheme.FindStringSubmatch(d)
 	if len(captures) != 3 {
-		err = errors.New("URL scheme pattern match count != 3")
+		err = errors.New("could not parse dependency URL")
 		return
 	}
 
@@ -384,13 +384,13 @@ func explodeURLScheme(d string) (dep DependencyMeta, err error) {
 
 func explodePath(d string) (dep DependencyMeta, err error) {
 	if !MatchDependencyString.MatchString(d) {
-		err = errors.New("dependency string does not match pattern")
+		err = errors.New("invalid dependency; expected owner/repository with an optional :tag, @branch, or #commit")
 		return
 	}
 
 	captures := MatchDependencyString.FindStringSubmatch(d)
 	if len(captures) != 6 {
-		err = errors.New("dependency pattern match count != 6")
+		err = errors.New("could not parse dependency reference")
 		return
 	}
 
@@ -406,15 +406,15 @@ func explodePath(d string) (dep DependencyMeta, err error) {
 			dep.Branch = captures[5]
 		case '#':
 			if len(captures[5]) != 40 {
-				err = errors.Errorf("dependency string specifies a commit hash with an incorrect length (%d)", len(captures[5]))
+				err = errors.Errorf("dependency commit hash must be 40 characters; got %d", len(captures[5]))
 			}
 			dep.Commit = captures[5]
 		default:
-			err = errors.New("version must be a branch (@) or a tag (:)")
+			err = errors.New("dependency version must use :tag, @branch, or #commit")
 		}
 	} else if len(captures[5]) > 0 {
 		// If there's text in the version part but no valid version specifier, it's invalid
-		err = errors.New("invalid version specifier")
+		err = errors.New("dependency version must use :tag, @branch, or #commit")
 	}
 	return dep, err
 }

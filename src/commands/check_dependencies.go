@@ -81,8 +81,8 @@ func checkDependencyStaging(vendor string, recoveryStages ...string) []diagnosti
 		}
 		results = append(results, diagnostic{
 			Name: "dependency staging", Status: checkWarning,
-			Message: "Dependency staging directory remains: " + entry.Name(), Path: path,
-			Action: "Wait for dependency commands to finish. If this directory remains, inspect it with --verbose and keep any backups before deleting temporary files.",
+			Message: "Temporary dependency directory remains: " + entry.Name(), Path: path,
+			Action: "Wait for dependency commands to finish. If the directory remains, use --verbose to find it. Keep any backups before deleting it.",
 		})
 	}
 	return results
@@ -109,7 +109,7 @@ func checkInstalledDependency(ctx context.Context, pkg pawnpackage.Package, meta
 	}
 	if err != nil {
 		result.Status = checkFailed
-		result.Message = fmt.Sprintf("Dependency %s package configuration is invalid", meta)
+		result.Message = fmt.Sprintf("Dependency %s has invalid package configuration", meta)
 		result.Err = err
 		return result, nil
 	}
@@ -220,7 +220,7 @@ func checkLocalDependencyDefinition(result diagnostic, meta versioning.Dependenc
 	}
 	if err != nil {
 		result.Status = checkFailed
-		result.Message = fmt.Sprintf("Local dependency %s package configuration is invalid", meta)
+		result.Message = fmt.Sprintf("Local dependency %s has invalid package configuration", meta)
 		result.Err = err
 	} else {
 		result = checkDependencyIncludePath(result, meta, subpackage.IncludePath)

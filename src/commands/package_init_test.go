@@ -49,7 +49,7 @@ func TestPackageInitReportsInitializationFailure(t *testing.T) {
 		t.Errorf("packageInit(dir=%q) = %v with exit code %d, want reported failure and no duplicate message", missingDir, err, ExitCode(err))
 	}
 	text := output.String()
-	if !strings.Contains(text, "Dependency setup incomplete") || !strings.Contains(text, "Details: directory does not exist") {
+	if !strings.Contains(text, "Dependency setup failed") || !strings.Contains(text, "Details: directory does not exist") {
 		t.Errorf("packageInit(dir=%q) output = %q, want setup context and verbose directory cause", missingDir, text)
 	}
 	if strings.Contains(text, "credentials") {
@@ -72,7 +72,7 @@ func TestValidateInitDirectoryRejectsExistingPackage(t *testing.T) {
 
 	err := validateInitDirectory(dir)
 	require.Error(t, err)
-	assert.EqualError(t, err, "Directory already appears to be a package")
+	assert.EqualError(t, err, "directory already contains a Pawn package")
 }
 
 func TestValidateInitDirectoryRejectsInvalidPackageDefinitionState(t *testing.T) {

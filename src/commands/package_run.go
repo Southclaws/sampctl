@@ -14,11 +14,11 @@ func packageRunFlags() []cli.Flag {
 		cli.StringFlag{
 			Name:  "dir",
 			Value: ".",
-			Usage: "working directory for the server - by default, uses the current directory",
+			Usage: "server directory",
 		},
 		cli.BoolFlag{
 			Name:  "container",
-			Usage: "starts the server as a Linux container instead of running it in the current directory",
+			Usage: "run the server in a Linux container",
 		},
 		cli.StringFlag{
 			Name:  "build",
@@ -27,28 +27,28 @@ func packageRunFlags() []cli.Flag {
 		},
 		cli.BoolFlag{
 			Name:  "forceBuild",
-			Usage: "forces a build to run before executing the server",
+			Usage: "build before starting the server",
 		},
 		cli.BoolFlag{
 			Name:  "forceEnsure",
-			Usage: "forces dependency ensure before build if `--forceBuild` is set",
+			Usage: "install dependencies before building when `--forceBuild` is set",
 		},
 		cli.BoolFlag{
 			Name:  "noCache",
-			Usage: "forces download of plugins if `--forceEnsure` is set",
+			Usage: "download plugins again when `--forceEnsure` is set",
 		},
 		cli.BoolFlag{
 			Name:  "watch",
-			Usage: "keeps sampctl running and triggers builds whenever source files change",
+			Usage: "rebuild when source files change",
 		},
 		cli.StringFlag{
 			Name:  "buildFile",
 			Value: "",
-			Usage: "declares a file to store the incrementing build number for easy versioning",
+			Usage: "file for the incrementing build number",
 		},
 		cli.BoolFlag{
 			Name:  "relativePaths",
-			Usage: "force compiler output to use relative paths instead of absolute",
+			Usage: "use relative paths in compiler output",
 		},
 	}
 }
@@ -68,7 +68,7 @@ func packageRun(c *cli.Context) error {
 
 	pcx, env, err := loadPackageContext(c, dir, false)
 	if err != nil {
-		return errors.Wrap(err, "failed to interpret directory as Pawn package")
+		return errors.Wrap(err, "failed to load the Pawn package")
 	}
 
 	pcx.Runtime = runtimeName

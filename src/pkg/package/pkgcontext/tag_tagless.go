@@ -38,7 +38,7 @@ func (pcx *PackageContext) readDefinitionSnapshot() (path string, perm os.FileMo
 	case "yaml":
 		name = "pawn.yaml"
 	default:
-		err = errors.New("package has no format associated with it")
+		err = errors.New("package definition format must be json or yaml")
 		return
 	}
 

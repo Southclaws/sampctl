@@ -76,7 +76,7 @@ func WriteFromReaderAtomic(path string, r io.Reader, dirPerm, filePerm os.FileMo
 func WriteJSONAtomic(path string, v any, dirPerm, filePerm os.FileMode) error {
 	data, err := json.MarshalIndent(v, "", "    ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal json: %w", err)
+		return fmt.Errorf("failed to encode JSON: %w", err)
 	}
 	data = append(data, '\n')
 	return WriteFileAtomic(path, data, dirPerm, filePerm)

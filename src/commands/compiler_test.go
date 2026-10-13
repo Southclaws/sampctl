@@ -20,7 +20,7 @@ func TestCompilerListPrintsPresetsAndUsage(t *testing.T) {
 	assert.Contains(t, output, "samp")
 	assert.Contains(t, output, "github.com/openmultiplayer/compiler")
 	assert.Contains(t, output, "github.com/pawn-lang/compiler")
-	assert.Contains(t, output, "Usage: Set the 'preset' field in your build configuration")
+	assert.Contains(t, output, "Set 'preset' in the build configuration to choose a compiler:")
 	assert.Contains(t, output, `"preset": "openmp"`)
 	assert.Contains(t, output, `"version": "3.10.10"`)
 }

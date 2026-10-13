@@ -20,7 +20,7 @@ func packageTemplateRunFlags() []cli.Flag {
 		cli.StringFlag{
 			Name:  "version",
 			Value: "0.3.7",
-			Usage: "the SA:MP server version to use",
+			Usage: "SA-MP server version",
 		},
 		cli.StringFlag{
 			Name:  "mode",
@@ -62,7 +62,7 @@ func packageTemplateRun(c *cli.Context) (err error) {
 
 	err = util.CopyFile(filename, filepath.Join(templatePath, "tmpl.pwn"))
 	if err != nil {
-		return errors.Wrap(err, "failed to copy target script to template package directory")
+		return errors.Wrap(err, "failed to copy the script into the template")
 	}
 
 	ctx, cancel := newCommandContext()
@@ -75,9 +75,9 @@ func packageTemplateRun(c *cli.Context) (err error) {
 		return
 	}
 
-	print.Info("Build complete with", len(problems), "problems")
+	print.Info("Build finished with", len(problems), "compiler diagnostics")
 	print.Info(fmt.Sprintf(
-		"Results, in bytes: Header: %d, Code: %d, Data: %d, Stack/Heap: %d, Estimated usage: %d, Total: %d\n",
+		"Size in bytes: header %d, code %d, data %d, stack/heap %d, estimated usage %d, total %d\n",
 		result.Header,
 		result.Code,
 		result.Data,

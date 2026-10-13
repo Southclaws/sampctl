@@ -41,15 +41,15 @@ func reportDependencyCommandError(c *cli.Context, operation string, err error) e
 	writeCheckResult(&output, diagnostic{Status: status, Message: dependencyFailureHeading(operation, err)}, false, style)
 	for _, result := range dependencyFailureDiagnostics(err) {
 		if outcome == pkgcontext.OutcomeCommitted && recoveryFailed && result.Name == "recovery" {
-			result.Action = "Run `sampctl check --verbose` to inspect the recovery files. Keep backups and recovery metadata until recovery finishes."
+			result.Action = "Run `sampctl check --verbose`. Keep the backups and recovery files until recovery finishes."
 		}
 		if outcome == pkgcontext.OutcomeRollbackIncomplete && result.Name == "rollback" {
-			result.Action = "Run `sampctl check` to inspect the project recovery record. Keep backups until restoration finishes."
+			result.Action = "Run `sampctl check`. Keep the backups until your dependencies are restored."
 		}
 		if status == checkPassed {
 			result.Status = checkWarning
 			if result.Name == "cleanup" {
-				result.Action = "Project changes were saved. Run `sampctl check`; use `sampctl check --fix` when it offers safe cleanup."
+				result.Action = "Your changes were saved. Run `sampctl check` and use `sampctl check --fix` if it offers cleanup."
 			}
 		}
 		writeCheckResult(&output, result, verbose, style)
@@ -66,9 +66,9 @@ func reportDependencyCommandError(c *cli.Context, operation string, err error) e
 		}
 	}
 	if _, writeErr := c.App.Writer.Write([]byte(text)); writeErr != nil {
-		message := "Dependency diagnostics could not be written."
+		message := "Cannot print dependency errors."
 		if status == checkPassed {
-			message = "Project changes were saved; cleanup diagnostics could not be written."
+			message = "Your changes were saved, but the cleanup error could not be printed."
 		}
 		return &commandExitError{code: 1, err: errors.Join(err, fmt.Errorf("write dependency diagnostics: %w", writeErr)), message: message}
 	}
@@ -79,21 +79,21 @@ func dependencyFailureHeading(operation string, err error) string {
 	outcome := dependencyOperationOutcome(err)
 	if outcome == pkgcontext.OutcomeCommitted {
 		if dependencyOperationRecoveryFailed(err) {
-			return "Previous dependency changes were saved; recovery could not complete"
+			return "Previous dependency changes were saved; recovery failed"
 		}
-		return "Dependency operation completed; cleanup is pending"
+		return "Dependency changes saved; cleanup pending"
 	}
 	var message string
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		message = "Dependency operation cancelled"
+		message = "Dependency command cancelled"
 	} else {
 		switch operation {
 		case "install":
-			message = "Dependency installation incomplete"
+			message = "Dependency installation failed"
 		case "uninstall":
-			message = "Dependency removal incomplete"
+			message = "Dependency removal failed"
 		default:
-			message = "Dependency setup incomplete"
+			message = "Dependency setup failed"
 		}
 	}
 	switch outcome {
@@ -214,7 +214,7 @@ func releaseAssetFailureDiagnostic(failure *download.ReleaseAssetNotFoundError, 
 		Name:    "dependencies",
 		Status:  checkFailed,
 		Message: message,
-		Action:  "Use a release with the required asset, or correct the dependency's resource declaration.",
+		Action:  "Choose a release with the required file, or fix the package's resource settings.",
 		Err:     details,
 	}
 }
@@ -248,13 +248,13 @@ func dependencyOperationDiagnostic(failure *pkgcontext.OperationError) diagnosti
 		if isConfigurationParseError(failure.Err) {
 			result.Message = "Project configuration is invalid"
 		}
-		result.Action = "Check pawn.json or pawn.yaml and its read permissions, then retry."
+		result.Action = "Check the contents and permissions of pawn.json or pawn.yaml, then retry."
 	case "read lockfile":
 		result.Message = "Cannot read pawn.lock"
 		if isConfigurationParseError(failure.Err) {
 			result.Message = "pawn.lock is invalid"
 		}
-		result.Action = "Check pawn.lock and its read permissions. Run `sampctl check` for details."
+		result.Action = "Check pawn.lock's contents and permissions. Run `sampctl check` for details."
 	case "manifest":
 		result.Message = "Cannot save project configuration"
 		result.Action = "Check write access to pawn.json or pawn.yaml and the project directory."
@@ -262,17 +262,17 @@ func dependencyOperationDiagnostic(failure *pkgcontext.OperationError) diagnosti
 		result.Message = "Cannot update pawn.lock"
 		result.Action = "Check write access to pawn.lock and the project directory, then run `sampctl ensure`."
 	case "rollback":
-		result.Message = "Previous dependency state was not fully restored"
-		result.Action = "Use --verbose to inspect the reported destination and backup paths. Keep backups until restoration finishes."
+		result.Message = "Could not restore all previous dependencies"
+		result.Action = "Use --verbose to see the install and backup paths. Keep the backups until your dependencies are restored."
 	case "cleanup":
 		result.Message = "Cannot remove temporary dependency files"
-		result.Action = "Use --verbose to inspect the reported temporary files. Keep backups until the installation is verified."
+		result.Action = "Use --verbose to see the temporary files. Keep the backups until the installation is verified."
 	case "recovery":
-		result.Message = "Dependency recovery could not complete"
-		result.Action = "Run `sampctl check` to inspect recovery state. Keep backups and recovery metadata until the project is restored."
+		result.Message = "Dependency recovery failed"
+		result.Action = "Run `sampctl check`. Keep the backups and recovery files until recovery finishes."
 	case "project":
 		result.Message = "Cannot start a dependency operation"
-		result.Action = "Check project permissions and wait for other dependency commands to finish, then retry."
+		result.Action = "Check project permissions. Wait for any other dependency command to finish, then retry."
 	default:
 		result.Message, result.Action = dependencyFailureAdvice(failure.Err)
 	}
@@ -282,34 +282,34 @@ func dependencyOperationDiagnostic(failure *pkgcontext.OperationError) diagnosti
 func dependencyFailureAdvice(err error) (string, string) {
 	switch {
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
-		return "Dependency operation was cancelled", "Retry the dependency command when ready."
+		return "Dependency command was cancelled", "Run the command again to retry."
 	case errors.Is(err, transport.ErrRepositoryNotFound), errors.Is(err, transport.ErrAuthenticationRequired), errors.Is(err, transport.ErrAuthorizationFailed):
-		return "Repository could not be accessed", "Check the repository name and your Git credentials."
+		return "Cannot access repository", "Check the repository name and permissions. If it needs authentication, check your Git credentials."
 	case errors.Is(err, os.ErrPermission):
-		return "Dependency files could not be accessed", "Check permissions for the project directory and managed cache."
+		return "Cannot access dependency files", "Check permissions on the project and sampctl cache directories."
 	case errors.Is(err, os.ErrNotExist):
-		return "Required dependency files were not found", "Check dependency paths in pawn.json or pawn.yaml, then run `sampctl check`."
+		return "Dependency files are missing", "Check dependency paths in pawn.json or pawn.yaml. Run `sampctl check` for details."
 	case errors.Is(err, os.ErrInvalid):
-		return "Dependency path is unsafe", "Use --verbose to inspect the path. Keep dependency files inside their managed directories."
+		return "Dependency path is unsafe", "Use --verbose to see the path. Dependency files must stay inside their installation directories."
 	case errors.Is(err, os.ErrExist):
-		return "Installation destination contains existing files", "Use --verbose to identify the conflicting path. Preserve existing files or choose another installation directory, then retry."
+		return "Files already exist at the install path", "Use --verbose to find the conflicting path. Move those files aside or choose another install directory, then retry."
 	case isConfigurationParseError(err):
-		return "Package configuration is invalid", "Correct pawn.json or pawn.yaml, then run `sampctl check`."
+		return "Package configuration is invalid", "Fix pawn.json or pawn.yaml, then run `sampctl check`."
 	}
 	var remote *github.ErrorResponse
 	if errors.As(err, &remote) && remote.Response != nil {
 		switch remote.Response.StatusCode {
 		case 401, 403, 404:
-			return "Repository could not be accessed", "Check the repository name and your Git credentials."
+			return "Cannot access repository", "Check the repository name and permissions. If it needs authentication, check your Git credentials."
 		case 429, 500, 502, 503, 504:
-			return "Remote service could not complete the request", "Check your connection and retry when the service is available."
+			return "Remote request failed", "Check your connection or wait for the service to recover, then retry."
 		}
 	}
 	var network net.Error
 	if errors.As(err, &network) {
-		return "Network request failed", "Check your network connection and retry the dependency operation."
+		return "Network request failed", "Check your connection, then retry."
 	}
-	return "Dependency operation could not complete", "Use --verbose to inspect the error and check dependency declarations before retrying."
+	return "Dependency command failed", "Run the command with --verbose to see the error."
 }
 
 func isConfigurationParseError(err error) bool {

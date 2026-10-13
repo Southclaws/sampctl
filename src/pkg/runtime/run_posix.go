@@ -29,7 +29,7 @@ func platformRun(ctx context.Context, cmd *exec.Cmd, w io.Writer, r io.Reader, o
 		return platformRunFallback(cloneRuntimeCommand(ctx, cmd), w, r, onStart)
 	}
 	if ptmx == nil {
-		return errors.New("failed to create new pty, ptmx is null")
+		return errors.New("failed to allocate a terminal for the server")
 	}
 	if onStart != nil && cmd.Process != nil {
 		onStart(cmd.Process)
@@ -66,7 +66,7 @@ func platformRun(ctx context.Context, cmd *exec.Cmd, w io.Writer, r io.Reader, o
 		}
 		_, errInner := io.Copy(ptmx, r)
 		if errInner != nil && !isBenignPtyCopyError(errInner) {
-			print.Verb("read error", errInner)
+			print.Verb("failed to forward server input:", errInner)
 		}
 	}()
 	go func() {
@@ -80,7 +80,7 @@ func platformRun(ctx context.Context, cmd *exec.Cmd, w io.Writer, r io.Reader, o
 	cmdErr := <-cmdErrCh
 	errWrite := <-wrErrCh
 	if errWrite != nil && !isBenignPtyCopyError(errWrite) {
-		print.Verb("write error", errWrite)
+		print.Verb("failed to forward server output:", errWrite)
 	}
 	if errClose := closePty(); errClose != nil && !isBenignPtyCopyError(errClose) {
 		print.Verb("failed to close pty after command exit:", errClose)

@@ -80,7 +80,7 @@ func defaultServerBinary(platform string, runtimeType run.RuntimeType) string {
 // MatchesChecksum checks if the file at the given path src is the correct file for the specified
 // runtime package via MD5 sum
 func MatchesChecksum(src, platform, cacheDir, version string) (ok bool, err error) {
-	print.Verb("attempting to match checksum from source", src, "on platform", platform, "with the cache located at", cacheDir, "and with version", version)
+	print.Verb("checking server package checksum:", src, "platform:", platform, "version:", version, "cache:", cacheDir)
 
 	pkg, err := FindPackage(cacheDir, version)
 	if err != nil {
@@ -92,7 +92,7 @@ func MatchesChecksum(src, platform, cacheDir, version string) (ok bool, err erro
 		return false, errors.Wrap(err, "failed to read downloaded server package")
 	}
 	if len(contents) == 0 {
-		return false, errors.Errorf("server package contents located at '%s' is empty", src)
+		return false, errors.Errorf("server package '%s' is empty", src)
 	}
 
 	print.Verb("checksum for linux/mac", pkg.LinuxChecksum, "and for windows", pkg.Win32Checksum)
@@ -104,7 +104,7 @@ func MatchesChecksum(src, platform, cacheDir, version string) (ok bool, err erro
 	case "linux", "darwin":
 		want = pkg.LinuxChecksum
 	default:
-		return false, errors.New("platform not supported")
+		return false, errors.New("unsupported runtime platform")
 	}
 
 	checksum := md5.Sum([]byte(contents))

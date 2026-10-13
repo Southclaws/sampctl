@@ -91,7 +91,7 @@ func inspectCheckCompiler(cfg build.Config, opts checkOptions) diagnostic {
 	resolved := cfg.Compiler.ResolveCompilerConfig()
 	for _, component := range []string{resolved.User, resolved.Repo, resolved.Version} {
 		if !checkCompilerPathComponent(component) {
-			result.Message = label + " configuration contains an invalid managed path"
+			result.Message = label + " settings contain an invalid cache path"
 			result.Action = "Check compiler.user, compiler.repo, and compiler.version in the project configuration."
 			result.Err = fmt.Errorf("invalid compiler path component %q", component)
 			return result
@@ -105,14 +105,14 @@ func inspectCheckManagedCompiler(resolved build.CompilerConfig, label string, op
 	result := diagnostic{Name: "compiler", Status: checkFailed, Path: dir}
 	if err := checkCompilerDirectory(dir); err != nil {
 		result.Message, result.Err = label+" "+resolved.Version+" installation is unavailable", err
-		result.Action = "Run `sampctl build` to install the selected managed compiler."
+		result.Action = "Run `sampctl build` to install the selected compiler."
 		return result
 	}
 	metadata, err := readCheckCompilerMetadata(filepath.Join(opts.CacheDir, "compilers.json"))
 	if err != nil {
 		result.Status = checkSkipped
-		result.Message, result.Err = label+" completeness could not be checked without cached compiler metadata", err
-		result.Action = "Run `sampctl build` to obtain compiler metadata."
+		result.Message, result.Err = label+" cannot be checked: cached compiler metadata is unavailable", err
+		result.Action = "Run `sampctl build` to download compiler metadata."
 		return result
 	}
 	pkg, ok := metadata[opts.Platform]
@@ -123,7 +123,7 @@ func inspectCheckManagedCompiler(resolved build.CompilerConfig, label string, op
 	}
 	if err := validateCheckCompilerPackage(pkg); err != nil {
 		result.Status = checkSkipped
-		result.Message, result.Err = label+" completeness could not be checked because cached compiler metadata is invalid", err
+		result.Message, result.Err = label+" cannot be checked: invalid cached compiler metadata", err
 		return result
 	}
 	return inspectCheckCompilerFiles(dir, pkg, label, opts)
@@ -145,7 +145,7 @@ func inspectCheckCustomCompiler(path, label string, opts checkOptions) diagnosti
 		path = filepath.Join(opts.Dir, path)
 	}
 	result := diagnostic{Name: "compiler", Status: checkFailed, Path: path}
-	result.Action = "Check compiler.path in pawn.json or pawn.yaml; custom compilers must be repaired manually."
+	result.Action = "Check compiler.path in pawn.json or pawn.yaml and repair the custom compiler manually."
 	if err := checkCompilerDirectory(path); err != nil {
 		result.Message, result.Err = label+" directory is unavailable", err
 		return result
@@ -170,7 +170,7 @@ func inspectCheckCustomCompiler(path, label string, opts checkOptions) diagnosti
 
 func inspectCheckCompilerFiles(dir string, pkg download.Compiler, label string, opts checkOptions) diagnostic {
 	result := diagnostic{Name: "compiler", Status: checkFailed, Path: filepath.Join(dir, pkg.Binary)}
-	result.Action = "Run `sampctl build` to install missing compiler files; existing custom files require manual review."
+	result.Action = "Run `sampctl build` to install missing compiler files. Check existing custom files manually."
 	binaryInfo, err := checkCompilerReadableFile(result.Path)
 	if err != nil {
 		result.Message, result.Err = label+" executable is unavailable", err
@@ -180,8 +180,8 @@ func inspectCheckCompilerFiles(dir string, pkg download.Compiler, label string, 
 	for _, target := range pkg.Paths {
 		if target == "" || strings.HasSuffix(target, "/") {
 			result.Status = checkSkipped
-			result.Message = label + " completeness could not be checked because metadata uses dynamic file paths"
-			result.Action = "Review the managed compiler installation manually."
+			result.Message = label + " cannot be fully checked: metadata does not name every installed file"
+			result.Action = "Check the installed compiler files manually."
 			return result
 		}
 		targets = append(targets, target)
@@ -198,15 +198,15 @@ func inspectCheckCompilerFiles(dir string, pkg download.Compiler, label string, 
 		result.Message = label + " executable does not have execute permission"
 		if !checkCompilerSingleLink(binaryInfo) {
 			result.Err = errors.New("automatic repair requires a compiler file with one hard link")
-			result.Action = "Review the managed compiler executable and restore execute permission manually."
+			result.Action = "Check the compiler executable and restore its execute permission manually."
 			return result
 		}
 		if _, err := checkManagedRegularPath(opts.CacheDir, result.Path); err == nil {
 			result.CanFix = true
-			result.Action = "Run `sampctl check --fix` to restore managed compiler execute permission."
+			result.Action = "Run `sampctl check --fix` to restore the compiler's execute permission."
 		} else {
 			result.Err = err
-			result.Action = "Review the managed compiler path and restore execute permission manually."
+			result.Action = "Check the compiler path and restore execute permission manually."
 		}
 		return result
 	}

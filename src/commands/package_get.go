@@ -54,7 +54,7 @@ func packageGet(c *cli.Context) error {
 		return err
 	}
 
-	print.Info("successfully cloned package")
+	print.Info("Package cloned")
 
 	return nil
 }

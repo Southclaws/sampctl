@@ -45,12 +45,12 @@ func TestReportMissingPluginReleaseAsset(t *testing.T) {
 			if !errors.As(err, &got) || got != missing || ExitCode(err) != 1 {
 				t.Errorf("reportDependencyCommandError(missing Linux asset) = %v, want preserved asset failure and exit 1", err)
 			}
-			for _, want := range []string{"previous dependency state restored", "Southclaws/pawn-yaml:1.0.0", `No release asset matches "yaml.so"`, "available: yaml.dll", "Use a release with the required asset"} {
+			for _, want := range []string{"previous dependency state restored", "Southclaws/pawn-yaml:1.0.0", `No release asset matches "yaml.so"`, "available: yaml.dll", "Choose a release with the required file"} {
 				if !strings.Contains(output.String(), want) {
 					t.Errorf("reportDependencyCommandError(missing Linux asset) output = %q, want %q", output.String(), want)
 				}
 			}
-			if strings.Contains(output.String(), "runtime openmp: Dependency operation could not complete") || strings.Contains(output.String(), "pawn-yaml:latest") {
+			if strings.Contains(output.String(), "runtime openmp: Dependency command failed") || strings.Contains(output.String(), "pawn-yaml:latest") {
 				t.Errorf("reportDependencyCommandError(missing Linux asset) output = %q, want selected dependency and release", output.String())
 			}
 			if gotDetails := strings.Contains(output.String(), "Details:"); gotDetails != verbose {

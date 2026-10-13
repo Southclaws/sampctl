@@ -90,7 +90,7 @@ func ValidateRepository(path string) (valid bool, err error) {
 		return false, nil
 	}
 
-	print.Verb("repository validated successfully:", path)
+	print.Verb("Repository is valid:", path)
 	return true, nil
 }
 

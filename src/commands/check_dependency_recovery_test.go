@@ -97,7 +97,7 @@ func TestCheckCommittedCleanupPreservesManifest(t *testing.T) {
 	if err != nil || len(results) != 1 {
 		t.Fatalf("inspect committed cleanup = %+v, error = %v", results, err)
 	}
-	if !strings.Contains(results[0].Message, "changes were saved") || !results[0].CanFix {
+	if !strings.Contains(results[0].Message, "changes saved") || !results[0].CanFix {
 		t.Errorf("committed cleanup diagnostic = %+v", results[0])
 	}
 	results, _, err = checkDependencyRecovery(context.Background(), root, true)
@@ -159,7 +159,7 @@ func TestRunChecksDefersDependencyChecksWhileOperationIsActive(t *testing.T) {
 		t.Fatal(err)
 	}
 	recovery := findCheckRecoveryResult(t, results, "dependency recovery")
-	if recovery.Status != checkFailed || recovery.CanFix || recovery.RepairAttempted || !strings.Contains(recovery.Message, "using this project") {
+	if recovery.Status != checkFailed || recovery.CanFix || recovery.RepairAttempted || !strings.Contains(recovery.Message, "running in this project") {
 		t.Errorf("active operation diagnostic = %+v", recovery)
 	}
 	for _, name := range []string{"dependencies", "lockfile", "compiler"} {

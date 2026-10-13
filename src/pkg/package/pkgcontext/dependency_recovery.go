@@ -259,7 +259,7 @@ func lockDependencyProject(ctx context.Context, project string) (*flock.Flock, e
 	locked, err := lock.TryLock()
 	if err != nil || !locked {
 		if err == nil {
-			err = errors.New("another sampctl dependency operation is using this project; retry when it finishes")
+			err = errors.New("another sampctl dependency command is running in this project; retry when it finishes")
 		}
 		return nil, &OperationError{Operation: "project", Err: errors.Join(err, lock.Close())}
 	}
@@ -504,7 +504,7 @@ func validateRecoveryCleanup(ctx context.Context, root string, expected []depend
 	}
 	for _, entry := range entries {
 		if original, exists := recorded[entry.Path]; !exists || original != entry {
-			return fmt.Errorf("staged cleanup entry %s is unknown or changed; preserve it for manual recovery", filepath.Join(root, filepath.FromSlash(entry.Path)))
+			return fmt.Errorf("staged path %s is unrecognized or changed; leaving it in place for manual recovery", filepath.Join(root, filepath.FromSlash(entry.Path)))
 		}
 	}
 	return nil
@@ -672,7 +672,7 @@ func (journal *dependencyJournal) validateState(ctx context.Context) error {
 			}
 		}
 		if !known {
-			return fmt.Errorf("project file %s differs from recorded operation; preserve the recovery record and inspect it manually", journal.path(file.Path))
+			return fmt.Errorf("project file %s does not match the recovery record; keep the record and inspect the file", journal.path(file.Path))
 		}
 	}
 	for _, stage := range journal.Stages {
@@ -716,7 +716,7 @@ func (journal *dependencyJournal) validateState(ctx context.Context) error {
 				}
 			}
 			if !allowed || entry.Type()&os.ModeSymlink != 0 {
-				return fmt.Errorf("unexpected staged entry %s; preserve it for manual recovery", filepath.Join(journal.path(stage.Path), entry.Name()))
+				return fmt.Errorf("unexpected staged path %s; leaving it in place for manual recovery", filepath.Join(journal.path(stage.Path), entry.Name()))
 			}
 		}
 	}
@@ -760,18 +760,18 @@ func (journal *dependencyJournal) validateState(ctx context.Context) error {
 		}
 		if journal.Phase == "restored" {
 			if target != change.OldHash || backup != "" {
-				return fmt.Errorf("restored dependency %s has changed; preserve recovery state", journal.path(change.Target))
+				return fmt.Errorf("restored dependency %s has changed; keep the recovery record and inspect the directory", journal.path(change.Target))
 			}
 			continue
 		}
 		if backup != "" {
 			if backup != change.OldHash || (target != "" && target != change.NewHash) || (target != "" && source != "") {
-				return fmt.Errorf("ambiguous dependency %s and backup %s; automatic restoration is unsafe", journal.path(change.Target), journal.path(change.Backup))
+				return fmt.Errorf("cannot restore dependency %s from backup %s automatically; inspect both directories", journal.path(change.Target), journal.path(change.Backup))
 			}
 		} else if change.OldHash != "" && target != change.OldHash {
 			return fmt.Errorf("previous dependency %s cannot be restored: recorded backup %s is missing", journal.path(change.Target), journal.path(change.Backup))
 		} else if change.OldHash == "" && target != "" && (target != change.NewHash || source != "") {
-			return fmt.Errorf("unexpected dependency %s; automatic removal is unsafe", journal.path(change.Target))
+			return fmt.Errorf("cannot remove unexpected dependency %s during recovery; inspect the directory", journal.path(change.Target))
 		}
 	}
 	return ctx.Err()

@@ -154,7 +154,7 @@ func TestEnsureBinariesContextReplacesMismatchedInstalledRuntime(t *testing.T) {
 
 func TestEnsureRejectsInvalidConfig(t *testing.T) {
 	err := Ensure(context.Background(), nil, &run.Runtime{}, false)
-	require.EqualError(t, err, "WorkingDir empty")
+	require.EqualError(t, err, "runtime working directory is required")
 }
 
 func TestEnsureUsesConfigDirAndSucceeds(t *testing.T) {

@@ -137,7 +137,7 @@ func (pcx *PackageContext) uninstallDep(target versioning.DependencyString) (err
 	}
 
 	if idx == -1 {
-		print.Warn("target does not exist in dependencies")
+		print.Warn(target, "is not listed in dependencies")
 		return
 	}
 
@@ -157,7 +157,7 @@ func (pcx *PackageContext) uninstallDev(target versioning.DependencyString) (err
 	}
 
 	if idx == -1 {
-		print.Warn("target does not exist in dependencies")
+		print.Warn(target, "is not listed in development dependencies")
 		return
 	}
 

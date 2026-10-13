@@ -40,7 +40,7 @@ func usePty(cmd *exec.Cmd, w io.Writer, r io.Reader, onStart func(*os.Process)) 
 		return errors.Wrap(err, "failed to start pty")
 	}
 	if cpty == nil {
-		return errors.New("failed to create new pty, cpty is null")
+		return errors.New("failed to allocate a terminal for the server")
 	}
 
 	if process, findErr := os.FindProcess(cpty.Pid()); findErr == nil {
@@ -80,7 +80,7 @@ func usePty(cmd *exec.Cmd, w io.Writer, r io.Reader, onStart func(*os.Process)) 
 
 	errWrite := <-wrErrCh
 	if errWrite != nil && errWrite != io.EOF {
-		print.Verb("write error", errWrite)
+		print.Verb("failed to forward server output:", errWrite)
 	}
 
 	if exitCode == 0 || exitCode == 1 {

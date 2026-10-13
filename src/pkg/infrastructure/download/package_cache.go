@@ -58,7 +58,7 @@ func GetPackageListWithClientContext(ctx context.Context, cacheDir string, clien
 				}
 			}()
 			if resp.StatusCode != 200 {
-				return nil, errors.Errorf("package list status %s", resp.Status)
+				return nil, errors.Errorf("package list download returned HTTP %s", resp.Status)
 			}
 			if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 				return nil, errors.Wrap(err, "failed to decode package list")
@@ -117,7 +117,7 @@ func UpdatePackageListWithClientContext(ctx context.Context, cacheDir string, cl
 				}
 			}()
 			if resp.StatusCode != 200 {
-				return nil, errors.Errorf("package list status %s", resp.Status)
+				return nil, errors.Errorf("package list download returned HTTP %s", resp.Status)
 			}
 			if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 				return nil, errors.Wrap(err, "failed to decode package list")

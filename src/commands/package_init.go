@@ -15,12 +15,12 @@ func packageInitFlags() []cli.Flag {
 		cli.StringFlag{
 			Name:  "dir",
 			Value: ".",
-			Usage: "working directory for the project - by default, uses the current directory",
+			Usage: "project directory",
 		},
 		cli.StringFlag{
 			Name:  "preset",
 			Value: "openmp",
-			Usage: "specify the preset to use for the project: 'samp' for SA-MP or 'openmp' for open.mp",
+			Usage: "project preset: 'samp' for SA-MP or 'openmp' for open.mp",
 		},
 	}
 }
@@ -30,7 +30,7 @@ func packageInit(c *cli.Context) error {
 	preset := c.String("preset")
 
 	if preset != "samp" && preset != "openmp" {
-		print.Warn("Invalid preset option provided, defaulting to 'openmp'.")
+		print.Warn("Unknown preset", preset+"; using 'openmp'.")
 		preset = "openmp"
 	}
 
@@ -76,7 +76,7 @@ func validateInitDirectory(dir string) error {
 		return errors.Wrap(err, "failed to inspect package definition")
 	}
 	if pkg.Format != "" {
-		return errors.New("Directory already appears to be a package")
+		return errors.New("directory already contains a Pawn package")
 	}
 	return nil
 }

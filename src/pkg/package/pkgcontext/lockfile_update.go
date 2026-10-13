@@ -51,7 +51,7 @@ func (pcx *PackageContext) resolveLockfileDependencyMeta(
 		tag, err := pcx.resolveLatestTag(ctx, meta, true)
 		if err != nil {
 			if isMissingLatestReleaseError(err) {
-				print.Warn(meta, "does not publish tags or releases, leaving pinned dependency unchanged in the lockfile")
+				print.Warn(meta, "has no tags or releases; keeping the lockfile pin")
 				return resolvedMeta, nil
 			}
 

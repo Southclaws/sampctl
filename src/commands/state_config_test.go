@@ -126,7 +126,7 @@ func TestCommandStateSaveConfigWrapsWriteError(t *testing.T) {
 
 	err := state.saveConfig()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to write updated configuration file to")
+	assert.Contains(t, err.Error(), "failed to save sampctl config in")
 	assert.Contains(t, err.Error(), cacheDir)
 }
 

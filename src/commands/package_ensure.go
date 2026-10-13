@@ -33,7 +33,7 @@ func packageEnsureFlags() []cli.Flag {
 		cli.StringFlag{
 			Name:  "dir",
 			Value: ".",
-			Usage: "working directory for the project - by default, uses the current directory",
+			Usage: "project directory",
 		},
 		cli.BoolFlag{
 			Name:  "update",
@@ -45,11 +45,11 @@ func packageEnsureFlags() []cli.Flag {
 		},
 		cli.BoolFlag{
 			Name:  "no-lock",
-			Usage: "disable lockfile support (not recommended for reproducible builds)",
+			Usage: "resolve dependencies without reading or writing pawn.lock",
 		},
 		cli.BoolFlag{
 			Name:  "lock-only",
-			Usage: "only update the lockfile without modifying dependencies",
+			Usage: "update pawn.lock without changing installed dependencies",
 		},
 	}
 }
@@ -71,7 +71,7 @@ func packageEnsure(c *cli.Context) error {
 	// Create package context
 	pcx, _, err := loadDependencyOperationContext(c, dir)
 	if err != nil {
-		return reportDependencyCommandError(c, "ensure", errors.Wrap(err, "failed to create package context"))
+		return reportDependencyCommandError(c, "ensure", errors.Wrap(err, "failed to load the Pawn package"))
 	}
 
 	state, err := getCommandState(c)
@@ -116,7 +116,7 @@ func parseEnsureUpdateRequest(c *cli.Context) (pkgcontext.DependencyUpdateReques
 		target := c.Args().First()
 		targetMeta, err := versioning.DependencyString(target).Explode()
 		if err != nil {
-			return pkgcontext.DependencyUpdateRequest{}, errors.Wrap(err, "failed to parse dependency selector")
+			return pkgcontext.DependencyUpdateRequest{}, errors.Wrap(err, "invalid dependency argument")
 		}
 
 		request.Target = target
@@ -129,7 +129,7 @@ func parseEnsureUpdateRequest(c *cli.Context) (pkgcontext.DependencyUpdateReques
 func runPackageEnsure(ctx context.Context, target ensureCommandTarget, opts ensureCommandOptions) error {
 	if opts.useLockfile {
 		if err := target.InitLockfileResolver(opts.version); err != nil {
-			return &pkgcontext.OperationError{Operation: "read lockfile", Err: errors.Wrap(err, "failed to initialize lockfile resolver")}
+			return &pkgcontext.OperationError{Operation: "read lockfile", Err: errors.Wrap(err, "failed to load the lockfile")}
 		}
 
 		describeEnsureLockfile(target, opts.update.Force && !opts.update.HasTarget())
@@ -148,10 +148,10 @@ func runPackageEnsure(ctx context.Context, target ensureCommandTarget, opts ensu
 
 	updated, err := target.EnsureProject(ctx, opts.update)
 	if err != nil {
-		return errors.Wrap(err, "failed to ensure dependencies")
+		return errors.Wrap(err, "failed to install dependencies")
 	}
 	if updated {
-		print.Verb("updated package dependencies with latest tags")
+		print.Verb("Updated dependencies to the latest tags")
 	}
 
 	if opts.useLockfile {
@@ -161,7 +161,7 @@ func runPackageEnsure(ctx context.Context, target ensureCommandTarget, opts ensu
 		}
 	}
 
-	print.Verb("ensured dependencies for package")
+	print.Verb("Dependencies are installed")
 
 	return nil
 }

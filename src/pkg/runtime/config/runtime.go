@@ -138,23 +138,23 @@ type Plugin string
 // Validate checks a Runtime for missing fields
 func (cfg Runtime) Validate() (err error) {
 	if cfg.WorkingDir == "" {
-		return errors.New("WorkingDir empty")
+		return errors.New("runtime working directory is required")
 	}
 
 	if cfg.Platform == "" {
-		return errors.New("Platform empty")
+		return errors.New("runtime platform is required")
 	}
 
 	if cfg.Format == "" {
-		return errors.New("Format empty")
+		return errors.New("runtime config format is required")
 	}
 
 	if cfg.Version == "" {
-		return errors.New("Version empty")
+		return errors.New("runtime version is required")
 	}
 
 	if cfg.Mode == "" {
-		return errors.New("Mode empty")
+		return errors.New("runtime mode is required")
 	}
 
 	if cfg.Echo == nil {
@@ -253,7 +253,7 @@ func (cfg *Runtime) ResolveRemotePlugins() {
 		return
 	}
 
-	print.Verb("separating dep plugins from:", cfg.Plugins)
+	print.Verb("resolving plugin dependencies:", cfg.Plugins)
 
 	tmpPlugins := cfg.Plugins
 	cfg.Plugins = []Plugin{}
@@ -320,7 +320,7 @@ func (cfg Runtime) ToFile() (err error) {
 	case "yaml":
 		err = cfg.ToYAML()
 	default:
-		err = errors.New("package has no format associated with it")
+		err = errors.New("runtime config format must be json or yaml")
 	}
 	return
 }

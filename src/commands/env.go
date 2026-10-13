@@ -28,7 +28,7 @@ func getCommandEnv(c *cli.Context) (commandEnv, error) {
 	verbose := applyVerboseFlag(c)
 	cacheDir, err := fs.ConfigDir()
 	if err != nil {
-		return commandEnv{}, errors.Wrap(err, "failed to get config dir")
+		return commandEnv{}, errors.Wrap(err, "failed to find the sampctl config directory")
 	}
 	return commandEnv{CacheDir: cacheDir, Platform: platform(c), Verbose: verbose}, nil
 }

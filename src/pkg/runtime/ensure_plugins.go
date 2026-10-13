@@ -187,7 +187,7 @@ func EnsureVersionedPlugin(request EnsureVersionedPluginRequest) (files []run.Pl
 		return
 	}
 
-	print.Verb(request.Meta, "retrieved package to file:", filename)
+	print.Verb(request.Meta, "using plugin asset:", filename)
 
 	if resource.Archive {
 		print.Verb(request.Meta, "plugin resource is an archive")
@@ -201,7 +201,7 @@ func EnsureVersionedPlugin(request EnsureVersionedPluginRequest) (files []run.Pl
 		// get plugins
 		if request.Plugins {
 			if request.PluginDestDir == "" {
-				return nil, errors.New("pluginDestDir is required when plugins=true")
+				return nil, errors.New("plugin destination directory is required")
 			}
 			for _, plugin := range resource.Plugins {
 				pluginDir := request.PluginDestDir + "/"
@@ -243,7 +243,7 @@ func EnsureVersionedPlugin(request EnsureVersionedPluginRequest) (files []run.Pl
 		}
 		if len(extractedFiles) == 0 {
 			//nolint:lll
-			err = errors.Errorf("no files extracted from plugin %s: check the package definition of this dependency against the release assets", request.Meta)
+			err = errors.Errorf("plugin %s archive produced no files; check its resource paths and ignore patterns", request.Meta)
 			return
 		}
 		print.Verb(request.Meta, "extracted", len(extractedFiles), "plugin files to", request.Dir)
@@ -260,7 +260,7 @@ func EnsureVersionedPlugin(request EnsureVersionedPluginRequest) (files []run.Pl
 		print.Verb(request.Meta, "plugin resource is a single file")
 		base := filepath.Base(filename)
 		if request.PluginDestDir == "" {
-			return nil, errors.New("pluginDestDir is required when plugins=true")
+			return nil, errors.New("plugin destination directory is required")
 		}
 		finalDir := filepath.Join(request.Dir, request.PluginDestDir)
 		destination, pathErr := runtimeFilePath(request.Dir, filepath.Join(request.PluginDestDir, base))
@@ -460,7 +460,7 @@ func EnsureVersionedPluginCached(request EnsureVersionedPluginCachedRequest) (
 	if !hit {
 		if !hasExplicitDependencyReference(request.Meta) {
 			//nolint:lll
-			print.Info("Downloading newest plugin because no version is specified. Consider specifying a version for this dependency.")
+			print.Info(request.Meta, "has no version specified; downloading the latest release. Pin a release tag to keep the plugin version fixed.")
 		}
 
 		filename, resource, err = PluginFromNet(PluginFetchRequest{
@@ -472,7 +472,7 @@ func EnsureVersionedPluginCached(request EnsureVersionedPluginCachedRequest) (
 			CacheDir: request.CacheDir,
 		})
 		if err != nil {
-			err = errors.Wrapf(err, "failed to get plugin %s from net", request.Meta)
+			err = errors.Wrapf(err, "failed to download plugin %s", request.Meta)
 			return
 		}
 	}
@@ -495,7 +495,7 @@ func PluginFromCache(
 
 	pkg, err := pawnpackage.GetCachedPackage(meta, cacheDir)
 	if err != nil {
-		print.Verb("cache hit failed while trying to get cached package:", err)
+		print.Verb("could not load cached plugin package:", err)
 		err = nil
 		hit = false
 		return
@@ -633,7 +633,7 @@ func GetResource(resources []pkgresource.Resource, platform string, version stri
 		for _, resource := range resources {
 			res := resource
 			if res.Platform == platform && res.Version == "" {
-				print.Verb("no resource matching version: ", version, ", falling back to the first resource matching platform: ", platform)
+				print.Verb("no resource for version", version, "; using the default resource for", platform)
 				tmp = &res
 				found = true
 				break
@@ -641,11 +641,11 @@ func GetResource(resources []pkgresource.Resource, platform string, version stri
 		}
 	}
 	if !found {
-		return nil, errors.Errorf("plugin does not provide binaries for target platform %s and/or version %s", platform, version)
+		return nil, errors.Errorf("plugin has no resource for platform %s and runtime version %s", platform, version)
 	}
 
 	if err := tmp.Validate(); err != nil {
-		return nil, errors.Wrap(err, "matching resource found but is invalid")
+		return nil, errors.Wrap(err, "plugin resource is invalid")
 	}
 
 	return tmp, nil

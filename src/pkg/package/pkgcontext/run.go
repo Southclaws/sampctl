@@ -40,7 +40,7 @@ func (pcx *PackageContext) Run(ctx context.Context, output io.Writer, input io.R
 // RunWatch runs the Run code on file changes.
 func (pcx *PackageContext) RunWatch(ctx context.Context) (err error) {
 	if err = pcx.RunPrepare(ctx); err != nil {
-		return errors.Wrap(err, "failed to prepare")
+		return errors.Wrap(err, "failed to prepare package for run watcher")
 	}
 
 	var (
@@ -69,7 +69,7 @@ loop:
 		select {
 		case sig := <-signals:
 			fmt.Println("")
-			print.Info("signal received", sig, "stopping run watcher...")
+			print.Info("Stopping run watcher after signal", sig)
 			break loop
 
 		case err = <-errorCh:
@@ -99,7 +99,7 @@ loop:
 		}
 	}
 
-	print.Info("finished running run watcher")
+	print.Info("Run watcher stopped")
 
 	return err
 }
@@ -134,7 +134,7 @@ func (pcx *PackageContext) RunPrepare(ctx context.Context) (err error) {
 		}
 	}
 	if !canRun {
-		err = errors.New("build failed, can not run")
+		err = errors.New("cannot run package because the build failed")
 		return
 	}
 

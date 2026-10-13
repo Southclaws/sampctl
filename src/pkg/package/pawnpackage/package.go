@@ -252,7 +252,7 @@ func (pkg Package) EncodeDefinition() ([]byte, error) {
 	case "yaml":
 		contents, err = yaml.Marshal(cleanPkg)
 	default:
-		return nil, errors.New("package has no format associated with it")
+		return nil, errors.New("package definition format must be json or yaml")
 	}
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to encode package metadata")
@@ -300,7 +300,7 @@ func (pkg Package) GetBuildConfig(name string) (config *build.Config) {
 		if pkg.Build != nil {
 			config = pkg.Build
 		} else {
-			print.Warn("No build config called:", name, "using default")
+			print.Warn("Build config", name, "was not found; using defaults")
 			config = def
 		}
 	}

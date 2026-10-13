@@ -163,6 +163,6 @@ func TestRunPackageEnsureReturnsEnsureError(t *testing.T) {
 
 	err := runPackageEnsure(context.Background(), target, ensureCommandOptions{})
 	require.Error(t, err)
-	assert.EqualError(t, err, "failed to ensure dependencies: boom")
+	assert.EqualError(t, err, "failed to install dependencies: boom")
 	assert.True(t, target.ensureCalled)
 }

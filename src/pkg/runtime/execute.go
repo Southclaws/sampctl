@@ -64,7 +64,7 @@ func CopyFileToRuntime(cacheDir, version, filePath string) (err error) {
 	dir := GetRuntimePath(cacheDir, version)
 
 	if ext != ".amx" {
-		return errors.New("specified file is not an .amx")
+		return errors.New("script filename must end in .amx")
 	}
 
 	err = util.CopyFile(filePath, fs.Join(dir, "gamemodes", fileName))

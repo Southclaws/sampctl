@@ -81,13 +81,13 @@ func TestReportCommittedRecoveryWrappers(t *testing.T) {
 
 func assertCommittedRecoveryOutput(t *testing.T, output string) {
 	t.Helper()
-	if !strings.Contains(output, "✗ Previous dependency changes were saved; recovery could not complete") {
+	if !strings.Contains(output, "✗ Previous dependency changes were saved; recovery failed") {
 		t.Errorf("recovery output = %s; want a failed recovery heading that preserves prior commit status", output)
 	}
-	if !strings.Contains(output, "Keep backups and recovery metadata") {
+	if !strings.Contains(output, "Keep the backups and recovery files") {
 		t.Errorf("recovery output = %s; want instructions to preserve recovery evidence", output)
 	}
-	for _, forbidden := range []string{"✓", "operation completed", "cleanup is pending", "state restored", "sampctl check --fix"} {
+	for _, forbidden := range []string{"✓", "Dependency changes saved", "cleanup pending", "state restored", "sampctl check --fix"} {
 		if strings.Contains(output, forbidden) {
 			t.Errorf("invalid committed recovery output contains %q: %s", forbidden, output)
 		}

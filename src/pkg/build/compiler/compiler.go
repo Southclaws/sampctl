@@ -121,8 +121,7 @@ func PrepareCommand(ctx context.Context, request PrepareCommandRequest) (cmd *ex
 	}
 
 	if len(request.Config.Plugins) != 0 {
-		print.Warn("The use of `plugins` in the build configuration has been disabled and will be removed in the future")
-		print.Warn("Please instead use `prebuild` or `postbuild`")
+		print.Warn("Build `plugins` are disabled and will be removed; use `prebuild` or `postbuild`")
 	}
 
 	pkg, runtimeDir, err := resolveCompilerBinary(ctx, request, cacheDir)
@@ -235,10 +234,10 @@ func compilerFromCustomPath(pathRoot string) (download.Compiler, error) {
 	compilerPath := customCompilerBinary(pathRoot)
 	compilerPathStat, err := os.Stat(compilerPath)
 	if err != nil {
-		return download.Compiler{}, errors.Wrap(err, "compiler path is not invalid")
+		return download.Compiler{}, errors.Wrap(err, "failed to access compiler executable")
 	}
 	if !compilerPathStat.Mode().IsRegular() {
-		return download.Compiler{}, errors.New("compiler path does not contain a valid pawn compiler executable")
+		return download.Compiler{}, errors.New("compiler path does not contain a Pawn compiler executable")
 	}
 
 	return download.Compiler{
@@ -313,11 +312,11 @@ func buildIncludeArgs(execDir string, includes []string) ([]string, error) {
 	}
 
 	if len(includeErrors) > 0 {
-		print.Erro("Dependency include path errors found:")
+		print.Erro("Conflicting include files:")
 		for _, errorString := range includeErrors {
 			print.Erro(errorString)
 		}
-		return nil, errors.New("could not compile due to conflicting filenames located in different include paths")
+		return nil, errors.New("conflicting filenames in include paths; keep one copy of each include file")
 	}
 
 	return args, nil

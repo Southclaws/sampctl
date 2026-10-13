@@ -44,10 +44,10 @@ func writeCheckResults(w io.Writer, results []diagnostic, opts checkOutputOption
 	}
 	out.WriteString("\n" + style.summary(counts) + "\n")
 	if canFix {
-		out.WriteString("Run `sampctl check --fix` to attempt supported repairs.\n")
+		out.WriteString("Run `sampctl check --fix` to repair supported issues.\n")
 	}
 	if details && !opts.Verbose {
-		out.WriteString("Run with --verbose for technical details and inspected paths.\n")
+		out.WriteString("Use --verbose to see the errors and file paths.\n")
 	}
 	if _, err := w.Write(out.Bytes()); err != nil {
 		return 2, fmt.Errorf("write diagnostics: %w", err)
@@ -159,7 +159,7 @@ func (s checkOutputStyle) summary(counts map[checkStatus]int) string {
 		parts = append(parts, s.text(fmt.Sprintf("%d %s", count, label), item.attribute))
 	}
 	if len(parts) == 0 {
-		return "No applicable checks."
+		return "No checks apply."
 	}
 	return strings.Join(parts, ", ") + "."
 }

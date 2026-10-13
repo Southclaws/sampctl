@@ -33,27 +33,27 @@ func dependencyRecoveryDiagnostic(state pkgcontext.DependencyRecoveryStatus, err
 	result := diagnostic{Name: "dependency recovery", Status: checkFailed, Path: state.Path, Err: err}
 	switch {
 	case state.Active:
-		result.Message = "A dependency operation is using this project"
+		result.Message = "Another dependency command is running in this project"
 		result.Action = "Wait for it to finish, then run `sampctl check` again."
 	case err != nil:
 		result.Message = "Dependency recovery files are invalid or inconsistent"
-		result.Action = "Use --verbose to inspect the recovery files. Keep backups and recovery metadata until the project is restored."
+		result.Action = "Use --verbose to see the recovery files. Keep them and the backups until recovery finishes."
 	case !state.Pending:
 		result.Status = checkPassed
 		result.Message = "Dependency recovery is complete"
 	case state.Committed:
-		result.Message = "Project changes were saved; dependency cleanup is pending"
+		result.Message = "Dependency changes saved; cleanup pending"
 		result.Action = "Run `sampctl check --fix` or retry the dependency command to finish cleanup."
 	case state.Restored:
-		result.Message = "Previous dependency state was restored; cleanup is pending"
+		result.Message = "Previous dependency state restored; cleanup pending"
 		result.Action = "Run `sampctl check --fix` or retry the dependency command to finish cleanup."
 	default:
-		result.Message = "A dependency operation was interrupted"
-		result.Action = "Run `sampctl check --fix` or retry the dependency command to recover the previous project state."
+		result.Message = "A dependency command was interrupted"
+		result.Action = "Run `sampctl check --fix` or retry the dependency command to restore the previous dependency state."
 	}
 	result.CanFix = state.Pending && state.CanRecover && !state.Active && err == nil
 	if state.Pending && !result.CanFix && err == nil && !state.Active {
-		result.Action = "Use --verbose to inspect the recovery files. Keep backups and recovery metadata until the project is restored."
+		result.Action = "Use --verbose to see the recovery files. Keep them and the backups until recovery finishes."
 	}
 	return result
 }

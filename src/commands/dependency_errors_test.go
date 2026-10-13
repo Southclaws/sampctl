@@ -45,9 +45,9 @@ func TestReportDependencyCommandError(t *testing.T) {
 			assert.ErrorIs(t, err, transport.ErrRepositoryNotFound)
 			assert.Equal(t, 1, ExitCode(err))
 			assert.Empty(t, err.Error(), "main must not print the reported failure again")
-			assert.Equal(t, 1, strings.Count(output.String(), "✗ Dependency installation incomplete"))
+			assert.Equal(t, 1, strings.Count(output.String(), "✗ Dependency installation failed"))
 			assert.Contains(t, output.String(), "user/repo")
-			assert.Contains(t, output.String(), "Check the repository name and your Git credentials.")
+			assert.Contains(t, output.String(), "Check the repository name and permissions. If it needs authentication, check your Git credentials.")
 			assert.Equal(t, verbose, strings.Contains(output.String(), "Details:"))
 			for _, secret := range []string{"person", "password", "query-secret", "configured-secret"} {
 				assert.NotContains(t, output.String(), secret)
@@ -71,7 +71,7 @@ func TestReportDependencyFailuresAndRecovery(t *testing.T) {
 	assert.ErrorIs(t, err, os.ErrPermission)
 	assert.Contains(t, output.String(), "user/first")
 	assert.Contains(t, output.String(), "user/second")
-	assert.Contains(t, output.String(), "Previous dependency state was not fully restored")
+	assert.Contains(t, output.String(), "Could not restore all previous dependencies")
 	assert.Contains(t, output.String(), "Cannot remove temporary dependency files")
 	assert.NotContains(t, output.String(), "was restored")
 	assert.NotContains(t, output.String(), "Details:")
@@ -144,8 +144,8 @@ func TestReportCompletedDependencyOperationWithCleanupFailure(t *testing.T) {
 	ctx.App.Writer = &output
 	err := reportDependencyCommandError(ctx, "install", &pkgcontext.OperationError{Operation: "cleanup", Outcome: pkgcontext.OutcomeCommitted, Err: os.ErrPermission})
 	assert.Equal(t, 1, ExitCode(err))
-	assert.Contains(t, output.String(), "✓ Dependency operation completed; cleanup is pending")
-	assert.NotContains(t, output.String(), "Dependency installation incomplete")
+	assert.Contains(t, output.String(), "✓ Dependency changes saved; cleanup pending")
+	assert.NotContains(t, output.String(), "Dependency installation failed")
 }
 
 func TestReportDependencyOperationOutcomes(t *testing.T) {
@@ -157,7 +157,7 @@ func TestReportDependencyOperationOutcomes(t *testing.T) {
 	}{
 		{name: "restored", outcome: pkgcontext.OutcomeRolledBack, message: "previous dependency state restored"},
 		{name: "incomplete recovery", outcome: pkgcontext.OutcomeRollbackIncomplete, message: "recovery is incomplete"},
-		{name: "committed cleanup", outcome: pkgcontext.OutcomeCommitted, message: "✓ Dependency operation completed; cleanup is pending"},
+		{name: "committed cleanup", outcome: pkgcontext.OutcomeCommitted, message: "✓ Dependency changes saved; cleanup pending"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			ctx := newTestCLIContext("dev")
@@ -189,10 +189,10 @@ func TestReportDependencyOperationOutcomes(t *testing.T) {
 						t.Errorf("committed output contains %q: %s", forbidden, output.String())
 					}
 				}
-				if !strings.Contains(output.String(), "Project changes were saved") || !strings.Contains(output.String(), "check --fix") {
+				if !strings.Contains(output.String(), "Your changes were saved") || !strings.Contains(output.String(), "check --fix") {
 					t.Errorf("committed output lacks saved changes and recovery advice: %s", output.String())
 				}
-			} else if strings.Contains(output.String(), "Project changes were saved") {
+			} else if strings.Contains(output.String(), "Your changes were saved") {
 				t.Errorf("uncommitted output claims saved changes: %s", output.String())
 			}
 		})
@@ -223,7 +223,7 @@ func TestReportUntrackedRuntimeConflict(t *testing.T) {
 	if !errors.Is(err, os.ErrExist) || ExitCode(err) != 1 {
 		t.Errorf("runtime conflict = %v, code = %d", err, ExitCode(err))
 	}
-	if !strings.Contains(output.String(), "Preserve existing files") || strings.Contains(output.String(), "sampctl check") {
+	if !strings.Contains(output.String(), "Move those files aside") || strings.Contains(output.String(), "sampctl check") {
 		t.Errorf("runtime conflict advice = %s", output.String())
 	}
 }

@@ -62,7 +62,7 @@ func getServerPackageContext(ctx context.Context, cacheDir, version, dir, platfo
 		Platform: platform,
 	})
 	if err != nil {
-		return errors.Wrapf(err, "failed to get package %s from net", version)
+		return errors.Wrapf(err, "failed to download runtime package %s", version)
 	}
 
 	return
@@ -183,15 +183,15 @@ func FromNetContext(request ServerPackageRequest) (err error) {
 	if err != nil {
 		innerError := os.Remove(fullPath)
 		if innerError != nil {
-			return errors.Errorf("failed to remove path for: %s", fullPath)
+			return errors.Errorf("failed to remove invalid server package %s", fullPath)
 		}
 		return errors.Wrap(err, "failed to match checksum")
 	} else if !ok {
 		innerError := os.Remove(fullPath)
 		if innerError != nil {
-			return errors.Errorf("failed to remove path for: %s", fullPath)
+			return errors.Errorf("failed to remove invalid server package %s", fullPath)
 		}
-		return errors.Errorf("server binary does not match checksum for version %s", request.Version)
+		return errors.Errorf("server package checksum does not match version %s", request.Version)
 	}
 
 	files, err := method(fullPath, request.Dir, paths)

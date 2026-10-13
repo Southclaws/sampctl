@@ -50,7 +50,7 @@ func PackageFromDir(dir string) (pkg Package, err error) {
 
 	switch {
 	case jsonExists && yamlExists:
-		return pkg, errors.New("found both pawn.json and pawn.yaml; please keep only one package definition file")
+		return pkg, errors.New("found both pawn.json and pawn.yaml; keep one package definition file")
 	case jsonExists:
 		return readPackageDefinition(jsonPath, "json")
 	case yamlExists:
@@ -314,7 +314,7 @@ func (f *GitHubRemotePackageFetcher) packageFromOfficialRepo(
 		format: "json",
 		onStatusError: func(status int) error {
 			if status == http.StatusNotFound {
-				return errors.Errorf("plugin '%s' does not exist in official repo", meta)
+				return errors.Errorf("plugin '%s' was not found in the official package repository", meta)
 			}
 			return errors.Errorf("official repository returned %d for '%s'", status, meta)
 		},

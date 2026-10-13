@@ -59,7 +59,7 @@ func (pcx *PackageContext) ensureDependencies(
 		return err
 	}
 	if pcx.Package.LocalPath == "" {
-		return errors.New("package does not represent a locally stored package")
+		return errors.New("package has no local directory")
 	}
 
 	if !fs.Exists(pcx.Package.LocalPath) {
@@ -95,7 +95,7 @@ func (pcx *PackageContext) ensureDependencies(
 			failures = append(failures, &DependencyError{Dependency: dependency.String(), Operation: "ensure", Err: err})
 			continue
 		}
-		print.Verb(pcx.Package, "successfully ensured dependency files for", dependency)
+		print.Verb(pcx.Package, "installed dependency files for", dependency)
 	}
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return stderrors.Join(stderrors.Join(failures...), ctxErr)

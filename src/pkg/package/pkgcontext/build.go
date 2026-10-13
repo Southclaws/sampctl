@@ -217,9 +217,9 @@ loop:
 
 			if result.err != nil {
 				if result.err.Error() == "signal: killed" || result.err.Error() == "context canceled" {
-					print.Verb("non-fatal error occurred:", result.err)
+					print.Verb("Build interrupted:", result.err)
 				} else {
-					print.Erro("Error encountered during build:", errors.Wrapf(result.err, "failed to compile package, run: %d", result.buildNumber))
+					print.Erro("Build failed:", errors.Wrapf(result.err, "failed to compile package, run: %d", result.buildNumber))
 				}
 			} else {
 				fmt.Printf("%s finished building: %s [%d]\n", watcherColour("WATCHER:"), result.eventName, result.buildNumber)

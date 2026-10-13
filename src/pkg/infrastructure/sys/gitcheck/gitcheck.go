@@ -18,10 +18,8 @@ func RequireInstalled() error {
 }
 
 func NotInstalledMessage() string {
-	return "git is not installed on your system.\n" +
-		"sampctl requires git to manage dependencies.\n" +
-		"install git using one of these methods:\n" +
-		"  1. winget install --id git.git -e --source winget\n" +
-		"  2. scoop install git\n" +
-		"  3. download from https://git-scm.com"
+	return "git was not found in PATH. Install it or add it to PATH:\n" +
+		"  winget install --id git.git -e --source winget\n" +
+		"  scoop install git\n" +
+		"  https://git-scm.com"
 }

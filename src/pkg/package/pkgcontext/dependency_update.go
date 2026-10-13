@@ -170,7 +170,7 @@ func (pcx *PackageContext) UpdateDependencyReferences(
 		if restoreErr != nil {
 			return false, stderrors.Join(err, &OperationError{Operation: "rollback", Err: restoreErr})
 		}
-		return false, errors.Wrap(err, "failed to refresh dependency tree after update, rolling back changes")
+		return false, errors.Wrap(err, "failed to refresh dependencies after update")
 	}
 	return true, nil
 }
@@ -238,7 +238,7 @@ func (pcx *PackageContext) updatedDependencyMeta(
 	case meta.Tag == "" && meta.Branch == "" && meta.Commit == "":
 		if _, err := pcx.resolveLatestTag(ctx, meta, true); err != nil {
 			if isMissingLatestReleaseError(err) {
-				print.Warn(meta, "does not publish tags or releases, leaving dependency unpinned")
+				print.Warn(meta, "has no tags or releases; keeping dependency unpinned")
 				return meta, false, nil
 			}
 
@@ -254,14 +254,14 @@ func (pcx *PackageContext) updatedDependencyMeta(
 		tag, err := pcx.resolveLatestTag(ctx, meta, true)
 		if err != nil {
 			if isMissingLatestReleaseError(err) {
-				print.Warn(meta, "does not publish tags or releases, leaving pinned dependency unchanged")
+				print.Warn(meta, "has no tags or releases; keeping the current pin")
 				return meta, false, nil
 			}
 
 			return versioning.DependencyMeta{}, false, err
 		}
 		if tag == "" {
-			return versioning.DependencyMeta{}, false, errors.New("latest did not resolve to a concrete tag")
+			return versioning.DependencyMeta{}, false, errors.New(":latest did not resolve to a tag")
 		}
 
 		updatedMeta := meta

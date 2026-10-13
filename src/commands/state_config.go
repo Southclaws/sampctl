@@ -41,7 +41,7 @@ func (s *commandState) saveConfig() error {
 	}
 
 	if err := config.WriteConfig(s.cacheDir, *s.cfg); err != nil {
-		return errors.Wrapf(err, "failed to write updated configuration file to %s", s.cacheDir)
+		return errors.Wrapf(err, "failed to save sampctl config in %s", s.cacheDir)
 	}
 
 	return nil
@@ -56,7 +56,7 @@ func loadDotEnv() {
 func configureLogging(c *cli.Context) {
 	if c.GlobalBool("verbose") {
 		print.SetVerbose()
-		print.Verb("Verbose logging active")
+		print.Verb("Verbose logging enabled")
 	}
 	if runtime.GOOS != "windows" {
 		print.SetColoured()

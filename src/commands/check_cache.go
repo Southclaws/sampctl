@@ -56,33 +56,33 @@ func inspectCheckCacheDirectory(path string) diagnostic {
 	result.Action = "Check access to the sampctl cache directory."
 	_, err := os.Lstat(path)
 	if errors.Is(err, os.ErrNotExist) {
-		result.Status, result.Message, result.Action = checkSkipped, "Managed cache has not been created", ""
+		result.Status, result.Message, result.Action = checkSkipped, "No sampctl cache yet", ""
 		return result
 	}
 	if err != nil {
-		result.Message, result.Err = "Managed cache cannot be accessed", err
+		result.Message, result.Err = "Cannot access the sampctl cache", err
 		return result
 	}
 	info, err := os.Stat(path)
 	if err != nil {
-		result.Message, result.Err = "Managed cache cannot be accessed", err
+		result.Message, result.Err = "Cannot access the sampctl cache", err
 		return result
 	}
 	if !info.IsDir() {
-		result.Message = "Managed cache path is not a directory"
+		result.Message = "The sampctl cache path is not a directory"
 		return result
 	}
 	if _, err := os.ReadDir(path); err != nil {
-		result.Message, result.Err = "Managed cache cannot be read", err
+		result.Message, result.Err = "Cannot read the sampctl cache", err
 		return result
 	}
 	if runtime.GOOS != "windows" && info.Mode().Perm()&0o222 == 0 {
 		result.Status = checkWarning
-		result.Message = "Managed cache directory has no write permission bits"
-		result.Action = "Check the cache directory permissions before downloading managed assets."
+		result.Message = "The sampctl cache directory has no write permissions"
+		result.Action = "Check the cache directory permissions before downloading files."
 		return result
 	}
-	result.Status, result.Message, result.Action = checkPassed, "Managed cache is accessible", ""
+	result.Status, result.Message, result.Action = checkPassed, "The sampctl cache is accessible", ""
 	return result
 }
 
@@ -91,31 +91,31 @@ func inspectCheckCacheMetadata(cacheDir, path string) (diagnostic, bool) {
 	result := diagnostic{Name: "cache metadata", Status: checkFailed, Path: path}
 	info, err := os.Lstat(path)
 	if errors.Is(err, os.ErrNotExist) {
-		result.Status, result.Message = checkPassed, "Invalidated "+name+" cache is absent"
+		result.Status, result.Message = checkPassed, name+" cache file is absent"
 		return result, false
 	}
 	if err != nil {
 		result.Message, result.Err = name+" cache cannot be accessed", err
-		result.Action = "Check access to this managed cache file."
+		result.Action = "Check access to this cache file."
 		return result, true
 	}
 	if !info.Mode().IsRegular() {
 		result.Message = name + " cache is not a regular file"
-		result.Action = "Review this cache path manually."
+		result.Action = "Check this path; it must point to a regular file."
 		return result, true
 	}
 	invalid, err := validateCheckCacheMetadata(path)
 	if err != nil {
 		result.Message, result.Err = name+" cache cannot be read", err
-		result.Action = "Check access to this managed cache file."
+		result.Action = "Check access to this cache file."
 		if invalid {
 			result.Message = name + " cache contains invalid metadata"
 			if _, safeErr := checkManagedRegularPath(cacheDir, path); safeErr == nil {
 				result.CanFix = true
-				result.Action = "Run `sampctl check --fix` to invalidate this cache; sampctl will download metadata when needed."
+				result.Action = "Run `sampctl check --fix` to remove this cache file. sampctl will download it again when needed."
 			} else {
 				result.Err = errors.Join(result.Err, safeErr)
-				result.Action = "Review this cache path manually before removing invalid metadata."
+				result.Action = "Check this path before removing the invalid cache file."
 			}
 		}
 		return result, true
