@@ -122,7 +122,7 @@ func TestFromNetWithClientRetryBranches(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("retries on unexpected content type", func(t *testing.T) {
+	t.Run("does not retry unexpected content type", func(t *testing.T) {
 		var hits int
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			hits++
@@ -150,10 +150,9 @@ func TestFromNetWithClientRetryBranches(t *testing.T) {
 		fromNetBackoff = func(int) time.Duration { return 0 }
 
 		out := filepath.Join(t.TempDir(), "out.bin")
-		got, err := FromNetWithClient(context.Background(), server.Client(), server.URL, out)
-		require.NoError(t, err)
-		assert.Equal(t, out, got)
-		assert.Equal(t, 3, hits)
+		_, err := FromNetWithClient(context.Background(), server.Client(), server.URL, out)
+		require.ErrorContains(t, err, "content type")
+		assert.Equal(t, 1, hits)
 	})
 
 	t.Run("uses retry after header", func(t *testing.T) {

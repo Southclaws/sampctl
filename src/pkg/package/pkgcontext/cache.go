@@ -1,6 +1,8 @@
 package pkgcontext
 
 import (
+	"context"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -19,6 +21,7 @@ import (
 )
 
 type repoEnsureRequest struct {
+	Context     context.Context
 	From        string
 	To          string
 	Branch      string
@@ -35,168 +38,161 @@ type repoEnsureWithMetaRequest struct {
 // EnsureDependenciesCached will recursively visit a parent package dependencies
 // in the cache, pulling them if they do not exist yet.
 func (pcx *PackageContext) EnsureDependenciesCached() error {
-	return pcx.refreshDependencyGraph(DependencyUpdateRequest{})
+	return pcx.EnsureDependenciesCachedContext(context.Background())
 }
 
-func (pcx *PackageContext) refreshDependencyGraph(request DependencyUpdateRequest) (errOuter error) {
+// EnsureDependenciesCachedContext visits dependencies in the shared cache and respects cancellation.
+func (pcx *PackageContext) EnsureDependenciesCachedContext(ctx context.Context) error {
+	return pcx.refreshDependencyGraphContext(ctx, DependencyUpdateRequest{})
+}
+
+func (pcx *PackageContext) refreshDependencyGraph(request DependencyUpdateRequest) error {
+	return pcx.refreshDependencyGraphContext(context.Background(), request)
+}
+
+func (pcx *PackageContext) refreshDependencyGraphContext(ctx context.Context, request DependencyUpdateRequest) error {
+	return pcx.refreshDependencyGraphWithResolution(ctx, request, true)
+}
+
+// Reference-only updates can name tags that are not cached yet.
+func (pcx *PackageContext) refreshDependencyReferenceGraphContext(ctx context.Context, request DependencyUpdateRequest) error {
+	return pcx.refreshDependencyGraphWithResolution(ctx, request, false)
+}
+
+func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Context, request DependencyUpdateRequest, resolveLatest bool) error {
 	if !pcx.Package.Parent {
-		errOuter = errors.New("package is not a parent package")
-		return
+		return errors.New("package is not a parent package")
 	}
 	if pcx.Package.LocalPath == "" {
-		errOuter = errors.New("package has no known local path")
-		return
+		return errors.New("package has no known local path")
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 
-	// This recursive operation requires quite a lot of state! There is probably
-	// a better method to break this up but so far, this has worked fine.
-	var (
-		recurse        func(meta versioning.DependencyMeta, direct bool)
-		visited        = make(map[string]bool)
-		dependencyPath = pcx.Package.LocalPath
-		firstIter      = true
-		currentPackage pawnpackage.Package
-		errInner       error
-	)
-
-	// clear the dependencies list in case this function is being called on an
-	// already initialised context that already has some dependencies listed.
 	pcx.AllDependencies = nil
 	pcx.AllPlugins = nil
 	pcx.AllIncludePaths = nil
-
-	// set the parent package visited state to true, just in case it depends on
-	// itself or a dependency depends on it. This should never happen but if it
-	// does, this prevents an infinite recursion.
-	visited[pcx.Package.Dependency().Repo] = true
-
-	// keep track of recursion depth
-	verboseDepth := 0
-
-	recurse = func(currentMeta versioning.DependencyMeta, direct bool) {
-		// this makes visualising the dependency tree easier with --verbose
-		verboseDepth++
-		prefix := strings.Repeat("|-", verboseDepth)
-		currentIsParent := firstIter
-
-		// the first iteration of this recursive function is called on the
-		// parent package. This means it does not need to be cloned to the cache
-		// and the path will be it's true, user-defined location.
-		if currentIsParent {
-			currentPackage = pcx.Package // set the current package to the parent
-			print.Verb(prefix, currentPackage, "is parent")
-		} else {
-			dependencyPath = currentMeta.CachePath(pcx.CacheDir)
-
-			forceDependencyUpdate := request.ShouldForceDependency(currentMeta, direct)
-			if forceDependencyUpdate && pcx.cachedRepoHasNoOrigin(currentMeta) {
-				forceDependencyUpdate = false
-			}
-			_, errInner = pcx.EnsureDependencyCached(currentMeta, forceDependencyUpdate)
-			if errInner != nil {
-				print.Erro(errInner)
-				return
-			}
-			pcx.AllDependencies = append(pcx.AllDependencies, currentMeta)
-			print.Verb(prefix, currentMeta, "ensured")
-
-			currentPackage, errInner = pcx.packageFromCachedRevision(currentMeta, dependencyPath)
-			if errInner != nil {
-				print.Verb(prefix, currentMeta, "is not a package:", errInner)
-				return
-			}
-
-			// Run through resources for the target platform and grab all the
-			// include paths that will be used for includes from resource archives.
-			for _, res := range currentPackage.Resources {
-				if res.Platform != pcx.Platform {
-					print.Verb(prefix, "ignoring platform mismatch", res.Platform)
-					continue
+	visited := map[versioning.DependencyMeta]bool{managedDependencyIdentity(pcx.Package.Dependency()): true}
+	directDependencies := make(map[versioning.DependencyMeta]bool)
+	directConstraints := pcx.directDependencyConstraints()
+	for _, declaration := range pcx.Package.GetAllDependencies() {
+		meta, err := declaration.Explode()
+		if err == nil {
+			directDependencies[managedDependencyIdentity(meta)] = true
+		}
+	}
+	destinations := make(map[string]versioning.DependencyMeta)
+	var recurse func(versioning.DependencyMeta, bool, int) error
+	recurse = func(meta versioning.DependencyMeta, direct bool, depth int) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		prefix := strings.Repeat("|-", depth+1)
+		currentPackage := pcx.Package
+		if depth != 0 {
+			forceUpdate := request.ShouldForceDependency(meta, direct || directDependencies[managedDependencyIdentity(meta)])
+			effectiveMeta := pcx.LockedVersion(meta, forceUpdate)
+			if resolveLatest {
+				resolvedMeta, err := pcx.resolveDynamicDependencyReference(ctx, effectiveMeta, meta, forceUpdate)
+				if err != nil {
+					return &DependencyError{Dependency: meta.String(), Operation: "resolve", Err: err}
 				}
-
-				if len(res.Includes) > 0 {
-					targetPath := filepath.Join(pcx.Package.Vendor, res.Path(currentPackage.Repo))
-					pcx.AllIncludePaths = append(pcx.AllIncludePaths, targetPath)
-					print.Verb(prefix, "added target path for resource includes:", targetPath)
+				effectiveMeta = resolvedMeta
+			}
+			refreshCache := forceUpdate
+			if refreshCache {
+				noOrigin, err := pcx.cachedRepoHasNoOriginContext(ctx, effectiveMeta)
+				if err != nil {
+					return &DependencyError{Dependency: meta.String(), Operation: "cache", Err: err}
 				}
+				refreshCache = !noOrigin
 			}
-
-			// some resources may not be plugins
-			isPlugin := false
-
-			for _, resource := range currentPackage.Resources {
-				if resource.Archive {
-					if len(resource.Plugins) > 0 {
-						isPlugin = true
-					}
-				} else {
-					if strings.Contains(resource.Name, "dll") || strings.Contains(resource.Name, "so") {
-						isPlugin = true
-					}
-				}
+			if _, err := pcx.EnsureDependencyCachedContext(ctx, effectiveMeta, refreshCache); err != nil {
+				return &DependencyError{Dependency: meta.String(), Operation: "cache", Err: err}
 			}
-
-			if isPlugin {
-				pcx.AllPlugins = append(pcx.AllPlugins, currentMeta)
-				print.Verb(prefix, currentMeta, "is a plugin")
+			var err error
+			currentPackage, err = pcx.packageFromCachedRevisionContext(ctx, effectiveMeta, effectiveMeta.CachePath(pcx.CacheDir))
+			if err != nil {
+				return &DependencyError{Dependency: meta.String(), Operation: "read package metadata", Err: err}
 			}
+			pcx.AllDependencies = append(pcx.AllDependencies, meta)
+			pcx.recordCachedPackageResources(currentPackage, meta, prefix)
 		}
 
-		// mark the repo as visited so we don't hit it again in case it appears
-		// multiple times within the dependency tree.
-		visited[currentMeta.Repo] = true
-
-		// first iteration has finished, mark it false and next iterations will
-		// operate on dependencies
-		firstIter = false
-
-		var subPackageDepStrings []versioning.DependencyString
+		dependencies := currentPackage.Dependencies
 		if currentPackage.Parent {
-			subPackageDepStrings = currentPackage.GetAllDependencies()
-		} else {
-			subPackageDepStrings = currentPackage.Dependencies
+			dependencies = currentPackage.GetAllDependencies()
 		}
-
-		print.Verb(prefix, "iterating", len(subPackageDepStrings), "dependencies of", currentPackage)
-		var subPackageDepMeta versioning.DependencyMeta
-		for _, subPackageDepString := range subPackageDepStrings {
-			subPackageDepMeta, errInner = subPackageDepString.Explode()
-			if errInner != nil {
-				print.Verb(prefix, "invalid dependency string:", subPackageDepMeta, "in", currentPackage, errInner)
+		var failures []error
+		for _, dependency := range dependencies {
+			if err := ctx.Err(); err != nil {
+				return stderrors.Join(append(failures, err)...)
+			}
+			subMeta, err := dependency.Explode()
+			if err != nil {
+				failures = append(failures, &DependencyError{Dependency: string(dependency), Operation: "parse", Err: errors.Wrapf(err, "invalid dependency in %s", currentPackage)})
 				continue
 			}
-
-			// Handle URL-like schemes during caching phase
-			if subPackageDepMeta.IsURLScheme() {
-				errInner = pcx.handleURLSchemeCaching(subPackageDepMeta, prefix)
-				if errInner != nil {
-					print.Verb(prefix, "failed to handle URL scheme dependency:", subPackageDepMeta, errInner)
+			subMeta = inheritDirectDependencyConstraint(subMeta, directConstraints)
+			if !subMeta.IsLocalScheme() {
+				if err := registerDependencyDestination(destinations, subMeta); err != nil {
+					failures = append(failures, err)
 					continue
 				}
-			} else {
-				// Regular dependency handling
-				if _, ok := visited[subPackageDepMeta.Repo]; !ok {
-					recurse(subPackageDepMeta, currentIsParent)
-				} else {
-					print.Verb(prefix, "already visited", subPackageDepMeta)
+			}
+			if subMeta.IsURLScheme() {
+				err = pcx.handleURLSchemeCaching(subMeta, prefix)
+			} else if identity := managedDependencyIdentity(subMeta); !visited[identity] {
+				visited[identity] = true
+				err = recurse(subMeta, depth == 0, depth+1)
+			}
+			if err != nil {
+				var dependencyErr *DependencyError
+				if !stderrors.As(err, &dependencyErr) {
+					err = &DependencyError{Dependency: subMeta.String(), Operation: "cache", Err: err}
+				}
+				failures = append(failures, err)
+				if stderrors.Is(err, context.Canceled) || stderrors.Is(err, context.DeadlineExceeded) {
+					return stderrors.Join(failures...)
 				}
 			}
 		}
-		verboseDepth--
+		return stderrors.Join(failures...)
 	}
-	recurse(pcx.Package.Dependency(), false)
+	return recurse(pcx.Package.Dependency(), false, 0)
+}
 
-	if errInner != nil {
-		return errors.New("Failed to clone the repo")
+func (pcx *PackageContext) recordCachedPackageResources(pkg pawnpackage.Package, meta versioning.DependencyMeta, prefix string) {
+	isPlugin := false
+	for _, resource := range pkg.Resources {
+		if resource.Platform == pcx.Platform && len(resource.Includes) > 0 {
+			targetPath := filepath.Join(pcx.Package.Vendor, resource.Path(pkg.Repo))
+			pcx.AllIncludePaths = append(pcx.AllIncludePaths, targetPath)
+			print.Verb(prefix, "added target path for resource includes:", targetPath)
+		}
+		if resource.Archive {
+			isPlugin = isPlugin || len(resource.Plugins) > 0
+		} else {
+			isPlugin = isPlugin || strings.Contains(resource.Name, "dll") || strings.Contains(resource.Name, "so")
+		}
 	}
-
-	return nil
+	if isPlugin {
+		pcx.AllPlugins = append(pcx.AllPlugins, meta)
+	}
 }
 
 func (pcx PackageContext) packageFromCachedRevision(
 	meta versioning.DependencyMeta,
 	path string,
 ) (pawnpackage.Package, error) {
+	return pcx.packageFromCachedRevisionContext(context.Background(), meta, path)
+}
+
+func (pcx PackageContext) readPackageFromCachedRevision(meta versioning.DependencyMeta, path string) (pawnpackage.Package, error) {
 	if (meta.Tag == "" || meta.Tag == "latest") && meta.Commit == "" {
 		return pawnpackage.PackageFromDir(path)
 	}
@@ -380,9 +376,17 @@ func (pcx PackageContext) EnsureDependencyFromCache(
 	path string,
 	forceUpdate bool,
 ) (repo *git.Repository, err error) {
+	return pcx.EnsureDependencyFromCacheContext(context.Background(), meta, path, forceUpdate)
+}
+
+// EnsureDependencyFromCacheContext installs a cached repository while respecting cancellation.
+func (pcx PackageContext) EnsureDependencyFromCacheContext(ctx context.Context, meta versioning.DependencyMeta, path string, forceUpdate bool) (repo *git.Repository, err error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	print.Verb(meta, "ensuring dependency package from cache to", path, "force update:", forceUpdate)
 
-	from, err := filepath.Abs(meta.CachePath(pcx.CacheDir))
+	from, err := pcx.cacheRepositoryPath(meta)
 	if err != nil {
 		err = errors.Wrap(err, "failed to make canonical path to cached copy")
 		return
@@ -390,25 +394,43 @@ func (pcx PackageContext) EnsureDependencyFromCache(
 	cacheRepoExists := fs.Exists(filepath.Join(from, ".git"))
 	if !cacheRepoExists || forceUpdate {
 		if forceUpdate && cacheRepoExists {
-			if cacheRepo, openErr := pcx.PackageServices.repositoryStore().Open(from); openErr == nil && getRepositoryOriginURL(cacheRepo) == "" {
+			noOrigin, originErr := pcx.cachedRepoHasNoOriginContext(ctx, meta)
+			if originErr != nil {
+				return nil, originErr
+			}
+			if noOrigin {
 				print.Verb(meta, "cached repository has no origin remote, skipping cache refresh")
 			} else {
-				_, err = pcx.EnsureDependencyCached(meta, forceUpdate)
+				_, err = pcx.EnsureDependencyCachedContext(ctx, meta, forceUpdate)
 				if err != nil {
 					return
 				}
 			}
 		} else {
-			_, err = pcx.EnsureDependencyCached(meta, forceUpdate)
+			_, err = pcx.EnsureDependencyCachedContext(ctx, meta, forceUpdate)
 			if err != nil {
 				return
 			}
 		}
 	}
+	unlock, err := lockRepositoryPath(ctx, from)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { err = stderrors.Join(err, unlock()) }()
+	if err := validateRepositoryDestination(from); err != nil {
+		return nil, err
+	}
+	if destination, absErr := filepath.Abs(path); absErr != nil {
+		return nil, absErr
+	} else if destination == from {
+		return pcx.PackageServices.repositoryStore().Open(from)
+	}
 
 	repo, err = pcx.ensureRepoExistsWithMeta(repoEnsureWithMetaRequest{
 		Meta: meta,
 		repoEnsureRequest: repoEnsureRequest{
+			Context:     ctx,
 			From:        from,
 			To:          path,
 			Branch:      meta.Branch,
@@ -425,11 +447,21 @@ func (pcx PackageContext) EnsureDependencyCached(
 	meta versioning.DependencyMeta,
 	forceUpdate bool,
 ) (repo *git.Repository, err error) {
+	return pcx.EnsureDependencyCachedContext(context.Background(), meta, forceUpdate)
+}
+
+// EnsureDependencyCachedContext retrieves a cached repository while respecting cancellation.
+func (pcx PackageContext) EnsureDependencyCachedContext(ctx context.Context, meta versioning.DependencyMeta, forceUpdate bool) (*git.Repository, error) {
+	to, err := pcx.cacheRepositoryPath(meta)
+	if err != nil {
+		return nil, err
+	}
 	return pcx.ensureRepoExistsWithMeta(repoEnsureWithMetaRequest{
 		Meta: meta,
 		repoEnsureRequest: repoEnsureRequest{
+			Context:     ctx,
 			From:        meta.URL(),
-			To:          meta.CachePath(pcx.CacheDir),
+			To:          to,
 			Branch:      meta.Branch,
 			SSH:         meta.SSH != "",
 			FullClone:   meta.Tag != "" || meta.Commit != "",
@@ -439,145 +471,85 @@ func (pcx PackageContext) EnsureDependencyCached(
 }
 
 func (pcx PackageContext) ensureRepoExists(request repoEnsureRequest) (repo *git.Repository, err error) {
+	if request.Context == nil {
+		request.Context = context.Background()
+	}
+	if err := request.Context.Err(); err != nil {
+		return nil, err
+	}
+	if err := validateRepositoryDestination(request.To); err != nil {
+		return nil, err
+	}
+	unlock, err := lockRepositoryPath(request.Context, request.To)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { err = stderrors.Join(err, unlock()) }()
+	if err := validateRepositoryDestination(request.To); err != nil {
+		return nil, err
+	}
+
 	if fs.Exists(request.To) {
 		valid, validationErr := pcx.PackageServices.repositoryHealth().Validate(request.To)
-		if validationErr != nil || !valid {
-			print.Verb("repository at", request.To, "is invalid or corrupted")
-			if validationErr != nil {
-				print.Verb("validation error:", validationErr)
-			}
-			print.Verb("removing invalid repository for fresh clone")
-			errRemove := os.RemoveAll(request.To)
-			if errRemove != nil {
-				return nil, errors.Wrap(errRemove, "failed to remove invalid repository")
-			}
+		if validationErr != nil {
+			return nil, errors.Wrap(validationErr, "failed to validate repository")
+		}
+		if !valid {
+			return pcx.cloneRepositoryContext(request)
 		}
 	}
 
 	repo, err = pcx.PackageServices.repositoryStore().Open(request.To)
 	if err != nil {
-		// Repository doesn't exist or can't be opened - clone it
-		return pcx.cloneRepository(request.From, request.To, request.Branch, request.SSH, request.FullClone)
+		if !stderrors.Is(err, git.ErrRepositoryNotExists) && !stderrors.Is(err, os.ErrNotExist) {
+			return nil, errors.Wrap(err, "failed to open repository")
+		}
+		return pcx.cloneRepositoryContext(request)
 	}
-
 	if request.ForceUpdate {
-		return pcx.updateRepository(repo, request)
+		return pcx.updateRepositoryStaged(request)
 	}
-
 	return repo, nil
 }
 
-// cloneRepository performs a fresh clone with validation
 func (pcx PackageContext) cloneRepository(from, to, branch string, ssh bool, fullClone bool) (*git.Repository, error) {
-	print.Verb("cloning repository from", from, "to", to)
-
-	if fs.Exists(to) {
-		print.Verb("removing existing directory before clone")
-		err := os.RemoveAll(to)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to remove existing directory")
-		}
-	}
-
-	err := os.MkdirAll(to, 0o700)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create directory for clone")
-	}
-
-	// Configure clone options
-	cloneOpts := &git.CloneOptions{URL: from, Depth: 1000}
-	if fullClone {
-		cloneOpts.Depth = 0
-	}
-	if branch != "" {
-		cloneOpts.ReferenceName = plumbing.ReferenceName("refs/heads/" + branch)
-	}
-	if auth := pcx.authForRemote(from, ssh); auth != nil {
-		cloneOpts.Auth = auth
-	}
-
-	print.Verb("executing clone with options:", cloneOpts)
-	repo, err := pcx.PackageServices.repositoryStore().Clone(to, false, cloneOpts)
-	if err != nil {
-		print.Verb("clone failed, cleaning up:", err)
-		if removeErr := os.RemoveAll(to); removeErr != nil {
-			print.Warn("failed to clean up clone directory:", removeErr)
-		}
-		return nil, errors.Wrap(err, "failed to clone repository")
-	}
-
-	valid, validationErr := pcx.PackageServices.repositoryHealth().Validate(to)
-	if validationErr != nil || !valid {
-		print.Verb("cloned repository failed validation")
-		if removeErr := os.RemoveAll(to); removeErr != nil {
-			print.Warn("failed to clean up invalid clone directory:", removeErr)
-		}
-		if validationErr != nil {
-			return nil, errors.Wrap(validationErr, "cloned repository is invalid")
-		}
-		return nil, errors.New("cloned repository failed validation")
-	}
-
-	print.Verb("repository cloned and validated successfully")
-	return repo, nil
+	return pcx.cloneRepositoryContext(repoEnsureRequest{Context: context.Background(), From: from, To: to, Branch: branch, SSH: ssh, FullClone: fullClone})
 }
 
-// updateRepository attempts to update an existing repository with robust error handling
 func (pcx PackageContext) updateRepository(repo *git.Repository, request repoEnsureRequest) (*git.Repository, error) {
-	print.Verb("updating repository at", request.To)
-
+	if request.Context == nil {
+		request.Context = context.Background()
+	}
 	wt, err := repo.Worktree()
 	if err != nil {
-		// Worktree error often indicates corruption - re-clone
-		print.Verb("worktree error, repository may be corrupted:", err)
-		return pcx.recoverByReclone(request.From, request.To, request.Branch, request.SSH, request.FullClone)
+		return pcx.cloneRepositoryContext(request)
 	}
-
-	// Configure pull options
-	pullOpts := &git.PullOptions{}
+	pullOpts := &git.PullOptions{RemoteURL: request.From, Auth: pcx.authForRemote(request.From, request.SSH)}
 	if request.Branch != "" {
 		pullOpts.ReferenceName = plumbing.ReferenceName("refs/heads/" + request.Branch)
 	}
-	if auth := pcx.authForRemote(request.From, request.SSH); auth != nil {
-		pullOpts.Auth = auth
-	}
-
-	print.Verb("pulling latest changes")
-	err = wt.Pull(pullOpts)
-
-	if err != nil && err != git.NoErrAlreadyUpToDate {
-		print.Verb("pull failed:", err)
-		repairErr := pcx.PackageServices.repositoryHealth().Repair(request.To)
-		if repairErr == nil {
-			print.Verb("repository repaired, retrying pull")
-			err = wt.Pull(pullOpts)
-			if err == nil || err == git.NoErrAlreadyUpToDate {
-				return repo, nil
-			}
+	for attempt := 0; attempt < 3; attempt++ {
+		err = wt.PullContext(request.Context, pullOpts)
+		if err == nil || stderrors.Is(err, git.NoErrAlreadyUpToDate) {
+			return repo, nil
 		}
-
-		print.Verb("repair unsuccessful, re-cloning repository")
-		return pcx.recoverByReclone(request.From, request.To, request.Branch, request.SSH, request.FullClone)
+		if !isTransientGitError(err) || attempt == 2 {
+			break
+		}
+		if err := waitGitRetry(request.Context, attempt); err != nil {
+			return nil, err
+		}
 	}
-
-	return repo, nil
+	if ctxErr := request.Context.Err(); ctxErr != nil {
+		return nil, ctxErr
+	}
+	if stderrors.Is(err, context.Canceled) || stderrors.Is(err, context.DeadlineExceeded) || !isRepositoryCorrupt(request.To) {
+		return nil, errors.Wrap(err, "failed to update repository")
+	}
+	return pcx.cloneRepositoryContext(request)
 }
 
-// recoverByReclone removes a repository and clones it fresh
-func (pcx PackageContext) recoverByReclone(
-	from string,
-	to string,
-	branch string,
-	ssh bool,
-	fullClone bool,
-) (*git.Repository, error) {
-	print.Verb("recovering repository by re-cloning")
-
-	err := os.RemoveAll(to)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to remove corrupted repository for recovery")
-	}
-
+func (pcx PackageContext) recoverByReclone(from, to, branch string, ssh bool, fullClone bool) (*git.Repository, error) {
 	return pcx.cloneRepository(from, to, branch, ssh, fullClone)
 }
 
@@ -588,6 +560,7 @@ func (pcx PackageContext) ensureRepoExistsWithMeta(request repoEnsureWithMetaReq
 		fallbackFrom := toGitSSHURL(request.Meta)
 		print.Verb(request.Meta, "HTTPS git operation failed, retrying with SSH:", fallbackFrom)
 		repo, err = pcx.ensureRepoExists(repoEnsureRequest{
+			Context:     request.Context,
 			From:        fallbackFrom,
 			To:          request.To,
 			Branch:      request.Branch,
@@ -603,7 +576,7 @@ func (pcx PackageContext) ensureRepoExistsWithMeta(request repoEnsureWithMetaReq
 }
 
 func (pcx PackageContext) shouldRetryWithSSH(meta versioning.DependencyMeta, from string, ssh bool, err error) bool {
-	if err == nil || ssh || pcx.GitAuth == nil {
+	if err == nil || ssh || pcx.GitAuth == nil || stderrors.Is(err, context.Canceled) || stderrors.Is(err, context.DeadlineExceeded) {
 		return false
 	}
 

@@ -1,6 +1,8 @@
 package pkgcontext
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
@@ -13,18 +15,28 @@ func (pcx *PackageContext) verifyDependencyIntegrityWithRecovery(
 	dependencyPath string,
 	forceUpdate bool,
 ) error {
+	return pcx.verifyDependencyIntegrityWithRecoveryContext(context.Background(), meta, dependencyPath, forceUpdate)
+}
+
+func (pcx *PackageContext) verifyDependencyIntegrityWithRecoveryContext(ctx context.Context, meta versioning.DependencyMeta, dependencyPath string, forceUpdate bool) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if forceUpdate {
+		return nil
+	}
 	if err := pcx.verifyLockedDependencyIntegrity(meta, dependencyPath); err == nil {
 		return nil
 	} else {
-		print.Verb(meta, "dependency integrity check failed, re-cloning:", err)
+		print.Verb(meta, "dependency integrity check failed, re-cloning")
 	}
 
-	repo, err := pcx.recloneDependency(meta, dependencyPath)
+	repo, err := pcx.recloneDependencyContext(ctx, meta, dependencyPath)
 	if err != nil {
 		return errors.Wrap(err, "failed to re-clone dependency after integrity mismatch")
 	}
 
-	if err := pcx.updateRepoStateWithRecovery(repo, meta, dependencyPath, forceUpdate); err != nil {
+	if err := pcx.updateRepoStateWithRecoveryContext(ctx, repo, meta, dependencyPath, forceUpdate); err != nil {
 		return errors.Wrap(err, "failed to recover dependency after integrity mismatch")
 	}
 

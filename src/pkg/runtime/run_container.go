@@ -3,21 +3,20 @@ package runtime
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"net/netip"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/strslice"
-	"github.com/docker/docker/client"
-	"github.com/docker/go-connections/nat"
-	"github.com/pkg/errors"
+	"github.com/containerd/errdefs"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/client"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
@@ -30,21 +29,21 @@ func RunContainer(
 	cfg run.Runtime,
 	options RunOptions,
 ) (err error) {
-	cli, err := client.NewClientWithOpts()
+	cli, err := client.New(client.FromEnv)
 	if err != nil {
 		return
 	}
 	defer func() {
 		if errClose := cli.Close(); errClose != nil {
 			if err == nil {
-				err = errors.Wrap(errClose, "failed to close docker client")
+				err = fmt.Errorf("failed to close docker client: %w", errClose)
 				return
 			}
 			print.Warn("failed to close docker client:", errClose)
 		}
 	}()
 
-	args := strslice.StrSlice{"sampctl", "server", "run"}
+	args := []string{"sampctl", "server", "run"}
 	if options.PassArgs {
 		for i, arg := range os.Args {
 			// trim first 3 args and container specific flags
@@ -56,6 +55,10 @@ func RunContainer(
 	}
 
 	port := fmt.Sprint(*cfg.Port)
+	containerPort, err := network.ParsePort(port)
+	if err != nil {
+		return fmt.Errorf("invalid container port: %w", err)
+	}
 	print.Verb("mounting package working directory at", cfg.WorkingDir, "into container at /samp")
 	mounts := []mount.Mount{
 		{
@@ -77,9 +80,9 @@ func RunContainer(
 
 	hostConfig := &container.HostConfig{
 		Mounts: mounts,
-		PortBindings: nat.PortMap{
-			nat.Port(port): []nat.PortBinding{
-				{HostIP: "0.0.0.0", HostPort: port},
+		PortBindings: network.PortMap{
+			containerPort: []network.PortBinding{
+				{HostIP: netip.IPv4Unspecified(), HostPort: port},
 			},
 		},
 		SecurityOpt: []string{"seccomp=unconfined"},
@@ -105,20 +108,20 @@ func RunContainer(
 	ctxPrepare, cancel := context.WithTimeout(ctx, time.Minute*10)
 	defer cancel()
 
-	var cnt container.CreateResponse
-	cnt, err = cli.ContainerCreate(
-		ctxPrepare,
-		containerConfig,
-		hostConfig,
-		netConfig,
-		nil,
-		containerName)
+	createOptions := client.ContainerCreateOptions{
+		Config:           containerConfig,
+		HostConfig:       hostConfig,
+		NetworkingConfig: netConfig,
+		Name:             containerName,
+	}
+	var cnt client.ContainerCreateResult
+	cnt, err = cli.ContainerCreate(ctxPrepare, createOptions)
 	if err != nil {
-		if client.IsErrNotFound(err) {
+		if errors.Is(err, errdefs.ErrNotFound) {
 			print.Info("Pulling image:", ref)
-			pullReader, errInner := cli.ImagePull(ctxPrepare, ref, types.ImagePullOptions{})
+			pullReader, errInner := cli.ImagePull(ctxPrepare, ref, client.ImagePullOptions{})
 			if errInner != nil {
-				return errors.Wrap(errInner, "failed to pull image")
+				return fmt.Errorf("failed to pull image: %w", errInner)
 			}
 			defer func() {
 				errDefer := pullReader.Close()
@@ -128,21 +131,15 @@ func RunContainer(
 			}()
 			_, errInner = io.ReadAll(pullReader)
 			if errInner != nil {
-				return errors.Wrap(errInner, "failed to read pull output")
+				return fmt.Errorf("failed to read pull output: %w", errInner)
 			}
 
-			cnt, errInner = cli.ContainerCreate(
-				ctxPrepare,
-				containerConfig,
-				hostConfig,
-				netConfig,
-				nil,
-				containerName)
+			cnt, errInner = cli.ContainerCreate(ctxPrepare, createOptions)
 			if errInner != nil {
-				return errors.Wrap(errInner, "failed to create container")
+				return fmt.Errorf("failed to create container: %w", errInner)
 			}
 		} else {
-			return errors.Wrap(err, "failed to create container")
+			return fmt.Errorf("failed to create container: %w", err)
 		}
 	}
 	defer func() {
@@ -151,16 +148,16 @@ func RunContainer(
 			return
 		}
 		if err == nil {
-			err = errors.Wrap(removeErr, "failed to remove container")
+			err = fmt.Errorf("failed to remove container: %w", removeErr)
 			return
 		}
 		print.Warn("failed to remove container:", removeErr)
 	}()
 
 	print.Info("Starting container...")
-	err = cli.ContainerStart(ctx, cnt.ID, container.StartOptions{})
+	_, err = cli.ContainerStart(ctx, cnt.ID, client.ContainerStartOptions{})
 	if err != nil {
-		return errors.Wrap(err, "failed to start container")
+		return fmt.Errorf("failed to start container: %w", err)
 	}
 
 	runCtx, stopSignals := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
@@ -168,7 +165,7 @@ func RunContainer(
 
 	// Get logs and wait for exit
 
-	reader, err := cli.ContainerLogs(runCtx, cnt.ID, container.LogsOptions{
+	reader, err := cli.ContainerLogs(runCtx, cnt.ID, client.ContainerLogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 		Follow:     true,
@@ -180,7 +177,7 @@ func RunContainer(
 	defer func() {
 		if errClose := reader.Close(); errClose != nil {
 			if err == nil {
-				err = errors.Wrap(errClose, "failed to close container log stream")
+				err = fmt.Errorf("failed to close container log stream: %w", errClose)
 				return
 			}
 			print.Warn("failed to close container log stream:", errClose)
@@ -198,7 +195,7 @@ func RunContainer(
 	}
 
 	if scanErr := scanner.Err(); scanErr != nil && runCtx.Err() == nil {
-		return errors.Wrap(scanErr, "failed to read container logs")
+		return fmt.Errorf("failed to read container logs: %w", scanErr)
 	}
 
 	if writeFailed {
@@ -206,13 +203,13 @@ func RunContainer(
 		if stopErr != nil {
 			print.Warn("failed to stop container after output error:", stopErr)
 		}
-		return errors.Wrap(err, "failed to write container output")
+		return fmt.Errorf("failed to write container output: %w", err)
 	}
 
 	if runCtx.Err() != nil {
 		stopErr := stopContainer(context.Background(), cli, cnt.ID)
 		if stopErr != nil {
-			return errors.Wrap(stopErr, "failed to stop container after cancellation")
+			return fmt.Errorf("failed to stop container after cancellation: %w", stopErr)
 		}
 		if ctx.Err() != nil {
 			return ctx.Err()
@@ -221,38 +218,38 @@ func RunContainer(
 	}
 
 	if waitErr := waitForContainerExit(runCtx, cli, cnt.ID); waitErr != nil {
-		return errors.Wrap(waitErr, "container execution failed")
+		return fmt.Errorf("container execution failed: %w", waitErr)
 	}
 
 	return nil
 }
 
 type containerStopper interface {
-	ContainerKill(ctx context.Context, containerID, signal string) error
-	ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.WaitResponse, <-chan error)
+	ContainerKill(ctx context.Context, containerID string, options client.ContainerKillOptions) (client.ContainerKillResult, error)
+	ContainerWait(ctx context.Context, containerID string, options client.ContainerWaitOptions) client.ContainerWaitResult
 }
 
 type containerRemover interface {
-	ContainerRemove(ctx context.Context, containerID string, options container.RemoveOptions) error
+	ContainerRemove(ctx context.Context, containerID string, options client.ContainerRemoveOptions) (client.ContainerRemoveResult, error)
 }
 
 type containerWaiter interface {
-	ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.WaitResponse, <-chan error)
+	ContainerWait(ctx context.Context, containerID string, options client.ContainerWaitOptions) client.ContainerWaitResult
 }
 
 func stopContainer(ctx context.Context, cli containerStopper, containerID string) error {
 	stopCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	if err := cli.ContainerKill(stopCtx, containerID, "SIGINT"); err != nil {
+	if _, err := cli.ContainerKill(stopCtx, containerID, client.ContainerKillOptions{Signal: "SIGINT"}); err != nil {
 		print.Verb("Failed to kill container:", err)
 	}
 
-	wait, errCh := cli.ContainerWait(stopCtx, containerID, container.WaitConditionNotRunning)
+	wait := cli.ContainerWait(stopCtx, containerID, client.ContainerWaitOptions{Condition: container.WaitConditionNotRunning})
 	select {
-	case <-wait:
+	case <-wait.Result:
 		return nil
-	case err := <-errCh:
+	case err := <-wait.Error:
 		if err == nil {
 			return nil
 		}
@@ -270,22 +267,23 @@ func removeContainer(ctx context.Context, cli containerRemover, containerID stri
 	removeCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	return cli.ContainerRemove(removeCtx, containerID, container.RemoveOptions{Force: true})
+	_, err := cli.ContainerRemove(removeCtx, containerID, client.ContainerRemoveOptions{Force: true})
+	return err
 }
 
 func waitForContainerExit(ctx context.Context, cli containerWaiter, containerID string) error {
-	waitCh, errCh := cli.ContainerWait(ctx, containerID, container.WaitConditionNotRunning)
+	wait := cli.ContainerWait(ctx, containerID, client.ContainerWaitOptions{Condition: container.WaitConditionNotRunning})
 
 	select {
-	case waitResp := <-waitCh:
+	case waitResp := <-wait.Result:
 		if waitResp.Error != nil && waitResp.Error.Message != "" {
-			return errors.Errorf("container exited with status code %d: %s", waitResp.StatusCode, waitResp.Error.Message)
+			return fmt.Errorf("container exited with status code %d: %s", waitResp.StatusCode, waitResp.Error.Message)
 		}
 		if waitResp.StatusCode != 0 {
-			return errors.Errorf("container exited with status code %d", waitResp.StatusCode)
+			return fmt.Errorf("container exited with status code %d", waitResp.StatusCode)
 		}
 		return nil
-	case err := <-errCh:
+	case err := <-wait.Error:
 		if err == nil {
 			return nil
 		}

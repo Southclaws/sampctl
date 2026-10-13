@@ -1,6 +1,7 @@
 package pkgcontext
 
 import (
+	"os"
 	"path/filepath"
 
 	"github.com/go-git/go-git/v5"
@@ -42,6 +43,9 @@ func (GitRepositoryHealth) Repair(path string) error {
 type PackageContext struct {
 	Package pawnpackage.Package // the package this context wraps
 
+	dependencyInstalls *dependencyInstallState
+	loadedDefinition   []byte
+
 	PackageServices
 	PackageResolvedState
 	PackageExecutionState
@@ -71,14 +75,23 @@ type NewPackageContextOptions struct {
 // are required to specify whether or not the package is a "parent package" and
 // where the vendor directory is.
 func NewPackageContext(options NewPackageContextOptions) (pcx *PackageContext, err error) {
-	pcx = newPackageContextBase(options)
-	if err = pcx.loadPackageDefinition(options); err != nil {
+	pcx, err = LoadPackageContext(options)
+	if err != nil {
 		return nil, err
 	}
 	if err = pcx.ensureCachedDependencies(); err != nil {
 		return nil, err
 	}
 	print.Verb(pcx.Package, "flattened dependencies to", len(pcx.AllDependencies), "leaves")
+	return pcx, nil
+}
+
+// LoadPackageContext reads project configuration without resolving dependencies.
+func LoadPackageContext(options NewPackageContextOptions) (pcx *PackageContext, err error) {
+	pcx = newPackageContextBase(options)
+	if err = pcx.loadPackageDefinition(options); err != nil {
+		return nil, err
+	}
 	return pcx, nil
 }
 
@@ -124,7 +137,7 @@ func newPackageContextBase(options NewPackageContextOptions) *PackageContext {
 }
 
 func (pcx *PackageContext) loadPackageDefinition(options NewPackageContextOptions) (err error) {
-	pcx.Package, err = pawnpackage.PackageFromDir(options.Dir)
+	pcx.Package, err = pcx.readPackageDefinition(options.Dir)
 	if err != nil {
 		err = errors.Wrap(err, "failed to read package definition")
 		return
@@ -170,6 +183,23 @@ func (pcx *PackageContext) loadPackageDefinition(options NewPackageContextOption
 	}
 
 	return nil
+}
+
+func (pcx *PackageContext) readPackageDefinition(dir string) (pawnpackage.Package, error) {
+	pkg, err := pawnpackage.PackageFromDir(dir)
+	if err != nil || pkg.Format == "" {
+		return pkg, err
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "pawn."+pkg.Format))
+	if err != nil {
+		return pkg, err
+	}
+	pkg, err = pawnpackage.PackageFromDefinition(data, pkg.Format)
+	if err != nil {
+		return pkg, err
+	}
+	pcx.loadedDefinition = data
+	return pkg, nil
 }
 
 func (pcx *PackageContext) ensureCachedDependencies() error {

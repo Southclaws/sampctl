@@ -11,14 +11,15 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/user"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/go-github/github"
-	"github.com/mitchellh/go-homedir"
 	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
 
@@ -109,7 +110,7 @@ func ExtractFuncFromName(name string) ExtractFunc {
 
 // MigrateOldConfig migrates old config to the new path.
 func MigrateOldConfig(cacheDir string) error {
-	home, err := homedir.Dir()
+	home, err := migrationHomeDir()
 	if err != nil {
 		return errors.Wrap(err, "failed to get home directory")
 	}
@@ -130,6 +131,30 @@ func MigrateOldConfig(cacheDir string) error {
 	}
 
 	return nil
+}
+
+func migrationHomeDir() (string, error) {
+	// Legacy installations honor HOME even on Windows.
+	if home := os.Getenv("HOME"); home != "" {
+		return home, nil
+	}
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		return home, nil
+	}
+	if runtime.GOOS == "windows" {
+		drive, path := os.Getenv("HOMEDRIVE"), os.Getenv("HOMEPATH")
+		if drive != "" && path != "" {
+			return drive + path, nil
+		}
+	}
+	current, err := user.Current()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to look up current user")
+	}
+	if current.HomeDir == "" {
+		return "", errors.New("current user has no home directory")
+	}
+	return current.HomeDir, nil
 }
 
 // FromCache first checks if a file is cached, then extracts it if present.
@@ -160,7 +185,7 @@ func FromNet(ctx context.Context, location, cachePath string) (result string, er
 }
 
 func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath string) (result string, err error) {
-	print.Verb("attempting to download package from", location, "to", cachePath)
+	print.Verb("attempting to download package to", cachePath)
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -172,6 +197,9 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 
 	var lastErr error
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return "", ctxErr
+		}
 		req, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, location, nil)
 		if reqErr != nil {
 			return "", errors.Wrap(reqErr, "failed to create request")
@@ -185,7 +213,7 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 				return "", ctxErr
 			}
 			lastErr = errors.Wrapf(doErr, "failed to download package from %s", location)
-			if attempt < maxAttempts {
+			if isTransientDownloadError(doErr) && attempt < maxAttempts {
 				if sleepErr := sleepRetryBackoff(ctx, backoff(attempt)); sleepErr != nil {
 					return "", sleepErr
 				}
@@ -195,7 +223,7 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 		}
 
 		if resp.StatusCode != http.StatusOK {
-			retryable := (resp.StatusCode >= 500 && resp.StatusCode <= 599) || resp.StatusCode == http.StatusTooManyRequests
+			retryable := isRetryableDownloadStatus(resp.StatusCode)
 			if _, copyErr := io.CopyN(io.Discard, resp.Body, 32*1024); copyErr != nil && !stderrors.Is(copyErr, io.EOF) {
 				print.Warn("failed to drain unsuccessful download response:", copyErr)
 			}
@@ -230,27 +258,19 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 			if t, _, parseErr := mime.ParseMediaType(ct); parseErr == nil {
 				if !(strings.HasPrefix(t, "application/") || strings.HasPrefix(t, "text/")) {
 					closeWithWarning(resp.Body, "download response body")
-					lastErr = errors.Errorf("content has unexpected content type %s", t)
-					err = lastErr
-					if attempt < maxAttempts {
-						if sleepErr := sleepRetryBackoff(ctx, backoff(attempt)); sleepErr != nil {
-							return "", sleepErr
-						}
-						continue
-					}
-					return "", err
+					return "", errors.Errorf("content has unexpected content type %s", t)
 				}
 			}
 		}
 
-		if writeErr := fs.WriteFromReaderAtomic(cachePath, resp.Body, fs.PermDirPrivate, fs.PermFileShared); writeErr != nil {
+		if writeErr := fs.WriteFromReaderAtomic(cachePath, downloadContextReader{ctx: ctx, reader: resp.Body}, fs.PermDirPrivate, fs.PermFileShared); writeErr != nil {
 			closeWithWarning(resp.Body, "download response body")
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return "", ctxErr
 			}
 			lastErr = errors.Wrap(writeErr, "failed to write package to cache")
 			err = lastErr
-			if attempt < maxAttempts {
+			if isTransientDownloadError(writeErr) && attempt < maxAttempts {
 				if sleepErr := sleepRetryBackoff(ctx, backoff(attempt)); sleepErr != nil {
 					return "", sleepErr
 				}
@@ -380,6 +400,12 @@ func ReleaseAssetByPatternWithAPI(request ReleaseAssetAPIRequest) (filename, tag
 }
 
 func downloadReleaseAsset(request ReleaseAssetDownloadRequest) (string, error) {
+	if request.Context == nil {
+		request.Context = context.Background()
+	}
+	if err := request.Context.Err(); err != nil {
+		return "", err
+	}
 	if request.Asset == nil {
 		return "", errors.New("no release asset selected")
 	}
@@ -395,7 +421,7 @@ func downloadReleaseAsset(request ReleaseAssetDownloadRequest) (string, error) {
 		if rc == nil {
 			return "", errors.New("empty response body for release asset download")
 		}
-		if writeErr := fs.WriteFromReaderAtomic(request.Destination, rc, fs.PermDirPrivate, fs.PermFileShared); writeErr != nil {
+		if writeErr := fs.WriteFromReaderAtomic(request.Destination, downloadContextReader{ctx: request.Context, reader: rc}, fs.PermDirPrivate, fs.PermFileShared); writeErr != nil {
 			closeWithWarning(rc, "release asset response body")
 			return "", errors.Wrap(writeErr, "failed to write package to cache")
 		}

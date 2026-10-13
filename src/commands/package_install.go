@@ -1,12 +1,15 @@
 package commands
 
 import (
+	"slices"
+
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
+	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
 func packageInstallFlags() []cli.Flag {
@@ -38,30 +41,29 @@ func packageInstall(c *cli.Context) error {
 		deps = append(deps, versioning.DependencyString(dep))
 	}
 
-	pcx, _, err := loadPackageContext(c, dir, false)
+	pcx, _, err := loadDependencyOperationContext(c, dir)
 	if err != nil {
-		return errors.Wrap(err, "failed to interpret directory as Pawn package")
+		return reportDependencyCommandError(c, "install", errors.Wrap(err, "failed to interpret directory as Pawn package"))
 	}
 
 	if err = initLockfileResolver(c, pcx); err != nil {
-		return errors.Wrap(err, "failed to initialize lockfile resolver")
+		return reportDependencyCommandError(c, "install", &pkgcontext.OperationError{Operation: "read lockfile", Err: errors.Wrap(err, "failed to initialize lockfile resolver")})
 	}
 
 	ctx, cancel := newCommandContext()
 	defer cancel()
 
+	previous := slices.Clone(pcx.Package.GetAllDependencies())
 	err = pcx.Install(ctx, deps, development)
 	if err != nil {
-		return err
+		return reportDependencyCommandError(c, "install", err)
 	}
 
-	// save lockfile after successful install
-	err = saveCommandLockfile(pcx)
-	if err != nil {
-		print.Warn("failed to save lockfile:", err)
+	if slices.Equal(previous, pcx.Package.GetAllDependencies()) {
+		print.Info("Dependency declarations unchanged")
+	} else {
+		print.Info("Dependency declarations updated")
 	}
-
-	print.Info("successfully added new dependency")
 
 	return nil
 }

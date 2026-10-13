@@ -1,26 +1,39 @@
 package runtime
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"reflect"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
+
+	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 )
 
 type fakeContainerRemover struct {
 	called      bool
 	containerID string
-	options     container.RemoveOptions
+	options     client.ContainerRemoveOptions
 }
 
-func (f *fakeContainerRemover) ContainerRemove(_ context.Context, containerID string, options container.RemoveOptions) error {
+func (f *fakeContainerRemover) ContainerRemove(_ context.Context, containerID string, options client.ContainerRemoveOptions) (client.ContainerRemoveResult, error) {
 	f.called = true
 	f.containerID = containerID
 	f.options = options
-	return nil
+	return client.ContainerRemoveResult{}, nil
 }
 
 func TestRemoveContainerUsesForce(t *testing.T) {
@@ -48,7 +61,7 @@ type fakeContainerWaiter struct {
 	err      error
 }
 
-func (f fakeContainerWaiter) ContainerWait(_ context.Context, _ string, _ container.WaitCondition) (<-chan container.WaitResponse, <-chan error) {
+func (f fakeContainerWaiter) ContainerWait(_ context.Context, _ string, _ client.ContainerWaitOptions) client.ContainerWaitResult {
 	responseCh := make(chan container.WaitResponse, 1)
 	errCh := make(chan error, 1)
 
@@ -58,7 +71,7 @@ func (f fakeContainerWaiter) ContainerWait(_ context.Context, _ string, _ contai
 		responseCh <- f.response
 	}
 
-	return responseCh, errCh
+	return client.ContainerWaitResult{Result: responseCh, Error: errCh}
 }
 
 func TestWaitForContainerExitAllowsZeroStatus(t *testing.T) {
@@ -83,21 +96,23 @@ func TestWaitForContainerExitRejectsNonZeroStatus(t *testing.T) {
 }
 
 type fakeContainerStopper struct {
-	killCalled   bool
-	killSignal   string
-	killErr      error
-	waitResponse container.WaitResponse
-	waitErr      error
-	waitDelay    time.Duration
+	killCalled    bool
+	killSignal    string
+	killErr       error
+	waitResponse  container.WaitResponse
+	waitErr       error
+	waitDelay     time.Duration
+	waitCondition container.WaitCondition
 }
 
-func (f *fakeContainerStopper) ContainerKill(_ context.Context, _ string, signal string) error {
+func (f *fakeContainerStopper) ContainerKill(_ context.Context, _ string, options client.ContainerKillOptions) (client.ContainerKillResult, error) {
 	f.killCalled = true
-	f.killSignal = signal
-	return f.killErr
+	f.killSignal = options.Signal
+	return client.ContainerKillResult{}, f.killErr
 }
 
-func (f *fakeContainerStopper) ContainerWait(ctx context.Context, _ string, _ container.WaitCondition) (<-chan container.WaitResponse, <-chan error) {
+func (f *fakeContainerStopper) ContainerWait(ctx context.Context, _ string, options client.ContainerWaitOptions) client.ContainerWaitResult {
+	f.waitCondition = options.Condition
 	responseCh := make(chan container.WaitResponse, 1)
 	errCh := make(chan error, 1)
 
@@ -118,7 +133,7 @@ func (f *fakeContainerStopper) ContainerWait(ctx context.Context, _ string, _ co
 		responseCh <- f.waitResponse
 	}()
 
-	return responseCh, errCh
+	return client.ContainerWaitResult{Result: responseCh, Error: errCh}
 }
 
 func TestStopContainerSendsSIGINTAndWaits(t *testing.T) {
@@ -129,6 +144,7 @@ func TestStopContainerSendsSIGINTAndWaits(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, cli.killCalled)
 	require.Equal(t, "SIGINT", cli.killSignal)
+	require.Equal(t, container.WaitConditionNotRunning, cli.waitCondition)
 }
 
 func TestStopContainerReturnsWaitError(t *testing.T) {
@@ -138,6 +154,137 @@ func TestStopContainerReturnsWaitError(t *testing.T) {
 	err := stopContainer(context.Background(), cli, "container-id")
 	require.EqualError(t, err, "wait failed")
 	require.True(t, cli.killCalled)
+}
+
+func TestRunContainerNegotiatesDocker25AndPullsMissingImage(t *testing.T) {
+	workingDir := t.TempDir()
+	cacheDir := t.TempDir()
+	port := 8192
+	image := "southclaws/sampctl:test-version"
+	var mu sync.Mutex
+	var requests []string
+	createCalls := 0
+
+	daemon := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		requests = append(requests, r.Method+" "+r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+
+		switch r.Method + " " + r.URL.Path {
+		case "HEAD /_ping":
+			w.Header().Set("API-Version", "1.44")
+		case "POST /v1.44/containers/create":
+			var request container.CreateRequest
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+				t.Errorf("decode ContainerCreate request: %v", err)
+				http.Error(w, "invalid request", http.StatusBadRequest)
+				return
+			}
+			if request.Config == nil || request.HostConfig == nil {
+				t.Error("ContainerCreate request must include config and host config")
+				http.Error(w, "missing config", http.StatusBadRequest)
+				return
+			}
+			if request.Image != image {
+				t.Errorf("ContainerCreate image = %q, want %q", request.Image, image)
+			}
+			if want := []string{"sampctl", "server", "run"}; !reflect.DeepEqual(request.Entrypoint, want) {
+				t.Errorf("ContainerCreate entrypoint = %v, want %v", request.Entrypoint, want)
+			}
+			if !request.Tty || !request.AttachStdout || !request.AttachStderr || !request.AttachStdin {
+				t.Errorf("ContainerCreate stream configuration = %+v, want tty and all streams attached", request.Config)
+			}
+			if !strings.HasPrefix(r.URL.Query().Get("name"), "sampctl-") {
+				t.Errorf("ContainerCreate name = %q, want sampctl- prefix", r.URL.Query().Get("name"))
+			}
+			wantMounts := []mount.Mount{
+				{Type: mount.TypeBind, Source: workingDir, Target: "/samp"},
+				{Type: mount.TypeBind, Source: cacheDir, Target: "/root/.samp", ReadOnly: true},
+			}
+			if !reflect.DeepEqual(request.HostConfig.Mounts, wantMounts) {
+				t.Errorf("ContainerCreate mounts = %+v, want %+v", request.HostConfig.Mounts, wantMounts)
+			}
+			bindings := request.HostConfig.PortBindings[network.MustParsePort("8192/tcp")]
+			if len(bindings) != 1 || bindings[0].HostIP.String() != "0.0.0.0" || bindings[0].HostPort != "8192" {
+				t.Errorf("ContainerCreate port bindings = %+v, want 0.0.0.0:8192 for 8192/tcp", request.HostConfig.PortBindings)
+			}
+			createCalls++
+			if createCalls == 1 {
+				w.WriteHeader(http.StatusNotFound)
+				_, _ = fmt.Fprintln(w, `{"message":"No such image"}`)
+				return
+			}
+			w.WriteHeader(http.StatusCreated)
+			_, _ = fmt.Fprintln(w, `{"Id":"container-id"}`)
+		case "POST /v1.44/images/create":
+			if got := r.URL.Query().Get("fromImage"); got != "docker.io/southclaws/sampctl" {
+				t.Errorf("ImagePull repository = %q, want docker.io/southclaws/sampctl", got)
+			}
+			if got := r.URL.Query().Get("tag"); got != "test-version" {
+				t.Errorf("ImagePull tag = %q, want test-version", got)
+			}
+			_, _ = fmt.Fprintln(w, `{"status":"download complete"}`)
+		case "POST /v1.44/containers/container-id/start":
+			w.WriteHeader(http.StatusNoContent)
+		case "GET /v1.44/containers/container-id/logs":
+			for _, key := range []string{"stdout", "stderr", "follow"} {
+				if got := r.URL.Query().Get(key); got != "1" {
+					t.Errorf("ContainerLogs %s = %q, want 1", key, got)
+				}
+			}
+			_, _ = fmt.Fprintln(w, "container output")
+		case "POST /v1.44/containers/container-id/wait":
+			if got := r.URL.Query().Get("condition"); got != "not-running" {
+				t.Errorf("ContainerWait condition = %q, want not-running", got)
+			}
+			_, _ = fmt.Fprintln(w, `{"StatusCode":0}`)
+		case "DELETE /v1.44/containers/container-id":
+			if got := r.URL.Query().Get("force"); got != "1" {
+				t.Errorf("ContainerRemove force = %q, want 1", got)
+			}
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			t.Errorf("unexpected Docker API request %s %s", r.Method, r.URL.Path)
+			http.Error(w, "unexpected request", http.StatusNotFound)
+		}
+	}))
+	defer daemon.Close()
+	t.Setenv("DOCKER_HOST", "tcp://"+strings.TrimPrefix(daemon.URL, "http://"))
+	t.Setenv("DOCKER_API_VERSION", "")
+	t.Setenv("DOCKER_CERT_PATH", "")
+	t.Setenv("DOCKER_TLS_VERIFY", "")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	var output bytes.Buffer
+	err := RunContainer(ctx, run.Runtime{
+		WorkingDir: workingDir,
+		AppVersion: "test-version",
+		Port:       &port,
+		Container:  &run.ContainerConfig{MountCache: true},
+	}, RunOptions{CacheDir: cacheDir, Output: &output})
+	if err != nil {
+		t.Fatalf("RunContainer(Docker 25) = %v, want nil", err)
+	}
+	if got := output.String(); got != "container output\n" {
+		t.Errorf("RunContainer output = %q, want container output followed by newline", got)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	wantRequests := []string{
+		"HEAD /_ping",
+		"POST /v1.44/containers/create",
+		"POST /v1.44/images/create",
+		"POST /v1.44/containers/create",
+		"POST /v1.44/containers/container-id/start",
+		"GET /v1.44/containers/container-id/logs",
+		"POST /v1.44/containers/container-id/wait",
+		"DELETE /v1.44/containers/container-id",
+	}
+	if !reflect.DeepEqual(requests, wantRequests) {
+		t.Errorf("RunContainer requests = %v, want %v", requests, wantRequests)
+	}
 }
 
 func TestStopContainerReturnsContextError(t *testing.T) {

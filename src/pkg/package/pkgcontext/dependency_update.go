@@ -2,6 +2,7 @@ package pkgcontext
 
 import (
 	"context"
+	stderrors "errors"
 
 	"github.com/pkg/errors"
 
@@ -101,12 +102,25 @@ type dependencyUpdateResult struct {
 func (pcx *PackageContext) UpdateDependencyReferences(
 	ctx context.Context,
 	request DependencyUpdateRequest,
-) (bool, error) {
+) (updated bool, err error) {
 	if !request.Enabled || !pcx.Package.Parent {
 		return false, nil
 	}
 	if pcx.Package.LocalPath == "" {
 		return false, errors.New("package has no local path")
+	}
+	standalone := pcx.dependencyInstalls == nil
+	if standalone {
+		state, beginErr := pcx.beginDependencyOperation(ctx)
+		if beginErr != nil {
+			return false, beginErr
+		}
+		defer func() {
+			err = pcx.finishDependencyOperation(state, err)
+			if err != nil {
+				updated = false
+			}
+		}()
 	}
 
 	definitionPath, definitionPerm, originalDefinition, err := pcx.readDefinitionSnapshot()
@@ -116,6 +130,7 @@ func (pcx *PackageContext) UpdateDependencyReferences(
 
 	originalDeps := append([]versioning.DependencyString(nil), pcx.Package.Dependencies...)
 	originalDev := append([]versioning.DependencyString(nil), pcx.Package.Development...)
+	originalResolved := pcx.PackageResolvedState
 
 	changedDeps, err := pcx.updateDependencyList(ctx, pcx.Package.Dependencies, request)
 	if err != nil {
@@ -127,7 +142,7 @@ func (pcx *PackageContext) UpdateDependencyReferences(
 	}
 
 	if request.HasTarget() && !changedDeps.matched && !changedDev.matched {
-		return false, errors.Errorf("dependency %s was not found in package definition", request.Target)
+		return false, &DependencyError{Dependency: request.Target, Operation: "select", Err: errors.New("dependency was not found in package definition")}
 	}
 
 	if !changedDeps.changed && !changedDev.changed {
@@ -138,19 +153,25 @@ func (pcx *PackageContext) UpdateDependencyReferences(
 	pcx.Package.Development = changedDev.updated
 
 	if err := pcx.Package.WriteDefinition(); err != nil {
-		return false, errors.Wrap(err, "failed to write updated package definition")
-	}
-
-	if err := pcx.refreshDependencyGraph(request); err != nil {
 		pcx.Package.Dependencies = originalDeps
 		pcx.Package.Development = originalDev
+		return false, &OperationError{Operation: "manifest", Err: err}
+	}
+
+	refreshGraph := pcx.refreshDependencyGraphContext
+	if standalone {
+		refreshGraph = pcx.refreshDependencyReferenceGraphContext
+	}
+	if err := refreshGraph(ctx, request); err != nil {
+		pcx.Package.Dependencies = originalDeps
+		pcx.Package.Development = originalDev
+		pcx.PackageResolvedState = originalResolved
 		restoreErr := fs.WriteFileAtomic(definitionPath, originalDefinition, fs.PermDirPrivate, definitionPerm)
 		if restoreErr != nil {
-			return false, errors.Wrapf(err, "failed to refresh dependency tree after update, rollback failed: %v", restoreErr)
+			return false, stderrors.Join(err, &OperationError{Operation: "rollback", Err: restoreErr})
 		}
 		return false, errors.Wrap(err, "failed to refresh dependency tree after update, rolling back changes")
 	}
-
 	return true, nil
 }
 
@@ -160,12 +181,15 @@ func (pcx *PackageContext) updateDependencyList(
 	request DependencyUpdateRequest,
 ) (dependencyUpdateResult, error) {
 	result := dependencyUpdateResult{updated: make([]versioning.DependencyString, 0, len(deps))}
+	var failures []error
 
 	for _, depStr := range deps {
+		if err := ctx.Err(); err != nil {
+			return dependencyUpdateResult{}, stderrors.Join(append(failures, err)...)
+		}
 		meta, err := depStr.Explode()
 		if err != nil {
-			print.Warn("invalid dependency string, skipping update:", depStr, "(", err, ")")
-			result.updated = append(result.updated, depStr)
+			failures = append(failures, &DependencyError{Dependency: string(depStr), Operation: "parse", Err: err})
 			continue
 		}
 
@@ -177,12 +201,10 @@ func (pcx *PackageContext) updateDependencyList(
 
 		updatedMeta, changed, updateErr := pcx.updatedDependencyMeta(ctx, meta, request)
 		if updateErr != nil {
-			if request.HasTarget() {
-				return dependencyUpdateResult{}, updateErr
+			failures = append(failures, &DependencyError{Dependency: string(depStr), Operation: "update", Err: updateErr})
+			if stderrors.Is(updateErr, context.Canceled) || stderrors.Is(updateErr, context.DeadlineExceeded) {
+				return dependencyUpdateResult{}, stderrors.Join(failures...)
 			}
-
-			print.Warn(meta, "failed to update dependency reference:", updateErr)
-			result.updated = append(result.updated, depStr)
 			continue
 		}
 
@@ -197,7 +219,7 @@ func (pcx *PackageContext) updateDependencyList(
 		print.Verb("updated dependency", depStr, "->", newDep)
 	}
 
-	return result, nil
+	return result, stderrors.Join(failures...)
 }
 
 func (pcx *PackageContext) updatedDependencyMeta(

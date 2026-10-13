@@ -9,8 +9,7 @@ import (
 	"strings"
 
 	"github.com/joho/godotenv"
-	"github.com/kr/pretty"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
@@ -45,7 +44,7 @@ func loadConfigFile(configFile string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	print.Verb("Using configuration:", pretty.Sprint(cfg))
+	print.Verb("Loaded configuration from", configFile)
 	return cfg, nil
 }
 

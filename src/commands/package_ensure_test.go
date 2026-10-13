@@ -3,10 +3,12 @@ package commands
 import (
 	"context"
 	"errors"
+	"flag"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/lockfile"
@@ -34,6 +36,17 @@ func (f *fakeEnsureCommandTarget) UpdateLockfile(_ context.Context, request pkgc
 	f.updateLockfileCalled = true
 	f.updateLockfileRequest = request
 	return f.updateLockfileErr
+}
+
+func TestParseEnsureRejectsConflictingLockFlags(t *testing.T) {
+	t.Parallel()
+	ctx := newTestCLIContext("dev")
+	set := flag.NewFlagSet("ensure", flag.ContinueOnError)
+	set.Bool("no-lock", true, "")
+	set.Bool("lock-only", true, "")
+	ctx = cli.NewContext(ctx.App, set, nil)
+	_, err := parseEnsureUpdateRequest(ctx)
+	require.EqualError(t, err, "cannot use --lock-only with --no-lock")
 }
 
 func TestRunPackageEnsureForceUpdate(t *testing.T) {

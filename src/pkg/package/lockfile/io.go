@@ -52,7 +52,7 @@ func Save(dir string, lockfile *Lockfile) error {
 	}
 
 	path := filepath.Join(dir, Filename)
-	err = os.WriteFile(path, data, 0o644)
+	err = fs.WriteFileAtomic(path, data, fs.PermDirPrivate, 0o644)
 	if err != nil {
 		return errors.Wrap(err, "failed to write lockfile")
 	}

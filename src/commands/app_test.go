@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/kirsle/configdir"
-	"github.com/mitchellh/go-homedir"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/urfave/cli.v1"
@@ -25,12 +24,10 @@ import (
 
 func TestRunBareVersion(t *testing.T) {
 	t.Cleanup(configdir.Refresh)
-	t.Cleanup(homedir.Reset)
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("APPDATA", t.TempDir())
 	configdir.Refresh()
-	homedir.Reset()
 
 	require.NoError(t, Run([]string{"sampctl", "--bare", "version"}, "1.2.3"))
 }
@@ -156,12 +153,10 @@ func TestRunCheckHelpDoesNotCreateManagedState(t *testing.T) {
 
 func TestRunCheckPreservesLegacyStateAndClassifiesUsageError(t *testing.T) {
 	t.Cleanup(configdir.Refresh)
-	t.Cleanup(homedir.Reset)
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("APPDATA", t.TempDir())
 	configdir.Refresh()
-	homedir.Reset()
 	legacyDir := filepath.Join(os.Getenv("HOME"), ".samp")
 	require.NoError(t, os.Mkdir(legacyDir, 0o700))
 	legacyConfig := filepath.Join(legacyDir, "config.json")

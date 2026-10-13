@@ -5,10 +5,10 @@ import (
 	stderrors "errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/google/go-github/github"
-	"github.com/pkg/errors"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
@@ -20,56 +20,67 @@ func (pcx *PackageContext) Install(
 	targets []versioning.DependencyString,
 	development bool,
 ) (err error) {
-	exists := false
-
+	state, err := pcx.beginDependencyOperation(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { err = pcx.finishDependencyOperation(state, err) }()
+	changed := false
 	for _, target := range targets {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		var meta versioning.DependencyMeta
 		meta, err = target.Explode()
 		if err != nil {
-			return errors.Wrapf(err, "failed to parse %s as a dependency string", target)
+			return &DependencyError{Dependency: string(target), Operation: "parse", Err: err}
 		}
-
+		if pcx.declaresDependency(meta) {
+			continue
+		}
 		target, err = pcx.resolveInstallTarget(ctx, target, meta)
 		if err != nil {
 			return err
 		}
-
-		for _, dep := range pcx.Package.GetAllDependencies() {
-			if dep == target {
-				exists = true
-			}
+		if slices.Contains(pcx.Package.GetAllDependencies(), target) {
+			continue
 		}
-
-		if !exists {
-			if development {
-				pcx.Package.Development = append(pcx.Package.Development, target)
-			} else {
-				pcx.Package.Dependencies = append(pcx.Package.Dependencies, target)
-			}
+		if development {
+			pcx.Package.Development = append(pcx.Package.Development, target)
 		} else {
-			print.Warn("target already exists in dependencies")
-			return
+			pcx.Package.Dependencies = append(pcx.Package.Dependencies, target)
+		}
+		changed = true
+	}
+	if !changed {
+		return nil
+	}
+	if err := pcx.EnsureDependenciesCachedContext(ctx); err != nil {
+		return err
+	}
+	if err := pcx.EnsureDependencies(ctx, false); err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := pcx.Package.WriteDefinition(); err != nil {
+		return &OperationError{Operation: "manifest", Err: err}
+	}
+	return pcx.syncDependencyLockfile(ctx)
+}
+
+func (pcx PackageContext) declaresDependency(target versioning.DependencyMeta) bool {
+	for _, declaration := range pcx.Package.GetAllDependencies() {
+		meta, err := declaration.Explode()
+		if err != nil || dependencyUpdateIdentity(meta) != dependencyUpdateIdentity(target) {
+			continue
+		}
+		if !hasExplicitDependencyConstraint(target) || sameDependencyConstraint(meta, target) {
+			return true
 		}
 	}
-
-	print.Verb(pcx.Package, "ensuring dependencies are cached for package context")
-	err = pcx.EnsureDependenciesCached()
-	if err != nil {
-		return
-	}
-
-	print.Verb(pcx.Package, "ensuring dependencies are installed for package context")
-	err = pcx.EnsureDependencies(ctx, true)
-	if err != nil {
-		return
-	}
-
-	err = pcx.Package.WriteDefinition()
-	if err != nil {
-		return
-	}
-
-	return nil
+	return false
 }
 
 func (pcx PackageContext) resolveInstallTarget(
@@ -77,13 +88,13 @@ func (pcx PackageContext) resolveInstallTarget(
 	target versioning.DependencyString,
 	meta versioning.DependencyMeta,
 ) (versioning.DependencyString, error) {
-	if meta.Commit != "" || meta.Branch != "" || meta.Tag != "" {
+	if meta.IsLocalScheme() || meta.Commit != "" || meta.Branch != "" || meta.Tag != "" {
 		return target, nil
 	}
 
 	tags, err := pcx.listRepositoryTags(ctx, meta.User, meta.Repo)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to get repository tags for dependency %s", target)
+		return "", &DependencyError{Dependency: string(target), Operation: "resolve tags", Err: err}
 	}
 	if len(tags) == 0 || tags[0] == nil || tags[0].Name == nil {
 		return target, nil
@@ -108,7 +119,7 @@ func (pcx PackageContext) listRepositoryTags(
 		return tags, err
 	}
 
-	print.Verb("GitHub tag lookup failed with credentials, retrying without auth:", err)
+	print.Verb("GitHub tag lookup failed with credentials, retrying without auth")
 
 	fallbackClient := newAnonymousGitHubClient(client)
 	tags, _, fallbackErr := fallbackClient.Repositories.ListTags(ctx, user, repo, &options)

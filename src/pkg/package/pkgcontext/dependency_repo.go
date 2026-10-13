@@ -1,8 +1,8 @@
 package pkgcontext
 
 import (
-	"os"
-	"path/filepath"
+	"context"
+	stderrors "errors"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -13,87 +13,120 @@ import (
 )
 
 func (pcx *PackageContext) ensureDependencyRepository(meta versioning.DependencyMeta, dependencyPath string) (*git.Repository, error) {
+	return pcx.ensureDependencyRepositoryContext(context.Background(), meta, dependencyPath)
+}
+
+func (pcx *PackageContext) ensureDependencyRepositoryContext(ctx context.Context, meta versioning.DependencyMeta, dependencyPath string) (*git.Repository, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	repo, err := pcx.PackageServices.repositoryStore().Open(dependencyPath)
 	if err == nil {
 		head, headErr := repo.Head()
 		if headErr != nil {
 			print.Verb(meta, "existing repository has invalid HEAD, re-cloning")
-			return pcx.recloneDependency(meta, dependencyPath)
+			return pcx.recloneDependencyContext(ctx, meta, dependencyPath)
 		}
 		print.Verb(meta, "repository already exists at", head.Hash().String()[:8])
 		return repo, nil
 	}
 
 	if err != git.ErrRepositoryNotExists {
-		print.Verb(meta, "error opening repository:", err)
-		return pcx.recloneDependency(meta, dependencyPath)
+		print.Verb(meta, "unable to open dependency repository")
+		return pcx.recloneDependencyContext(ctx, meta, dependencyPath)
 	}
 
 	print.Verb(meta, "repository does not exist, cloning from cache")
-	return pcx.cloneDependencyFromCache(meta, dependencyPath)
+	return pcx.cloneDependencyFromCacheContext(ctx, meta, dependencyPath)
 }
 
 func (pcx *PackageContext) cloneDependencyFromCache(meta versioning.DependencyMeta, dependencyPath string) (*git.Repository, error) {
-	repo, err := pcx.EnsureDependencyFromCache(meta, dependencyPath, false)
+	return pcx.cloneDependencyFromCacheContext(context.Background(), meta, dependencyPath)
+}
+
+func (pcx *PackageContext) cloneDependencyFromCacheContext(ctx context.Context, meta versioning.DependencyMeta, dependencyPath string) (*git.Repository, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	repo, err := pcx.EnsureDependencyFromCacheContext(ctx, meta, dependencyPath, false)
 	if err != nil {
-		print.Verb(meta, "failed to clone from cache:", err)
-		if removeErr := os.RemoveAll(dependencyPath); removeErr != nil {
-			print.Warn("failed to clean up dependency clone:", removeErr)
-		}
 		return nil, errors.Wrap(err, "failed to clone dependency from cache")
 	}
 
 	valid, validationErr := pcx.PackageServices.repositoryHealth().Validate(dependencyPath)
 	if validationErr != nil || !valid {
 		print.Verb(meta, "cloned repository failed validation")
-		if removeErr := os.RemoveAll(dependencyPath); removeErr != nil {
-			print.Warn("failed to clean up invalid dependency clone:", removeErr)
+		if validationErr == nil {
+			validationErr = errors.New("cloned repository failed validation")
 		}
-		if validationErr != nil {
-			return nil, errors.Wrap(validationErr, "cloned repository is invalid")
-		}
-		return nil, errors.New("cloned repository failed validation")
+		return nil, errors.Wrap(validationErr, "cloned repository is invalid")
 	}
 
 	return repo, nil
 }
 
 func (pcx *PackageContext) recloneDependency(meta versioning.DependencyMeta, dependencyPath string) (*git.Repository, error) {
+	return pcx.recloneDependencyContext(context.Background(), meta, dependencyPath)
+}
+
+func (pcx *PackageContext) recloneDependencyContext(ctx context.Context, meta versioning.DependencyMeta, dependencyPath string) (_ *git.Repository, err error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	print.Verb(meta, "re-cloning dependency at", dependencyPath)
 
-	if err := os.RemoveAll(dependencyPath); err != nil {
-		return nil, errors.Wrap(err, "failed to remove corrupted dependency")
+	if _, err := pcx.EnsureDependencyCachedContext(ctx, meta, false); err != nil {
+		return nil, errors.Wrap(err, "failed to ensure cached dependency for recovery")
 	}
-
-	return pcx.cloneDependencyFromCache(meta, dependencyPath)
+	from, err := pcx.cacheRepositoryPath(meta)
+	if err != nil {
+		return nil, err
+	}
+	unlock, err := lockRepositoryPath(ctx, from)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { err = stderrors.Join(err, unlock()) }()
+	if err := validateRepositoryDestination(from); err != nil {
+		return nil, err
+	}
+	if err := validateRepositoryDestination(dependencyPath); err != nil {
+		return nil, err
+	}
+	return pcx.cloneRepositoryContext(repoEnsureRequest{Context: ctx, From: from, To: dependencyPath, Branch: meta.Branch, FullClone: true})
 }
 
 func (pcx *PackageContext) updateRepoStateWithRecovery(repo *git.Repository, meta versioning.DependencyMeta, dependencyPath string, forceUpdate bool) error {
-	err := pcx.updateRepoState(repo, meta, forceUpdate)
+	return pcx.updateRepoStateWithRecoveryContext(context.Background(), repo, meta, dependencyPath, forceUpdate)
+}
+
+func (pcx *PackageContext) updateRepoStateWithRecoveryContext(ctx context.Context, repo *git.Repository, meta versioning.DependencyMeta, dependencyPath string, forceUpdate bool) error {
+	err := pcx.updateRepoStateContext(ctx, repo, meta, forceUpdate)
 	if err == nil {
 		return nil
 	}
 
-	print.Verb(meta, "first update attempt failed:", err)
-
+	if ctx.Err() != nil || stderrors.Is(err, context.Canceled) || stderrors.Is(err, context.DeadlineExceeded) {
+		return err
+	}
+	valid, validationErr := pcx.PackageServices.repositoryHealth().Validate(dependencyPath)
+	if validationErr != nil || valid {
+		return err
+	}
+	print.Verb(meta, "repository update failed and repository is invalid")
 	if repairErr := pcx.PackageServices.repositoryHealth().Repair(dependencyPath); repairErr == nil {
 		print.Verb(meta, "repository repaired, retrying update")
 		if repo, openErr := pcx.PackageServices.repositoryStore().Open(dependencyPath); openErr == nil {
-			if err = pcx.updateRepoState(repo, meta, true); err == nil {
+			if retryErr := pcx.updateRepoStateContext(ctx, repo, meta, forceUpdate); retryErr == nil {
 				return nil
+			} else if ctx.Err() != nil || stderrors.Is(retryErr, context.Canceled) || stderrors.Is(retryErr, context.DeadlineExceeded) {
+				return retryErr
 			}
 		}
 	}
 
-	print.Verb(meta, "attempting force update")
-	err = pcx.updateRepoState(repo, meta, true)
-	if err == nil {
-		return nil
-	}
-
-	print.Verb(meta, "all update attempts failed, re-cloning dependency")
-	if _, cloneErr := pcx.recloneDependency(meta, dependencyPath); cloneErr != nil {
-		return errors.Wrap(cloneErr, "failed to recover by re-cloning")
+	if _, cloneErr := pcx.recloneDependencyContext(ctx, meta, dependencyPath); cloneErr != nil {
+		return stderrors.Join(err, errors.Wrap(cloneErr, "failed to recover by re-cloning"))
 	}
 
 	repo, err = pcx.PackageServices.repositoryStore().Open(dependencyPath)
@@ -101,7 +134,7 @@ func (pcx *PackageContext) updateRepoStateWithRecovery(repo *git.Repository, met
 		return errors.Wrap(err, "failed to open re-cloned repository")
 	}
 
-	return pcx.updateRepoState(repo, meta, forceUpdate)
+	return pcx.updateRepoStateContext(ctx, repo, meta, forceUpdate)
 }
 
 func (pcx *PackageContext) updateRepoState(
@@ -109,7 +142,14 @@ func (pcx *PackageContext) updateRepoState(
 	meta versioning.DependencyMeta,
 	forcePull bool,
 ) error {
-	print.Verb(meta, "updating repository state with", pcx.GitAuth, "authentication method")
+	return pcx.updateRepoStateContext(context.Background(), repo, meta, forcePull)
+}
+
+func (pcx *PackageContext) updateRepoStateContext(ctx context.Context, repo *git.Repository, meta versioning.DependencyMeta, forcePull bool) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	print.Verb(meta, "updating repository state")
 	remoteURL := getRepositoryOriginURL(repo)
 
 	var (
@@ -119,7 +159,11 @@ func (pcx *PackageContext) updateRepoState(
 
 	if forcePull {
 		print.Verb(meta, "performing forced pull to latest tip")
-		repo, err = pcx.EnsureDependencyFromCache(meta, filepath.Join(pcx.Package.Vendor, meta.Repo), true)
+		wt, err = repo.Worktree()
+		if err != nil {
+			return errors.Wrap(err, "failed to get repo worktree")
+		}
+		repo, err = pcx.EnsureDependencyFromCacheContext(ctx, meta, wt.Filesystem.Root(), true)
 		if err != nil {
 			return errors.Wrap(err, "failed to ensure dependency in cache")
 		}
@@ -133,7 +177,7 @@ func (pcx *PackageContext) updateRepoState(
 			forcePullOpts.Auth = auth
 		}
 
-		if err = wt.Pull(forcePullOpts); err != nil && err != git.NoErrAlreadyUpToDate {
+		if err = wt.PullContext(ctx, forcePullOpts); err != nil && err != git.NoErrAlreadyUpToDate {
 			return errors.Wrap(err, "failed to force pull for full update")
 		}
 	} else {
@@ -156,29 +200,38 @@ func (pcx *PackageContext) updateRepoState(
 		if err != nil {
 			return errors.Wrap(err, "failed to get ref from tag")
 		}
-	case meta.Branch != "":
+	case meta.Branch != "" && meta.Commit == "":
 		print.Verb(meta, "package has branch constraint:", meta.Branch)
 		pullOpts.Depth = 1000
 		pullOpts.ReferenceName = plumbing.ReferenceName("refs/heads/" + meta.Branch)
-		if err = wt.Pull(pullOpts); err != nil && err != git.NoErrAlreadyUpToDate {
-			return errors.Wrap(err, "failed to pull repo branch")
-		}
 		ref, err = versioning.RefFromBranch(repo, meta)
+		if err != nil {
+			if err = wt.PullContext(ctx, pullOpts); err != nil && err != git.NoErrAlreadyUpToDate {
+				return errors.Wrap(err, "failed to pull repo branch")
+			}
+			ref, err = versioning.RefFromBranch(repo, meta)
+		}
 		if err != nil {
 			return errors.Wrap(err, "failed to get ref from branch")
 		}
 	case meta.Commit != "":
 		pullOpts.Depth = 1000
-		if err = wt.Pull(pullOpts); err != nil && err != git.NoErrAlreadyUpToDate {
-			return errors.Wrap(err, "failed to pull repo")
-		}
 		ref, err = versioning.RefFromCommit(repo, meta)
+		if err != nil {
+			if err = wt.PullContext(ctx, pullOpts); err != nil && err != git.NoErrAlreadyUpToDate {
+				return errors.Wrap(err, "failed to pull repo")
+			}
+			ref, err = versioning.RefFromCommit(repo, meta)
+		}
 		if err != nil {
 			return errors.Wrap(err, "failed to get ref from commit")
 		}
 	}
 
 	if ref != nil {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if err = wt.Checkout(&git.CheckoutOptions{Hash: ref.Hash(), Force: true}); err != nil {
 			return errors.Wrapf(err, "failed to checkout necessary commit %s", ref.Hash())
 		}
@@ -187,7 +240,7 @@ func (pcx *PackageContext) updateRepoState(
 	}
 
 	print.Verb(meta, "package does not have version constraint pulling latest")
-	if err = wt.Pull(pullOpts); err != nil {
+	if err = wt.PullContext(ctx, pullOpts); err != nil {
 		if err == git.NoErrAlreadyUpToDate {
 			return nil
 		}

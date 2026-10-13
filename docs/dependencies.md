@@ -1,13 +1,9 @@
 # Dependencies
 
-Dependencies are how `sampctl` downloads other packages your project needs.
+List dependencies in `pawn.json` / `pawn.yaml` under `dependencies` or
+`dev_dependencies`.
 
-They live in `pawn.json` / `pawn.yaml` under:
-
-- `dependencies`
-- `dev_dependencies`
-
-## Add / remove
+## Add and remove
 
 ```bash
 sampctl install <user/repo>
@@ -15,57 +11,68 @@ sampctl uninstall <user/repo>
 sampctl ensure
 ```
 
-## Version pinning
+Install adds a declaration after installing its required dependencies. Uninstall
+removes the declaration and updates an existing `pawn.lock` offline. Installed
+files, including external and local paths, remain. Use `--dev` for development
+dependencies. Ensure installs the declared dependencies.
 
-You can pin dependencies to specific versions.
+A bare uninstall name matches a pinned declaration. An explicit tag, branch, or
+commit must match it. Shared transitive pins remain; older lockfiles without
+relationship data may keep unused entries until the next successful ensure.
+
+## Version pinning
 
 - Tag: `user/repo:1.2.3`
 - Branch: `user/repo@branch-name`
 - Commit: `user/repo#<sha1>`
 
-Pinned dependencies use the package definition from that revision.
-
-Examples:
+Pinned dependencies use the package definition from that revision. An unpinned
+transitive dependency uses the project's explicit pin for that repo. Examples:
 
 - `pawn-lang/YSI-Includes@5.x`
 - `samp-incognito/samp-streamer-plugin:2.8.2`
 
-## Special schemes (plugins, components, includes)
-
-Some dependencies are “installed” into special places instead of `./dependencies/`.
+## Dependency schemes
 
 - `plugin://user/repo` downloads plugin binaries into `./plugins/`
 - `component://user/repo` downloads open.mp components into `./components/`
-- `includes://user/repo` adds additional include paths
+- `includes://user/repo` adds include paths
 - `filterscript://user/repo` installs a filterscript
 
-See also: [Dependency schemes](dependency-schemes.md)
+See [Dependency schemes](dependency-schemes.md) for details.
 
-## Plugins/components: what actually happens
+Plugins and components use their package's `resources` metadata to select a
+GitHub release asset by `(platform, runtime.version)`. Sampctl installs the repo,
+extracts the binaries into the directories above, and adds them to the runtime
+config.
 
-When a dependency is treated as a plugin/component, `sampctl`:
+Resource versions must match `runtime.version` exactly. If none matches, sampctl
+uses a resource for the same platform with an empty `version`. Versions containing
+`openmp` or `open.mp` select open.mp. See [Plugin resources](plugin-resources.md)
+for package author guidance.
 
-1) Ensures the repo (like a normal dependency).
-2) Reads the dependency’s `resources` metadata.
-3) Picks a single resource by matching `(platform, runtime.version)`.
-4) Downloads the matching GitHub release asset and extracts binaries to:
+## Failures and recovery
 
-- `./plugins/` for `plugin://` dependencies
-- `./components/` for `component://` dependencies
+Required dependency failures return a nonzero exit status. Sampctl reports
+independent failures together. Use `--verbose` for details or `sampctl check`
+to inspect local state.
 
-Then it auto-adds the plugin/component name to the runtime config that is generated for the run.
+Install and ensure prepare managed dependencies before replacing them. If
+installation or saving project files fails, sampctl attempts to restore previous
+dependencies, the package definition, and `pawn.lock`. Valid caches remain.
+Rollback and cleanup failures return errors too; cleanup can fail after changes
+have been saved.
 
-### Runtime version strings (resource matching)
+With lockfile support enabled, success includes saving `pawn.lock`. Adding a
+dependency preserves existing pins. `ensure --no-lock` leaves the lockfile alone;
+`ensure --lock-only` refreshes it without installing dependencies.
 
-Resource selection is an **exact string match** against `runtime.version`.
+Individual project files are written atomically. Runtime files may remain after
+any failure. A process or machine failure can interrupt combined updates. After
+an interruption, run `sampctl check`, inspect project files, then retry
+`sampctl ensure`. Inspect any reported backup with `--verbose` before restoring
+or deleting it.
 
-- If there’s no exact match, `sampctl` falls back to a resource with the same `platform` and an empty resource `version`.
-- open.mp detection is based on the runtime `version` string containing `openmp` or `open.mp`.
-
-If you’re a plugin author, see: [Plugin resources](plugin-resources.md)
-
-After changing dependencies:
-
-```bash
-sampctl ensure
-```
+Only one dependency operation can change a project at a time. Retry when the
+current operation ends. A leftover `.sampctl-dependencies.lock` file does not
+mean an operation is running.

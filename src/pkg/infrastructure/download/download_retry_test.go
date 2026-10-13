@@ -2,7 +2,7 @@ package download
 
 import (
 	"context"
-	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -117,7 +117,7 @@ func TestDownloadStopsRetryingWhenContextCanceledDuringBackoff(t *testing.T) {
 	}
 	fromNetClientFactory = func() *http.Client {
 		return &http.Client{Transport: roundTripClient(func(*http.Request) (*http.Response, error) {
-			return nil, errors.New("temporary failure")
+			return nil, &net.DNSError{Err: "temporary failure", IsTemporary: true}
 		})}
 	}
 

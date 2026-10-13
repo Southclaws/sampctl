@@ -62,7 +62,7 @@ func packageConfig(c *cli.Context) error {
 		{
 			f.SetString(value)
 		}
-	case reflect.Ptr:
+	case reflect.Pointer:
 		{
 			fieldType := reflect.Indirect(f)
 			switch fieldType.Kind() {
@@ -103,7 +103,7 @@ func displayConfig(v reflect.Value) {
 					{fieldType.Name, v},
 				})
 			}
-		case reflect.Ptr:
+		case reflect.Pointer:
 			{
 				pField := reflect.Indirect(field)
 				switch pField.Kind() {

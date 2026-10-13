@@ -4,14 +4,13 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	stderrors "errors"
 	"io"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/pkg/errors"
-	"gopkg.in/eapache/go-resiliency.v1/retrier"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
@@ -36,6 +35,9 @@ func (pcx *PackageContext) ensureDependencies(
 	ctx context.Context,
 	request DependencyUpdateRequest,
 ) (err error) {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if pcx.Package.LocalPath == "" {
 		return errors.New("package does not represent a locally stored package")
 	}
@@ -45,42 +47,41 @@ func (pcx *PackageContext) ensureDependencies(
 	}
 
 	pcx.Package.Vendor = filepath.Join(pcx.Package.LocalPath, "dependencies")
+	if err := pcx.validateDependencyDestinations(); err != nil {
+		return err
+	}
 	directDependencies := pcx.directDependencySet()
+	directConstraints := pcx.directDependencyConstraints()
+	failures := pcx.validateLocalDependencyPaths(ctx)
 
 	for _, dependency := range pcx.AllDependencies {
+		dependency = inheritDirectDependencyConstraint(dependency, directConstraints)
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ctxErr
 		}
 
-		dep := dependency
-		_, direct := directDependencies[dependencyUpdateIdentity(dep)]
-		forceDependencyUpdate := request.ShouldForceDependency(dep, direct)
-		r := retrier.New(retrier.ConstantBackoff(1, 100*time.Millisecond), nil)
-		err := r.Run(func() error {
-			if ctxErr := ctx.Err(); ctxErr != nil {
-				return ctxErr
-			}
-
-			print.Verb("attempting to ensure dependency", dep)
-			errInner := pcx.ensurePackage(ctx, dep, forceDependencyUpdate)
-			if errInner != nil {
-				print.Warn(errors.Wrapf(errInner, "failed to ensure package %s", dep))
-				return errInner
-			}
-			print.Info(pcx.Package, "successfully ensured dependency files for", dep)
-			return nil
-		})
+		_, direct := directDependencies[dependencyUpdateIdentity(dependency)]
+		forceDependencyUpdate := request.ShouldForceDependency(dependency, direct)
+		print.Verb("attempting to ensure dependency", dependency)
+		err := pcx.ensurePackage(ctx, dependency, forceDependencyUpdate)
 		if err != nil {
 			if ctxErr := ctx.Err(); ctxErr != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				if ctxErr != nil {
-					return ctxErr
+				if ctxErr != nil && !stderrors.Is(err, ctxErr) {
+					err = stderrors.Join(err, ctxErr)
 				}
-				return err
+				return stderrors.Join(stderrors.Join(failures...), &DependencyError{Dependency: dependency.String(), Operation: "ensure", Err: err})
 			}
 
-			print.Warn("failed to ensure package", dep, "after 2 attempts, skipping")
+			failures = append(failures, &DependencyError{Dependency: dependency.String(), Operation: "ensure", Err: err})
 			continue
 		}
+		print.Verb(pcx.Package, "successfully ensured dependency files for", dependency)
+	}
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return stderrors.Join(stderrors.Join(failures...), ctxErr)
+	}
+	if err := stderrors.Join(failures...); err != nil {
+		return err
 	}
 
 	// Ensure runtime binaries/plugins for the root package so all ensure entrypoints
@@ -94,16 +95,52 @@ func (pcx *PackageContext) ensureDependencies(
 	return err
 }
 
+func (pcx *PackageContext) validateLocalDependencyPaths(ctx context.Context) []error {
+	var failures []error
+	for _, declaration := range pcx.Package.GetAllDependencies() {
+		if err := ctx.Err(); err != nil {
+			return append(failures, err)
+		}
+		meta, err := declaration.Explode()
+		if err != nil {
+			failures = append(failures, &DependencyError{Dependency: string(declaration), Operation: "parse", Err: err})
+			continue
+		}
+		if !meta.IsLocalScheme() {
+			continue
+		}
+		if err := validateLocalDependencyPath(pcx.Package.LocalPath, meta); err != nil {
+			failures = append(failures, &DependencyError{Dependency: string(declaration), Operation: "access local path", Err: err})
+		}
+	}
+	return failures
+}
+
 // EnsureProject applies the full project ensure flow used by user-facing commands.
 // It updates direct dependency references when requested, ensures dependency/runtime
 // files, and persists the lockfile when lockfile support is enabled.
-func (pcx *PackageContext) EnsureProject(ctx context.Context, request DependencyUpdateRequest) (bool, error) {
-	updated, err := pcx.UpdateDependencyReferences(ctx, request)
+func (pcx *PackageContext) EnsureProject(ctx context.Context, request DependencyUpdateRequest) (updated bool, err error) {
+	state, err := pcx.beginDependencyOperationWithLockfile(ctx, pcx.HasLockfileResolver())
+	if err != nil {
+		return false, err
+	}
+	defer func() {
+		err = pcx.finishDependencyOperation(state, err)
+		if err != nil {
+			updated = false
+		}
+	}()
+	updated, err = pcx.UpdateDependencyReferences(ctx, request)
 	if err != nil {
 		return false, err
 	}
 	if request.Enabled && !updated {
-		if err := pcx.refreshDependencyGraph(request); err != nil {
+		if err := pcx.refreshDependencyGraphContext(ctx, request); err != nil {
+			return updated, err
+		}
+	}
+	if !request.Enabled && pcx.Package.Parent {
+		if err := pcx.refreshDependencyGraphContext(ctx, request); err != nil {
 			return updated, err
 		}
 	}
@@ -112,18 +149,10 @@ func (pcx *PackageContext) EnsureProject(ctx context.Context, request Dependency
 		return updated, err
 	}
 
-	deps, err := pcx.currentLockfileDependencies()
-	if err != nil {
+	if err := ctx.Err(); err != nil {
 		return updated, err
 	}
-	pcx.recordRootLocalDependencies()
-	pcx.pruneLockfileDependencies(lockfileDependencyMetas(deps))
-
-	if err := pcx.PackageLockfileState.SaveLockfile(); err != nil {
-		return updated, err
-	}
-
-	return updated, nil
+	return updated, pcx.syncDependencyLockfile(ctx)
 }
 
 // GatherPlugins iterates the AllPlugins list and appends them to the runtime dependencies list

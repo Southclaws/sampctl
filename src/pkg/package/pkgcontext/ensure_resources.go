@@ -2,6 +2,7 @@ package pkgcontext
 
 import (
 	"context"
+	stderrors "errors"
 	"os"
 	"path/filepath"
 
@@ -22,6 +23,12 @@ func (pcx *PackageContext) installPackageResources(
 	installedMeta versioning.DependencyMeta,
 ) error {
 	pkg, err := pcx.resourcePackageDefinition(ctx, installedMeta)
+	if err != nil {
+		return err
+	}
+	if err := pkg.Validate(); err != nil {
+		return errors.Wrap(err, "invalid dependency package definition")
+	}
 	resourceMeta := pcx.resourceDependencyMeta(originalMeta, installedMeta)
 	applyDependencyMetaToPackage(&pkg, resourceMeta)
 
@@ -59,7 +66,9 @@ func (pcx *PackageContext) resourceDependencyMeta(
 	case originalMeta.Tag == "latest":
 		resourceMeta.Commit = ""
 		resourceMeta.Branch = ""
-		if hasLocked && locked.Resolved != "" && locked.Resolved != "HEAD" {
+		if installedMeta.Tag != "" && installedMeta.Tag != "latest" {
+			resourceMeta.Tag = installedMeta.Tag
+		} else if hasLocked && locked.Resolved != "" && locked.Resolved != "HEAD" {
 			resourceMeta.Tag = locked.Resolved
 		} else {
 			resourceMeta.Tag = originalMeta.Tag
@@ -87,11 +96,17 @@ func (pcx *PackageContext) currentLockedDependency(meta versioning.DependencyMet
 }
 
 func (pcx *PackageContext) resourcePackageDefinition(ctx context.Context, meta versioning.DependencyMeta) (pawnpackage.Package, error) {
+	if err := ctx.Err(); err != nil {
+		return pawnpackage.Package{}, err
+	}
 	// Resource installation needs a package definition (`pawn.json`/`pawn.yaml`). Prefer the cached copy,
 	// then the checked-out dependency, and finally the remote definition to avoid dropping include paths.
-	pkg, err := pcx.packageFromCachedRevision(meta, meta.CachePath(pcx.CacheDir))
+	pkg, err := pcx.packageFromCachedRevisionContext(ctx, meta, meta.CachePath(pcx.CacheDir))
+	if stderrors.Is(err, context.Canceled) || stderrors.Is(err, context.DeadlineExceeded) {
+		return pawnpackage.Package{}, err
+	}
 	if err != nil {
-		print.Verb(meta, "failed to read cached package definition:", err)
+		print.Verb(meta, "failed to read cached package definition")
 	}
 	if err == nil && pkg.Format != "" {
 		return pkg, nil
@@ -99,6 +114,9 @@ func (pcx *PackageContext) resourcePackageDefinition(ctx context.Context, meta v
 
 	depDir := filepath.Join(pcx.Package.Vendor, meta.Repo)
 	pkgLocal, errLocal := pawnpackage.PackageFromDir(depDir)
+	if errLocal != nil {
+		return pawnpackage.Package{}, errors.Wrap(errLocal, "failed to read dependency package definition")
+	}
 	if errLocal == nil && pkgLocal.Format != "" {
 		print.Verb(meta, "using local dependency package definition for resources")
 		return pkgLocal, nil
@@ -109,6 +127,12 @@ func (pcx *PackageContext) resourcePackageDefinition(ctx context.Context, meta v
 	}
 
 	pkgRemote, errRemote := pcx.RemotePackages.Fetch(ctx, meta)
+	if ctx.Err() != nil || stderrors.Is(errRemote, context.Canceled) || stderrors.Is(errRemote, context.DeadlineExceeded) {
+		if errRemote != nil {
+			return pawnpackage.Package{}, errRemote
+		}
+		return pawnpackage.Package{}, ctx.Err()
+	}
 	if errRemote == nil {
 		print.Verb(meta, "using remote package definition for resources")
 		return pkgRemote, nil
@@ -138,18 +162,19 @@ func (pcx PackageContext) extractResourceDependencies(
 	}
 
 	_, err := runtime.EnsureVersionedPlugin(runtime.EnsureVersionedPluginRequest{
-		Context:        ctx,
-		GitHub:         pcx.GitHub,
-		Meta:           pkg.Dependency(),
-		Dir:            dir,
-		Platform:       pcx.Platform,
-		Version:        res.Version,
-		CacheDir:       pcx.CacheDir,
-		PluginDestDir:  "",
-		Plugins:        false,
-		Includes:       true,
-		NoCache:        false,
-		IgnorePatterns: pcx.Package.ExtractIgnorePatterns,
+		Context:            ctx,
+		GitHub:             pcx.GitHub,
+		Meta:               pkg.Dependency(),
+		Dir:                dir,
+		Platform:           pcx.Platform,
+		Version:            res.Version,
+		CacheDir:           pcx.CacheDir,
+		PluginDestDir:      "",
+		Plugins:            false,
+		Includes:           true,
+		NoCache:            false,
+		IgnorePatterns:     pcx.Package.ExtractIgnorePatterns,
+		RestrictFilesToDir: true,
 	})
 	if err != nil {
 		return "", errors.Wrap(err, "failed to ensure asset")

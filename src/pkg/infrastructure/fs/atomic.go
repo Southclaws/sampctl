@@ -29,14 +29,14 @@ func WriteFileAtomic(path string, data []byte, dirPerm, filePerm os.FileMode) er
 	if err := f.Sync(); err != nil {
 		return stderrors.Join(err, cleanupTempFile(f, tmp))
 	}
+	if err := f.Chmod(filePerm); err != nil {
+		return stderrors.Join(err, cleanupTempFile(f, tmp))
+	}
 	if err := f.Close(); err != nil {
 		return stderrors.Join(err, removeFileIfExists(tmp))
 	}
 	if err := os.Rename(tmp, path); err != nil {
 		return stderrors.Join(err, removeFileIfExists(tmp))
-	}
-	if err := os.Chmod(path, filePerm); err != nil {
-		return err
 	}
 	return nil
 }
@@ -61,14 +61,14 @@ func WriteFromReaderAtomic(path string, r io.Reader, dirPerm, filePerm os.FileMo
 	if err := f.Sync(); err != nil {
 		return stderrors.Join(err, cleanupTempFile(f, tmp))
 	}
+	if err := f.Chmod(filePerm); err != nil {
+		return stderrors.Join(err, cleanupTempFile(f, tmp))
+	}
 	if err := f.Close(); err != nil {
 		return stderrors.Join(err, removeFileIfExists(tmp))
 	}
 	if err := os.Rename(tmp, path); err != nil {
 		return stderrors.Join(err, removeFileIfExists(tmp))
-	}
-	if err := os.Chmod(path, filePerm); err != nil {
-		return err
 	}
 	return nil
 }

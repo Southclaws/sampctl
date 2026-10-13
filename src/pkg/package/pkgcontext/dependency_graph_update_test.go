@@ -27,10 +27,12 @@ func TestEnsureProjectRefreshesTransitiveDependenciesForUpdatedDirectDependency(
 
 	seedLockfileRepo(t, cacheDir, versioning.DependencyMeta{User: "user", Repo: "lib-b", Tag: "1.0.0"}, `{"entry":"libb.pwn","output":"gamemodes/libb.amx"}`)
 	seedLockfileRepo(t, cacheDir, versioning.DependencyMeta{User: "user", Repo: "lib-c", Tag: "1.0.0"}, `{"entry":"libc.pwn","output":"gamemodes/libc.amx"}`)
-	seedStaleCachedLatestDependency(t, cacheDir, versioning.DependencyMeta{User: "user", Repo: "lib-a"},
+	cachedRepo := seedStaleCachedLatestDependency(t, cacheDir, versioning.DependencyMeta{User: "user", Repo: "lib-a"},
 		`{"entry":"liba.pwn","output":"gamemodes/liba.amx","dependencies":["user/lib-b:1.0.0"]}`,
 		`{"entry":"liba.pwn","output":"gamemodes/liba.amx","dependencies":["user/lib-c:1.0.0"]}`,
 	)
+	// Both tagged revisions are cached; keep graph resolution offline.
+	require.NoError(t, cachedRepo.DeleteRemote("origin"))
 
 	rootConfig := map[string]any{
 		"entry":        "main.pwn",
@@ -79,10 +81,11 @@ func TestUpdateLockfileRefreshesTransitiveDependenciesForUpdatedDirectDependency
 
 	seedLockfileRepo(t, cacheDir, versioning.DependencyMeta{User: "user", Repo: "lib-b", Tag: "1.0.0"}, `{"entry":"libb.pwn","output":"gamemodes/libb.amx"}`)
 	seedLockfileRepo(t, cacheDir, versioning.DependencyMeta{User: "user", Repo: "lib-c", Tag: "1.0.0"}, `{"entry":"libc.pwn","output":"gamemodes/libc.amx"}`)
-	seedStaleCachedLatestDependency(t, cacheDir, versioning.DependencyMeta{User: "user", Repo: "lib-a"},
+	cachedRepo := seedStaleCachedLatestDependency(t, cacheDir, versioning.DependencyMeta{User: "user", Repo: "lib-a"},
 		`{"entry":"liba.pwn","output":"gamemodes/liba.amx","dependencies":["user/lib-b:1.0.0"]}`,
 		`{"entry":"liba.pwn","output":"gamemodes/liba.amx","dependencies":["user/lib-c:1.0.0"]}`,
 	)
+	require.NoError(t, cachedRepo.DeleteRemote("origin"))
 
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), []byte(`{"entry":"main.pwn","output":"gamemodes/main.amx","dependencies":["user/lib-a:latest"]}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "main.pwn"), []byte("main() {}"), 0o644))
@@ -105,7 +108,7 @@ func seedStaleCachedLatestDependency(
 	meta versioning.DependencyMeta,
 	initialDefinition string,
 	updatedDefinition string,
-) {
+) *git.Repository {
 	t.Helper()
 
 	sourcePath := filepath.Join(t.TempDir(), meta.Repo+"-source")
@@ -153,4 +156,5 @@ func seedStaleCachedLatestDependency(
 		Commit: firstHash,
 		Mode:   git.HardReset,
 	}))
+	return cachedRepo
 }
