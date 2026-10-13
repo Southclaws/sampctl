@@ -506,6 +506,10 @@ func PluginFromCache(
 
 	resource, err = GetResource(pkg.Resources, platform, version)
 	if err != nil {
+		var missing *PluginResourceNotFoundError
+		if stderrors.As(err, &missing) {
+			missing.Meta = meta
+		}
 		return
 	}
 
@@ -576,6 +580,10 @@ func PluginFromNet(request PluginFetchRequest) (filename string, resource *pkgre
 
 	resource, err = GetResource(pkg.Resources, request.Platform, request.Version)
 	if err != nil {
+		var missing *PluginResourceNotFoundError
+		if stderrors.As(err, &missing) {
+			missing.Meta = request.Meta
+		}
 		return
 	}
 
@@ -641,7 +649,7 @@ func GetResource(resources []pkgresource.Resource, platform string, version stri
 		}
 	}
 	if !found {
-		return nil, errors.Errorf("plugin has no resource for platform %s and runtime version %s", platform, version)
+		return nil, &PluginResourceNotFoundError{Platform: platform, Version: version}
 	}
 
 	if err := tmp.Validate(); err != nil {

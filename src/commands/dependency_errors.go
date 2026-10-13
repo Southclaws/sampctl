@@ -19,6 +19,7 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
+	"github.com/Southclaws/sampctl/src/pkg/runtime"
 )
 
 func reportDependencyCommandError(c *cli.Context, operation string, err error) error {
@@ -208,12 +209,18 @@ func collectDependencyFailureDiagnostics(err, details error) []diagnostic {
 		if errors.As(failure.Err, &conflict) {
 			result = dependencyDestinationConflictDiagnostic(conflict, details)
 		}
+		var missingResource *runtime.PluginResourceNotFoundError
+		if errors.As(failure.Err, &missingResource) {
+			result = pluginResourceFailureDiagnostic(missingResource, details)
+		}
 		results := []diagnostic{result}
 		return append(results, dependencyRecoveryDiagnostics(failure.Err)...)
 	case *download.ReleaseAssetNotFoundError:
 		return []diagnostic{releaseAssetFailureDiagnostic(failure, details)}
 	case *pkgcontext.DependencyDestinationConflictError:
 		return []diagnostic{dependencyDestinationConflictDiagnostic(failure, details)}
+	case *runtime.PluginResourceNotFoundError:
+		return []diagnostic{pluginResourceFailureDiagnostic(failure, details)}
 	case *pkgcontext.OperationError:
 		if failure.Outcome != "" || (dependencyOperationOutcome(failure) == pkgcontext.OutcomeCommitted && dependencyOperationRecoveryFailed(failure)) {
 			var nested *pkgcontext.OperationError
@@ -268,6 +275,20 @@ func releaseAssetFailureDiagnostic(failure *download.ReleaseAssetNotFoundError, 
 		Status:  checkFailed,
 		Message: message,
 		Action:  "Choose a release with the required file, or fix the package's resource settings.",
+		Err:     details,
+	}
+}
+
+func pluginResourceFailureDiagnostic(failure *runtime.PluginResourceNotFoundError, details error) diagnostic {
+	message := fmt.Sprintf("No plugin resource for %s and runtime %s", failure.Platform, failure.Version)
+	if failure.Meta.Repo != "" {
+		message = failure.Meta.String() + ": " + message
+	}
+	return diagnostic{
+		Name:    "dependencies",
+		Status:  checkFailed,
+		Message: message,
+		Action:  "Choose a package or release that supports this platform and runtime.",
 		Err:     details,
 	}
 }
@@ -348,6 +369,17 @@ func dependencyFailureAdvice(err error) (string, string) {
 		return "Files already exist at the install path", "Use --verbose to find the conflicting path. Move those files aside or choose another install directory, then retry."
 	case isConfigurationParseError(err):
 		return "Package configuration is invalid", "Fix pawn.json or pawn.yaml, then run `sampctl check`."
+	}
+	var rateLimit *github.RateLimitError
+	if errors.As(err, &rateLimit) {
+		action := "Wait for GitHub's rate limit to reset, then retry."
+		if !rateLimit.Rate.Reset.IsZero() {
+			action = "Retry after " + rateLimit.Rate.Reset.UTC().Format("2006-01-02 15:04:05 UTC") + "."
+		}
+		if rateLimit.Rate.Limit > 0 && rateLimit.Rate.Limit <= 60 {
+			action += " Set SAMPCTL_GITHUB_TOKEN for a higher limit."
+		}
+		return "GitHub API rate limit reached", action
 	}
 	var remote *github.ErrorResponse
 	if errors.As(err, &remote) && remote.Response != nil {
