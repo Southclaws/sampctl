@@ -290,7 +290,6 @@ func ApplyDependencyOverridesWithLogging(depStr string) (string, bool) {
 
 	if overriddenStr != depStr {
 		// An override was applied, log it
-		print.Info(fmt.Sprintf("using '%s' instead of '%s' from dependency overrides", overriddenStr, depStr))
 		print.Verb(fmt.Sprintf("dependency override: '%s' -> '%s'", depStr, overriddenStr))
 		return overriddenStr, true
 	}
