@@ -240,6 +240,17 @@ func lockDependencyProject(ctx context.Context, project string) (*flock.Flock, e
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+	project, err := filepath.Abs(project)
+	if err != nil {
+		return nil, &OperationError{Operation: "project", Err: err}
+	}
+	info, err := os.Lstat(project)
+	if err != nil {
+		return nil, &OperationError{Operation: "project", Err: fmt.Errorf("inspect project directory %s: %w", project, err)}
+	}
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return nil, &OperationError{Operation: "project", Err: fmt.Errorf("project directory %s must be a directory, not a symbolic link or file", project)}
+	}
 	path := filepath.Join(project, ".sampctl-dependencies.lock")
 	if err := regularRecoveryFile(path); err != nil {
 		return nil, err
