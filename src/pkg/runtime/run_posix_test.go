@@ -71,7 +71,6 @@ func TestGetRuntimeSysProcAttr(t *testing.T) {
 	attr := getRuntimeSysProcAttr()
 	require.NotNil(t, attr)
 	require.True(t, attr.Setpgid)
-	require.Equal(t, syscall.SIGTERM, attr.Pdeathsig)
 }
 
 func TestGetRuntimePtySysProcAttr(t *testing.T) {
@@ -79,7 +78,6 @@ func TestGetRuntimePtySysProcAttr(t *testing.T) {
 
 	attr := getRuntimePtySysProcAttr()
 	require.NotNil(t, attr)
-	require.Equal(t, syscall.SIGTERM, attr.Pdeathsig)
 }
 
 func TestTerminateRuntimeProcess(t *testing.T) {

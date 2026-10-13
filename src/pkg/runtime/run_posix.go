@@ -131,16 +131,15 @@ func platformRunFallback(cmd *exec.Cmd, w io.Writer, r io.Reader, onStart func(*
 }
 
 func getRuntimeSysProcAttr() *syscall.SysProcAttr {
-	return &syscall.SysProcAttr{
-		Setpgid:   true,
-		Pdeathsig: syscall.SIGTERM,
-	}
+	attr := &syscall.SysProcAttr{Setpgid: true}
+	setRuntimeParentDeathSignal(attr)
+	return attr
 }
 
 func getRuntimePtySysProcAttr() *syscall.SysProcAttr {
-	return &syscall.SysProcAttr{
-		Pdeathsig: syscall.SIGTERM,
-	}
+	attr := &syscall.SysProcAttr{}
+	setRuntimeParentDeathSignal(attr)
+	return attr
 }
 
 func terminateRuntimeProcess(process *os.Process) error {
