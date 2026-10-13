@@ -4,6 +4,7 @@ package compiler
 import (
 	"bufio"
 	"context"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"os"
@@ -14,10 +15,10 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
-	"rs3.io/go/mserr/ntstatus"
 
 	"github.com/Southclaws/sampctl/src/pkg/build"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
@@ -29,7 +30,7 @@ import (
 //nolint:lll
 var (
 	// matches warnings or errors
-	matchCompilerProblem = regexp.MustCompile(`^(.*?)\(([0-9]*)[- 0-9]*\) \: (fatal error|error|user warning|warning)\s?[0-9]*\: (.*)$`)
+	matchCompilerProblem = regexp.MustCompile(`^(.*?)\(([0-9]*)[- 0-9]*\) \: (fatal error|error|user warning|warning)\s?([0-9]*)\: (.*)$`)
 
 	// Header size:             60 bytes
 	matchHeader = regexp.MustCompile(`^Header size:\s*([0-9]+) bytes$`)
@@ -90,7 +91,8 @@ func CompileSource(
 		return
 	}
 
-	problems, result, err = CompileWithCommand(
+	problems, result, err = CompileWithCommandContext(
+		ctx,
 		cmd,
 		request.Config.WorkingDir,
 		request.ErrorDir,
@@ -142,10 +144,11 @@ func PrepareCommand(ctx context.Context, request PrepareCommandRequest) (cmd *ex
 	args = append(args, constantArgs...)
 
 	cmd = exec.CommandContext(ctx, filepath.Join(runtimeDir, pkg.Binary), args...) //nolint:gosec
-	cmd.Env = []string{
+	cmd.WaitDelay = 2 * time.Second
+	cmd.Env = append(os.Environ(),
 		fmt.Sprintf("LD_LIBRARY_PATH=%s", runtimeDir),
 		fmt.Sprintf("DYLD_LIBRARY_PATH=%s", runtimeDir),
-	}
+	)
 
 	return cmd, nil
 }
@@ -167,8 +170,14 @@ func prepareIOPaths(config build.Config) (input, output, workingDir string, err 
 	outputDir := filepath.Dir(output)
 	if !fs.Exists(outputDir) {
 		if err = fs.EnsureDir(outputDir, fs.PermDirPrivate); err != nil {
-			return "", "", "", errors.Wrap(err, "failed to create output directory")
+			return "", "", "", &ExecutionError{Kind: ExecutionOutput, Path: output, Err: err}
 		}
+	}
+	if info, statErr := os.Stat(outputDir); statErr != nil || !info.IsDir() {
+		if statErr == nil {
+			statErr = fmt.Errorf("output parent is not a directory")
+		}
+		return "", "", "", &ExecutionError{Kind: ExecutionOutput, Path: output, Err: statErr}
 	}
 
 	if config.WorkingDir == "" {
@@ -189,6 +198,13 @@ func resolveCompilerBinary(
 	cacheDir string,
 ) (download.Compiler, string, error) {
 	resolved := request.Config.Compiler.ResolveCompilerConfig()
+	if request.Config.Compiler.Path == "" {
+		for _, component := range []string{resolved.User, resolved.Repo, resolved.Version} {
+			if !compilerRelativePath(component) || filepath.Base(component) != component {
+				return download.Compiler{}, "", &InstallationError{Path: cacheDir, Err: errors.New("invalid compiler cache path")}
+			}
+		}
+	}
 	runtimeDir := compilerRuntimeDir(cacheDir, resolved)
 
 	if request.Config.Compiler.Path == "" {
@@ -234,7 +250,11 @@ func compilerFromCustomPath(pathRoot string) (download.Compiler, error) {
 	compilerPath := customCompilerBinary(pathRoot)
 	compilerPathStat, err := os.Stat(compilerPath)
 	if err != nil {
-		return download.Compiler{}, errors.Wrap(err, "failed to access compiler executable")
+		kind := ExecutionStart
+		if stderrors.Is(err, os.ErrNotExist) {
+			kind = ExecutionMissing
+		}
+		return download.Compiler{}, &ExecutionError{Kind: kind, Path: compilerPath, Err: err}
 	}
 	if !compilerPathStat.Mode().IsRegular() {
 		return download.Compiler{}, errors.New("compiler path does not contain a Pawn compiler executable")
@@ -365,6 +385,28 @@ func CompileWithCommand(
 	errorDir string,
 	relative bool,
 ) (problems build.Problems, result build.Result, err error) {
+	return CompileWithCommandContext(context.Background(), cmd, workingDir, errorDir, relative)
+}
+
+// CompileWithCommandContext runs a compiler while protecting its managed installation.
+func CompileWithCommandContext(
+	ctx context.Context,
+	cmd *exec.Cmd,
+	workingDir,
+	errorDir string,
+	relative bool,
+) (problems build.Problems, result build.Result, err error) {
+	if err := ctx.Err(); err != nil {
+		return nil, result, &ExecutionError{Kind: ExecutionCancelled, Path: cmd.Path, Err: err}
+	}
+	if cmd.WaitDelay == 0 {
+		cmd.WaitDelay = 2 * time.Second
+	}
+	unlock, err := lockCompilerExecution(ctx, cmd)
+	if err != nil {
+		return nil, result, err
+	}
+	defer func() { err = stderrors.Join(err, unlock()) }()
 	if errorDir == "" {
 		errorDir = workingDir
 	}
@@ -373,48 +415,55 @@ func CompileWithCommand(
 		return nil, build.Result{}, errors.Wrap(err, "failed to resolve error directory")
 	}
 
-	outputReader, outputWriter := io.Pipe()
-	cmd.Stdout = outputWriter
-	cmd.Stderr = outputWriter
 	workingDir, err = fs.Abs(workingDir)
 	if err != nil {
 		return nil, build.Result{}, errors.Wrap(err, "failed to resolve working directory")
 	}
+	outputReader, outputWriter := io.Pipe()
+	cmd.Stdout = outputWriter
+	cmd.Stderr = outputWriter
 
 	parser := newCompilerOutputParser(outputReader, workingDir, errorDir, relative)
 	go parser.Run()
 
-	print.Verb("executing compiler in", workingDir, "as", cmd.Env, cmd.Args)
-	cmdError := cmd.Run()
+	print.Verb("executing compiler in", workingDir, "as", cmd.Args)
+	cmdError := runCompilerCommand(ctx, cmd)
 
-	err = outputWriter.Close()
-	if err != nil {
-		print.Erro("Compiler output read error:", err)
-	}
+	closeErr := outputWriter.Close()
 
 	problems, result = parser.Wait()
-
-	if cmdError != nil {
-		if cmdError.Error() == "exit status 1" {
-			// compilation failed with errors and warnings
-			err = nil
-		} else {
-			err = cmdError
-			if runtime.GOOS == "windows" && strings.Contains(cmdError.Error(), "exit status") {
-				statusCodeStr := strings.Split(cmdError.Error(), " ")[2]
-				statusCodeInt, innerError := strconv.ParseInt(statusCodeStr, 0, 64)
-				if innerError != nil {
-					return
-				}
-
-				statusCode := ntstatus.NTStatus(statusCodeInt)
-				err = errors.Errorf("exit status %s", statusCode.String())
+	if err := stderrors.Join(closeErr, parser.err, outputReader.Close()); err != nil {
+		return problems, result, &ExecutionError{Kind: ExecutionOutput, Path: cmd.Path, Output: parser.output.String(), Err: stderrors.Join(err, cmdError)}
+	}
+	if ctx.Err() != nil {
+		return problems, result, &ExecutionError{Kind: ExecutionCancelled, Path: cmd.Path, Output: parser.output.String(), Err: stderrors.Join(ctx.Err(), cmdError)}
+	}
+	for _, problem := range problems {
+		if problem.Code == "101" && problem.Severity == build.ProblemFatal {
+			if cmdError == nil {
+				cmdError = stderrors.New(problem.Description)
 			}
-			return
+			return problems, result, &ExecutionError{Kind: ExecutionOutput, Path: cmd.Path, Output: parser.output.String(), Err: cmdError}
 		}
 	}
-
-	return problems, result, err
+	if cmdError == nil {
+		return problems, result, nil
+	}
+	if stderrors.Is(cmdError, exec.ErrWaitDelay) {
+		return problems, result, &ExecutionError{Kind: ExecutionOutput, Path: cmd.Path, Output: parser.output.String(), Err: cmdError}
+	}
+	var exitErr *exec.ExitError
+	if stderrors.As(cmdError, &exitErr) {
+		if exitErr.ExitCode() == 1 && (len(problems.Errors()) != 0 || problems.Fatal()) {
+			return problems, result, nil
+		}
+		return problems, result, &ExecutionError{Kind: ExecutionCrash, Path: cmd.Path, Output: parser.output.String(), Err: cmdError}
+	}
+	kind := ExecutionStart
+	if _, pathErr := os.Stat(cmd.Path); stderrors.Is(cmdError, exec.ErrNotFound) || (stderrors.Is(cmdError, os.ErrNotExist) && stderrors.Is(pathErr, os.ErrNotExist)) {
+		kind = ExecutionMissing
+	}
+	return problems, result, &ExecutionError{Kind: kind, Path: cmd.Path, Output: parser.output.String(), Err: cmdError}
 }
 
 type compilerOutputParser struct {
@@ -425,6 +474,8 @@ type compilerOutputParser struct {
 	done       chan struct{}
 	problems   build.Problems
 	result     build.Result
+	err        error
+	output     strings.Builder
 }
 
 func newCompilerOutputParser(reader io.Reader, workingDir, errorDir string, relative bool) *compilerOutputParser {
@@ -439,11 +490,18 @@ func newCompilerOutputParser(reader io.Reader, workingDir, errorDir string, rela
 
 func (p *compilerOutputParser) Run() {
 	scanner := bufio.NewScanner(p.reader)
+	scanner.Buffer(make([]byte, 4096), 1024*1024)
 	for scanner.Scan() {
+		if p.output.Len() < 64*1024 {
+			p.output.WriteString(scanner.Text())
+			p.output.WriteByte('\n')
+		}
 		p.handleLine(scanner.Text())
 	}
-	if err := scanner.Err(); err != nil {
-		print.Erro("Compiler output read error:", err)
+	if p.err = scanner.Err(); p.err != nil {
+		// Drain the pipe so a compiler with invalid output can still exit.
+		_, drainErr := io.Copy(io.Discard, p.reader)
+		p.err = stderrors.Join(p.err, drainErr)
 	}
 	close(p.done)
 }
@@ -455,7 +513,7 @@ func (p *compilerOutputParser) Wait() (build.Problems, build.Result) {
 
 func (p *compilerOutputParser) handleLine(line string) {
 	groups := matchCompilerProblem.FindStringSubmatch(line)
-	if len(groups) == 5 {
+	if len(groups) == 6 {
 		p.handleProblem(groups)
 		return
 	}
@@ -497,7 +555,8 @@ func (p *compilerOutputParser) handleProblem(groups []string) {
 		problem.Severity = build.ProblemFatal
 	}
 
-	problem.Description = groups[4]
+	problem.Code = groups[4]
+	problem.Description = groups[5]
 	fmt.Println(problem.String())
 	p.problems = append(p.problems, problem)
 }

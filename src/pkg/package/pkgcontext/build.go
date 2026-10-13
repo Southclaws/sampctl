@@ -268,7 +268,13 @@ func (pcx *PackageContext) prepareBuildCommand(ctx context.Context, config build
 }
 
 func printBuildCommand(command *exec.Cmd) {
-	fmt.Println(strings.Join(command.Env, " "), strings.Join(command.Args, " "))
+	var environment []string
+	for _, value := range command.Env {
+		if strings.HasPrefix(value, "LD_LIBRARY_PATH=") || strings.HasPrefix(value, "DYLD_LIBRARY_PATH=") {
+			environment = append(environment, value)
+		}
+	}
+	fmt.Println(strings.Join(append(environment, command.Args...), " "))
 }
 
 type buildExecutionRequest struct {
@@ -286,7 +292,7 @@ func (pcx *PackageContext) executeBuild(request buildExecutionRequest) (problems
 	}
 
 	print.Verb("building", pcx.Package, "with", request.Config.Compiler.Version)
-	problems, result, err = compiler.CompileWithCommand(request.Command, request.Config.WorkingDir, pcx.Package.LocalPath, request.Options.Relative)
+	problems, result, err = compiler.CompileWithCommandContext(request.Context, request.Command, request.Config.WorkingDir, pcx.Package.LocalPath, request.Options.Relative)
 	if err != nil {
 		return nil, build.Result{}, errors.Wrap(err, "failed to compile package entry")
 	}
