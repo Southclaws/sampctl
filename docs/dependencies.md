@@ -60,37 +60,28 @@ Install preserves existing pins and saves `pawn.lock` when enabled.
 `ensure --no-lock` leaves it alone; `ensure --lock-only` refreshes pins without
 installing dependencies.
 
-Dependency commands stage managed installations and record recovery state in
-`.sampctl-dependencies.json`. Before commit, a failure triggers restoration of
-previous dependencies, the package definition, and `pawn.lock`. Output states
-whether restoration finished. Valid shared caches remain.
-
-The next dependency command recovers interrupted work. It restores missing
-previous installations from verified backups, or preserves committed replacements
-and finishes cleanup.
-`sampctl check` reports pending recovery without changing project files;
-`sampctl check --fix` performs the same safe recovery. Invalid metadata, changed
-files, and ambiguous backups need manual inspection. Keep the record and backups
-until installed files, the manifest, and pins agree. Unknown staging directories
+Dependency commands record staged changes in `.sampctl-dependencies.json`. Before
+commit, failures trigger an attempt to restore previous installations, the
+manifest, and `pawn.lock`. Output reports incomplete recovery. Valid shared caches
 remain.
 
-Cleanup can fail after changes are saved. Output states that the operation
-completed with cleanup pending and exits nonzero. Retry the command or run
-`sampctl check --fix` to finish cleanup.
+The next dependency command recovers pending work. `sampctl check` reports it
+read-only; `sampctl check --fix` runs the same recovery. Saved changes remain
+installed if cleanup fails; the command exits nonzero. Retry to finish cleanup.
 
-Runtime caches, binaries, and plugin files commit independently. Sampctl validates
-file replacements before renaming them and records runtime ownership in
-`.sampctl-runtime.json`, including external directories and `--no-lock` projects.
-If an older installation has no recorded ownership, ensure its current version
-once before upgrading.
-Dependency rollback leaves these files in place. Interrupted provisioning can
-leave a mix of complete previous and new runtime files; rerun `sampctl ensure`
-to finish provisioning.
+Invalid metadata, changed files, or ambiguous backups need manual inspection.
+Keep the record and backups until installed files, the manifest, and pins agree.
+Unknown staging directories remain.
 
-One dependency operation can change a project at a time; retry when it ends.
-Recovery uses the same lock. The operating system releases it on process exit;
-a leftover `.sampctl-dependencies.lock` file does not mean an operation is running.
+Runtime caches and files commit independently using validated replacements.
+`.sampctl-runtime.json` records binary ownership, including external directories
+and `--no-lock` projects. For older untracked installations, ensure the current
+version before upgrading. Dependency rollback leaves runtime files in place;
+interruptions can leave complete files from different versions. Rerun
+`sampctl ensure` to finish provisioning.
 
-Recovery requires renames within one filesystem. Directory changes are synced
-where supported. On Windows, open files can prevent promotion or cleanup; close
-the process using them and retry.
+Recovery uses the existing project lock; retry when another operation finishes.
+The OS releases the lock on exit, so a leftover `.sampctl-dependencies.lock` file
+does not mean an operation is active. Renames require one filesystem; directory
+changes are synced where supported. On Windows, close files blocking promotion
+or cleanup, then retry.
