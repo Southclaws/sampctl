@@ -151,7 +151,44 @@ func dependencyOperationOutcome(err error) pkgcontext.DependencyOperationOutcome
 }
 
 func dependencyFailureDiagnostics(err error) []diagnostic {
-	return collectDependencyFailureDiagnostics(err, err)
+	results := collectDependencyFailureDiagnostics(err, err)
+	seen := make(map[dependencyDiagnosticKey]struct{}, len(results))
+	unique := results[:0]
+	for _, result := range results {
+		key := dependencyDiagnosticKey{
+			Name: result.Name, Status: result.Status, Message: result.Message,
+			Action: result.Action, Path: result.Path, Cause: dependencyDiagnosticCause(result.Err),
+			CanFix: result.CanFix, RepairAttempted: result.RepairAttempted, RepairVerified: result.RepairVerified,
+		}
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		unique = append(unique, result)
+	}
+	return unique
+}
+
+type dependencyDiagnosticKey struct {
+	Name, Message, Action, Path, Cause      string
+	Status                                  checkStatus
+	CanFix, RepairAttempted, RepairVerified bool
+}
+
+func dependencyDiagnosticCause(err error) string {
+	if err == nil {
+		return ""
+	}
+	key := fmt.Sprintf("%T(%q)", err, err.Error())
+	switch failure := err.(type) {
+	case interface{ Unwrap() []error }:
+		for _, cause := range failure.Unwrap() {
+			key += "[" + dependencyDiagnosticCause(cause) + "]"
+		}
+	case interface{ Unwrap() error }:
+		key += "[" + dependencyDiagnosticCause(failure.Unwrap()) + "]"
+	}
+	return key
 }
 
 func collectDependencyFailureDiagnostics(err, details error) []diagnostic {
@@ -167,10 +204,16 @@ func collectDependencyFailureDiagnostics(err, details error) []diagnostic {
 		if errors.As(failure.Err, &missingAsset) {
 			result = releaseAssetFailureDiagnostic(missingAsset, details)
 		}
+		var conflict *pkgcontext.DependencyDestinationConflictError
+		if errors.As(failure.Err, &conflict) {
+			result = dependencyDestinationConflictDiagnostic(conflict, details)
+		}
 		results := []diagnostic{result}
 		return append(results, dependencyRecoveryDiagnostics(failure.Err)...)
 	case *download.ReleaseAssetNotFoundError:
 		return []diagnostic{releaseAssetFailureDiagnostic(failure, details)}
+	case *pkgcontext.DependencyDestinationConflictError:
+		return []diagnostic{dependencyDestinationConflictDiagnostic(failure, details)}
 	case *pkgcontext.OperationError:
 		if failure.Outcome != "" || (dependencyOperationOutcome(failure) == pkgcontext.OutcomeCommitted && dependencyOperationRecoveryFailed(failure)) {
 			var nested *pkgcontext.OperationError
@@ -196,6 +239,16 @@ func collectDependencyFailureDiagnostics(err, details error) []diagnostic {
 			result.Path = pathErr.Path
 		}
 		return []diagnostic{result}
+	}
+}
+
+func dependencyDestinationConflictDiagnostic(failure *pkgcontext.DependencyDestinationConflictError, details error) diagnostic {
+	return diagnostic{
+		Name:    "dependencies",
+		Status:  checkFailed,
+		Message: fmt.Sprintf("%s and %s both install to %q", failure.First, failure.Second, failure.Directory),
+		Action:  "Update dependency declarations so this directory uses one repository and version.",
+		Err:     details,
 	}
 }
 
