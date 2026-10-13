@@ -32,12 +32,16 @@ func reportDependencyCommandError(c *cli.Context, operation string, err error) e
 	style := newCheckOutputStyle(c.App.Writer, c.Bool("bare") || c.GlobalBool("bare"))
 	var output bytes.Buffer
 	outcome := dependencyOperationOutcome(err)
+	recoveryFailed := dependencyOperationRecoveryFailed(err)
 	status := checkFailed
-	if outcome == pkgcontext.OutcomeCommitted {
+	if outcome == pkgcontext.OutcomeCommitted && !recoveryFailed {
 		status = checkPassed
 	}
 	writeCheckResult(&output, diagnostic{Status: status, Message: dependencyFailureHeading(operation, err)}, false, style)
 	for _, result := range dependencyFailureDiagnostics(err) {
+		if outcome == pkgcontext.OutcomeCommitted && recoveryFailed && result.Name == "recovery" {
+			result.Action = "Run `sampctl check --verbose` to inspect the recovery files. Keep backups and recovery metadata until recovery finishes."
+		}
 		if outcome == pkgcontext.OutcomeRollbackIncomplete && result.Name == "rollback" {
 			result.Action = "Run `sampctl check` to inspect the project recovery record. Keep backups until restoration finishes."
 		}
@@ -45,8 +49,6 @@ func reportDependencyCommandError(c *cli.Context, operation string, err error) e
 			result.Status = checkWarning
 			if result.Name == "cleanup" {
 				result.Action = "Project changes were saved. Run `sampctl check`; use `sampctl check --fix` when it offers safe cleanup."
-			} else if result.Name == "recovery" {
-				result.Action = "Project changes were saved. Run `sampctl check` to inspect pending cleanup before retrying."
 			}
 		}
 		writeCheckResult(&output, result, verbose, style)
@@ -75,6 +77,9 @@ func reportDependencyCommandError(c *cli.Context, operation string, err error) e
 func dependencyFailureHeading(operation string, err error) string {
 	outcome := dependencyOperationOutcome(err)
 	if outcome == pkgcontext.OutcomeCommitted {
+		if dependencyOperationRecoveryFailed(err) {
+			return "Previous dependency changes were saved; recovery could not complete"
+		}
 		return "Dependency operation completed; cleanup is pending"
 	}
 	var message string
@@ -97,6 +102,24 @@ func dependencyFailureHeading(operation string, err error) string {
 		return message + "; recovery is incomplete"
 	default:
 		return message
+	}
+}
+
+func dependencyOperationRecoveryFailed(err error) bool {
+	switch failure := err.(type) {
+	case *pkgcontext.OperationError:
+		return failure.Operation == "recovery" || dependencyOperationRecoveryFailed(failure.Err)
+	case interface{ Unwrap() []error }:
+		for _, cause := range failure.Unwrap() {
+			if dependencyOperationRecoveryFailed(cause) {
+				return true
+			}
+		}
+		return false
+	case interface{ Unwrap() error }:
+		return dependencyOperationRecoveryFailed(failure.Unwrap())
+	default:
+		return false
 	}
 }
 
@@ -141,7 +164,7 @@ func collectDependencyFailureDiagnostics(err, details error) []diagnostic {
 		results := []diagnostic{{Name: "dependencies", Status: checkFailed, Message: failure.Dependency + ": " + message, Action: action, Err: details}}
 		return append(results, dependencyRecoveryDiagnostics(failure.Err)...)
 	case *pkgcontext.OperationError:
-		if failure.Outcome != "" {
+		if failure.Outcome != "" || (dependencyOperationOutcome(failure) == pkgcontext.OutcomeCommitted && dependencyOperationRecoveryFailed(failure)) {
 			var nested *pkgcontext.OperationError
 			if failure.Operation == "dependency operation" || errors.As(failure.Err, &nested) {
 				return collectDependencyFailureDiagnostics(failure.Err, failure.Err)
