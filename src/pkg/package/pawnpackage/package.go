@@ -227,33 +227,37 @@ func PackageFromDep(depString versioning.DependencyString) (pkg Package, err err
 
 // WriteDefinition creates a JSON or YAML file for a package object, the format depends
 // on the `Format` field of the package.
-func (pkg Package) WriteDefinition() (err error) {
+func (pkg Package) WriteDefinition() error {
+	contents, err := pkg.EncodeDefinition()
+	if err != nil {
+		return err
+	}
+	name := "pawn." + pkg.Format
+	return writeDefinitionFile(filepath.Join(pkg.LocalPath, name), name, contents)
+}
+
+// EncodeDefinition returns the package definition in its configured JSON or YAML format.
+func (pkg Package) EncodeDefinition() ([]byte, error) {
 	cleanPkg := pkg
 	cleanPkg.SetDependencyMeta(cleanPkg.Dependency())
 	if cleanPkg.Runtime != nil {
 		cleanPkg.Runtime = run.CloneWithoutDefaults(cleanPkg.Runtime)
 	}
 
+	var contents []byte
+	var err error
 	switch cleanPkg.Format {
 	case "json":
-		var contents []byte
 		contents, err = json.MarshalIndent(cleanPkg, "", "\t")
-		if err != nil {
-			return errors.Wrap(err, "failed to encode package metadata")
-		}
-		err = writeDefinitionFile(filepath.Join(cleanPkg.LocalPath, "pawn.json"), "pawn.json", contents)
 	case "yaml":
-		var contents []byte
 		contents, err = yaml.Marshal(cleanPkg)
-		if err != nil {
-			return errors.Wrap(err, "failed to encode package metadata")
-		}
-		err = writeDefinitionFile(filepath.Join(cleanPkg.LocalPath, "pawn.yaml"), "pawn.yaml", contents)
 	default:
-		err = errors.New("package has no format associated with it")
+		return nil, errors.New("package has no format associated with it")
 	}
-
-	return
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to encode package metadata")
+	}
+	return contents, nil
 }
 
 // GetBuildConfig returns a matching build by name from the package build list. If no name is

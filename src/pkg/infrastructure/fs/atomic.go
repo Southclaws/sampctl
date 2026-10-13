@@ -26,10 +26,10 @@ func WriteFileAtomic(path string, data []byte, dirPerm, filePerm os.FileMode) er
 	if _, err := f.Write(data); err != nil {
 		return stderrors.Join(err, cleanupTempFile(f, tmp))
 	}
-	if err := f.Sync(); err != nil {
+	if err := f.Chmod(filePerm); err != nil {
 		return stderrors.Join(err, cleanupTempFile(f, tmp))
 	}
-	if err := f.Chmod(filePerm); err != nil {
+	if err := f.Sync(); err != nil {
 		return stderrors.Join(err, cleanupTempFile(f, tmp))
 	}
 	if err := f.Close(); err != nil {
@@ -38,7 +38,7 @@ func WriteFileAtomic(path string, data []byte, dirPerm, filePerm os.FileMode) er
 	if err := os.Rename(tmp, path); err != nil {
 		return stderrors.Join(err, removeFileIfExists(tmp))
 	}
-	return nil
+	return SyncDir(dir)
 }
 
 func WriteFromReaderAtomic(path string, r io.Reader, dirPerm, filePerm os.FileMode) error {
@@ -58,10 +58,10 @@ func WriteFromReaderAtomic(path string, r io.Reader, dirPerm, filePerm os.FileMo
 	if _, err := io.Copy(f, r); err != nil {
 		return stderrors.Join(err, cleanupTempFile(f, tmp))
 	}
-	if err := f.Sync(); err != nil {
+	if err := f.Chmod(filePerm); err != nil {
 		return stderrors.Join(err, cleanupTempFile(f, tmp))
 	}
-	if err := f.Chmod(filePerm); err != nil {
+	if err := f.Sync(); err != nil {
 		return stderrors.Join(err, cleanupTempFile(f, tmp))
 	}
 	if err := f.Close(); err != nil {
@@ -70,7 +70,7 @@ func WriteFromReaderAtomic(path string, r io.Reader, dirPerm, filePerm os.FileMo
 	if err := os.Rename(tmp, path); err != nil {
 		return stderrors.Join(err, removeFileIfExists(tmp))
 	}
-	return nil
+	return SyncDir(dir)
 }
 
 func WriteJSONAtomic(path string, v any, dirPerm, filePerm os.FileMode) error {
