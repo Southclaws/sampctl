@@ -463,14 +463,14 @@ func EnsureVersionedPluginCached(request EnsureVersionedPluginCachedRequest) (
 			print.Info(request.Meta, "downloading the latest release because no version is specified. Pin a release tag to keep the plugin version fixed.")
 		}
 
-		filename, resource, err = PluginFromNet(PluginFetchRequest{
+		filename, resource, err = pluginFromNet(PluginFetchRequest{
 			Context:  request.Context,
 			GitHub:   request.GitHub,
 			Meta:     request.Meta,
 			Platform: request.Platform,
 			Version:  request.Version,
 			CacheDir: request.CacheDir,
-		})
+		}, resource)
 		if err != nil {
 			err = errors.Wrapf(err, "failed to download plugin %s", request.Meta)
 			return
@@ -570,21 +570,27 @@ func cachedPackageResourceAsset(cachePath string, matcher *regexp.Regexp) (strin
 
 // PluginFromNet downloads a plugin from the given metadata to the cache directory
 func PluginFromNet(request PluginFetchRequest) (filename string, resource *pkgresource.Resource, err error) {
+	return pluginFromNet(request, nil)
+}
+
+func pluginFromNet(request PluginFetchRequest, cachedResource *pkgresource.Resource) (filename string, resource *pkgresource.Resource, err error) {
 	print.Info(request.Meta, "downloading plugin resource for", request.Platform)
 
-	pkg, err := pawnpackage.GetRemotePackage(request.Context, request.GitHub, request.Meta)
-	if err != nil {
-		err = errors.Wrap(err, "failed to get remote package definition file")
-		return
-	}
-
-	resource, err = GetResource(pkg.Resources, request.Platform, request.Version)
-	if err != nil {
-		var missing *PluginResourceNotFoundError
-		if stderrors.As(err, &missing) {
-			missing.Meta = request.Meta
+	resource = cachedResource
+	if resource == nil {
+		pkg, fetchErr := pawnpackage.GetRemotePackage(request.Context, request.GitHub, request.Meta)
+		if fetchErr != nil {
+			return "", nil, errors.Wrap(fetchErr, "failed to get remote package definition file")
 		}
-		return
+
+		resource, err = GetResource(pkg.Resources, request.Platform, request.Version)
+		if err != nil {
+			var missing *PluginResourceNotFoundError
+			if stderrors.As(err, &missing) {
+				missing.Meta = request.Meta
+			}
+			return
+		}
 	}
 
 	matcher, err := regexp.Compile(resource.Name)
