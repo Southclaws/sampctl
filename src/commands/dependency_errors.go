@@ -17,6 +17,7 @@ import (
 	"go.yaml.in/yaml/v3"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
@@ -161,8 +162,15 @@ func collectDependencyFailureDiagnostics(err, details error) []diagnostic {
 			message = "Dependency is not declared in this project"
 			action = "Check the dependency name in pawn.json or pawn.yaml, then retry."
 		}
-		results := []diagnostic{{Name: "dependencies", Status: checkFailed, Message: failure.Dependency + ": " + message, Action: action, Err: details}}
+		result := diagnostic{Name: "dependencies", Status: checkFailed, Message: failure.Dependency + ": " + message, Action: action, Err: details}
+		var missingAsset *download.ReleaseAssetNotFoundError
+		if errors.As(failure.Err, &missingAsset) {
+			result = releaseAssetFailureDiagnostic(missingAsset, details)
+		}
+		results := []diagnostic{result}
 		return append(results, dependencyRecoveryDiagnostics(failure.Err)...)
+	case *download.ReleaseAssetNotFoundError:
+		return []diagnostic{releaseAssetFailureDiagnostic(failure, details)}
 	case *pkgcontext.OperationError:
 		if failure.Outcome != "" || (dependencyOperationOutcome(failure) == pkgcontext.OutcomeCommitted && dependencyOperationRecoveryFailed(failure)) {
 			var nested *pkgcontext.OperationError
@@ -188,6 +196,26 @@ func collectDependencyFailureDiagnostics(err, details error) []diagnostic {
 			result.Path = pathErr.Path
 		}
 		return []diagnostic{result}
+	}
+}
+
+func releaseAssetFailureDiagnostic(failure *download.ReleaseAssetNotFoundError, details error) diagnostic {
+	meta := failure.Meta
+	meta.Tag = failure.Tag
+	meta.Branch = ""
+	meta.Commit = ""
+	message := fmt.Sprintf("%s: No release asset matches %q", meta, failure.Pattern)
+	if len(failure.AvailableAssets) == 0 {
+		message += "; this release has no assets"
+	} else {
+		message += "; available: " + strings.Join(failure.AvailableAssets, ", ")
+	}
+	return diagnostic{
+		Name:    "dependencies",
+		Status:  checkFailed,
+		Message: message,
+		Action:  "Use a release with the required asset, or correct the dependency's resource declaration.",
+		Err:     details,
 	}
 }
 

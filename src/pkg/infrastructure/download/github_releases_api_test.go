@@ -2,9 +2,11 @@ package download
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -151,4 +153,49 @@ func TestReleaseAssetByPatternWithAPI_ReturnsError_WhenNoAssetMatches(t *testing
 		CacheDir:   t.TempDir(),
 	})
 	require.Error(t, err)
+}
+
+func TestReleaseAssetByPatternWithAPIReportsMissingAssetInRequestedRelease(t *testing.T) {
+	meta := versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-yaml", Tag: "1.0.0"}
+	fake := &fakeReleasesAPI{
+		byTag: map[string]*github.RepositoryRelease{
+			"1.0.0": {
+				TagName: github.String("1.0.0"),
+				Assets:  []github.ReleaseAsset{{ID: github.Int64(1), Name: github.String("yaml.dll")}},
+			},
+		},
+		releases: []*github.RepositoryRelease{{
+			TagName: github.String("0.0.3"),
+			Assets:  []github.ReleaseAsset{{ID: github.Int64(2), Name: github.String("yaml.so")}},
+		}},
+	}
+	dir := t.TempDir()
+	_, _, err := ReleaseAssetByPatternWithAPI(ReleaseAssetAPIRequest{
+		Context: context.Background(),
+		Client:  fake,
+		Meta:    meta,
+		Matcher: regexp.MustCompile(`yaml.so`),
+		Dir:     dir,
+	})
+	var missing *ReleaseAssetNotFoundError
+	if !errors.As(err, &missing) {
+		t.Fatalf("ReleaseAssetByPatternWithAPI(%s, yaml.so) error = %v, want *ReleaseAssetNotFoundError", meta, err)
+	}
+	if missing.Meta != meta || missing.Tag != "1.0.0" || missing.Pattern != "yaml.so" {
+		t.Errorf("ReleaseAssetByPatternWithAPI(%s, yaml.so) error = %+v, want requested metadata, tag 1.0.0, and pattern yaml.so", meta, missing)
+	}
+	if len(missing.AvailableAssets) != 1 || missing.AvailableAssets[0] != "yaml.dll" {
+		t.Errorf("ReleaseAssetByPatternWithAPI(%s, yaml.so) available assets = %v, want [yaml.dll]", meta, missing.AvailableAssets)
+	}
+	if fake.tagCalls != 1 || fake.listCalls != 0 || fake.downloadCalls != 0 {
+		t.Errorf("ReleaseAssetByPatternWithAPI(%s, yaml.so) calls = {tag:%d list:%d download:%d}, want {tag:1 list:0 download:0}",
+			meta, fake.tagCalls, fake.listCalls, fake.downloadCalls)
+	}
+	entries, readErr := os.ReadDir(dir)
+	if readErr != nil {
+		t.Fatalf("ReadDir(%q) = %v, want no error", dir, readErr)
+	}
+	if len(entries) != 0 {
+		t.Errorf("ReleaseAssetByPatternWithAPI(%s, yaml.so) output directory contains %v, want no files", meta, entries)
+	}
 }

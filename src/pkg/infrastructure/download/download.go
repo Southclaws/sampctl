@@ -352,7 +352,16 @@ func ReleaseAssetByPatternWithAPI(request ReleaseAssetAPIRequest) (filename, tag
 		assets = append(assets, *a.Name)
 	}
 	if asset == nil {
-		err = errors.Errorf("resource matcher '%s' does not match any release assets from '%v'", request.Matcher, assets)
+		releaseTag := release.GetTagName()
+		if releaseTag == "" {
+			releaseTag = request.Meta.Tag
+		}
+		err = &ReleaseAssetNotFoundError{
+			Meta:            request.Meta,
+			Tag:             releaseTag,
+			Pattern:         request.Matcher.String(),
+			AvailableAssets: assets,
+		}
 		return
 	}
 	tag = release.GetTagName()
