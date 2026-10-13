@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"net/http"
 	"path/filepath"
@@ -113,9 +114,7 @@ func GetCachedPackage(meta versioning.DependencyMeta, cacheDir string) (pkg Pack
 }
 
 // GetRemotePackage attempts to get a package definition for the given dependency meta.
-// It first checks the the sampctl central repository, if that fails it falls back to using the
-// repository for the package itself. This means upstream changes to plugins can be first staged in
-// the official central repository before being pulled to the package specific repository.
+// It checks the dependency repository, then the official fallback repository if no definition exists.
 func GetRemotePackage(
 	ctx context.Context,
 	client *github.Client,
@@ -134,8 +133,15 @@ func PackageFromRepo(
 }
 
 func (f *GitHubRemotePackageFetcher) Fetch(ctx context.Context, meta versioning.DependencyMeta) (pkg Package, err error) {
+	if f.GitHub == nil {
+		return f.packageFromOfficialRepo(ctx, meta)
+	}
 	pkg, err = f.packageFromRepo(ctx, meta)
 	if err != nil {
+		var remote *github.ErrorResponse
+		if !stderrors.As(err, &remote) || remote.Response == nil || remote.Response.StatusCode != http.StatusNotFound {
+			return pkg, err
+		}
 		print.Verb(meta, "failed to get package definition from repository:", err)
 		return f.packageFromOfficialRepo(ctx, meta)
 	}
@@ -217,18 +223,20 @@ func fetchRemoteDefinitionFromGitHub(request remoteDefinitionRequest) (Package, 
 
 			fileContent, _, _, err := request.Client.Repositories.GetContents(request.Context, request.Owner, request.Repo, path, opt)
 			if err != nil {
+				var remote *github.ErrorResponse
+				if !stderrors.As(err, &remote) || remote.Response == nil || remote.Response.StatusCode != http.StatusNotFound {
+					return Package{}, err
+				}
 				lastErr = err
 				continue
 			}
 			if fileContent == nil {
-				lastErr = errors.Errorf("empty response for %s/%s (%s)", request.Owner, request.Repo, path)
-				continue
+				return Package{}, errors.Errorf("empty response for %s/%s (%s)", request.Owner, request.Repo, path)
 			}
 
 			rawContent, err := decodeRepositoryContent(fileContent)
 			if err != nil {
-				lastErr = errors.Wrapf(err, "failed to decode %s/%s (%s)", request.Owner, request.Repo, path)
-				continue
+				return Package{}, errors.Wrapf(err, "failed to decode %s/%s (%s)", request.Owner, request.Repo, path)
 			}
 
 			var pkg Package
@@ -241,8 +249,7 @@ func fetchRemoteDefinitionFromGitHub(request remoteDefinitionRequest) (Package, 
 				err = errors.Errorf("unsupported remote definition format for %s", path)
 			}
 			if err != nil {
-				lastErr = errors.Wrapf(err, "failed to parse %s/%s (%s)", request.Owner, request.Repo, path)
-				continue
+				return Package{}, errors.Wrapf(err, "failed to parse %s/%s (%s)", request.Owner, request.Repo, path)
 			}
 
 			return pkg, nil
