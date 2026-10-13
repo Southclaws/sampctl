@@ -20,7 +20,7 @@ func (pcx *PackageContext) Install(
 	targets []versioning.DependencyString,
 	development bool,
 ) (err error) {
-	state, err := pcx.beginDependencyOperation(ctx)
+	state, err := pcx.beginDependencyOperation(ctx, "install")
 	if err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func (pcx *PackageContext) Install(
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := pcx.Package.WriteDefinition(); err != nil {
+	if err := pcx.writeDependencyDefinition(); err != nil {
 		return &OperationError{Operation: "manifest", Err: err}
 	}
 	return pcx.syncDependencyLockfile(ctx)

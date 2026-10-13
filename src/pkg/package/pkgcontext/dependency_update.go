@@ -111,13 +111,13 @@ func (pcx *PackageContext) UpdateDependencyReferences(
 	}
 	standalone := pcx.dependencyInstalls == nil
 	if standalone {
-		state, beginErr := pcx.beginDependencyOperation(ctx)
+		state, beginErr := pcx.beginDependencyOperation(ctx, "update references")
 		if beginErr != nil {
 			return false, beginErr
 		}
 		defer func() {
 			err = pcx.finishDependencyOperation(state, err)
-			if err != nil {
+			if err != nil && !dependencyOperationCommitted(err) {
 				updated = false
 			}
 		}()
@@ -152,7 +152,7 @@ func (pcx *PackageContext) UpdateDependencyReferences(
 	pcx.Package.Dependencies = changedDeps.updated
 	pcx.Package.Development = changedDev.updated
 
-	if err := pcx.Package.WriteDefinition(); err != nil {
+	if err := pcx.writeDependencyDefinition(); err != nil {
 		pcx.Package.Dependencies = originalDeps
 		pcx.Package.Development = originalDev
 		return false, &OperationError{Operation: "manifest", Err: err}
