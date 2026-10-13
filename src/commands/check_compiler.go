@@ -12,9 +12,11 @@ import (
 	"strings"
 
 	"github.com/Southclaws/sampctl/src/pkg/build"
+	compilerpkg "github.com/Southclaws/sampctl/src/pkg/build/compiler"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/cache"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
 
@@ -27,13 +29,18 @@ func checkCompilers(ctx context.Context, pkg pawnpackage.Package, opts checkOpti
 		if err := ctx.Err(); err != nil {
 			return results, err
 		}
-		result := inspectCheckCompiler(cfg, opts)
+		result := inspectCheckCompilerContext(ctx, cfg, opts)
 		if opts.Fix && result.CanFix {
 			var err error
 			result, err = repairDiagnostic(ctx, result, func(ctx context.Context) error {
-				return repairCheckCompilerPermissions(ctx, opts.CacheDir, result.Path)
+				resolved := cfg.Compiler.ResolveCompilerConfig()
+				dir := filepath.Join(opts.CacheDir, "pawn", resolved.User, resolved.Repo, resolved.Version)
+				if filepath.Clean(result.Path) == filepath.Clean(dir) {
+					return compilerpkg.RepairManagedCompiler(ctx, checkCompilerRequest(resolved, opts))
+				}
+				return repairCheckCompilerPermissionsAt(ctx, opts.CacheDir, result.Path, dir)
 			}, func() diagnostic {
-				return inspectCheckCompiler(cfg, opts)
+				return inspectCheckCompilerContext(ctx, cfg, opts)
 			})
 			if err != nil {
 				return append(results, result), err
@@ -75,6 +82,10 @@ func copyCheckCompilerConfig(cfg build.Config) build.Config {
 }
 
 func inspectCheckCompiler(cfg build.Config, opts checkOptions) diagnostic {
+	return inspectCheckCompilerContext(context.Background(), cfg, opts)
+}
+
+func inspectCheckCompilerContext(ctx context.Context, cfg build.Config, opts checkOptions) diagnostic {
 	result := diagnostic{Name: "compiler", Status: checkFailed}
 	label := "Compiler"
 	if cfg.Name != "" {
@@ -97,15 +108,45 @@ func inspectCheckCompiler(cfg build.Config, opts checkOptions) diagnostic {
 			return result
 		}
 	}
-	return inspectCheckManagedCompiler(resolved, label, opts)
+	return inspectCheckManagedCompiler(ctx, resolved, label, opts)
 }
 
-func inspectCheckManagedCompiler(resolved build.CompilerConfig, label string, opts checkOptions) diagnostic {
+func checkCompilerRequest(resolved build.CompilerConfig, opts checkOptions) compilerpkg.CompilerFetchRequest {
+	return compilerpkg.CompilerFetchRequest{
+		Meta:     versioning.DependencyMeta{Site: resolved.Site, User: resolved.User, Repo: resolved.Repo, Tag: resolved.Version},
+		Dir:      filepath.Join(opts.CacheDir, "pawn", resolved.User, resolved.Repo, resolved.Version),
+		Platform: opts.Platform, CacheDir: opts.CacheDir,
+	}
+}
+
+func inspectCheckManagedCompiler(ctx context.Context, resolved build.CompilerConfig, label string, opts checkOptions) diagnostic {
 	dir := filepath.Join(opts.CacheDir, "pawn", resolved.User, resolved.Repo, resolved.Version)
 	result := diagnostic{Name: "compiler", Status: checkFailed, Path: dir}
+	state, stateErr := compilerpkg.InspectManagedCompiler(ctx, checkCompilerRequest(resolved, opts))
+	if state.Active {
+		result.Status, result.Message = checkWarning, label+" installation is in use"
+		result.Action = "Wait for the current build or installation to finish, then retry."
+		return result
+	}
+	if state.Pending {
+		result.Err, result.CanFix = stateErr, state.CanRepair && stateErr == nil
+		result.Message = label + " installation was interrupted"
+		if state.Committed {
+			result.Message = label + " installation saved. Cleanup pending"
+		}
+		result.Action = "Run `sampctl check --verbose`. Keep the recovery files and backups for inspection."
+		if result.CanFix {
+			result.Action = "Run `sampctl check --fix` to finish compiler recovery."
+		}
+		return result
+	}
 	if err := checkCompilerDirectory(dir); err != nil {
 		result.Message, result.Err = label+" "+resolved.Version+" installation is unavailable", err
 		result.Action = "Run `sampctl build` to install the selected compiler."
+		if state.CanRepair {
+			result.CanFix = true
+			result.Action = "Run `sampctl check --fix` to restore the compiler from its cached archive."
+		}
 		return result
 	}
 	metadata, err := readCheckCompilerMetadata(filepath.Join(opts.CacheDir, "compilers.json"))
@@ -126,7 +167,23 @@ func inspectCheckManagedCompiler(resolved build.CompilerConfig, label string, op
 		result.Message, result.Err = label+" cannot be checked: invalid cached compiler metadata", err
 		return result
 	}
-	return inspectCheckCompilerFiles(dir, pkg, label, opts)
+	result = inspectCheckCompilerFiles(dir, pkg, label, opts)
+	if result.CanFix && (!state.HasCompletion || state.PermissionsOnly) {
+		return result
+	}
+	if stateErr != nil {
+		result.Status, result.Path, result.Err = checkFailed, dir, stateErr
+		result.Message = label + " " + resolved.Version + " files failed verification"
+		result.CanFix = state.CanRepair
+		result.Action = "Inspect the compiler files manually. Use --verbose for details before retrying the build."
+		if result.CanFix {
+			result.Action = "Run `sampctl check --fix` to restore the compiler from its cached archive."
+		}
+	} else if state.Valid && !state.Legacy {
+		result.Status, result.Message = checkPassed, label+" is available"
+		result.Err, result.Action, result.CanFix = nil, "", false
+	}
+	return result
 }
 
 func readCheckCompilerMetadata(path string) (download.Compilers, error) {
@@ -281,6 +338,10 @@ func checkCompilerReadableFile(path string) (os.FileInfo, error) {
 }
 
 func repairCheckCompilerPermissions(ctx context.Context, cacheDir, path string) (err error) {
+	return repairCheckCompilerPermissionsAt(ctx, cacheDir, path, filepath.Dir(path))
+}
+
+func repairCheckCompilerPermissionsAt(ctx context.Context, cacheDir, path, installationDir string) (err error) {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -309,5 +370,9 @@ func repairCheckCompilerPermissions(ctx context.Context, cacheDir, path string) 
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	return file.Chmod(current.Mode().Perm() | 0o111)
+	binary, err := filepath.Rel(installationDir, path)
+	if err != nil || !filepath.IsLocal(binary) {
+		return errors.Join(errors.New("compiler executable is outside its installation"), err)
+	}
+	return compilerpkg.RepairManagedCompilerPermissions(ctx, installationDir, filepath.ToSlash(binary))
 }

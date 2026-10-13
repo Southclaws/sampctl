@@ -80,7 +80,7 @@ func packageBuild(c *cli.Context) error {
 			Relative:  relativePaths,
 		})
 		if err != nil {
-			return cli.NewExitError(err.Error(), 1)
+			return reportDependencyCommandError(c, "build", err)
 		}
 	} else {
 		problems, result, err := pcx.Build(ctx, pkgcontext.BuildOptions{
@@ -91,7 +91,7 @@ func packageBuild(c *cli.Context) error {
 			BuildFile: buildFile,
 		})
 		if err != nil {
-			return cli.NewExitError(err.Error(), 1)
+			return reportDependencyCommandError(c, "build", err)
 		}
 
 		if build == "" {

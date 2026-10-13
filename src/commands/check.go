@@ -51,7 +51,7 @@ func newCheckCommand(global []cli.Flag) cli.Command {
 	return cli.Command{
 		Name:        "check",
 		Usage:       "sampctl check [--fix]",
-		Description: "Checks your configuration, dependencies, lockfile, compiler, and cache. Use --fix to repair supported issues and check the result.",
+		Description: "Checks your configuration, dependencies, runtime, compiler, and cache. Use --fix to repair supported issues and check the result.",
 		Action:      projectCheck,
 		Flags: withGlobalFlags(global, []cli.Flag{
 			cli.BoolFlag{Name: "fix", Usage: "repair supported issues and check the result"},
@@ -133,7 +133,7 @@ func runChecks(ctx context.Context, opts checkOptions) ([]diagnostic, error) {
 		return results, err
 	}
 	if project.Status != checkPassed {
-		for _, name := range []string{"dependencies", "lockfile", "compiler"} {
+		for _, name := range []string{"dependencies", "lockfile", "runtime", "compiler"} {
 			results = append(results, diagnostic{Name: name, Status: checkSkipped, Message: name + " check needs a valid project configuration"})
 		}
 		return results, ctx.Err()
@@ -144,7 +144,7 @@ func runChecks(ctx context.Context, opts checkOptions) ([]diagnostic, error) {
 		overrides = nil
 	}
 	if active {
-		for _, name := range []string{"dependencies", "lockfile", "compiler"} {
+		for _, name := range []string{"dependencies", "lockfile", "runtime", "compiler"} {
 			results = append(results, diagnostic{Name: name, Status: checkSkipped, Message: name + " check must wait for the dependency command to finish"})
 		}
 		return results, ctx.Err()
@@ -161,6 +161,11 @@ func runChecks(ctx context.Context, opts checkOptions) ([]diagnostic, error) {
 		results = append(results, diagnostic{Name: "dependencies", Status: checkSkipped, Message: "Cannot check dependencies until the dependency overrides are fixed"})
 	}
 	opts.Dir = pkg.LocalPath
+	runtimes, err := checkRuntime(ctx, pkg, opts)
+	results = append(results, runtimes...)
+	if err != nil {
+		return results, err
+	}
 	compilers, err := checkCompilers(ctx, pkg, opts)
 	if err == nil {
 		err = ctx.Err()
