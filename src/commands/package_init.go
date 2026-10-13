@@ -66,8 +66,11 @@ func packageInit(c *cli.Context) error {
 		Preset:   preset,
 		Version:  c.App.Version,
 	})
-
-	return reportDependencyCommandError(c, "init", err)
+	if err != nil {
+		return reportDependencyCommandError(c, "init", err)
+	}
+	print.Info("Project initialised")
+	return nil
 }
 
 func validateInitDirectory(dir string) error {
