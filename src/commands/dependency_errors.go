@@ -17,6 +17,7 @@ import (
 	"go.yaml.in/yaml/v3"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Southclaws/sampctl/src/pkg/build/compiler"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 	"github.com/Southclaws/sampctl/src/pkg/runtime"
@@ -87,12 +88,17 @@ func dependencyFailureHeading(operation string, err error) string {
 	var message string
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		message = "Dependency command cancelled"
+		if operation == "build" {
+			message = "Build cancelled"
+		}
 	} else {
 		switch operation {
 		case "install":
 			message = "Dependency installation failed"
 		case "uninstall":
 			message = "Dependency removal failed"
+		case "build":
+			message = "Build failed"
 		default:
 			message = "Dependency setup failed"
 		}
@@ -195,6 +201,10 @@ func dependencyDiagnosticCause(err error) string {
 func collectDependencyFailureDiagnostics(err, details error) []diagnostic {
 	switch failure := err.(type) {
 	case *pkgcontext.DependencyError:
+		var runtimeFailure *runtime.RuntimeInstallError
+		if errors.As(failure.Err, &runtimeFailure) {
+			return []diagnostic{runtimeInstallFailureDiagnostic(runtimeFailure, details)}
+		}
 		message, action := dependencyFailureAdvice(failure.Err)
 		if failure.Operation == "select" {
 			message = "Dependency is not declared in this project"
@@ -221,6 +231,12 @@ func collectDependencyFailureDiagnostics(err, details error) []diagnostic {
 		return []diagnostic{dependencyDestinationConflictDiagnostic(failure, details)}
 	case *runtime.PluginResourceNotFoundError:
 		return []diagnostic{pluginResourceFailureDiagnostic(failure, details)}
+	case *runtime.RuntimeInstallError:
+		return []diagnostic{runtimeInstallFailureDiagnostic(failure, details)}
+	case *compiler.InstallationError:
+		return []diagnostic{compilerInstallFailureDiagnostic(failure, details)}
+	case *compiler.ExecutionError:
+		return []diagnostic{compilerExecutionFailureDiagnostic(failure, details)}
 	case *pkgcontext.OperationError:
 		if failure.Outcome != "" || (dependencyOperationOutcome(failure) == pkgcontext.OutcomeCommitted && dependencyOperationRecoveryFailed(failure)) {
 			var nested *pkgcontext.OperationError

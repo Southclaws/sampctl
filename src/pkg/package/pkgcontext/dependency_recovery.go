@@ -447,6 +447,7 @@ func recoveryCleanupEntries(ctx context.Context, root string) ([]dependencyRecov
 		return nil, fmt.Errorf("cleanup path %s must be a directory", root)
 	}
 	var entries []dependencyRecoveryCleanupEntry
+	var buffer []byte
 	err = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -479,7 +480,10 @@ func recoveryCleanupEntries(ctx context.Context, root string) ([]dependencyRecov
 				return err
 			}
 			hash := sha256.New()
-			_, readErr := io.Copy(hash, dependencyContextReader{ctx: ctx, reader: f})
+			if buffer == nil {
+				buffer = make([]byte, 32*1024)
+			}
+			_, readErr := io.CopyBuffer(hash, dependencyContextReader{ctx: ctx, reader: f}, buffer)
 			if err := errors.Join(readErr, f.Close()); err != nil {
 				return err
 			}
@@ -510,7 +514,7 @@ func validateRecoveryCleanup(ctx context.Context, root string, expected []depend
 	return nil
 }
 
-// This only inspects ancestors; recovery must never create a path while deciding
+// This only inspects ancestors. Recovery must never create a path while deciding
 // whether recorded state is safe to restore.
 func (journal *dependencyJournal) safePath(relative string) error {
 	current := journal.project
@@ -546,6 +550,7 @@ func recoveryTreeHash(ctx context.Context, path string, syncFiles bool) (string,
 	}
 	hash := sha256.New()
 	var directories []string
+	var buffer []byte
 	err = filepath.WalkDir(path, func(entryPath string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -584,7 +589,10 @@ func recoveryTreeHash(ctx context.Context, path string, syncFiles bool) (string,
 			if err != nil {
 				return err
 			}
-			_, readErr := io.Copy(hash, dependencyContextReader{ctx: ctx, reader: file})
+			if buffer == nil {
+				buffer = make([]byte, 32*1024)
+			}
+			_, readErr := io.CopyBuffer(hash, dependencyContextReader{ctx: ctx, reader: file}, buffer)
 			var syncErr error
 			if syncFiles && readErr == nil {
 				syncErr = syncDependencyRecoveryFile(file, info)
@@ -738,16 +746,29 @@ func (journal *dependencyJournal) validateState(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		source, err := recoveryTreeHash(ctx, journal.path(change.Source), false)
-		if err != nil {
-			return err
-		}
-		backup := ""
-		if change.Backup != "" {
-			backup, err = recoveryTreeHash(ctx, journal.path(change.Backup), false)
+		var source, backup string
+		backupExists := false
+		// Cleanup inventories already verify staged contents. Installed
+		// destinations always require the fresh tree fingerprint above.
+		if !cleaning {
+			source, err = recoveryTreeHash(ctx, journal.path(change.Source), false)
 			if err != nil {
 				return err
 			}
+			if change.Backup != "" {
+				backup, err = recoveryTreeHash(ctx, journal.path(change.Backup), false)
+				if err != nil {
+					return err
+				}
+				backupExists = backup != ""
+			}
+		} else if journal.Phase == "restored" && change.Backup != "" {
+			// A restored installation must still have no remaining backup.
+			_, err := os.Lstat(journal.path(change.Backup))
+			if err != nil && !errors.Is(err, os.ErrNotExist) {
+				return err
+			}
+			backupExists = err == nil
 		}
 		if source != "" && source != change.NewHash && !cleaning {
 			return fmt.Errorf("staged replacement has changed: %s", journal.path(change.Source))
@@ -759,7 +780,7 @@ func (journal *dependencyJournal) validateState(ctx context.Context) error {
 			continue
 		}
 		if journal.Phase == "restored" {
-			if target != change.OldHash || backup != "" {
+			if target != change.OldHash || backupExists {
 				return fmt.Errorf("restored dependency %s has changed. Keep the recovery record and inspect the directory", journal.path(change.Target))
 			}
 			continue
@@ -845,7 +866,7 @@ func (journal *dependencyJournal) recover(ctx context.Context, rename func(strin
 			if err != nil {
 				return err
 			}
-			// Missing entries are safe after partial deletion; changed or new entries
+			// Missing entries are safe after partial deletion. Changed or new entries
 			// must remain distinguishable from the owned files scheduled for cleanup.
 			stage.CleanupEntries = entries
 			stage.Cleanup = true

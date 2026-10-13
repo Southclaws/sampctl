@@ -331,7 +331,7 @@ func Init(options InitOptions) (err error) {
 
 	err = pkg.WriteDefinition()
 	if err != nil {
-		print.Erro(err)
+		return errors.Wrap(err, "failed to write package definition")
 	}
 
 	if err := fetchInitTemplates(ctx, dir, profile, answers); err != nil {

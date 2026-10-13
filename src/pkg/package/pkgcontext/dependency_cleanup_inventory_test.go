@@ -83,6 +83,89 @@ func TestDependencyCleanupRejectsInvalidInventory(t *testing.T) {
 	}
 }
 
+func TestDependencyCleanupDetectsSameSizeContentChanges(t *testing.T) {
+	for _, tc := range []struct {
+		name, resource string
+		restored       bool
+	}{
+		{name: "committed target", resource: "target"},
+		{name: "committed backup", resource: "backup"},
+		{name: "restored target", resource: "target", restored: true},
+		{name: "restored staged replacement", resource: "source", restored: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := newDependencyRecoveryFixture(t)
+			cleanupFailure := errors.New("cleanup interrupted")
+			fixture.pcx.dependencyInstalls.removeAll = func(string) error { return cleanupFailure }
+			var installationError error
+			if tc.restored {
+				installationError = errors.New("installation failed")
+			}
+			if err := fixture.pcx.finishDependencyOperation(fixture.state, installationError); !errors.Is(err, cleanupFailure) {
+				t.Fatalf("finishDependencyOperation = %v, want cleanup failure", err)
+			}
+			root := fixture.target
+			if tc.resource == "source" {
+				root = fixture.source
+			} else if tc.resource == "backup" {
+				root = fixture.state.journal.path(fixture.state.journal.Changes[0].Backup)
+			}
+			path := filepath.Join(root, "keep.inc")
+			info, err := os.Stat(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			changed := strings.Repeat("x", int(info.Size()))
+			if err := os.WriteFile(path, []byte(changed), info.Mode().Perm()); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Chtimes(path, info.ModTime(), info.ModTime()); err != nil {
+				t.Fatal(err)
+			}
+			status, err := InspectDependencyRecovery(context.Background(), fixture.pcx.Package.LocalPath)
+			if err == nil || status.CanRecover {
+				t.Errorf("InspectDependencyRecovery(%s) = %+v, %v, want refusal", tc.name, status, err)
+			}
+			if _, err := RecoverDependencyOperation(context.Background(), fixture.pcx.Package.LocalPath); err == nil {
+				t.Errorf("RecoverDependencyOperation(%s) = nil, want refusal", tc.name)
+			}
+			if got := string(readCrashRecoveryFile(t, path)); got != changed {
+				t.Errorf("changed %s after recovery = %q, want %q", tc.resource, got, changed)
+			}
+			if _, err := os.Lstat(filepath.Join(fixture.pcx.Package.LocalPath, DependencyRecoveryFilename)); err != nil {
+				t.Errorf("recovery lost its pending record: %v", err)
+			}
+		})
+	}
+}
+
+func TestDependencyCleanupRejectsBackupAfterRestoration(t *testing.T) {
+	fixture := newDependencyRecoveryFixture(t)
+	cleanupFailure := errors.New("cleanup interrupted")
+	fixture.pcx.dependencyInstalls.removeAll = func(string) error { return cleanupFailure }
+	if err := fixture.pcx.finishDependencyOperation(fixture.state, errors.New("installation failed")); !errors.Is(err, cleanupFailure) {
+		t.Fatal(err)
+	}
+	journal := fixture.state.journal
+	backup := journal.path(journal.Changes[0].Backup)
+	writeCrashRecoveryContent(t, backup, "unexpected backup")
+	entries, err := recoveryCleanupEntries(context.Background(), fixture.stage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	journal.Stages[0].CleanupEntries = entries
+	if err := journal.save(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := RecoverDependencyOperation(context.Background(), fixture.pcx.Package.LocalPath); err == nil {
+		t.Error("RecoverDependencyOperation(restored with backup) = nil, want refusal")
+	}
+	assertRecoveryEvidence(t, fixture, "previous")
+	if got := string(readCrashRecoveryFile(t, filepath.Join(backup, "keep.inc"))); got != "unexpected backup" {
+		t.Errorf("backup after recovery = %q, want unexpected backup", got)
+	}
+}
+
 func TestDependencyRecoveryRetainsSnapshotWhenRestoredManifestIsMissing(t *testing.T) {
 	fixture := newDependencyRecoveryFixture(t)
 	manifest := filepath.Join(fixture.pcx.Package.LocalPath, "pawn.json")

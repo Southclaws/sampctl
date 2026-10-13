@@ -74,14 +74,17 @@ Invalid metadata, changed files, or ambiguous backups need manual inspection.
 Keep the record and backups until installed files, the manifest, and pins agree.
 Unknown staging directories remain.
 
-Runtime caches and files commit independently using validated replacements.
-`.sampctl-runtime.json` records binary ownership, including external directories
-and `--no-lock` projects. For older untracked installations, ensure the current
-version before upgrading. Dependency rollback leaves runtime files in place.
-Interruptions can leave complete files from different versions. Rerun
-`sampctl ensure` to finish provisioning.
+Runtime upgrades commit independently of dependencies. `.sampctl-runtime.json`
+records ownership, including external directories and `--no-lock` projects.
+Replacements are staged and verified, with previous managed files kept for
+recovery. Failed upgrades restore those files when safe. Saved upgrades remain
+installed if cleanup fails.
 
-Recovery uses the existing project lock. Retry when another operation finishes.
+The next ensure or `sampctl check --fix` recovers interrupted runtime work.
+Changed files or invalid recovery records need manual inspection. For older
+untracked installations, ensure the current version before upgrading.
+
+Dependency recovery uses the project lock. Retry when another operation finishes.
 The OS releases the lock on exit, so a leftover `.sampctl-dependencies.lock` file
 does not mean an operation is active. Renames require one filesystem. Directory
 changes are synced where supported. On Windows, close files blocking promotion

@@ -274,11 +274,15 @@ type Problem struct {
 	File        string
 	Line        int
 	Severity    ProblemSeverity
+	Code        string
 	Description string
 }
 
 // String creates a structured representation of a problem, for editor integration
 func (bp Problem) String() string {
+	if bp.Code != "" {
+		return fmt.Sprintf("%s:%d (%s %s) %s", bp.File, bp.Line, bp.Severity, bp.Code, bp.Description)
+	}
 	return fmt.Sprintf("%s:%d (%s) %s", bp.File, bp.Line, bp.Severity, bp.Description)
 }
 

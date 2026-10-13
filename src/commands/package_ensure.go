@@ -142,7 +142,7 @@ func runPackageEnsure(ctx context.Context, target ensureCommandTarget, opts ensu
 		if err := updateCommandLockfile(ctx, target, opts.update); err != nil {
 			return err
 		}
-		print.Verb("lockfile updated")
+		print.Info("Lockfile updated")
 		return nil
 	}
 
@@ -161,7 +161,7 @@ func runPackageEnsure(ctx context.Context, target ensureCommandTarget, opts ensu
 		}
 	}
 
-	print.Verb("Dependencies are installed")
+	print.Info("Dependencies and runtime are ready")
 
 	return nil
 }
