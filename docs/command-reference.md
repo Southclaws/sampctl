@@ -38,11 +38,11 @@ sampctl check --verbose
 sampctl check --dir path/to/project
 ```
 
-`check` validates settings, paths, Git, dependencies, optional `pawn.lock`, compiler files, and cached download lists. It reports interrupted dependency work and pending cleanup. It searches the selected directory and its parents. Outside a project, only global checks run.
+`check` validates settings, paths, Git, dependencies, optional `pawn.lock`, managed runtimes, compilers, and cached download lists. It reports interrupted work and pending cleanup. It searches the selected directory and its parents. Outside a project, only global checks run.
 
 Checks are read-only, with no downloads or compiler execution. Problems appear first: ✓ passed, ✗ failed, ! warning. Redirected output, `--bare`, and `NO_COLOR` disable colour. Use `--verbose` for details. Missing prerequisites show "Skipped".
 
-`--fix` removes invalid download lists, restores managed compiler execute permissions, and recovers recorded dependency work under the project lock. Recovery restores captured project files or finishes committed cleanup. Repairs are verified. Custom compilers remain unchanged.
+`--fix` removes invalid download lists, restores managed compiler execute permissions, and recovers recorded dependency, runtime, or compiler work. It can reinstall a managed compiler from its cached archive. Repairs use the installation locks and are verified. Custom compilers remain unchanged.
 
 Invalid recovery metadata, ambiguous backups, symlinked cache paths, and hardlinked compilers need manual inspection. Archive integrity and unrecorded temporary files aren't repaired.
 

@@ -1,30 +1,28 @@
 # Cache
 
-`sampctl` keeps downloads (dependencies, runtimes, plugins/components, compilers) in a local cache so it doesn’t need to re-download things every time.
+Sampctl caches dependency, runtime, plugin, and compiler downloads.
 
 ## Where is the cache?
 
-On Linux, the cache/config directory is typically:
-
-- `~/.config/sampctl`
-
-On other platforms it uses the OS “local app config” directory for the app name `sampctl`.
+On Linux, the cache is usually `~/.config/sampctl`. Other platforms use the OS
+local app configuration directory.
 
 ## What’s inside?
 
-You may see files and folders like:
+The cache holds global settings, downloaded archives, and managed installations.
+Compiler versions live under `pawn/<user>/<repo>/<version>`. Installations are
+staged and verified before replacement, including supporting files. Builds and
+repairs share a lock for that compiler version.
 
-- `config.json` / `config.yaml` (global `sampctl` settings)
-- downloaded runtime archives and staging files
-- downloaded plugin/component resources
-- cached compiler downloads
-
-Your project folder may also contain:
-
-- `.sampctl/sampctl-runtime-manifest.json` (tracks which runtime files were installed into that folder)
+Run `sampctl check` to inspect cached compilers. `check --fix` can finish recorded
+recovery, restore execute permissions, or reinstall from a cached archive.
+External compilers and unrecognized files need manual inspection.
 
 ## Is it safe to delete?
 
-Yes. You can delete the cache directory at any time.
+Stop running builds and finish pending recovery first. Keep global settings
+and any backups needed for recovery. Sampctl downloads missing artifacts on
+the next ensure, build, or run.
 
-`sampctl` will re-download whatever it needs the next time you run `sampctl ensure`, `sampctl build`, or `sampctl run`.
+An interrupted extraction can leave an unrecorded temporary folder. Inspect it
+before removing it.
