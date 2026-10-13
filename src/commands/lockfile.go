@@ -19,15 +19,15 @@ func initLockfileResolver(c *cli.Context, target pkgcontext.LockfileInitializer)
 func describeEnsureLockfile(lockfiles pkgcontext.LockfileController, forceUpdate bool) {
 	if forceUpdate {
 		lockfiles.ForceUpdateLockfile()
-		print.Verb("lockfile cleared, resolving fresh dependency versions")
+		print.Verb("Lockfile cleared. Resolving dependency versions again")
 	}
 
 	if lockfiles.HasLockfile() {
-		print.Verb("using lockfile for reproducible dependency resolution")
+		print.Verb("Using dependency versions from pawn.lock")
 		return
 	}
 
-	print.Verb("no lockfile found, will create one after ensuring dependencies")
+	print.Verb("No pawn.lock found. Creating one after installing dependencies")
 }
 
 func requireLockfileSupport(lockfiles pkgcontext.LockfileController) error {

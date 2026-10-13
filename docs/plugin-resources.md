@@ -32,7 +32,7 @@ Each entry in `resources` is a Resource object:
 - `archive` (bool, optional): whether the asset is an archive (`.zip` or `.tar.gz`).
 - `includes` (string[], optional): directories inside the archive to extract (and treat as include roots).
 - `plugins` (string[], optional): plugin binaries inside the archive to extract.
-- `files` (map string->string, optional): extra files inside the archive to extract; values are extraction paths relative to the runtime root.
+- `files` (map string->string, optional): extra files to extract from the archive, mapped to destinations relative to the runtime root.
 
 Related advanced field:
 
@@ -98,9 +98,9 @@ You can model them as two resources per platform, distinguished by `name` and `v
 
 Notes:
 
-- `runtime_type` does not affect resource selection; only `runtime.version` and `platform` do.
+- Resource selection uses `runtime.version` and `platform`. `runtime_type` has no effect.
 - open.mp detection is based on the runtime `version` string containing `openmp` or `open.mp`.
-- The `plugins` paths are paths **inside the archive**; `sampctl` extracts them into the correct runtime folder.
+- The `plugins` paths refer to files inside the archive. `sampctl` extracts them into the correct runtime folder.
 
 ## Extra files example (`files`)
 

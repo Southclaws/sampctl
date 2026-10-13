@@ -158,7 +158,7 @@ func TestWriteCheckResultsSummary(t *testing.T) {
 		{name: "failures", results: []diagnostic{{Status: checkFailed}, {Status: checkFailed}}, code: 1, summary: "2 issues."},
 		{name: "repaired", results: []diagnostic{{Status: checkRepaired}}, summary: "1 repaired."},
 		{name: "skipped", results: []diagnostic{{Status: checkSkipped}}, summary: "1 skipped."},
-		{name: "empty", summary: "No applicable checks."},
+		{name: "empty", summary: "No checks apply."},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var out bytes.Buffer

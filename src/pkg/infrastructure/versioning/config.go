@@ -159,9 +159,7 @@ func LoadDependencyOverridesContext(ctx context.Context, configPath string) map[
 
 	// Load and merge remote overrides
 	remoteOverrides := loadRemoteOverrides(ctx)
-	for original, replacement := range remoteOverrides {
-		overrides[original] = replacement
-	}
+	mergeDependencyOverrides(overrides, remoteOverrides)
 
 	if configPath == "" {
 		var err error
@@ -183,9 +181,7 @@ func LoadDependencyOverridesContext(ctx context.Context, configPath string) map[
 	}
 
 	// Merge local overrides (they take highest precedence)
-	for original, replacement := range config.Overrides {
-		overrides[original] = replacement
-	}
+	mergeDependencyOverrides(overrides, config.Overrides)
 
 	return overrides
 }
@@ -224,11 +220,26 @@ func LoadLocalDependencyOverrides(cacheDir string) (map[string]string, error) {
 			loadErrors = append(loadErrors, fmt.Errorf("parse dependency overrides %s: %w", path, err))
 			continue
 		}
-		for original, replacement := range config.Overrides {
-			overrides[original] = replacement
-		}
+		mergeDependencyOverrides(overrides, config.Overrides)
 	}
 	return overrides, errors.Join(loadErrors...)
+}
+
+func mergeDependencyOverrides(overrides, additions map[string]string) {
+	for original, replacement := range additions {
+		source, err := dependencyOverrideMeta(original)
+		if err == nil && !source.IsLocalScheme() {
+			for existing := range overrides {
+				meta, err := dependencyOverrideMeta(existing)
+				if err == nil && sameDependencyOverrideRepository(source, meta) &&
+					source.Path == meta.Path && source.Scheme == meta.Scheme &&
+					source.Tag == meta.Tag && source.Branch == meta.Branch && source.Commit == meta.Commit {
+					overrides[existing] = replacement
+				}
+			}
+		}
+		overrides[original] = replacement
+	}
 }
 
 // SaveDependencyOverrides saves dependency overrides to a configuration file

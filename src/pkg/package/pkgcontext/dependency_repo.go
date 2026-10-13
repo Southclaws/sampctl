@@ -233,13 +233,13 @@ func (pcx *PackageContext) updateRepoStateContext(ctx context.Context, repo *git
 			return err
 		}
 		if err = wt.Checkout(&git.CheckoutOptions{Hash: ref.Hash(), Force: true}); err != nil {
-			return errors.Wrapf(err, "failed to checkout necessary commit %s", ref.Hash())
+			return errors.Wrapf(err, "failed to check out requested commit %s", ref.Hash())
 		}
-		print.Verb(meta, "successfully checked out to", ref.Hash())
+		print.Verb(meta, "checked out commit", ref.Hash())
 		return nil
 	}
 
-	print.Verb(meta, "package does not have version constraint pulling latest")
+	print.Verb(meta, "has no version constraint. Pulling the latest commit")
 	if err = wt.PullContext(ctx, pullOpts); err != nil {
 		if err == git.NoErrAlreadyUpToDate {
 			return nil

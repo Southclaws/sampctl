@@ -63,6 +63,32 @@ func (pcx *PackageContext) ensureManagedPackage(request ensurePackageRequest) (e
 	if err := request.Context.Err(); err != nil {
 		return err
 	}
+	if !request.Meta.IsURLScheme() {
+		if err := validateManagedDependencyName(request.Meta.Repo); err != nil {
+			return err
+		}
+	}
+	state := pcx.dependencyInstalls
+	if state == nil {
+		projectState, beginErr := pcx.beginDependencyOperationState(request.Context, pcx.HasLockfileResolver(), true, "ensure dependency")
+		if beginErr != nil {
+			return beginErr
+		}
+		state = pcx.dependencyInstalls
+		restoreRecord := pcx.dependencyRecordSnapshot(request.Meta)
+		includeCount := len(pcx.AllIncludePaths)
+		defer func() {
+			err = pcx.finishDependencyOperation(projectState, err)
+			if err != nil {
+				if !dependencyOperationCommitted(err) {
+					restoreRecord()
+					if len(pcx.AllIncludePaths) > includeCount {
+						pcx.AllIncludePaths = pcx.AllIncludePaths[:includeCount]
+					}
+				}
+			}
+		}()
+	}
 	if request.Meta.IsURLScheme() {
 		if request.Meta.IsLocalScheme() {
 			if err := validateLocalDependencyPath(pcx.Package.LocalPath, request.Meta); err != nil {
@@ -71,10 +97,6 @@ func (pcx *PackageContext) ensureManagedPackage(request ensurePackageRequest) (e
 		}
 		return pcx.ensureURLSchemeDependency(request.Context, request.Meta)
 	}
-	if err := validateManagedDependencyName(request.Meta.Repo); err != nil {
-		return err
-	}
-
 	effectiveMeta := pcx.PackageLockfileState.LockedVersion(request.Meta, request.ForceUpdate)
 	effectiveMeta, err = pcx.resolveDynamicDependencyReference(request.Context, effectiveMeta, request.Meta, request.ForceUpdate)
 	if err != nil {
@@ -82,25 +104,6 @@ func (pcx *PackageContext) ensureManagedPackage(request ensurePackageRequest) (e
 	}
 	if err := validateManagedDependencyName(effectiveMeta.Repo); err != nil {
 		return err
-	}
-	state := pcx.dependencyInstalls
-	if state == nil {
-		state = newDependencyInstallState()
-		restoreRecord := pcx.dependencyRecordSnapshot(request.Meta)
-		includeCount := len(pcx.AllIncludePaths)
-		defer func() {
-			if err != nil {
-				if rollbackErr := state.rollback(); rollbackErr != nil {
-					err = stderrors.Join(err, &OperationError{Operation: "rollback", Err: rollbackErr})
-				}
-				restoreRecord()
-				pcx.AllIncludePaths = pcx.AllIncludePaths[:includeCount]
-				return
-			}
-			if cleanupErr := state.commit(); cleanupErr != nil {
-				err = &OperationError{Operation: "cleanup", Err: cleanupErr}
-			}
-		}()
 	}
 	return pcx.ensureStagedPackage(request, effectiveMeta, state)
 }
@@ -123,7 +126,7 @@ func (pcx *PackageContext) dependencyRecordSnapshot(meta versioning.DependencyMe
 }
 
 func (pcx *PackageContext) ensureStagedPackage(request ensurePackageRequest, effectiveMeta versioning.DependencyMeta, state *dependencyInstallState) error {
-	stage, err := state.stage(pcx.Package.Vendor)
+	stage, err := state.stage(pcx.Package.Vendor, effectiveMeta.Repo)
 	if err != nil {
 		return err
 	}
@@ -142,7 +145,7 @@ func (pcx *PackageContext) ensureStagedPackage(request ensurePackageRequest, eff
 		return err
 	}
 	if !unchangedDependency(finalPath, dependencyPath, request.ForceUpdate) {
-		if err := state.promote(dependencyPath, finalPath); err != nil {
+		if err := state.promoteContext(request.Context, dependencyPath, finalPath); err != nil {
 			return err
 		}
 	}
@@ -164,7 +167,7 @@ func (pcx *PackageContext) promoteStagedResources(ctx context.Context, stage str
 			return fmt.Errorf("resource include directory escapes dependency staging: %s", includePath)
 		}
 		target := filepath.Join(pcx.Package.Vendor, relative)
-		if err := state.promote(includePath, target); err != nil {
+		if err := state.promoteContext(ctx, includePath, target); err != nil {
 			return err
 		}
 		pcx.AllIncludePaths = append(pcx.AllIncludePaths, target)

@@ -121,12 +121,12 @@ func MigrateOldConfig(cacheDir string) error {
 	if _, err := os.Stat(oldCacheDir); !os.IsNotExist(err) {
 		err = copy.Copy(oldCacheDir, cacheDir)
 		if err != nil {
-			return errors.Wrap(err, "Failed to copy old cache directory to new cache directory")
+			return errors.Wrap(err, "failed to copy old cache to the new directory")
 		}
 
 		err = os.RemoveAll(oldCacheDir)
 		if err != nil {
-			return errors.Wrap(err, "Failed to remove all the contents of the old cache directory")
+			return errors.Wrap(err, "failed to remove old cache directory")
 		}
 	}
 
@@ -185,7 +185,7 @@ func FromNet(ctx context.Context, location, cachePath string) (result string, er
 }
 
 func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath string) (result string, err error) {
-	print.Verb("attempting to download package to", cachePath)
+	print.Verb("downloading package to", cachePath)
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -228,7 +228,7 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 				print.Warn("failed to drain unsuccessful download response:", copyErr)
 			}
 			closeWithWarning(resp.Body, "download response body")
-			lastErr = errors.Errorf("unexpected status code given %d", resp.StatusCode)
+			lastErr = errors.Errorf("download returned HTTP %d", resp.StatusCode)
 			err = lastErr
 			if !retryable {
 				// Non-retryable status codes (e.g., 401/403/404) won't improve with retries.
@@ -258,7 +258,7 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 			if t, _, parseErr := mime.ParseMediaType(ct); parseErr == nil {
 				if !(strings.HasPrefix(t, "application/") || strings.HasPrefix(t, "text/")) {
 					closeWithWarning(resp.Body, "download response body")
-					return "", errors.Errorf("content has unexpected content type %s", t)
+					return "", errors.Errorf("download returned an unsupported content type: %s", t)
 				}
 			}
 		}
@@ -352,7 +352,16 @@ func ReleaseAssetByPatternWithAPI(request ReleaseAssetAPIRequest) (filename, tag
 		assets = append(assets, *a.Name)
 	}
 	if asset == nil {
-		err = errors.Errorf("resource matcher '%s' does not match any release assets from '%v'", request.Matcher, assets)
+		releaseTag := release.GetTagName()
+		if releaseTag == "" {
+			releaseTag = request.Meta.Tag
+		}
+		err = &ReleaseAssetNotFoundError{
+			Meta:            request.Meta,
+			Tag:             releaseTag,
+			Pattern:         request.Matcher.String(),
+			AvailableAssets: assets,
+		}
 		return
 	}
 	tag = release.GetTagName()

@@ -144,7 +144,7 @@ func TestGenerateDocsIncludesCommandsAndFlags(t *testing.T) {
 	assert.Contains(t, docs, "## Commands")
 	assert.Contains(t, docs, "### `sampctl init`")
 	assert.Contains(t, docs, "#### Subcommands")
-	assert.Contains(t, docs, "## Global Flags")
+	assert.Contains(t, docs, "## Global flags")
 	assert.Contains(t, docs, "verbose")
 	assert.Contains(t, docs, "platform")
 	assert.Contains(t, docs, "bare")

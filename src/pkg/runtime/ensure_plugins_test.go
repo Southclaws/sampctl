@@ -337,7 +337,7 @@ func TestEnsureVersionedPluginSingleFileRequiresDestination(t *testing.T) {
 		Plugins:  true,
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "pluginDestDir is required")
+	assert.Contains(t, err.Error(), "plugin destination directory is required")
 }
 
 func seedCachedSinglePluginAsset(t *testing.T, cacheDir string, meta versioning.DependencyMeta, resourceDef res.Resource, filename string) string {

@@ -18,7 +18,7 @@ func packageTemplateMakeFlags() []cli.Flag {
 		cli.StringFlag{
 			Name:  "dir",
 			Value: ".",
-			Usage: "working directory for the package - by default, uses the current directory",
+			Usage: "package directory",
 		},
 		cli.BoolFlag{
 			Name:  "update",
@@ -43,7 +43,7 @@ func packageTemplateMake(c *cli.Context) (err error) {
 
 	templatePath := filepath.Join(env.CacheDir, "templates", name)
 	if fs.Exists(templatePath) {
-		return errors.New("A template with that name already exists")
+		return errors.Errorf("template %q already exists", name)
 	}
 
 	err = fs.EnsureDir(templatePath, fs.PermDirPrivate)
@@ -60,12 +60,12 @@ func packageTemplateMake(c *cli.Context) (err error) {
 
 	err = pkg.WriteDefinition()
 	if err != nil {
-		return errors.Wrap(err, "failed to write package template definition file")
+		return errors.Wrap(err, "failed to save the template package definition")
 	}
 
 	pcx, _, err := loadPackageContext(c, templatePath, false)
 	if err != nil {
-		return errors.Wrap(err, "failed to create package context")
+		return errors.Wrap(err, "failed to load the template package")
 	}
 
 	ctx, cancel := newCommandTimeoutContext(time.Hour)
@@ -73,12 +73,12 @@ func packageTemplateMake(c *cli.Context) (err error) {
 
 	err = pcx.EnsureDependencies(ctx, forceUpdate)
 	if err != nil {
-		return errors.Wrap(err, "failed to ensure dependencies of template package")
+		return errors.Wrap(err, "failed to install template dependencies")
 	}
 
-	print.Info("Template successfully created at", templatePath)
-	print.Info("To modify this template, such as install dependencies, either:")
-	print.Info(fmt.Sprintf("- `cd %s` and use sampctl as normal", templatePath))
+	print.Info("Template created at", templatePath)
+	print.Info("To edit the template or install dependencies:")
+	print.Info(fmt.Sprintf("- `cd %s` and run sampctl commands", templatePath))
 	print.Info(fmt.Sprintf("- pass `--dir %s` to sampctl commands", templatePath))
 
 	return nil

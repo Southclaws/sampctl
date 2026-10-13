@@ -13,7 +13,7 @@ func packageReleaseFlags() []cli.Flag {
 		cli.StringFlag{
 			Name:  "dir",
 			Value: ".",
-			Usage: "working directory for the project - by default, uses the current directory",
+			Usage: "project directory",
 		},
 	}
 }
@@ -35,7 +35,7 @@ func packageRelease(c *cli.Context) error {
 
 	err = rook.Release(ctx, state.gh, state.gitAuth, pcx.Package)
 	if err != nil {
-		return errors.Wrap(err, "failed to release")
+		return errors.Wrap(err, "failed to publish the package release")
 	}
 
 	return nil

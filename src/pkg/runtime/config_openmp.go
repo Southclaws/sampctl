@@ -396,7 +396,7 @@ func (o *openMPConfig) generate(cfg *run.Runtime) (err error) {
 func (o *openMPConfig) generateLegacyServerCfg(cfg *run.Runtime) (err error) {
 	serverCfgPath := filepath.Join(o.workingDir, "server.cfg")
 	if len(cfg.Extra) == 0 {
-		print.Verb("No extra configuration found, skipping server.cfg generation")
+		print.Verb("no extra settings. server.cfg is not needed")
 		return nil
 	}
 

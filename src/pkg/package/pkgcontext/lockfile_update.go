@@ -51,7 +51,7 @@ func (pcx *PackageContext) resolveLockfileDependencyMeta(
 		tag, err := pcx.resolveLatestTag(ctx, meta, true)
 		if err != nil {
 			if isMissingLatestReleaseError(err) {
-				print.Warn(meta, "does not publish tags or releases, leaving pinned dependency unchanged in the lockfile")
+				print.Warn(meta, "has no tags or releases. Keeping the lockfile pin")
 				return resolvedMeta, nil
 			}
 
@@ -282,7 +282,7 @@ func lockfileDependencyMetas(states []lockfileDependencyState) []versioning.Depe
 
 // UpdateProjectLockfile updates and saves dependency pins without installing files.
 func (pcx *PackageContext) UpdateProjectLockfile(ctx context.Context, request DependencyUpdateRequest) (err error) {
-	state, err := pcx.beginDependencyOperation(ctx)
+	state, err := pcx.beginDependencyOperation(ctx, "update lockfile")
 	if err != nil {
 		return err
 	}
@@ -293,7 +293,7 @@ func (pcx *PackageContext) UpdateProjectLockfile(ctx context.Context, request De
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := pcx.PackageLockfileState.SaveLockfile(); err != nil {
+	if err := pcx.saveDependencyLockfile(); err != nil {
 		return &OperationError{Operation: "lockfile", Err: err}
 	}
 	return nil

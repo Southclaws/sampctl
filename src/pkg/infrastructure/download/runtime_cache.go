@@ -72,7 +72,7 @@ func GetRuntimeListWithClientContext(ctx context.Context, cacheDir string, clien
 				}
 			}()
 			if resp.StatusCode != 200 {
-				return Runtimes{}, errors.Errorf("package list status %s", resp.Status)
+				return Runtimes{}, errors.Errorf("runtime list download returned HTTP %s", resp.Status)
 			}
 			if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to decode package list")
@@ -128,7 +128,7 @@ func UpdateRuntimeListWithClientContext(ctx context.Context, cacheDir string, cl
 				}
 			}()
 			if resp.StatusCode != 200 {
-				return Runtimes{}, errors.Errorf("package list status %s", resp.Status)
+				return Runtimes{}, errors.Errorf("runtime list download returned HTTP %s", resp.Status)
 			}
 			if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to decode package list")

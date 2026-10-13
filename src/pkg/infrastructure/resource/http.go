@@ -64,7 +64,7 @@ func (hr *HTTPResource) SetCacheTTL(ttl time.Duration) {
 // Ensure acquires the HTTP resource, downloading it if necessary
 func (hr *HTTPResource) Ensure(ctx context.Context, version, path string) error {
 	if hr.baseResource == nil {
-		return errors.New("HTTPResource has no BaseResource")
+		return errors.New("HTTP resource is missing its base configuration")
 	}
 	hr.baseResource.SetDownloadURL(hr.url)
 	return hr.baseResource.EnsureFromURL(ctx, version, path)

@@ -2,7 +2,6 @@ package pkgcontext
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
@@ -62,7 +61,9 @@ func registerDependencyDestination(seen map[string]versioning.DependencyMeta, me
 	key := strings.ToLower(meta.Repo)
 	previous, exists := seen[key]
 	if exists && managedDependencyIdentity(previous) != managedDependencyIdentity(meta) {
-		return &DependencyError{Dependency: meta.String(), Operation: "ensure", Err: fmt.Errorf("dependencies %s and %s share the installation directory %s; use dependencies with distinct repository names", previous, meta, meta.Repo)}
+		return &DependencyError{Dependency: meta.String(), Operation: "ensure", Err: &DependencyDestinationConflictError{
+			First: previous, Second: meta, Directory: meta.Repo,
+		}}
 	}
 	seen[key] = meta
 	return nil

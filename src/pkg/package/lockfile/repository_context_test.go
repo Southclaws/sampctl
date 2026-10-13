@@ -47,8 +47,9 @@ func TestCommitIntegrityDoesNotInitializeMissingSubmodules(t *testing.T) {
 
 func TestCommitIntegritySupportsInitializedSubmodules(t *testing.T) {
 	repo, _ := seedGitRepo(t, map[string]string{
-		"main.pwn":    "main() {}",
-		".gitmodules": "[submodule \"child\"]\n\tpath = child\n\turl = https://example.com/child.git\n",
+		"main.pwn":           "main() {}",
+		"vendor/library.inc": "stock Vendored() {}",
+		".gitmodules":        "[submodule \"child\"]\n\tpath = child\n\turl = https://example.com/child.git\n[submodule \"vendor\"]\n\tpath = vendor\n\turl = https://example.com/vendor.git\n",
 	}, "")
 	wt, err := repo.Worktree()
 	require.NoError(t, err)
@@ -76,6 +77,23 @@ func TestCommitIntegritySupportsInitializedSubmodules(t *testing.T) {
 	ok, err := VerifyIntegrityContext(t.Context(), dir, CalculateCommitIntegrity(commit.String()))
 	require.NoError(t, err)
 	assert.True(t, ok)
+	assert.Equal(t, before, snapshotIntegrityFiles(t, dir))
+
+	child, err = git.PlainOpen(childPath)
+	require.NoError(t, err)
+	childWorktree, err = child.Worktree()
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(childPath, "library.inc"), []byte("stock Changed() {}"), 0o644))
+	_, err = childWorktree.Add("library.inc")
+	require.NoError(t, err)
+	_, err = childWorktree.Commit("change submodule", &git.CommitOptions{Author: &object.Signature{
+		Name: "test", Email: "test@example.com", When: time.Unix(300, 0),
+	}})
+	require.NoError(t, err)
+	before = snapshotIntegrityFiles(t, dir)
+	ok, err = VerifyIntegrityContext(t.Context(), dir, CalculateCommitIntegrity(commit.String()))
+	require.NoError(t, err)
+	assert.False(t, ok, "obsolete declarations must not hide a changed real gitlink")
 	assert.Equal(t, before, snapshotIntegrityFiles(t, dir))
 }
 

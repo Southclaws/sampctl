@@ -201,7 +201,7 @@ func TestHTTPResourceEnsure(t *testing.T) {
 	var broken HTTPResource
 	err = broken.Ensure(context.Background(), "", filepath.Join(t.TempDir(), "x"))
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no BaseResource")
+	assert.Contains(t, err.Error(), "missing its base configuration")
 }
 
 func TestGitResourceCachedEnsureAndCopy(t *testing.T) {

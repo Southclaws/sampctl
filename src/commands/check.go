@@ -51,10 +51,10 @@ func newCheckCommand(global []cli.Flag) cli.Command {
 	return cli.Command{
 		Name:        "check",
 		Usage:       "sampctl check [--fix]",
-		Description: "Diagnoses local configuration, dependencies, lockfiles, compilers, and managed caches. --fix repairs only supported managed resources and verifies the result.",
+		Description: "Checks your configuration, dependencies, lockfile, compiler, and cache. Use --fix to repair supported issues and check the result.",
 		Action:      projectCheck,
 		Flags: withGlobalFlags(global, []cli.Flag{
-			cli.BoolFlag{Name: "fix", Usage: "attempt safe repairs of managed resources"},
+			cli.BoolFlag{Name: "fix", Usage: "repair supported issues and check the result"},
 			cli.StringFlag{Name: "dir", Value: ".", Usage: "project directory (searches parent directories)"},
 		}),
 		OnUsageError: func(_ *cli.Context, err error, _ bool) error { return err },
@@ -63,7 +63,7 @@ func newCheckCommand(global []cli.Flag) cli.Command {
 
 func projectCheck(c *cli.Context) error {
 	if c.NArg() != 0 {
-		return &commandExitError{code: 2, err: errors.New("check does not accept positional arguments; use --dir to select a project")}
+		return &commandExitError{code: 2, err: errors.New("check does not accept positional arguments. Use --dir to select a project")}
 	}
 	state, err := getCommandState(c)
 	if err != nil {
@@ -84,11 +84,11 @@ func projectCheck(c *cli.Context) error {
 	defer cancel()
 	opts := checkOptions{Dir: dir, CacheDir: state.cacheDir, Platform: checkPlatform(c), Fix: c.Bool("fix"), Verbose: c.Bool("verbose") || c.GlobalBool("verbose")}
 	if opts.Platform != "linux" && opts.Platform != "windows" && opts.Platform != "darwin" {
-		return &commandExitError{code: 2, err: fmt.Errorf("unsupported check platform %q; use linux, windows, or darwin", opts.Platform)}
+		return &commandExitError{code: 2, err: fmt.Errorf("unsupported check platform %q. Use linux, windows, or darwin", opts.Platform)}
 	}
 	results, checkErr := runChecks(ctx, opts)
 	if checkErr != nil {
-		results = append(results, diagnostic{Name: "check", Status: checkFailed, Message: "Diagnostics did not complete", Err: checkErr})
+		results = append(results, diagnostic{Name: "check", Status: checkFailed, Message: "Checks could not finish", Err: checkErr})
 	}
 	code, err := writeCheckResults(c.App.Writer, results, checkOutputOptions{Verbose: opts.Verbose, Bare: c.Bool("bare") || c.GlobalBool("bare")})
 	if err != nil {
@@ -108,6 +108,18 @@ func runChecks(ctx context.Context, opts checkOptions) ([]diagnostic, error) {
 		return nil, err
 	}
 	results := []diagnostic{checkGlobalConfig(opts.CacheDir)}
+	root, _, discoverErr := findCheckProject(opts.Dir)
+	var active bool
+	var recoveryStages []string
+	if discoverErr == nil && root != "" {
+		recovery, recoveryState, err := checkDependencyRecovery(ctx, root, opts.Fix)
+		results = append(results, recovery...)
+		active = recoveryState.Active
+		recoveryStages = recoveryState.Stages
+		if err != nil {
+			return results, err
+		}
+	}
 	pkg, project := checkProject(opts.Dir)
 	var overrides map[string]string
 	var overrideErr error
@@ -122,25 +134,31 @@ func runChecks(ctx context.Context, opts checkOptions) ([]diagnostic, error) {
 	}
 	if project.Status != checkPassed {
 		for _, name := range []string{"dependencies", "lockfile", "compiler"} {
-			results = append(results, diagnostic{Name: name, Status: checkSkipped, Message: name + " check requires a valid project configuration"})
+			results = append(results, diagnostic{Name: name, Status: checkSkipped, Message: name + " check needs a valid project configuration"})
 		}
 		return results, ctx.Err()
 	}
 	results = append(results, checkProjectPaths(pkg)...)
 	if overrideErr != nil {
-		results = append(results, diagnostic{Name: "dependency overrides", Status: checkFailed, Message: "Dependency overrides could not be read", Action: "Correct the dependency override configuration before checking dependencies.", Err: overrideErr})
+		results = append(results, diagnostic{Name: "dependency overrides", Status: checkFailed, Message: "Cannot read dependency overrides", Action: "Fix the dependency overrides, then run `sampctl check` again.", Err: overrideErr})
 		overrides = nil
+	}
+	if active {
+		for _, name := range []string{"dependencies", "lockfile", "compiler"} {
+			results = append(results, diagnostic{Name: name, Status: checkSkipped, Message: name + " check must wait for the dependency command to finish"})
+		}
+		return results, ctx.Err()
 	}
 	lf, lockResults := checkLockfile(pkg, overrides)
 	results = append(results, lockResults...)
 	if overrideErr == nil {
-		dependencies, depErr := checkDependencies(ctx, pkg, lf, overrides)
+		dependencies, depErr := checkDependencies(ctx, pkg, lf, overrides, recoveryStages...)
 		results = append(results, dependencies...)
 		if depErr != nil {
 			return results, depErr
 		}
 	} else {
-		results = append(results, diagnostic{Name: "dependencies", Status: checkSkipped, Message: "Dependencies check requires valid dependency overrides"})
+		results = append(results, diagnostic{Name: "dependencies", Status: checkSkipped, Message: "Cannot check dependencies until the dependency overrides are fixed"})
 	}
 	opts.Dir = pkg.LocalPath
 	compilers, err := checkCompilers(ctx, pkg, opts)
@@ -164,8 +182,8 @@ func checkGlobalConfig(cacheDir string) diagnostic {
 	d := diagnostic{Name: "configuration", Status: checkPassed, Message: "Global configuration is valid", Path: cacheDir}
 	if _, err := config.LoadConfig(cacheDir); err != nil {
 		d.Status = checkFailed
-		d.Message = "Global configuration could not be loaded"
-		d.Action = "Check config.json or config.yaml in the sampctl configuration directory and SAMPCTL environment variables."
+		d.Message = "Cannot load global configuration"
+		d.Action = "Check the sampctl config.json or config.yaml file and your SAMPCTL environment variables."
 		d.Err = err
 	}
 	return d
@@ -177,7 +195,7 @@ func checkGit(required bool) diagnostic {
 		return d
 	}
 	d.Status = checkWarning
-	d.Message = "Git is unavailable; it is needed for dependency operations"
+	d.Message = "Git is unavailable. Dependency commands need it"
 	d.Action = "Install Git and make it available on PATH."
 	if required {
 		d.Status = checkFailed
@@ -220,9 +238,9 @@ func repairDiagnostic(ctx context.Context, d diagnostic, repair func(context.Con
 	d.Status = checkFailed
 	d.Err = errors.Join(d.Err, repairErr, verified.Err)
 	if repairErr != nil {
-		d.Message += "; repair failed"
+		d.Message += ". Repair failed"
 	} else {
-		d.Message += "; repair did not resolve the issue"
+		d.Message += ". The issue remains after repair"
 	}
 	return d, nil
 }

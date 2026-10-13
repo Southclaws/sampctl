@@ -13,7 +13,7 @@ import (
 func completePackageList(c *cli.Context) {
 	env, err := getCommandEnv(c)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to get config dir:", err)
+		fmt.Fprintln(os.Stderr, "Failed to find the sampctl config directory:", err)
 		return
 	}
 

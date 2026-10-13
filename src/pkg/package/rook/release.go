@@ -47,7 +47,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 
 	_, err = repo.Head()
 	if err != nil {
-		print.Erro("failed to get repo HEAD reference, if this is a new repo, you need to make at least one commit")
+		print.Erro("Cannot read repository HEAD. Create an initial commit if this repository is new")
 		return
 	}
 
@@ -70,7 +70,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 			{
 				Name: "Version",
 				Prompt: &survey.Select{
-					Message: "New Project Version",
+					Message: "Choose the first version",
 					Options: []string{
 						"0.0.1: Unstable prototype",
 						"0.1.0: Stable prototype but subject to change",
@@ -94,11 +94,11 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 			{
 				Name: "Version",
 				Prompt: &survey.Select{
-					Message: "Select Version Bump",
+					Message: "Choose the next version",
 					Options: []string{
-						fmt.Sprintf("%s: I made backwards-compatible bug fixes", bumpPatch.String()),
-						fmt.Sprintf("%s: I added functionality in a backwards-compatible manner", bumpMinor.String()),
-						fmt.Sprintf("%s: I made incompatible API changes", bumpMajor.String()),
+						fmt.Sprintf("%s: Bug fixes compatible with the current API", bumpPatch.String()),
+						fmt.Sprintf("%s: New features compatible with the current API", bumpMinor.String()),
+						fmt.Sprintf("%s: Breaking API changes", bumpMajor.String()),
 					},
 				},
 				Validate: survey.Required,
@@ -109,7 +109,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 	questions = append(questions, &survey.Question{
 		Name: "Generate",
 		Prompt: &survey.Confirm{
-			Message: fmt.Sprintf("Generate/update `%s`?", packageSlug(pkg.Repo)+"_version.inc"),
+			Message: fmt.Sprintf("Write `%s`?", packageSlug(pkg.Repo)+"_version.inc"),
 			Default: true,
 		},
 	})
@@ -125,7 +125,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 	questions = append(questions, &survey.Question{
 		Name: "GitHub",
 		Prompt: &survey.Confirm{
-			Message: "Create GitHub Release? (requires `github_token` token to be set in `~/.samp/config.json`)",
+			Message: "Create a GitHub release? (requires `github_token` in your sampctl config)",
 			Default: false,
 		},
 	})
@@ -141,7 +141,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 		err = survey.Ask([]*survey.Question{{
 			Name: "Custom",
 			Prompt: &survey.Input{
-				Message: "Enter custom semantic version number",
+				Message: "Enter a version (major.minor.patch)",
 				Default: "0.1.0",
 			},
 			Validate: func(ans interface{}) (err error) {
@@ -179,7 +179,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 	}
 
 	if !status.IsClean() {
-		return errors.New("working directory has uncommitted changes, please commit or stash them first")
+		return errors.New("working directory has uncommitted changes. Commit or stash them first")
 	}
 
 	var versionFile string
@@ -229,7 +229,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 	if err != nil {
 		if err.Error() == "authentication required" {
 			configPath := filepath.Join(fs.MustConfigDir(), "config.json")
-			print.Erro("Git authentication failed. Options:")
+			print.Erro("Git authentication failed. Use SSH keys or credentials:")
 			print.Erro("  1. Set up SSH keys: ssh-keygen && ssh-add ~/.ssh/id_rsa")
 			print.Erro("  2. Add git credentials to:", configPath)
 			print.Erro("     {\"git_username\": \"your-username\", \"git_password\": \"your-token\"}")
@@ -243,7 +243,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 
 	if answers.GitHub {
 		if pkg.User == "" || pkg.Repo == "" {
-			return errors.New("user and repo fields must be set in pawn.json to create GitHub releases\nAdd: \"user\": \"your-github-username\" and \"repo\": \"your-repo-name\"")
+			return errors.New("set `user` and `repo` in the package definition before creating a GitHub release")
 		}
 
 		changelog, err := generateChangelog(repo, tags)
@@ -267,7 +267,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 		})
 		if err != nil {
 			configPath := filepath.Join(fs.MustConfigDir(), "config.json")
-			print.Erro("Failed to create GitHub release. Please ensure:")
+			print.Erro("Could not create the GitHub release. Check:")
 			print.Erro("  1. You have a valid GitHub API token set in:", configPath)
 			print.Erro("     {\"github_token\": \"your-github-token\"}")
 			print.Erro("  2. The token has 'repo' scope permissions")
@@ -287,7 +287,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 			if err != nil {
 				print.Warn("Failed to upload release asset:", err)
 			} else {
-				print.Info("Release archive uploaded successfully")
+				print.Info("Release archive uploaded")
 			}
 		}
 

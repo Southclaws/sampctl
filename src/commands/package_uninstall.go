@@ -16,11 +16,11 @@ func packageUninstallFlags() []cli.Flag {
 		cli.StringFlag{
 			Name:  "dir",
 			Value: ".",
-			Usage: "working directory for the project - by default, uses the current directory",
+			Usage: "project directory",
 		},
 		cli.BoolFlag{
 			Name:  "dev",
-			Usage: "for specifying development dependencies",
+			Usage: "remove development dependencies",
 		},
 	}
 }
@@ -42,7 +42,7 @@ func packageUninstall(c *cli.Context) error {
 
 	pcx, _, err := loadDependencyOperationContext(c, dir)
 	if err != nil {
-		return reportDependencyCommandError(c, "uninstall", errors.Wrap(err, "failed to interpret directory as Pawn package"))
+		return reportDependencyCommandError(c, "uninstall", errors.Wrap(err, "failed to load the Pawn package"))
 	}
 
 	previous := slices.Clone(pcx.Package.GetAllDependencies())
@@ -52,9 +52,9 @@ func packageUninstall(c *cli.Context) error {
 	}
 
 	if slices.Equal(previous, pcx.Package.GetAllDependencies()) {
-		print.Info("Dependency declarations unchanged")
+		print.Info("Dependency list unchanged")
 	} else {
-		print.Info("Dependency declarations updated")
+		print.Info("Dependency list updated")
 	}
 
 	return nil

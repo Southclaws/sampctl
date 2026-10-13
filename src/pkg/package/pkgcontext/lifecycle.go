@@ -31,6 +31,8 @@ type dependencyProjectState struct {
 	resolved  PackageResolvedState
 	lockState *lockfile.Lockfile
 	lock      *flock.Flock
+	journal   *dependencyJournal
+	recovered bool
 }
 
 func snapshotProjectFile(path string) (projectFileSnapshot, error) {
@@ -52,6 +54,9 @@ func snapshotProjectFile(path string) (projectFileSnapshot, error) {
 }
 
 func (snapshot projectFileSnapshot) restore() error {
+	if snapshot.path == "" {
+		return nil
+	}
 	info, err := os.Lstat(snapshot.path)
 	if errors.Is(err, os.ErrNotExist) && !snapshot.exists {
 		return nil
@@ -72,33 +77,53 @@ func (snapshot projectFileSnapshot) restore() error {
 	return fs.WriteFileAtomic(snapshot.path, snapshot.data, fs.PermDirPrivate, snapshot.mode)
 }
 
-func (pcx *PackageContext) beginDependencyOperation(ctx context.Context) (*dependencyProjectState, error) {
-	return pcx.beginDependencyOperationWithLockfile(ctx, true)
+func (pcx *PackageContext) beginDependencyOperation(ctx context.Context, operation ...string) (*dependencyProjectState, error) {
+	return pcx.beginDependencyOperationWithLockfile(ctx, true, operation...)
 }
 
-func (pcx *PackageContext) beginDependencyOperationWithLockfile(ctx context.Context, includeLockfile bool) (*dependencyProjectState, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	lockPath := filepath.Join(pcx.Package.LocalPath, ".sampctl-dependencies.lock")
-	if info, err := os.Lstat(lockPath); err == nil && !info.Mode().IsRegular() {
-		return nil, fmt.Errorf("project lock %s must be a regular file", lockPath)
-	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return nil, err
-	}
-	projectLock := flock.New(lockPath)
-	locked, err := projectLock.TryLock()
+func (pcx *PackageContext) beginDependencyOperationWithLockfile(ctx context.Context, includeLockfile bool, operation ...string) (*dependencyProjectState, error) {
+	return pcx.beginDependencyOperationState(ctx, includeLockfile, false, operation...)
+}
+
+func (pcx *PackageContext) beginDependencyOperationState(ctx context.Context, includeLockfile, allowMissingManifest bool, operation ...string) (*dependencyProjectState, error) {
+	projectLock, err := lockDependencyProject(ctx, pcx.Package.LocalPath)
 	if err != nil {
-		return nil, &OperationError{Operation: "project", Err: errors.Join(err, projectLock.Close())}
+		return nil, err
 	}
-	if !locked {
-		return nil, &OperationError{Operation: "project", Err: errors.Join(errors.New("another sampctl dependency operation is using this project; retry when it finishes"), projectLock.Close())}
+	recovery, err := recoverDependencyOperationLocked(ctx, pcx.Package.LocalPath)
+	if err != nil {
+		return nil, errors.Join(err, projectLock.Unlock())
+	}
+	if recovery.Pending && pcx.Package.Format != "" {
+		previous := pcx.Package
+		pkg, err := pcx.readPackageDefinition(previous.LocalPath)
+		if err != nil {
+			return nil, errors.Join(err, projectLock.Unlock())
+		}
+		pkg.LocalPath, pkg.Vendor, pkg.Parent = previous.LocalPath, previous.Vendor, previous.Parent
+		pkg.Tag = previous.Tag
+		pcx.Package = pkg
+		pcx.PackageResolvedState = PackageResolvedState{}
 	}
 	state, err := pcx.snapshotDependencyProject(includeLockfile)
+	if err != nil && allowMissingManifest && (errors.Is(err, os.ErrNotExist) || pcx.Package.Format == "") {
+		state = &dependencyProjectState{pkg: pcx.Package, resolved: pcx.PackageResolvedState}
+		state.pkg.Dependencies = slices.Clone(pcx.Package.Dependencies)
+		state.pkg.Development = slices.Clone(pcx.Package.Development)
+		if includeLockfile {
+			file, snapshotErr := snapshotProjectFile(filepath.Join(pcx.Package.LocalPath, lockfile.Filename))
+			if snapshotErr != nil {
+				return nil, errors.Join(snapshotErr, projectLock.Unlock())
+			}
+			state.lockfile = &file
+		}
+		err = nil
+	}
 	if err != nil {
 		return nil, errors.Join(err, projectLock.Unlock())
 	}
 	state.lock = projectLock
+	state.recovered = recovery.Pending
 	if resolver, ok := pcx.lockfileResolver.(*lockfile.Resolver); ok && includeLockfile {
 		if err := resolver.Reload(); err != nil {
 			return nil, errors.Join(&OperationError{Operation: "read lockfile", Err: err}, projectLock.Unlock())
@@ -107,6 +132,7 @@ func (pcx *PackageContext) beginDependencyOperationWithLockfile(ctx context.Cont
 		if err != nil {
 			return nil, errors.Join(err, projectLock.Unlock())
 		}
+		state.lockState = &lockfile.Lockfile{}
 		if err := json.Unmarshal(data, state.lockState); err != nil {
 			return nil, errors.Join(err, projectLock.Unlock())
 		}
@@ -116,7 +142,20 @@ func (pcx *PackageContext) beginDependencyOperationWithLockfile(ctx context.Cont
 			}
 		}
 	}
+	files := []projectFileSnapshot{state.manifest}
+	if state.lockfile != nil {
+		files = append(files, *state.lockfile)
+	}
+	name := "dependency operation"
+	if len(operation) != 0 {
+		name = operation[0]
+	}
+	state.journal, err = newDependencyJournal(pcx.Package.LocalPath, name, files...)
+	if err != nil {
+		return nil, errors.Join(err, projectLock.Unlock())
+	}
 	pcx.dependencyInstalls = newDependencyInstallState()
+	pcx.dependencyInstalls.journal = state.journal
 	return state, nil
 }
 
@@ -130,14 +169,14 @@ func (pcx *PackageContext) snapshotDependencyProject(includeLockfile bool) (*dep
 		return nil, &OperationError{Operation: "read manifest", Err: err}
 	}
 	if pcx.loadedDefinition != nil && !bytes.Equal(manifest.data, pcx.loadedDefinition) {
-		return nil, &OperationError{Operation: "project", Err: errors.New("project configuration changed since loading; reload the project and retry")}
+		return nil, &OperationError{Operation: "project", Err: errors.New("project configuration changed since loading. Reload the project and retry")}
 	}
 	diskPkg, err := pawnpackage.PackageFromDefinition(manifest.data, pcx.Package.Format)
 	if err != nil {
 		return nil, err
 	}
 	if !slices.Equal(diskPkg.Dependencies, pcx.Package.Dependencies) || !slices.Equal(diskPkg.Development, pcx.Package.Development) {
-		return nil, errors.New("project dependencies changed since loading; reload the project and retry")
+		return nil, errors.New("project dependencies changed since loading. Reload the project and retry")
 	}
 	state := &dependencyProjectState{manifest: manifest, pkg: pcx.Package, resolved: pcx.PackageResolvedState}
 	if includeLockfile {
@@ -166,18 +205,38 @@ func (pcx *PackageContext) finishDependencyOperation(state *dependencyProjectSta
 	installs := pcx.dependencyInstalls
 	pcx.dependencyInstalls = nil
 	var savedDefinition []byte
-	if operationErr == nil && pcx.loadedDefinition != nil {
+	var commitErr error
+	if operationErr == nil && pcx.loadedDefinition != nil && state.manifest.path != "" {
 		var err error
 		savedDefinition, err = os.ReadFile(state.manifest.path)
 		if err != nil {
 			operationErr = &OperationError{Operation: "manifest", Err: err}
 		}
 	}
-	if operationErr != nil {
-		rollbackErr := errors.Join(installs.rollback(), state.manifest.restore())
-		if state.lockfile != nil {
-			rollbackErr = errors.Join(rollbackErr, state.lockfile.restore())
+	if operationErr == nil {
+		if err := state.journal.validateState(context.Background()); err != nil {
+			operationErr = &OperationError{Operation: "commit", Err: err}
+		} else {
+			state.journal.Phase = "committed"
+			if err := state.journal.save(); err != nil {
+				// Atomic persistence may fail after the rename during directory sync.
+				// Keep the on-disk state authoritative and retain recovery evidence.
+				disk, readErr := readDependencyJournal(state.journal.project)
+				if readErr == nil && disk != nil && disk.Phase == "committed" {
+					commitErr = &OperationError{Operation: "cleanup", Err: err}
+				} else if readErr == nil && disk != nil && disk.Phase == "active" {
+					state.journal.Phase = "active"
+					operationErr = &OperationError{Operation: "commit", Err: err}
+				} else {
+					return &OperationError{Operation: "dependency operation", Outcome: OutcomeRollbackIncomplete, Err: errors.Join(err, readErr, state.lock.Unlock())}
+				}
+			}
 		}
+	}
+	outcome := OutcomeCommitted
+	if operationErr != nil {
+		rollbackErr := installs.rollback()
+		outcome = OutcomeRolledBack
 		pcx.Package = state.pkg
 		pcx.PackageResolvedState = state.resolved
 		if pcx.loadedDefinition != nil {
@@ -189,20 +248,71 @@ func (pcx *PackageContext) finishDependencyOperation(state *dependencyProjectSta
 			*lf = *state.lockState
 		}
 		if rollbackErr != nil {
-			operationErr = errors.Join(operationErr, &OperationError{Operation: "rollback", Err: rollbackErr})
+			if state.journal.Phase == "restored" && state.journal.validateState(context.Background()) == nil {
+				operationErr = errors.Join(operationErr, &OperationError{Operation: "cleanup", Err: rollbackErr})
+			} else {
+				outcome = OutcomeRollbackIncomplete
+				operationErr = errors.Join(operationErr, &OperationError{Operation: "rollback", Err: rollbackErr})
+			}
 		}
 	} else {
 		if pcx.loadedDefinition != nil {
 			pcx.loadedDefinition = savedDefinition
 		}
 		if err := installs.commit(); err != nil {
-			operationErr = &OperationError{Operation: "cleanup", Err: err}
+			commitErr = errors.Join(commitErr, &OperationError{Operation: "cleanup", Err: err})
 		}
+		operationErr = commitErr
 	}
 	if err := state.lock.Unlock(); err != nil {
 		operationErr = errors.Join(operationErr, &OperationError{Operation: "cleanup", Err: err})
 	}
+	if operationErr != nil {
+		name := "dependency operation"
+		var step *OperationError
+		if errors.As(operationErr, &step) {
+			name = step.Operation
+		}
+		return &OperationError{Operation: name, Outcome: outcome, Err: operationErr}
+	}
 	return operationErr
+}
+
+func (pcx *PackageContext) writeDependencyDefinition() error {
+	data, err := pcx.Package.EncodeDefinition()
+	if err != nil {
+		return err
+	}
+	if pcx.dependencyInstalls != nil && pcx.dependencyInstalls.journal != nil {
+		path := filepath.Join(pcx.Package.LocalPath, "pawn."+pcx.Package.Format)
+		if err := pcx.dependencyInstalls.journal.recordWrite(path, data); err != nil {
+			return err
+		}
+	}
+	return pcx.Package.WriteDefinition()
+}
+
+func (pcx *PackageContext) recordDependencyLockfileWrite(lf *lockfile.Lockfile) error {
+	if lf == nil || pcx.dependencyInstalls == nil || pcx.dependencyInstalls.journal == nil {
+		return nil
+	}
+	data, err := json.Marshal(lf)
+	if err != nil {
+		return err
+	}
+	return pcx.dependencyInstalls.journal.recordWrite(filepath.Join(pcx.Package.LocalPath, lockfile.Filename), data)
+}
+
+func (pcx *PackageContext) saveDependencyLockfile() error {
+	if err := pcx.recordDependencyLockfileWrite(pcx.GetLockfile()); err != nil {
+		return err
+	}
+	return pcx.PackageLockfileState.SaveLockfile()
+}
+
+func dependencyOperationCommitted(err error) bool {
+	var operation *OperationError
+	return errors.As(err, &operation) && operation.Outcome == OutcomeCommitted
 }
 
 func (pcx *PackageContext) syncDependencyLockfile(ctx context.Context) error {
@@ -221,7 +331,7 @@ func (pcx *PackageContext) syncDependencyLockfile(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := pcx.PackageLockfileState.SaveLockfile(); err != nil {
+	if err := pcx.saveDependencyLockfile(); err != nil {
 		return &OperationError{Operation: "lockfile", Err: err}
 	}
 	return ctx.Err()

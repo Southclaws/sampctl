@@ -16,28 +16,28 @@ func packageBuildFlags() []cli.Flag {
 		cli.StringFlag{
 			Name:  "dir",
 			Value: ".",
-			Usage: "working directory for the project - by default, uses the current directory",
+			Usage: "project directory",
 		},
 		cli.BoolFlag{
 			Name:  "forceEnsure",
-			Usage: "forces dependency ensure before build",
+			Usage: "install dependencies before building",
 		},
 		cli.BoolFlag{
 			Name:  "dryRun",
-			Usage: "does not run the build but outputs the command necessary to do so",
+			Usage: "print the build command without running it",
 		},
 		cli.BoolFlag{
 			Name:  "watch",
-			Usage: "keeps sampctl running and triggers builds whenever source files change",
+			Usage: "rebuild when source files change",
 		},
 		cli.StringFlag{
 			Name:  "buildFile",
 			Value: "",
-			Usage: "declares a file to store the incrementing build number for easy versioning",
+			Usage: "file for the incrementing build number",
 		},
 		cli.BoolFlag{
 			Name:  "relativePaths",
-			Usage: "force compiler output to use relative paths instead of absolute",
+			Usage: "use relative paths in compiler output",
 		},
 		cli.BoolFlag{
 			Name:  "no-lock",
@@ -60,12 +60,12 @@ func packageBuild(c *cli.Context) error {
 
 	pcx, _, err := loadPackageContext(c, dir, false)
 	if err != nil {
-		return errors.Wrap(err, "failed to interpret directory as Pawn package")
+		return errors.Wrap(err, "failed to load the Pawn package")
 	}
 
 	if useLockfile {
 		if err = initLockfileResolver(c, pcx); err != nil {
-			print.Warn("failed to initialize lockfile resolver:", err)
+			print.Warn("Failed to load the lockfile:", err)
 		}
 	}
 
@@ -99,17 +99,17 @@ func packageBuild(c *cli.Context) error {
 		}
 
 		if problems.Fatal() {
-			return cli.NewExitError(errors.New("Build encountered fatal error"), 1)
+			return cli.NewExitError(errors.New("build stopped after a fatal compiler error"), 1)
 		} else if len(problems.Errors()) > 0 {
-			return cli.NewExitError(errors.Errorf("Build failed with %d problems", len(problems)), 1)
+			return cli.NewExitError(errors.Errorf("build failed with %d compiler diagnostics", len(problems)), 1)
 		} else if len(problems.Warnings()) > 0 {
-			print.Warn("Build", build, "complete with", len(problems), "problems")
+			print.Warn("Build", build, "finished with", len(problems), "compiler diagnostics")
 		} else {
-			print.Info("Build", build, "successful with", len(problems), "problems")
+			print.Info("Build", build, "finished with", len(problems), "compiler diagnostics")
 		}
 
 		print.Verb(fmt.Sprintf(
-			"Results, in bytes: Header: %d, Code: %d, Data: %d, Stack/Heap: %d, Estimated usage: %d, Total: %d\n",
+			"Size in bytes: header %d, code %d, data %d, stack/heap %d, estimated usage %d, total %d\n",
 			result.Header,
 			result.Code,
 			result.Data,

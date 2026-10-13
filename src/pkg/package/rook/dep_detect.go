@@ -64,7 +64,7 @@ func FindIncludes(files []string) (includes []versioning.DependencyString) {
 					mux.Unlock()
 
 					if discovered {
-						print.Info("Discovered include matching:", expr, " resolved to:", dep)
+						print.Info("Include matching", expr, "uses dependency", dep)
 					}
 				}
 			}

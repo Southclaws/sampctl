@@ -97,9 +97,9 @@ func TestDependencyDeclarationCommandOutput(t *testing.T) {
 				output := captureStdout(t, func() {
 					require.NoError(t, command(ctx))
 				})
-				message := "Dependency declarations unchanged"
+				message := "Dependency list unchanged"
 				if test.changed {
-					message = "Dependency declarations updated"
+					message = "Dependency list updated"
 				}
 				assert.Contains(t, output, message)
 				updated, err := pawnpackage.PackageFromDir(dir)

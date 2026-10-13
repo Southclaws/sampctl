@@ -320,12 +320,14 @@ func TestInstallManifestPersistenceFailureReportsIncompleteRollback(t *testing.T
 			var persistence *OperationError
 			require.ErrorAs(t, err, &persistence)
 			assert.Equal(t, "manifest", persistence.Operation)
+			assert.Equal(t, OutcomeRollbackIncomplete, persistence.Outcome)
 			require.Contains(t, err.Error(), "rollback failed")
 			original, readErr := os.ReadFile(manifest + ".saved")
 			require.NoError(t, readErr)
 			assert.Equal(t, before, original)
 			assert.Empty(t, pcx.Package.Dependencies)
-			assert.NoDirExists(t, filepath.Join(pcx.Package.LocalPath, "dependencies", "dep"))
+			assert.DirExists(t, filepath.Join(pcx.Package.LocalPath, "dependencies", "dep"))
+			assert.FileExists(t, filepath.Join(pcx.Package.LocalPath, DependencyRecoveryFilename))
 			assert.DirExists(t, manifest)
 		})
 	}

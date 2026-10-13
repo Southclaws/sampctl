@@ -67,7 +67,7 @@ func UntarWithIgnore(src, dst string, paths map[string]string, ignorePatterns []
 		var zl io.ReadCloser
 		zl, err = zlib.NewReader(reader)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to create new zlib reader after failed attempt at gzip")
+			return nil, errors.Wrap(err, "archive could not be read as gzip or zlib")
 		}
 		defer func() {
 			if errClose := zl.Close(); errClose != nil && err == nil {
@@ -162,7 +162,7 @@ loop:
 		}
 	}
 	if err != nil {
-		err = errors.Wrap(err, "unhandled error while parsing archive")
+		err = errors.Wrap(err, "failed to read archive")
 	}
 	return files, err
 }

@@ -28,7 +28,7 @@ func getCommandEnv(c *cli.Context) (commandEnv, error) {
 	verbose := applyVerboseFlag(c)
 	cacheDir, err := fs.ConfigDir()
 	if err != nil {
-		return commandEnv{}, errors.Wrap(err, "failed to get config dir")
+		return commandEnv{}, errors.Wrap(err, "failed to find the sampctl config directory")
 	}
 	return commandEnv{CacheDir: cacheDir, Platform: platform(c), Verbose: verbose}, nil
 }
@@ -49,6 +49,11 @@ func loadPackageContext(c *cli.Context, dir string, init bool) (*pkgcontext.Pack
 }
 
 func loadDependencyOperationContext(c *cli.Context, dir string) (*pkgcontext.PackageContext, commandEnv, error) {
+	ctx, cancel := newCommandContext()
+	defer cancel()
+	if _, err := pkgcontext.RecoverDependencyOperation(ctx, dir); err != nil {
+		return nil, commandEnv{}, &pkgcontext.OperationError{Operation: "recovery", Err: err}
+	}
 	return loadPackageContextWithCache(c, dir, false, false)
 }
 

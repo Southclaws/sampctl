@@ -17,7 +17,7 @@ files, including external and local paths, remain. Use `--dev` for development
 dependencies. Ensure installs the declared dependencies.
 
 A bare uninstall name matches a pinned declaration. An explicit tag, branch, or
-commit must match it. Shared transitive pins remain; older lockfiles without
+commit must match it. Shared transitive pins remain. Older lockfiles without
 relationship data may keep unused entries until the next successful ensure.
 
 ## Version pinning
@@ -53,26 +53,36 @@ for package author guidance.
 
 ## Failures and recovery
 
-Required dependency failures return a nonzero exit status. Sampctl reports
-independent failures together. Use `--verbose` for details or `sampctl check`
-to inspect local state.
+Failures return a nonzero exit status, with independent errors reported together.
+Use `--verbose` for details or `sampctl check` to inspect local state.
 
-Install and ensure prepare managed dependencies before replacing them. If
-installation or saving project files fails, sampctl attempts to restore previous
-dependencies, the package definition, and `pawn.lock`. Valid caches remain.
-Rollback and cleanup failures return errors too; cleanup can fail after changes
-have been saved.
+Install preserves existing pins and saves `pawn.lock` when enabled.
+`ensure --no-lock` leaves it alone. `ensure --lock-only` refreshes pins without
+installing dependencies.
 
-With lockfile support enabled, success includes saving `pawn.lock`. Adding a
-dependency preserves existing pins. `ensure --no-lock` leaves the lockfile alone;
-`ensure --lock-only` refreshes it without installing dependencies.
+Dependency commands record staged changes in `.sampctl-dependencies.json`. Before
+commit, failures trigger an attempt to restore previous installations, the
+manifest, and `pawn.lock`. Output reports incomplete recovery. Valid shared caches
+remain.
 
-Individual project files are written atomically. Runtime files may remain after
-any failure. A process or machine failure can interrupt combined updates. After
-an interruption, run `sampctl check`, inspect project files, then retry
-`sampctl ensure`. Inspect any reported backup with `--verbose` before restoring
-or deleting it.
+The next dependency command recovers pending work. `sampctl check` reports it
+without changing files. `sampctl check --fix` runs the same recovery. Saved changes
+remain installed if cleanup fails. The command exits nonzero. Retry to finish
+cleanup.
 
-Only one dependency operation can change a project at a time. Retry when the
-current operation ends. A leftover `.sampctl-dependencies.lock` file does not
-mean an operation is running.
+Invalid metadata, changed files, or ambiguous backups need manual inspection.
+Keep the record and backups until installed files, the manifest, and pins agree.
+Unknown staging directories remain.
+
+Runtime caches and files commit independently using validated replacements.
+`.sampctl-runtime.json` records binary ownership, including external directories
+and `--no-lock` projects. For older untracked installations, ensure the current
+version before upgrading. Dependency rollback leaves runtime files in place.
+Interruptions can leave complete files from different versions. Rerun
+`sampctl ensure` to finish provisioning.
+
+Recovery uses the existing project lock. Retry when another operation finishes.
+The OS releases the lock on exit, so a leftover `.sampctl-dependencies.lock` file
+does not mean an operation is active. Renames require one filesystem. Directory
+changes are synced where supported. On Windows, close files blocking promotion
+or cleanup, then retry.

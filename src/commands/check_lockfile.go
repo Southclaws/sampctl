@@ -16,7 +16,7 @@ func checkLockfile(pkg pawnpackage.Package, overrides map[string]string) (*lockf
 	path := filepath.Join(pkg.LocalPath, lockfile.Filename)
 	_, err := os.Lstat(path)
 	if os.IsNotExist(err) {
-		return nil, []diagnostic{{Name: "lockfile", Status: checkSkipped, Message: "Optional pawn.lock is absent", Path: path}}
+		return nil, []diagnostic{{Name: "lockfile", Status: checkSkipped, Message: "No pawn.lock (optional)", Path: path}}
 	}
 	if err != nil {
 		return nil, []diagnostic{lockfileIssue(path, "pawn.lock cannot be accessed", err)}
@@ -53,7 +53,7 @@ func checkLockfile(pkg pawnpackage.Package, overrides map[string]string) (*lockf
 func lockfileIssue(path, message string, err error) diagnostic {
 	return diagnostic{
 		Name: "lockfile", Status: checkFailed, Message: message, Path: path, Err: err,
-		Action: "Review and correct pawn.lock; to refresh a readable lockfile, run `sampctl ensure --lock-only` from the project root.",
+		Action: "Fix pawn.lock. If sampctl can read it, run `sampctl ensure --lock-only` from the project root to refresh it.",
 	}
 }
 
@@ -113,7 +113,7 @@ func validCheckHex(value string, size int) bool {
 
 func checkLockfileDeclarations(pkg pawnpackage.Package, lf *lockfile.Lockfile, path string, overrides map[string]string) []diagnostic {
 	if overrides == nil {
-		return []diagnostic{{Name: "lockfile", Status: checkSkipped, Path: path, Message: "Lockfile dependency comparison requires valid dependency overrides"}}
+		return []diagnostic{{Name: "lockfile", Status: checkSkipped, Path: path, Message: "Cannot compare the lockfile until the dependency overrides are fixed"}}
 	}
 	declared := make(map[string]bool)
 	var results []diagnostic

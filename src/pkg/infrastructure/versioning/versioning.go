@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 
@@ -92,16 +93,16 @@ func (dm DependencyMeta) Validate() (err error) {
 			if dm.Local != "" {
 				// Local schemes only need Local path
 				if dm.Local == "" {
-					return errors.New("dependency meta with local scheme missing local path")
+					return errors.New("local dependency path is required")
 				}
 				return nil
 			}
 			// Remote schemes need User and Repo
 			if dm.User == "" {
-				return errors.New("dependency meta with remote scheme missing user")
+				return errors.New("dependency repository owner is required")
 			}
 			if dm.Repo == "" {
-				return errors.New("dependency meta with remote scheme missing repo")
+				return errors.New("dependency repository name is required")
 			}
 			return nil
 		default:
@@ -110,10 +111,10 @@ func (dm DependencyMeta) Validate() (err error) {
 	}
 
 	if dm.User == "" {
-		return errors.New("dependency meta missing user")
+		return errors.New("dependency repository owner is required")
 	}
 	if dm.Repo == "" {
-		return errors.New("dependency meta missing repo")
+		return errors.New("dependency repository name is required")
 	}
 	return
 }
@@ -121,6 +122,9 @@ func (dm DependencyMeta) Validate() (err error) {
 // DependencyOverrides maps original dependency strings to replacement dependency strings
 // This allows handling cases where repositories have been deleted/moved
 var DependencyOverrides = map[string]string{
+	"Southclaws/samp-stdlib":                  "pawn-lang/samp-stdlib",
+	"sampctl/samp-stdlib":                     "pawn-lang/samp-stdlib",
+	"sampctl/pawn-stdlib":                     "pawn-lang/pawn-stdlib",
 	"github.com/Zeex/samp-plugin-crashdetect": "github.com/AmyrAhmady/samp-plugin-crashdetect",
 	"Zeex/samp-plugin-crashdetect":            "AmyrAhmady/samp-plugin-crashdetect",
 }
@@ -138,6 +142,9 @@ func ApplyDependencyOverrides(depStr string) string {
 
 func applyDependencyOverrides(depStr string, overrides map[string]string) string {
 	overrideHasExplicitVersion := func(s string) bool {
+		if meta, err := dependencyOverrideMeta(s); err == nil {
+			return meta.IsLocalScheme() || meta.Tag != "" || meta.Branch != "" || meta.Commit != ""
+		}
 		trimmed := strings.TrimPrefix(s, "https://")
 		trimmed = strings.TrimPrefix(trimmed, "http://")
 
@@ -186,22 +193,95 @@ func applyDependencyOverrides(depStr string, overrides map[string]string) string
 		}
 	}
 
-	// Check for partial matches (user/repo format)
-	for original, replacement := range overrides {
-		// Extract user/repo from original pattern
-		if strings.Contains(original, "/") {
-			parts := strings.Split(original, "/")
-			if len(parts) >= 2 {
-				userRepo := parts[len(parts)-2] + "/" + parts[len(parts)-1]
-				if strings.Contains(depStr, userRepo) {
-					// Replace the user/repo part in the dependency string
-					return strings.Replace(depStr, userRepo, strings.TrimPrefix(replacement, "github.com/"), 1)
-				}
-			}
+	meta, err := dependencyOverrideMeta(depStr)
+	if err != nil || meta.IsLocalScheme() {
+		return depStr
+	}
+	keys := make([]string, 0, len(overrides))
+	for original := range overrides {
+		keys = append(keys, original)
+	}
+	slices.Sort(keys)
+	for _, original := range keys {
+		source, err := dependencyOverrideMeta(original)
+		if err != nil || source.IsLocalScheme() || !sameDependencyOverrideRepository(meta, source) {
+			continue
 		}
+		if source.Path != "" && source.Path != meta.Path || source.Scheme != "" && source.Scheme != meta.Scheme {
+			continue
+		}
+		if source.Tag != "" && source.Tag != meta.Tag ||
+			source.Branch != "" && source.Branch != meta.Branch ||
+			source.Commit != "" && source.Commit != meta.Commit {
+			continue
+		}
+		replacement, err := dependencyOverrideMeta(overrides[original])
+		if err != nil || replacement.IsLocalScheme() {
+			return overrides[original]
+		}
+		if replacement.Tag == "" && replacement.Branch == "" && replacement.Commit == "" {
+			replacement.Tag, replacement.Branch, replacement.Commit = meta.Tag, meta.Branch, meta.Commit
+		}
+		if replacement.Path == "" {
+			replacement.Path = meta.Path
+		}
+		return formatDependencyOverride(depStr, meta, replacement)
 	}
 
 	return depStr
+}
+
+func dependencyOverrideMeta(reference string) (DependencyMeta, error) {
+	if host, _, ok := strings.Cut(reference, "/"); ok && strings.EqualFold(host, "github.com") {
+		reference = "https://" + reference
+	}
+	return explodeDependencyString(DependencyString(reference))
+}
+
+func sameDependencyOverrideRepository(a, b DependencyMeta) bool {
+	if !strings.EqualFold(a.Site, b.Site) {
+		return false
+	}
+	if strings.EqualFold(a.Site, "github.com") {
+		return strings.EqualFold(a.User, b.User) && strings.EqualFold(a.Repo, b.Repo)
+	}
+	return a.User == b.User && a.Repo == b.Repo
+}
+
+func formatDependencyOverride(reference string, source, replacement DependencyMeta) string {
+	path := replacement.User + "/" + replacement.Repo
+	if replacement.Path != "" {
+		path += "/" + replacement.Path
+	}
+	if replacement.Tag != "" {
+		path += ":" + replacement.Tag
+	} else if replacement.Branch != "" {
+		path += "@" + replacement.Branch
+	} else if replacement.Commit != "" {
+		path += "#" + replacement.Commit
+	}
+	if replacement.Scheme != "" {
+		return replacement.Scheme + "://" + path
+	}
+	if source.Scheme != "" {
+		return source.Scheme + "://" + path
+	}
+	if replacement.SSH != "" {
+		return replacement.SSH + "@" + replacement.Site + ":" + path
+	}
+	if source.SSH != "" {
+		return source.SSH + "@" + replacement.Site + ":" + path
+	}
+	if strings.HasPrefix(reference, "https://") {
+		return "https://" + replacement.Site + "/" + path
+	}
+	if strings.HasPrefix(reference, "http://") {
+		return "http://" + replacement.Site + "/" + path
+	}
+	if !strings.EqualFold(replacement.Site, "github.com") {
+		return "https://" + replacement.Site + "/" + path
+	}
+	return path
 }
 
 // ApplyDependencyOverridesWithLogging applies dependency overrides and logs when an override occurs
@@ -211,8 +291,7 @@ func ApplyDependencyOverridesWithLogging(depStr string) (string, bool) {
 
 	if overriddenStr != depStr {
 		// An override was applied, log it
-		print.Info(fmt.Sprintf("dependency '%s' was overridden by '%s'", depStr, overriddenStr))
-		print.Verb(fmt.Sprintf("dependency override applied for '%s' -> '%s' (original repository may no longer exist, be deprecated, or have security issues)", depStr, overriddenStr))
+		print.Verb(fmt.Sprintf("dependency override: '%s' -> '%s'", depStr, overriddenStr))
 		return overriddenStr, true
 	}
 
@@ -229,7 +308,7 @@ func ResetDependencyOverrides() {
 //nolint:lll
 var (
 	// MatchGitSSH matches ssh URLs such as 'git@github.com:Southclaws/sampctl'
-	MatchGitSSH = regexp.MustCompile(`^([a-zA-Z][a-zA-Z0-9_]+)\@((?:[a-zA-Z][a-zA-Z0-9\-]*\.)*[a-zA-Z][a-zA-Z0-9\-]*)\:((?:[A-Za-z0-9_\-\.]+\/?)*)$`)
+	MatchGitSSH = regexp.MustCompile(`^([a-zA-Z][a-zA-Z0-9_]+)\@((?:[a-zA-Z][a-zA-Z0-9\-]*\.)*[a-zA-Z][a-zA-Z0-9\-]*)\:((?:[A-Za-z0-9_\-\.]+\/?)*(?:[:@#].+)?)$`)
 	// MatchDependencyString matches a dependency string such as 'Username/Repository:tag', 'Username/Repository@branch', 'Username/Repository#commit'
 	MatchDependencyString = regexp.MustCompile(`^\/?([a-zA-Z0-9-]+)\/([a-zA-Z0-9-._]+)(?:\/)?([a-zA-Z0-9-_$\[\]{}().,\/]*)?((?:@)|(?:\:)|(?:#))?(.+)?$`)
 	// MatchURLScheme matches URL-like dependency strings such as 'plugin://plugins/name', 'includes://legacy', 'filterscript://user/repo:tag'
@@ -271,12 +350,12 @@ var (
 //	filterscript://user/repo:tag (remote filterscript)
 func (d DependencyString) Explode() (dep DependencyMeta, err error) {
 	overriddenStr, _ := ApplyDependencyOverridesWithLogging(string(d))
-	return explodeDependencyString(DependencyString(overriddenStr))
+	return dependencyOverrideMeta(overriddenStr)
 }
 
 // ExplodeWithOverrides parses a dependency using supplied overrides without loading configuration.
 func (d DependencyString) ExplodeWithOverrides(overrides map[string]string) (DependencyMeta, error) {
-	meta, err := explodeDependencyString(DependencyString(applyDependencyOverrides(string(d), overrides)))
+	meta, err := dependencyOverrideMeta(applyDependencyOverrides(string(d), overrides))
 	if err == nil && meta.IsURLScheme() {
 		err = meta.Validate()
 	}
@@ -346,13 +425,13 @@ func attemptGitSSH(d string) (username, host, path string, success bool) {
 
 func explodeURLScheme(d string) (dep DependencyMeta, err error) {
 	if !MatchURLScheme.MatchString(d) {
-		err = errors.New("URL scheme string does not match pattern")
+		err = errors.New("invalid dependency URL. Expected scheme://owner/repository or scheme://local/path")
 		return
 	}
 
 	captures := MatchURLScheme.FindStringSubmatch(d)
 	if len(captures) != 3 {
-		err = errors.New("URL scheme pattern match count != 3")
+		err = errors.New("could not parse dependency URL")
 		return
 	}
 
@@ -384,13 +463,13 @@ func explodeURLScheme(d string) (dep DependencyMeta, err error) {
 
 func explodePath(d string) (dep DependencyMeta, err error) {
 	if !MatchDependencyString.MatchString(d) {
-		err = errors.New("dependency string does not match pattern")
+		err = errors.New("invalid dependency. Expected owner/repository with an optional :tag, @branch, or #commit")
 		return
 	}
 
 	captures := MatchDependencyString.FindStringSubmatch(d)
 	if len(captures) != 6 {
-		err = errors.New("dependency pattern match count != 6")
+		err = errors.New("could not parse dependency reference")
 		return
 	}
 
@@ -406,15 +485,15 @@ func explodePath(d string) (dep DependencyMeta, err error) {
 			dep.Branch = captures[5]
 		case '#':
 			if len(captures[5]) != 40 {
-				err = errors.Errorf("dependency string specifies a commit hash with an incorrect length (%d)", len(captures[5]))
+				err = errors.Errorf("dependency commit hash must be 40 characters (got %d)", len(captures[5]))
 			}
 			dep.Commit = captures[5]
 		default:
-			err = errors.New("version must be a branch (@) or a tag (:)")
+			err = errors.New("dependency version must use :tag, @branch, or #commit")
 		}
 	} else if len(captures[5]) > 0 {
 		// If there's text in the version part but no valid version specifier, it's invalid
-		err = errors.New("invalid version specifier")
+		err = errors.New("dependency version must use :tag, @branch, or #commit")
 	}
 	return dep, err
 }

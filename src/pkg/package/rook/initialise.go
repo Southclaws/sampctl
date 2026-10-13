@@ -340,7 +340,7 @@ func Init(options InitOptions) (err error) {
 
 	if !gitcheck.IsInstalled() {
 		print.Warn(gitcheck.NotInstalledMessage())
-		print.Warn("skipping dependency resolution. run 'sampctl ensure' after installing git.")
+		print.Warn("Dependencies were skipped. Install Git, then run 'sampctl ensure'")
 		return nil
 	}
 
@@ -496,7 +496,7 @@ func publishModeFromChoice(choice string) string {
 
 func releaseHintForPublishMode(mode string) string {
 	if mode == publishGitHub {
-		return "You can use `sampctl release` to apply a version number and release your first version!"
+		return "Run `sampctl release` to create your first version"
 	}
 
 	return ""
@@ -784,7 +784,7 @@ func validateUser(ans any) (err error) {
 		return errors.New("user must be a string")
 	}
 	if strings.ContainsAny(value, ` :;/\\~`) {
-		return errors.New("Contains invalid characters")
+		return errors.New("GitHub username contains invalid characters")
 	}
 	return
 }
@@ -795,7 +795,7 @@ func validateRepo(ans any) (err error) {
 		return errors.New("repo must be a string")
 	}
 	if strings.ContainsAny(value, ` :;/\\~`) {
-		return errors.New("Contains invalid characters")
+		return errors.New("repository name contains invalid characters")
 	}
 	return
 }

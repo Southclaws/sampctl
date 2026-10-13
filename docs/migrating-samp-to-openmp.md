@@ -194,4 +194,4 @@ sampctl run openmp
 
 - **It still generates `server.cfg`**: set `runtime.runtime_type: openmp` or make sure `runtime.version` contains `openmp` / `open.mp`.
 - **Plugin/component binaries aren’t downloading**: check the dependency scheme (`plugin://` vs `component://`) and make sure the dependency has `resources` metadata.
-- **Wrong binary selected**: resource selection matches `runtime.version` by exact string; if there’s no exact match, `sampctl` falls back to an “empty version” resource for the same platform.
+- **Wrong binary selected**: resource selection matches `runtime.version` by exact string. If there's no exact match, `sampctl` falls back to an "empty version" resource for the same platform.

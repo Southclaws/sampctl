@@ -27,7 +27,7 @@ func GenerateDocs(app *cli.App) (result string) {
 	}
 
 	if len(app.Flags) > 0 {
-		buffer.WriteString("## Global Flags\n\n")
+		buffer.WriteString("## Global flags\n\n")
 		for _, flag := range app.Flags {
 			flagInfo := strings.Split(flag.String(), "\t")
 			buffer.WriteString(fmt.Sprintf("- `%s`: %s\n", flagInfo[0], flagInfo[1]))

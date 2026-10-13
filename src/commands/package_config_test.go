@@ -21,14 +21,14 @@ func TestPackageConfigRequiresValue(t *testing.T) {
 	ctx, _ := newPackageConfigTestContext(t, []string{"DefaultUser"})
 
 	err := packageConfig(ctx)
-	require.EqualError(t, err, "no value was set for field: DefaultUser")
+	require.EqualError(t, err, "missing value for config field DefaultUser")
 }
 
 func TestPackageConfigRejectsInvalidField(t *testing.T) {
 	ctx, _ := newPackageConfigTestContext(t, []string{"MissingField", "value"})
 
 	err := packageConfig(ctx)
-	require.EqualError(t, err, "invalid config field")
+	require.EqualError(t, err, "unknown config field MissingField. Run 'sampctl config' to list fields")
 }
 
 func TestPackageConfigSetsStringFieldAndWritesConfig(t *testing.T) {
@@ -58,7 +58,7 @@ func TestPackageConfigRejectsInvalidBoolPointerValue(t *testing.T) {
 	ctx, _ := newPackageConfigTestContext(t, []string{"HideVersionUpdateMessage", "banana"})
 
 	err := packageConfig(ctx)
-	require.EqualError(t, err, "field requires a value which is type of bool")
+	require.EqualError(t, err, "config field HideVersionUpdateMessage requires true or false")
 }
 
 func TestDisplayConfigPrintsFields(t *testing.T) {

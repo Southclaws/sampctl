@@ -16,7 +16,7 @@ func (pcx *PackageContext) Uninstall(
 	targets []versioning.DependencyString,
 	development bool,
 ) (err error) {
-	state, err := pcx.beginDependencyOperation(context.Background())
+	state, err := pcx.beginDependencyOperation(context.Background(), "uninstall")
 	if err != nil {
 		return err
 	}
@@ -39,10 +39,13 @@ func (pcx *PackageContext) Uninstall(
 			return err
 		}
 	}
-	if err := pcx.Package.WriteDefinition(); err != nil {
+	if err := pcx.writeDependencyDefinition(); err != nil {
 		return &OperationError{Operation: "manifest", Err: err}
 	}
 	if lf != nil {
+		if err := pcx.recordDependencyLockfileWrite(lf); err != nil {
+			return &OperationError{Operation: "lockfile", Err: err}
+		}
 		if err := lockfile.Save(pcx.Package.LocalPath, lf); err != nil {
 			return &OperationError{Operation: "lockfile", Err: err}
 		}
@@ -134,7 +137,7 @@ func (pcx *PackageContext) uninstallDep(target versioning.DependencyString) (err
 	}
 
 	if idx == -1 {
-		print.Warn("target does not exist in dependencies")
+		print.Warn(target, "is not listed in dependencies")
 		return
 	}
 
@@ -154,7 +157,7 @@ func (pcx *PackageContext) uninstallDev(target versioning.DependencyString) (err
 	}
 
 	if idx == -1 {
-		print.Warn("target does not exist in dependencies")
+		print.Warn(target, "is not listed in development dependencies")
 		return
 	}
 

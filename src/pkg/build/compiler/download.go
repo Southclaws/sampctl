@@ -59,7 +59,7 @@ func GetCompilerPackage(ctx context.Context, request CompilerFetchRequest) (down
 
 	compiler, err = FromNet(ctx, request)
 	if err != nil {
-		return download.Compiler{}, errors.Wrapf(err, "failed to get package %s from net", request.Meta.Tag)
+		return download.Compiler{}, errors.Wrapf(err, "failed to download compiler package %s", request.Meta.Tag)
 	}
 
 	return compiler, nil

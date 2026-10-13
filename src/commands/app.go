@@ -28,10 +28,10 @@ func Run(args []string, version string) error {
 		var err error
 		cacheDir, err = fs.ConfigDir()
 		if err != nil {
-			return errors.Wrap(err, "failed to get config dir")
+			return errors.Wrap(err, "failed to find the sampctl config directory")
 		}
 		if err := download.MigrateOldConfig(cacheDir); err != nil {
-			return errors.Wrap(err, "failed to migrate old config directory to new config directory")
+			return errors.Wrap(err, "failed to move the old sampctl config directory")
 		}
 	}
 
@@ -81,7 +81,7 @@ func newCLIApp(version string, state *commandState) *cli.App {
 		{Name: "JustMichael", Email: "michael@sag.gs"},
 	}
 	app.Name = "sampctl"
-	app.Usage = "The Swiss Army Knife of SA:MP - vital tools for any server owner or library maintainer."
+	app.Usage = "Manage dependencies, build Pawn scripts, and run SA-MP or open.mp servers."
 	app.Version = version
 	app.EnableBashCompletion = true
 
@@ -107,12 +107,12 @@ func globalFlags() []cli.Flag {
 	return []cli.Flag{
 		cli.BoolFlag{
 			Name:  "verbose",
-			Usage: "output all detailed information - useful for debugging",
+			Usage: "show detailed logs and error causes",
 		},
 		cli.StringFlag{
 			Name:  "platform",
 			Value: "",
-			Usage: "manually specify the target platform for downloaded binaries to either `windows`, `linux` or `darwin`.",
+			Usage: "target platform for downloaded binaries: windows, linux, or darwin",
 		},
 		cli.BoolFlag{
 			Name:  "bare",
@@ -152,7 +152,7 @@ func newInitCommand(global []cli.Flag) cli.Command {
 	return cli.Command{
 		Name:        "init",
 		Usage:       "sampctl init [--preset samp|openmp]",
-		Description: "Initialises a new samp or open.mp project.",
+		Description: "Create a SA-MP or open.mp project.",
 		Action:      packageInit,
 		Flags:       withGlobalFlags(global, packageInitFlags()),
 	}
@@ -162,7 +162,7 @@ func newEnsureCommand(global []cli.Flag) cli.Command {
 	return cli.Command{
 		Name:        "ensure",
 		Usage:       "sampctl ensure [dependency]",
-		Description: "Ensures dependencies are up to date based on the `dependencies` field in `pawn.json`/`pawn.yaml`.",
+		Description: "Install dependencies declared in `pawn.json`/`pawn.yaml`.",
 		Action:      packageEnsure,
 		Flags:       withGlobalFlags(global, packageEnsureFlags()),
 	}
@@ -172,7 +172,7 @@ func newInstallCommand(global []cli.Flag) cli.Command {
 	return cli.Command{
 		Name:         "install",
 		Usage:        "sampctl install [package definition]",
-		Description:  "Installs a new package by adding it to the `dependencies` field in `pawn.json`/`pawn.yaml` and downloads the contents.",
+		Description:  "Add dependencies to `pawn.json`/`pawn.yaml` and install them.",
 		Action:       packageInstall,
 		Flags:        withGlobalFlags(global, packageInstallFlags()),
 		BashComplete: packageInstallBash,
@@ -183,7 +183,7 @@ func newUninstallCommand(global []cli.Flag) cli.Command {
 	return cli.Command{
 		Name:        "uninstall",
 		Usage:       "sampctl uninstall [package definition]",
-		Description: "Removes dependency declarations and updates an existing pawn.lock. Installed files remain.",
+		Description: "Remove dependencies from `pawn.json`/`pawn.yaml` and update an existing pawn.lock. Installed files remain.",
 		Action:      packageUninstall,
 		Flags:       withGlobalFlags(global, packageUninstallFlags()),
 	}
@@ -193,7 +193,7 @@ func newReleaseCommand(global []cli.Flag) cli.Command {
 	return cli.Command{
 		Name:        "release",
 		Usage:       "sampctl release",
-		Description: "Creates a release version and tags the repository with the next version number, creates a GitHub release with archived package files.",
+		Description: "Tag the next version and create a GitHub release with archived package files.",
 		Action:      packageRelease,
 		Flags:       withGlobalFlags(global, packageReleaseFlags()),
 	}
@@ -202,8 +202,8 @@ func newReleaseCommand(global []cli.Flag) cli.Command {
 func newConfigCommand(global []cli.Flag) cli.Command {
 	return cli.Command{
 		Name:        "config",
-		Usage:       "configure config options",
-		Description: "Allows configuring the field values for the config",
+		Usage:       "sampctl config [field] [value]",
+		Description: "View or change sampctl settings.",
 		Action:      packageConfig,
 		Flags:       withGlobalFlags(global, packageConfigFlags()),
 	}
@@ -213,7 +213,7 @@ func newGetCommand(global []cli.Flag) cli.Command {
 	return cli.Command{
 		Name:         "get",
 		Usage:        "sampctl get [package definition] (target path)",
-		Description:  "Clones a GitHub package to either a directory named after the repo or, if the cwd is empty, the cwd and then ensures the package.",
+		Description:  "Clone a GitHub package and install its dependencies. Use the current directory if empty, or a directory named after the repository.",
 		Action:       packageGet,
 		Flags:        withGlobalFlags(global, packageGetFlags()),
 		BashComplete: packageGetBash,
@@ -224,7 +224,7 @@ func newBuildCommand(global []cli.Flag) cli.Command {
 	return cli.Command{
 		Name:         "build",
 		Usage:        "sampctl build [build name]",
-		Description:  "Builds a package defined by a `pawn.json`/`pawn.yaml` file.",
+		Description:  "Build a package defined in `pawn.json`/`pawn.yaml`.",
 		Action:       packageBuild,
 		Flags:        withGlobalFlags(global, packageBuildFlags()),
 		BashComplete: packageBuildBash,
@@ -235,7 +235,7 @@ func newRunCommand(global []cli.Flag) cli.Command {
 	return cli.Command{
 		Name:        "run",
 		Usage:       "sampctl run",
-		Description: "Compiles and runs a package defined by a `pawn.json`/`pawn.yaml` file.",
+		Description: "Compile and run a package defined in `pawn.json`/`pawn.yaml`.",
 		Action:      packageRun,
 		Flags:       withGlobalFlags(global, packageRunFlags()),
 	}
@@ -245,12 +245,12 @@ func newCompilerCommand(global []cli.Flag) cli.Command {
 	return cli.Command{
 		Name:        "compiler",
 		Usage:       "sampctl compiler",
-		Description: "Provides commands for managing compiler configurations",
+		Description: "Manage compiler settings.",
 		Subcommands: []cli.Command{
 			{
 				Name:        "list",
 				Usage:       "sampctl compiler list",
-				Description: "Lists available compiler presets and their configurations.",
+				Description: "List compiler presets and their settings.",
 				Action:      compilerList,
 				Flags:       withGlobalFlags(global, compilerFlags()),
 			},
@@ -262,26 +262,26 @@ func newTemplateCommand(global []cli.Flag) cli.Command {
 	return cli.Command{
 		Name:        "template",
 		Usage:       "sampctl template <subcommand>",
-		Description: "Provides commands for package templates",
+		Description: "Create and use package templates.",
 		Subcommands: []cli.Command{
 			{
 				Name:        "make",
 				Usage:       "sampctl template make [name]",
-				Description: "Creates a template package from the current directory if it is a package.",
+				Description: "Create a package template.",
 				Action:      packageTemplateMake,
 				Flags:       withGlobalFlags(global, packageTemplateMakeFlags()),
 			},
 			{
 				Name:        "build",
 				Usage:       "sampctl template build [template] [filename]",
-				Description: "Builds the specified file in the context of the given template.",
+				Description: "Build a script using a package template.",
 				Action:      packageTemplateBuild,
 				Flags:       withGlobalFlags(global, packageTemplateBuildFlags()),
 			},
 			{
 				Name:        "run",
 				Usage:       "sampctl template run [template] [filename]",
-				Description: "Builds and runs the specified file in the context of the given template.",
+				Description: "Build and run a script using a package template.",
 				Action:      packageTemplateRun,
 				Flags:       withGlobalFlags(global, packageTemplateRunFlags()),
 			},
@@ -292,7 +292,7 @@ func newTemplateCommand(global []cli.Flag) cli.Command {
 func newVersionCommand() cli.Command {
 	return cli.Command{
 		Name:        "version",
-		Description: "Show version number - this is also the version of the container image that will be used for `--container` runtimes.",
+		Description: "Show the sampctl version, also used for `--container` images.",
 		Action:      cli.VersionPrinter,
 	}
 }
@@ -300,7 +300,7 @@ func newVersionCommand() cli.Command {
 func newCompletionCommand() cli.Command {
 	return cli.Command{
 		Name:        "completion",
-		Description: "output bash autocomplete code",
+		Description: "Install shell completion.",
 		Action:      autoComplete,
 	}
 }
@@ -309,7 +309,7 @@ func newDocsCommand() cli.Command {
 	return cli.Command{
 		Name:        "docs",
 		Usage:       "sampctl docs > documentation.md",
-		Description: "Generate documentation in markdown format and print to standard out.",
+		Description: "Print command documentation as Markdown.",
 		Action: func(c *cli.Context) error {
 			fmt.Print(GenerateDocs(c.App))
 			return nil

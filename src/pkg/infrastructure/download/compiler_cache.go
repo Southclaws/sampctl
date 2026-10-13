@@ -96,7 +96,7 @@ func UpdateCompilerListWithClientContext(ctx context.Context, cacheDir string, c
 		}
 	}()
 	if resp.StatusCode != 200 {
-		return errors.Errorf("package list status %s", resp.Status)
+		return errors.Errorf("compiler list download returned HTTP %s", resp.Status)
 	}
 
 	var compilers Compilers

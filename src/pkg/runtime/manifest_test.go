@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -37,7 +38,7 @@ func TestRuntimeManifestLifecycle(t *testing.T) {
 	require.NoError(t, verifyRuntimeManifest(loaded, root))
 
 	dest := t.TempDir()
-	require.NoError(t, copyRuntimeFiles(loaded, root, dest))
+	require.NoError(t, copyRuntimeFilesContext(context.Background(), loaded, root, dest))
 	assert.FileExists(t, filepath.Join(dest, "plugins", "mysql.so"))
 	assert.FileExists(t, filepath.Join(dest, "server.cfg"))
 

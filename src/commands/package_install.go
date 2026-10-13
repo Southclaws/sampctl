@@ -17,11 +17,11 @@ func packageInstallFlags() []cli.Flag {
 		cli.StringFlag{
 			Name:  "dir",
 			Value: ".",
-			Usage: "working directory for the project - by default, uses the current directory",
+			Usage: "project directory",
 		},
 		cli.BoolFlag{
 			Name:  "dev",
-			Usage: "for specifying dependencies only necessary for development or testing of the package",
+			Usage: "add development or test dependencies",
 		},
 	}
 }
@@ -43,11 +43,11 @@ func packageInstall(c *cli.Context) error {
 
 	pcx, _, err := loadDependencyOperationContext(c, dir)
 	if err != nil {
-		return reportDependencyCommandError(c, "install", errors.Wrap(err, "failed to interpret directory as Pawn package"))
+		return reportDependencyCommandError(c, "install", errors.Wrap(err, "failed to load the Pawn package"))
 	}
 
 	if err = initLockfileResolver(c, pcx); err != nil {
-		return reportDependencyCommandError(c, "install", &pkgcontext.OperationError{Operation: "read lockfile", Err: errors.Wrap(err, "failed to initialize lockfile resolver")})
+		return reportDependencyCommandError(c, "install", &pkgcontext.OperationError{Operation: "read lockfile", Err: errors.Wrap(err, "failed to load the lockfile")})
 	}
 
 	ctx, cancel := newCommandContext()
@@ -60,9 +60,9 @@ func packageInstall(c *cli.Context) error {
 	}
 
 	if slices.Equal(previous, pcx.Package.GetAllDependencies()) {
-		print.Info("Dependency declarations unchanged")
+		print.Info("Dependency list unchanged")
 	} else {
-		print.Info("Dependency declarations updated")
+		print.Info("Dependency list updated")
 	}
 
 	return nil

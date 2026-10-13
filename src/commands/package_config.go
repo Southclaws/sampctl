@@ -39,22 +39,22 @@ func packageConfig(c *cli.Context) error {
 	}
 
 	if value == "" {
-		return errors.Errorf("no value was set for field: %s", field)
+		return errors.Errorf("missing value for config field %s", field)
 	}
 
 	f := v.FieldByName(field)
 	if !f.IsValid() {
-		return errors.New("invalid config field")
+		return errors.Errorf("unknown config field %s. Run 'sampctl config' to list fields", field)
 	}
 
 	vt, _ := reflect.TypeOf(cnf).Elem().FieldByName(field)
 	tag := vt.Tag.Get("json")
 	if tag == "-" {
-		return errors.New("invalid config field")
+		return errors.Errorf("config field %s is not configurable", field)
 	}
 
 	if !f.CanSet() {
-		return errors.New("config field can not be written to")
+		return errors.Errorf("config field %s is read-only", field)
 	}
 
 	switch f.Kind() {
@@ -70,7 +70,7 @@ func packageConfig(c *cli.Context) error {
 				{
 					pValue, err := strconv.ParseBool(value)
 					if err != nil {
-						return errors.New("field requires a value which is type of bool")
+						return errors.Errorf("config field %s requires true or false", field)
 					}
 					f.Set(reflect.ValueOf(&pValue))
 				}
@@ -81,7 +81,7 @@ func packageConfig(c *cli.Context) error {
 	if err := config.WriteConfig(env.CacheDir, *cnf); err != nil {
 		return err
 	}
-	print.Info("successfully set config field", field, "to", value)
+	print.Info("Set", field, "to", value)
 
 	return nil
 }

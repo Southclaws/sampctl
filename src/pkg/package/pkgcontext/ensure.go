@@ -22,13 +22,33 @@ var ErrNotRemotePackage = errors.New("remote repository does not declare a packa
 
 // EnsureDependencies traverses package dependencies and ensures they are up to date.
 func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate bool) (err error) {
+	if pcx.dependencyInstalls == nil && pcx.Package.LocalPath != "" && fs.Exists(pcx.Package.LocalPath) {
+		state, beginErr := pcx.beginDependencyOperationState(ctx, pcx.HasLockfileResolver(), true, "ensure")
+		if beginErr != nil {
+			return beginErr
+		}
+		defer func() { err = pcx.finishDependencyOperation(state, err) }()
+		if state.recovered && pcx.Package.Parent {
+			if err := pcx.refreshDependencyGraphContext(ctx, DependencyUpdateRequest{}); err != nil {
+				return err
+			}
+		}
+	}
 	request := DependencyUpdateRequest{}
 	if forceUpdate {
 		request.Enabled = true
 		request.Force = true
 	}
 
-	return pcx.ensureDependencies(ctx, request)
+	if err := pcx.ensureDependencies(ctx, request); err != nil {
+		return err
+	}
+	// Standalone ensures historically save runtime metadata. Full project flows
+	// save their complete dependency graph after this call.
+	if pcx.Package.Parent && pcx.HasLockfileResolver() {
+		return pcx.saveDependencyLockfile()
+	}
+	return nil
 }
 
 func (pcx *PackageContext) ensureDependencies(
@@ -39,7 +59,7 @@ func (pcx *PackageContext) ensureDependencies(
 		return err
 	}
 	if pcx.Package.LocalPath == "" {
-		return errors.New("package does not represent a locally stored package")
+		return errors.New("package has no local directory")
 	}
 
 	if !fs.Exists(pcx.Package.LocalPath) {
@@ -75,7 +95,7 @@ func (pcx *PackageContext) ensureDependencies(
 			failures = append(failures, &DependencyError{Dependency: dependency.String(), Operation: "ensure", Err: err})
 			continue
 		}
-		print.Verb(pcx.Package, "successfully ensured dependency files for", dependency)
+		print.Verb(pcx.Package, "installed dependency files for", dependency)
 	}
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return stderrors.Join(stderrors.Join(failures...), ctxErr)
@@ -120,13 +140,13 @@ func (pcx *PackageContext) validateLocalDependencyPaths(ctx context.Context) []e
 // It updates direct dependency references when requested, ensures dependency/runtime
 // files, and persists the lockfile when lockfile support is enabled.
 func (pcx *PackageContext) EnsureProject(ctx context.Context, request DependencyUpdateRequest) (updated bool, err error) {
-	state, err := pcx.beginDependencyOperationWithLockfile(ctx, pcx.HasLockfileResolver())
+	state, err := pcx.beginDependencyOperationWithLockfile(ctx, pcx.HasLockfileResolver(), "ensure")
 	if err != nil {
 		return false, err
 	}
 	defer func() {
 		err = pcx.finishDependencyOperation(state, err)
-		if err != nil {
+		if err != nil && !dependencyOperationCommitted(err) {
 			updated = false
 		}
 	}()

@@ -321,12 +321,12 @@ func processTestingLine(state *outputModeState, line string) (string, bool, *ter
 
 	results := testResultsFromLine(line)
 	if results.Fails > 0 {
-		print.Erro(results.Tests, "tests, with:", results.Fails, "failures.")
+		print.Erro(results.Fails, "of", results.Tests, "tests failed")
 		term := termination{err: errors.New("tests failed"), exit: true}
 		return "", false, &term, true
 	}
 
-	print.Info(results.Tests, "tests passed!")
+	print.Info(results.Tests, "tests passed")
 	term := termination{exit: true}
 	return "", false, &term, true
 }
@@ -384,12 +384,12 @@ func evaluateRunResult(request runResultRequest) (termination, time.Duration, bo
 
 	nextBackoff := nextCrashLoopBackoff(request.RunTime, request.Backoff)
 	if nextBackoff < 15*time.Second {
-		print.Warn("crash loop backoff for", nextBackoff, "reason:", request.RunErr)
+		print.Warn("server exited. Restarting in", nextBackoff, "reason:", request.RunErr)
 		return termination{}, nextBackoff, true
 	}
 
 	return termination{
-		err: errors.Errorf("too many crashloops, last error: %v", request.RunErr),
+		err: errors.Errorf("server keeps exiting. Stopped restarting. Last error: %v", request.RunErr),
 	}, nextBackoff, false
 }
 
@@ -406,10 +406,10 @@ func nextCrashLoopBackoff(runTime, current time.Duration) time.Duration {
 
 func logCommandResult(cmd *exec.Cmd, runErr error) {
 	if cmd.Process != nil {
-		print.Verb("child exec thread finished, pid:", cmd.Process.Pid, "error:", runErr)
+		print.Verb("server process exited, pid:", cmd.Process.Pid, "error:", runErr)
 		return
 	}
-	print.Verb("child exec thread finished, error:", runErr)
+	print.Verb("server process exited, error:", runErr)
 }
 
 func sleepWithContext(ctx context.Context, duration time.Duration) bool {
@@ -456,11 +456,11 @@ func (tracker *commandTracker) current() *os.Process {
 
 func killTrackedProcess(process *os.Process) {
 	if process == nil {
-		print.Verb("not attempting to kill server: process is nil")
+		print.Verb("no server process to stop")
 		return
 	}
 	if err := terminateRuntimeProcess(process); err != nil {
-		print.Erro("Failed to kill", err)
+		print.Erro("Failed to stop server:", err)
 		return
 	}
 	print.Verb("stopped child process")
@@ -468,7 +468,7 @@ func killTrackedProcess(process *os.Process) {
 
 func closeOutputPipe(writer *io.PipeWriter) {
 	if err := writer.Close(); err != nil {
-		print.Erro("Server output read error:", err)
+		print.Erro("Failed to close server output:", err)
 	}
 }
 
@@ -486,7 +486,7 @@ func createSpecialLink(cfg run.Runtime) error {
 	specialLink := path.Join(scriptfilesPath, "DANGEROUS_SERVER_ROOT")
 
 	if rootLink {
-		print.Verb("root link is enabled, so going ahead with creating the special link to root")
+		print.Verb("creating scriptfiles/DANGEROUS_SERVER_ROOT symlink to", cfg.WorkingDir)
 	} else {
 		err := os.Remove(specialLink)
 		if err != nil {
@@ -500,7 +500,7 @@ func createSpecialLink(cfg run.Runtime) error {
 
 	// Create a symlink from scriptfiles to the root
 	if _, err := os.Stat(scriptfilesPath); err != nil {
-		print.Verb("scriptfiles folder doesn't exist and is needed for 'DANGEROUS_SERVER_ROOT' symlink")
+		print.Verb("creating scriptfiles directory for DANGEROUS_SERVER_ROOT symlink")
 		err = os.MkdirAll(scriptfilesPath, 0o755)
 		if err != nil {
 			return err
@@ -510,7 +510,7 @@ func createSpecialLink(cfg run.Runtime) error {
 	sfi, err := os.Lstat(specialLink)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			print.Verb("no 'DANGEROUS_SERVER_ROOT' symlink found, so creating it")
+			print.Verb("creating DANGEROUS_SERVER_ROOT symlink")
 			err = os.Symlink(cfg.WorkingDir, specialLink)
 			if err != nil {
 				return err
@@ -520,7 +520,7 @@ func createSpecialLink(cfg run.Runtime) error {
 	}
 
 	if sfi.Mode()&os.ModeSymlink == 0 {
-		print.Verb("file 'DANGEROUS_SERVER_ROOT' found, but it's not a symlink. Destroying and recreating it")
+		print.Verb("replacing DANGEROUS_SERVER_ROOT file with a symlink")
 		err = os.Remove(specialLink)
 		if err != nil {
 			return err

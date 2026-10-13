@@ -170,13 +170,13 @@ func (pcx *PackageContext) loadPackageDefinition(options NewPackageContextOption
 	if !options.Init {
 		if pcx.Package.User == "" {
 			if options.Parent {
-				print.Warn(pcx.Package, "Package Definition File does specify a value for `user`.")
+				print.Warn(pcx.Package, "Package definition has no `user` value")
 			}
 			pcx.Package.User = "<none>"
 		}
 		if pcx.Package.Repo == "" {
 			if options.Parent {
-				print.Warn(pcx.Package, "Package Definition File does specify a value for `repo`.")
+				print.Warn(pcx.Package, "Package definition has no `repo` value")
 			}
 			pcx.Package.Repo = "<local>"
 		}
@@ -294,7 +294,7 @@ func getPackageTag(dir string) (tag string) {
 			// error information only needs to be printed with --verbose
 			print.Verb("failed to get version information:", errInner)
 			// but we can let the user know that they should version their code!
-			print.Verb("Package does not have any tags, consider versioning your code with: `sampctl release`")
+			print.Verb("Package has no tags. Run `sampctl release` to create a version")
 		} else if vtag != nil {
 			tag = vtag.Name
 		}

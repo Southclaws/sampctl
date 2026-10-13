@@ -59,7 +59,7 @@ func RunContainer(
 	if err != nil {
 		return fmt.Errorf("invalid container port: %w", err)
 	}
-	print.Verb("mounting package working directory at", cfg.WorkingDir, "into container at /samp")
+	print.Verb("mounting working directory", cfg.WorkingDir, "at /samp in the container")
 	mounts := []mount.Mount{
 		{
 			Type:   mount.TypeBind,
@@ -154,7 +154,7 @@ func RunContainer(
 		print.Warn("failed to remove container:", removeErr)
 	}()
 
-	print.Info("Starting container...")
+	print.Info("Starting container")
 	_, err = cli.ContainerStart(ctx, cnt.ID, client.ContainerStartOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to start container: %w", err)
@@ -214,7 +214,7 @@ func RunContainer(
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		return errors.New("received signal, stopped container")
+		return errors.New("container stopped after receiving a signal")
 	}
 
 	if waitErr := waitForContainerExit(runCtx, cli, cnt.ID); waitErr != nil {

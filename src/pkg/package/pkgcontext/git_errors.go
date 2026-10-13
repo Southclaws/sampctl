@@ -33,7 +33,7 @@ func WrapGitError(err error, meta versioning.DependencyMeta) error {
 		return nil
 	}
 
-	message := "repository operation failed; use --verbose for details"
+	message := "repository operation failed. Use --verbose for details"
 	errText := strings.ToLower(err.Error())
 	switch {
 	case errors.Is(err, context.Canceled):
@@ -41,23 +41,23 @@ func WrapGitError(err error, meta versioning.DependencyMeta) error {
 	case errors.Is(err, context.DeadlineExceeded):
 		message = "operation timed out"
 	case errors.Is(err, transport.ErrInvalidAuthMethod):
-		message = "Git authentication method does not match the repository transport; use --verbose for details"
+		message = "Git authentication method does not match the repository transport. Use --verbose for details"
 	case errors.Is(err, transport.ErrAuthenticationRequired), errors.Is(err, transport.ErrAuthorizationFailed), strings.Contains(errText, "authentication required"):
-		message = "authentication required; check your Git credentials and repository access"
+		message = "authentication required. Check your Git credentials and repository access"
 	case errors.Is(err, transport.ErrRepositoryNotFound), strings.Contains(errText, "repository not found"):
-		message = "repository not found; check the repository name and your Git credentials"
+		message = "repository not found. Check the repository name and your Git credentials"
 	case errors.Is(err, os.ErrPermission):
-		message = "permission denied; check access to the dependency and cache directories"
+		message = "permission denied. Check access to the dependency and cache directories"
 	case errors.Is(err, os.ErrInvalid):
-		message = "unsafe repository directory; check the dependency and cache directories for symbolic links or unmanaged files"
+		message = "unsafe repository directory. Check the dependency and cache directories for symbolic links or unmanaged files"
 	case errors.Is(err, syscall.ENOSPC):
-		message = "not enough disk space; free space in the dependency and cache directories"
+		message = "not enough disk space. Free space in the dependency and cache directories"
 	case isTransientGitError(err):
-		message = "network error; check your internet connection and try again"
+		message = "network error. Check your internet connection and try again"
 	case errors.Is(err, git.ErrRepositoryNotExists):
 		message = "repository does not exist locally"
 	case strings.Contains(errText, "repository access blocked"):
-		message = "repository access blocked; check your repository access"
+		message = "repository access blocked. Check your repository access"
 	}
 	return &gitOperationError{message: fmt.Sprintf("dependency '%s/%s': %s", meta.User, meta.Repo, message), cause: err}
 }

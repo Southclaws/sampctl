@@ -46,7 +46,7 @@ Notes:
 All of the following keys are accepted in `runtime`.
 
 - For **SA:MP**, these map directly to `server.cfg` keys.
-- For **open.mp**, a subset is mapped into `config.json` (documented below); open.mp-only fields are also available directly under `runtime`.
+- For **open.mp**, a subset maps to `config.json` (documented below). Fields specific to open.mp are also available directly under `runtime`.
 
 ### Core
 
@@ -198,7 +198,7 @@ Supported open.mp-only keys:
 - `banners` (object)
 - `artwork` (object)
 
-Note: `rcon` is a boolean in SA:MP runtime config; to set open.mp-only `config.json.rcon` fields, use `rcon_config` (object), which is merged into `config.json.rcon`.
+`rcon` is a boolean in SA:MP runtime config. Use the `rcon_config` object for open.mp-only fields. Sampctl merges it into `config.json.rcon`.
 
 ```yaml
 runtime:

@@ -10,13 +10,14 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/build"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
+	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
 func checkProject(dir string) (pawnpackage.Package, diagnostic) {
 	d := diagnostic{Name: "project", Status: checkSkipped, Message: "No project configuration found in this directory or its parents", Path: dir}
 	root, path, err := findCheckProject(dir)
 	if err != nil {
-		d.Status, d.Message, d.Err = checkFailed, "Project configuration could not be discovered", err
+		d.Status, d.Message, d.Err = checkFailed, "Cannot find the project configuration", err
 		d.Action = "Check access to the project directory and its configuration files."
 		return pawnpackage.Package{}, d
 	}
@@ -24,7 +25,7 @@ func checkProject(dir string) (pawnpackage.Package, diagnostic) {
 		return pawnpackage.Package{}, d
 	}
 	d.Path, d.Status = path, checkFailed
-	d.Action = "Correct the project configuration, then run `sampctl check` again."
+	d.Action = "Fix the project configuration, then run `sampctl check` again."
 	if path == "" {
 		d.Path = root
 		d.Message = "Project contains both pawn.json and pawn.yaml"
@@ -41,7 +42,7 @@ func checkProject(dir string) (pawnpackage.Package, diagnostic) {
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		d.Message, d.Err = "Project configuration could not be read: "+filepath.Base(path), err
+		d.Message, d.Err = "Cannot read project configuration: "+filepath.Base(path), err
 		return pawnpackage.Package{}, d
 	}
 	pkg, err := pawnpackage.PackageFromDefinition(data, filepath.Ext(path)[1:])
@@ -75,6 +76,12 @@ func findCheckProject(dir string) (string, string, error) {
 		}
 		if len(paths) > 1 {
 			return dir, "", nil
+		}
+		journal := filepath.Join(dir, pkgcontext.DependencyRecoveryFilename)
+		if _, err := os.Lstat(journal); err == nil {
+			return dir, filepath.Join(dir, "pawn.json"), nil
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return "", "", fmt.Errorf("inspect %s: %w", journal, err)
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {

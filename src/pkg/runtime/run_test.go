@@ -290,7 +290,7 @@ func TestEvaluateRunResult(t *testing.T) {
 		})
 
 		require.Error(t, term.err)
-		assert.Contains(t, term.err.Error(), "too many crashloops")
+		assert.Contains(t, term.err.Error(), "server keeps exiting. Stopped restarting")
 		assert.Equal(t, 16*time.Second, next)
 		assert.False(t, retry)
 	})

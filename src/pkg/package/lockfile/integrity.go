@@ -253,7 +253,7 @@ func verifyCommitIntegrity(ctx context.Context, dir, expectedCommit string) (boo
 		return false, err
 	}
 
-	return status.IsClean(), nil
+	return cleanWorktreeWithObsoleteSubmodules(ctx, repo, worktree, status)
 }
 
 // ValidateWorktreeFilesContext rejects special files in a worktree and its Git metadata.

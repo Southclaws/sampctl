@@ -18,23 +18,23 @@ func TestRuntimeValidate(t *testing.T) {
 
 	missingWorking := base
 	missingWorking.WorkingDir = ""
-	require.ErrorContains(t, missingWorking.Validate(), "WorkingDir empty")
+	require.ErrorContains(t, missingWorking.Validate(), "runtime working directory is required")
 
 	missingPlatform := base
 	missingPlatform.Platform = ""
-	require.ErrorContains(t, missingPlatform.Validate(), "Platform empty")
+	require.ErrorContains(t, missingPlatform.Validate(), "runtime platform is required")
 
 	missingFormat := base
 	missingFormat.Format = ""
-	require.ErrorContains(t, missingFormat.Validate(), "Format empty")
+	require.ErrorContains(t, missingFormat.Validate(), "runtime config format is required")
 
 	missingVersion := base
 	missingVersion.Version = ""
-	require.ErrorContains(t, missingVersion.Validate(), "Version empty")
+	require.ErrorContains(t, missingVersion.Validate(), "runtime version is required")
 
 	missingMode := base
 	missingMode.Mode = ""
-	require.ErrorContains(t, missingMode.Validate(), "Mode empty")
+	require.ErrorContains(t, missingMode.Validate(), "runtime mode is required")
 }
 
 func TestRuntimeFromDirMissingConfig(t *testing.T) {
@@ -133,7 +133,7 @@ func TestRuntimeToFile(t *testing.T) {
 	assert.FileExists(t, filepath.Join(yamlDir, "samp.yaml"))
 
 	err := (Runtime{WorkingDir: t.TempDir(), Format: "toml"}).ToFile()
-	require.ErrorContains(t, err, "no format associated")
+	require.ErrorContains(t, err, "runtime config format must be json or yaml")
 }
 
 func TestCloneWithoutDefaults(t *testing.T) {

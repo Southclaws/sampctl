@@ -34,7 +34,7 @@ func autoComplete(c *cli.Context) (err error) {
 	}()
 
 	if resp.StatusCode != 200 {
-		return errors.Errorf("failed to get bash completion: %s", resp.Status)
+		return errors.Errorf("failed to download %s completion: %s", flavour, resp.Status)
 	}
 
 	contents, err := io.ReadAll(resp.Body)
@@ -54,8 +54,8 @@ func autoComplete(c *cli.Context) (err error) {
 		return
 	}
 
-	print.Info("Successfully written", flavour, "completion to", completionFile)
-	print.Info("To enable, add the following line to your .bashrc file (or equivalent)")
+	print.Info("Saved", flavour, "completion to", completionFile)
+	print.Info("Add this line to your shell configuration (for example, .bashrc):")
 	print.Info("PROG=sampctl source", completionFile)
 
 	return nil

@@ -111,13 +111,13 @@ func (pcx *PackageContext) UpdateDependencyReferences(
 	}
 	standalone := pcx.dependencyInstalls == nil
 	if standalone {
-		state, beginErr := pcx.beginDependencyOperation(ctx)
+		state, beginErr := pcx.beginDependencyOperation(ctx, "update references")
 		if beginErr != nil {
 			return false, beginErr
 		}
 		defer func() {
 			err = pcx.finishDependencyOperation(state, err)
-			if err != nil {
+			if err != nil && !dependencyOperationCommitted(err) {
 				updated = false
 			}
 		}()
@@ -152,7 +152,7 @@ func (pcx *PackageContext) UpdateDependencyReferences(
 	pcx.Package.Dependencies = changedDeps.updated
 	pcx.Package.Development = changedDev.updated
 
-	if err := pcx.Package.WriteDefinition(); err != nil {
+	if err := pcx.writeDependencyDefinition(); err != nil {
 		pcx.Package.Dependencies = originalDeps
 		pcx.Package.Development = originalDev
 		return false, &OperationError{Operation: "manifest", Err: err}
@@ -170,7 +170,7 @@ func (pcx *PackageContext) UpdateDependencyReferences(
 		if restoreErr != nil {
 			return false, stderrors.Join(err, &OperationError{Operation: "rollback", Err: restoreErr})
 		}
-		return false, errors.Wrap(err, "failed to refresh dependency tree after update, rolling back changes")
+		return false, errors.Wrap(err, "failed to refresh dependencies after update")
 	}
 	return true, nil
 }
@@ -238,7 +238,7 @@ func (pcx *PackageContext) updatedDependencyMeta(
 	case meta.Tag == "" && meta.Branch == "" && meta.Commit == "":
 		if _, err := pcx.resolveLatestTag(ctx, meta, true); err != nil {
 			if isMissingLatestReleaseError(err) {
-				print.Warn(meta, "does not publish tags or releases, leaving dependency unpinned")
+				print.Warn(meta, "has no tags or releases. Keeping dependency unpinned")
 				return meta, false, nil
 			}
 
@@ -254,14 +254,14 @@ func (pcx *PackageContext) updatedDependencyMeta(
 		tag, err := pcx.resolveLatestTag(ctx, meta, true)
 		if err != nil {
 			if isMissingLatestReleaseError(err) {
-				print.Warn(meta, "does not publish tags or releases, leaving pinned dependency unchanged")
+				print.Warn(meta, "has no tags or releases. Keeping the current pin")
 				return meta, false, nil
 			}
 
 			return versioning.DependencyMeta{}, false, err
 		}
 		if tag == "" {
-			return versioning.DependencyMeta{}, false, errors.New("latest did not resolve to a concrete tag")
+			return versioning.DependencyMeta{}, false, errors.New(":latest did not resolve to a tag")
 		}
 
 		updatedMeta := meta
