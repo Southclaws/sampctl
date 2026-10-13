@@ -243,7 +243,7 @@ func EnsureVersionedPlugin(request EnsureVersionedPluginRequest) (files []run.Pl
 		}
 		if len(extractedFiles) == 0 {
 			//nolint:lll
-			err = errors.Errorf("plugin %s archive produced no files; check its resource paths and ignore patterns", request.Meta)
+			err = errors.Errorf("plugin %s archive produced no files. Check its resource paths and ignore patterns", request.Meta)
 			return
 		}
 		print.Verb(request.Meta, "extracted", len(extractedFiles), "plugin files to", request.Dir)
@@ -460,7 +460,7 @@ func EnsureVersionedPluginCached(request EnsureVersionedPluginCachedRequest) (
 	if !hit {
 		if !hasExplicitDependencyReference(request.Meta) {
 			//nolint:lll
-			print.Info(request.Meta, "has no version specified; downloading the latest release. Pin a release tag to keep the plugin version fixed.")
+			print.Info(request.Meta, "downloading the latest release because no version is specified. Pin a release tag to keep the plugin version fixed.")
 		}
 
 		filename, resource, err = PluginFromNet(PluginFetchRequest{
@@ -633,7 +633,7 @@ func GetResource(resources []pkgresource.Resource, platform string, version stri
 		for _, resource := range resources {
 			res := resource
 			if res.Platform == platform && res.Version == "" {
-				print.Verb("no resource for version", version, "; using the default resource for", platform)
+				print.Verb("using the default resource for", platform, "because none matches version", version)
 				tmp = &res
 				found = true
 				break

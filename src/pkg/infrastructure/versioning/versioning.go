@@ -424,7 +424,7 @@ func attemptGitSSH(d string) (username, host, path string, success bool) {
 
 func explodeURLScheme(d string) (dep DependencyMeta, err error) {
 	if !MatchURLScheme.MatchString(d) {
-		err = errors.New("invalid dependency URL; expected scheme://owner/repository or scheme://local/path")
+		err = errors.New("invalid dependency URL. Expected scheme://owner/repository or scheme://local/path")
 		return
 	}
 
@@ -462,7 +462,7 @@ func explodeURLScheme(d string) (dep DependencyMeta, err error) {
 
 func explodePath(d string) (dep DependencyMeta, err error) {
 	if !MatchDependencyString.MatchString(d) {
-		err = errors.New("invalid dependency; expected owner/repository with an optional :tag, @branch, or #commit")
+		err = errors.New("invalid dependency. Expected owner/repository with an optional :tag, @branch, or #commit")
 		return
 	}
 
@@ -484,7 +484,7 @@ func explodePath(d string) (dep DependencyMeta, err error) {
 			dep.Branch = captures[5]
 		case '#':
 			if len(captures[5]) != 40 {
-				err = errors.Errorf("dependency commit hash must be 40 characters; got %d", len(captures[5]))
+				err = errors.Errorf("dependency commit hash must be 40 characters (got %d)", len(captures[5]))
 			}
 			dep.Commit = captures[5]
 		default:

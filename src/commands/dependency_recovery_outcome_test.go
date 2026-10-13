@@ -81,7 +81,7 @@ func TestReportCommittedRecoveryWrappers(t *testing.T) {
 
 func assertCommittedRecoveryOutput(t *testing.T, output string) {
 	t.Helper()
-	if !strings.Contains(output, "✗ Previous dependency changes were saved; recovery failed") {
+	if !strings.Contains(output, "✗ Previous dependency changes were saved. Recovery failed") {
 		t.Errorf("recovery output = %s; want a failed recovery heading that preserves prior commit status", output)
 	}
 	if !strings.Contains(output, "Keep the backups and recovery files") {

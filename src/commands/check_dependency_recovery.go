@@ -42,10 +42,10 @@ func dependencyRecoveryDiagnostic(state pkgcontext.DependencyRecoveryStatus, err
 		result.Status = checkPassed
 		result.Message = "Dependency recovery is complete"
 	case state.Committed:
-		result.Message = "Dependency changes saved; cleanup pending"
+		result.Message = "Dependency changes saved. Cleanup pending"
 		result.Action = "Run `sampctl check --fix` or retry the dependency command to finish cleanup."
 	case state.Restored:
-		result.Message = "Previous dependency state restored; cleanup pending"
+		result.Message = "Previous dependency state restored. Cleanup pending"
 		result.Action = "Run `sampctl check --fix` or retry the dependency command to finish cleanup."
 	default:
 		result.Message = "A dependency command was interrupted"

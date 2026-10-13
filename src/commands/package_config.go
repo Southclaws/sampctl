@@ -44,7 +44,7 @@ func packageConfig(c *cli.Context) error {
 
 	f := v.FieldByName(field)
 	if !f.IsValid() {
-		return errors.Errorf("unknown config field %s; run 'sampctl config' to list fields", field)
+		return errors.Errorf("unknown config field %s. Run 'sampctl config' to list fields", field)
 	}
 
 	vt, _ := reflect.TypeOf(cnf).Elem().FieldByName(field)

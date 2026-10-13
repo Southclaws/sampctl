@@ -121,7 +121,7 @@ func PrepareCommand(ctx context.Context, request PrepareCommandRequest) (cmd *ex
 	}
 
 	if len(request.Config.Plugins) != 0 {
-		print.Warn("Build `plugins` are disabled and will be removed; use `prebuild` or `postbuild`")
+		print.Warn("Build `plugins` are disabled and will be removed. Use `prebuild` or `postbuild`")
 	}
 
 	pkg, runtimeDir, err := resolveCompilerBinary(ctx, request, cacheDir)
@@ -316,7 +316,7 @@ func buildIncludeArgs(execDir string, includes []string) ([]string, error) {
 		for _, errorString := range includeErrors {
 			print.Erro(errorString)
 		}
-		return nil, errors.New("conflicting filenames in include paths; keep one copy of each include file")
+		return nil, errors.New("conflicting filenames in include paths. Keep one copy of each include file")
 	}
 
 	return args, nil

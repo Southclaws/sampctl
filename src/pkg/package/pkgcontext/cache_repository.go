@@ -276,7 +276,7 @@ func (pcx PackageContext) promoteRepository(from, to, backup string) (*git.Repos
 	if err := os.Rename(from, to); err != nil {
 		if hadPrevious {
 			if restoreErr := os.Rename(backup, to); restoreErr != nil {
-				return nil, true, errors.Join(err, &OperationError{Operation: "rollback", Err: fmt.Errorf("failed to restore previous repository; preserved at %s: %w", backup, restoreErr)})
+				return nil, true, errors.Join(err, &OperationError{Operation: "rollback", Err: fmt.Errorf("failed to restore previous repository. Backup kept at %s: %w", backup, restoreErr)})
 			}
 		}
 		return nil, false, fmt.Errorf("failed to promote cloned repository: %w", err)
@@ -286,11 +286,11 @@ func (pcx PackageContext) promoteRepository(from, to, backup string) (*git.Repos
 		return repo, false, nil
 	}
 	if restoreErr := os.Rename(to, from); restoreErr != nil {
-		return nil, true, errors.Join(err, &OperationError{Operation: "rollback", Err: fmt.Errorf("failed to withdraw invalid repository; previous copy at %s: %w", backup, restoreErr)})
+		return nil, true, errors.Join(err, &OperationError{Operation: "rollback", Err: fmt.Errorf("failed to withdraw invalid repository. Previous copy kept at %s: %w", backup, restoreErr)})
 	}
 	if hadPrevious {
 		if restoreErr := os.Rename(backup, to); restoreErr != nil {
-			return nil, true, errors.Join(err, &OperationError{Operation: "rollback", Err: fmt.Errorf("failed to restore previous repository; preserved at %s: %w", backup, restoreErr)})
+			return nil, true, errors.Join(err, &OperationError{Operation: "rollback", Err: fmt.Errorf("failed to restore previous repository. Backup kept at %s: %w", backup, restoreErr)})
 		}
 	}
 	return nil, false, fmt.Errorf("failed to open promoted repository: %w", err)

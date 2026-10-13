@@ -79,9 +79,9 @@ func dependencyFailureHeading(operation string, err error) string {
 	outcome := dependencyOperationOutcome(err)
 	if outcome == pkgcontext.OutcomeCommitted {
 		if dependencyOperationRecoveryFailed(err) {
-			return "Previous dependency changes were saved; recovery failed"
+			return "Previous dependency changes were saved. Recovery failed"
 		}
-		return "Dependency changes saved; cleanup pending"
+		return "Dependency changes saved. Cleanup pending"
 	}
 	var message string
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
@@ -98,9 +98,9 @@ func dependencyFailureHeading(operation string, err error) string {
 	}
 	switch outcome {
 	case pkgcontext.OutcomeRolledBack:
-		return message + "; previous dependency state restored"
+		return message + ". Previous dependency state restored"
 	case pkgcontext.OutcomeRollbackIncomplete:
-		return message + "; recovery is incomplete"
+		return message + ". Recovery is incomplete"
 	default:
 		return message
 	}
@@ -259,9 +259,9 @@ func releaseAssetFailureDiagnostic(failure *download.ReleaseAssetNotFoundError, 
 	meta.Commit = ""
 	message := fmt.Sprintf("%s: No release asset matches %q", meta, failure.Pattern)
 	if len(failure.AvailableAssets) == 0 {
-		message += "; this release has no assets"
+		message += ". This release has no assets"
 	} else {
-		message += "; available: " + strings.Join(failure.AvailableAssets, ", ")
+		message += ". Available: " + strings.Join(failure.AvailableAssets, ", ")
 	}
 	return diagnostic{
 		Name:    "dependencies",

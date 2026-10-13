@@ -63,7 +63,7 @@ func newCheckCommand(global []cli.Flag) cli.Command {
 
 func projectCheck(c *cli.Context) error {
 	if c.NArg() != 0 {
-		return &commandExitError{code: 2, err: errors.New("check does not accept positional arguments; use --dir to select a project")}
+		return &commandExitError{code: 2, err: errors.New("check does not accept positional arguments. Use --dir to select a project")}
 	}
 	state, err := getCommandState(c)
 	if err != nil {
@@ -84,7 +84,7 @@ func projectCheck(c *cli.Context) error {
 	defer cancel()
 	opts := checkOptions{Dir: dir, CacheDir: state.cacheDir, Platform: checkPlatform(c), Fix: c.Bool("fix"), Verbose: c.Bool("verbose") || c.GlobalBool("verbose")}
 	if opts.Platform != "linux" && opts.Platform != "windows" && opts.Platform != "darwin" {
-		return &commandExitError{code: 2, err: fmt.Errorf("unsupported check platform %q; use linux, windows, or darwin", opts.Platform)}
+		return &commandExitError{code: 2, err: fmt.Errorf("unsupported check platform %q. Use linux, windows, or darwin", opts.Platform)}
 	}
 	results, checkErr := runChecks(ctx, opts)
 	if checkErr != nil {
@@ -195,7 +195,7 @@ func checkGit(required bool) diagnostic {
 		return d
 	}
 	d.Status = checkWarning
-	d.Message = "Git is unavailable; dependency commands need it"
+	d.Message = "Git is unavailable. Dependency commands need it"
 	d.Action = "Install Git and make it available on PATH."
 	if required {
 		d.Status = checkFailed
@@ -238,9 +238,9 @@ func repairDiagnostic(ctx context.Context, d diagnostic, repair func(context.Con
 	d.Status = checkFailed
 	d.Err = errors.Join(d.Err, repairErr, verified.Err)
 	if repairErr != nil {
-		d.Message += "; repair failed"
+		d.Message += ". Repair failed"
 	} else {
-		d.Message += "; the issue remains after repair"
+		d.Message += ". The issue remains after repair"
 	}
 	return d, nil
 }

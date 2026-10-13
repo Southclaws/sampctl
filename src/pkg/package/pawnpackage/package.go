@@ -300,7 +300,7 @@ func (pkg Package) GetBuildConfig(name string) (config *build.Config) {
 		if pkg.Build != nil {
 			config = pkg.Build
 		} else {
-			print.Warn("Build config", name, "was not found; using defaults")
+			print.Warn("Build config", name, "was not found. Using defaults")
 			config = def
 		}
 	}

@@ -169,14 +169,14 @@ func (pcx *PackageContext) snapshotDependencyProject(includeLockfile bool) (*dep
 		return nil, &OperationError{Operation: "read manifest", Err: err}
 	}
 	if pcx.loadedDefinition != nil && !bytes.Equal(manifest.data, pcx.loadedDefinition) {
-		return nil, &OperationError{Operation: "project", Err: errors.New("project configuration changed since loading; reload the project and retry")}
+		return nil, &OperationError{Operation: "project", Err: errors.New("project configuration changed since loading. Reload the project and retry")}
 	}
 	diskPkg, err := pawnpackage.PackageFromDefinition(manifest.data, pcx.Package.Format)
 	if err != nil {
 		return nil, err
 	}
 	if !slices.Equal(diskPkg.Dependencies, pcx.Package.Dependencies) || !slices.Equal(diskPkg.Development, pcx.Package.Development) {
-		return nil, errors.New("project dependencies changed since loading; reload the project and retry")
+		return nil, errors.New("project dependencies changed since loading. Reload the project and retry")
 	}
 	state := &dependencyProjectState{manifest: manifest, pkg: pcx.Package, resolved: pcx.PackageResolvedState}
 	if includeLockfile {

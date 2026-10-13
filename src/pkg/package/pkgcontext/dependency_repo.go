@@ -239,7 +239,7 @@ func (pcx *PackageContext) updateRepoStateContext(ctx context.Context, repo *git
 		return nil
 	}
 
-	print.Verb(meta, "has no version constraint; pulling the latest commit")
+	print.Verb(meta, "has no version constraint. Pulling the latest commit")
 	if err = wt.PullContext(ctx, pullOpts); err != nil {
 		if err == git.NoErrAlreadyUpToDate {
 			return nil

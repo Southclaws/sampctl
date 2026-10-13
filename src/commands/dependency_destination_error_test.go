@@ -40,7 +40,7 @@ func TestReportDependencyDestinationConflict(t *testing.T) {
 			if !errors.As(err, &got) || got != conflict || ExitCode(err) != 1 {
 				t.Errorf("conflict report = %v, want preserved conflict and exit 1", err)
 			}
-			for _, want := range []string{conflict.First.String(), conflict.Second.String(), `both install to "stdlib"`, "one repository and version", "previous dependency state restored"} {
+			for _, want := range []string{conflict.First.String(), conflict.Second.String(), `both install to "stdlib"`, "one repository and version", "Previous dependency state restored"} {
 				if !strings.Contains(output.String(), want) {
 					t.Errorf("conflict output = %q, want %q", output.String(), want)
 				}

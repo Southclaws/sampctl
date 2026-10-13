@@ -28,7 +28,7 @@ func TestPackageConfigRejectsInvalidField(t *testing.T) {
 	ctx, _ := newPackageConfigTestContext(t, []string{"MissingField", "value"})
 
 	err := packageConfig(ctx)
-	require.EqualError(t, err, "unknown config field MissingField; run 'sampctl config' to list fields")
+	require.EqualError(t, err, "unknown config field MissingField. Run 'sampctl config' to list fields")
 }
 
 func TestPackageConfigSetsStringFieldAndWritesConfig(t *testing.T) {

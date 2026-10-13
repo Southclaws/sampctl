@@ -87,16 +87,16 @@ func EnsureBinariesContext(ctx context.Context, cacheDir string, cfg run.Runtime
 			if verifyErr == nil {
 				print.Verb("runtime binaries already up to date")
 				if err := writeInstalledRuntimeManifest(ctx, cfg.WorkingDir, *existingManifest); err != nil {
-					return manifestInfo, errors.Wrap(err, "runtime binaries verified; failed to save installed runtime state")
+					return manifestInfo, errors.Wrap(err, "runtime binaries verified. Could not save installed runtime state")
 				}
 				return manifestInfo, nil
 			}
-			print.Warn("installed runtime files failed verification; reinstalling:", verifyErr)
+			print.Warn("installed runtime files failed verification. Reinstalling:", verifyErr)
 		}
 	} else if verifyErr := verifyRuntimeManifest(manifest, cfg.WorkingDir); verifyErr == nil {
 		print.Verb("runtime binaries already up to date")
 		if err := writeInstalledRuntimeManifest(ctx, cfg.WorkingDir, manifest); err != nil {
-			return manifestInfo, errors.Wrap(err, "runtime binaries verified; failed to save installed runtime state")
+			return manifestInfo, errors.Wrap(err, "runtime binaries verified. Could not save installed runtime state")
 		}
 		return manifestInfo, nil
 	}
@@ -142,11 +142,11 @@ func EnsureBinariesContext(ctx context.Context, cacheDir string, cfg run.Runtime
 			return nil, err
 		}
 		if err := removeRuntimeFiles(obsolete, cfg.WorkingDir); err != nil {
-			return manifestInfo, errors.Wrap(err, "runtime binaries installed; failed to remove obsolete runtime files")
+			return manifestInfo, errors.Wrap(err, "runtime binaries installed. Could not remove obsolete runtime files")
 		}
 	}
 	if err := writeInstalledRuntimeManifest(ctx, cfg.WorkingDir, manifest); err != nil {
-		return manifestInfo, errors.Wrap(err, "runtime binaries installed; failed to save installed runtime state")
+		return manifestInfo, errors.Wrap(err, "runtime binaries installed. Could not save installed runtime state")
 	}
 
 	return manifestInfo, nil
@@ -220,7 +220,7 @@ func ensureStagedRuntime(ctx context.Context, cacheDir string, cfg run.Runtime) 
 			if err = validateRuntimePackage(manifest, stageDir); err == nil {
 				return manifest, stageDir, nil
 			}
-			print.Warn("cached runtime files failed verification; rebuilding cache:", err)
+			print.Warn("cached runtime files failed verification. Rebuilding cache:", err)
 		}
 	}
 
@@ -282,7 +282,7 @@ func ensureStagedRuntime(ctx context.Context, cacheDir string, cfg run.Runtime) 
 	}
 	if backup != "" {
 		if err := os.RemoveAll(backup); err != nil {
-			return runtimeManifest{}, "", errors.Wrapf(err, "runtime cache prepared; failed to remove previous cache at %s", backup)
+			return runtimeManifest{}, "", errors.Wrapf(err, "runtime cache prepared. Could not remove previous cache at %s", backup)
 		}
 	}
 

@@ -101,7 +101,7 @@ func inspectCheckCacheMetadata(cacheDir, path string) (diagnostic, bool) {
 	}
 	if !info.Mode().IsRegular() {
 		result.Message = name + " cache is not a regular file"
-		result.Action = "Check this path; it must point to a regular file."
+		result.Action = "Check that this path points to a regular file."
 		return result, true
 	}
 	invalid, err := validateCheckCacheMetadata(path)

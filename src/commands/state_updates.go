@@ -99,7 +99,7 @@ func reportUpgradeCheckError(err error) {
 
 func printUpgradeInstructions(latestVersion, currentVersion string) {
 	print.Info("\n-\n")
-	print.Info("sampctl", latestVersion, "is available; installed version:", currentVersion)
+	print.Info("sampctl", latestVersion, "is available. Installed version:", currentVersion)
 	print.Info("To upgrade:")
 
 	switch runtime.GOOS {

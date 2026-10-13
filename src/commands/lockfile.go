@@ -19,7 +19,7 @@ func initLockfileResolver(c *cli.Context, target pkgcontext.LockfileInitializer)
 func describeEnsureLockfile(lockfiles pkgcontext.LockfileController, forceUpdate bool) {
 	if forceUpdate {
 		lockfiles.ForceUpdateLockfile()
-		print.Verb("Lockfile cleared; resolving dependency versions again")
+		print.Verb("Lockfile cleared. Resolving dependency versions again")
 	}
 
 	if lockfiles.HasLockfile() {
@@ -27,7 +27,7 @@ func describeEnsureLockfile(lockfiles pkgcontext.LockfileController, forceUpdate
 		return
 	}
 
-	print.Verb("No pawn.lock found; creating one after installing dependencies")
+	print.Verb("No pawn.lock found. Creating one after installing dependencies")
 }
 
 func requireLockfileSupport(lockfiles pkgcontext.LockfileController) error {

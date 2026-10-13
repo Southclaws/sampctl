@@ -238,7 +238,7 @@ func (pcx *PackageContext) updatedDependencyMeta(
 	case meta.Tag == "" && meta.Branch == "" && meta.Commit == "":
 		if _, err := pcx.resolveLatestTag(ctx, meta, true); err != nil {
 			if isMissingLatestReleaseError(err) {
-				print.Warn(meta, "has no tags or releases; keeping dependency unpinned")
+				print.Warn(meta, "has no tags or releases. Keeping dependency unpinned")
 				return meta, false, nil
 			}
 
@@ -254,7 +254,7 @@ func (pcx *PackageContext) updatedDependencyMeta(
 		tag, err := pcx.resolveLatestTag(ctx, meta, true)
 		if err != nil {
 			if isMissingLatestReleaseError(err) {
-				print.Warn(meta, "has no tags or releases; keeping the current pin")
+				print.Warn(meta, "has no tags or releases. Keeping the current pin")
 				return meta, false, nil
 			}
 

@@ -384,12 +384,12 @@ func evaluateRunResult(request runResultRequest) (termination, time.Duration, bo
 
 	nextBackoff := nextCrashLoopBackoff(request.RunTime, request.Backoff)
 	if nextBackoff < 15*time.Second {
-		print.Warn("server exited; restarting in", nextBackoff, "reason:", request.RunErr)
+		print.Warn("server exited. Restarting in", nextBackoff, "reason:", request.RunErr)
 		return termination{}, nextBackoff, true
 	}
 
 	return termination{
-		err: errors.Errorf("server keeps exiting; stopped restarting. Last error: %v", request.RunErr),
+		err: errors.Errorf("server keeps exiting. Stopped restarting. Last error: %v", request.RunErr),
 	}, nextBackoff, false
 }
 

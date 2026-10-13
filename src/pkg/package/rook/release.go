@@ -47,7 +47,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 
 	_, err = repo.Head()
 	if err != nil {
-		print.Erro("Cannot read repository HEAD; create an initial commit if this repository is new")
+		print.Erro("Cannot read repository HEAD. Create an initial commit if this repository is new")
 		return
 	}
 
@@ -179,7 +179,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 	}
 
 	if !status.IsClean() {
-		return errors.New("working directory has uncommitted changes; commit or stash them first")
+		return errors.New("working directory has uncommitted changes. Commit or stash them first")
 	}
 
 	var versionFile string
@@ -229,7 +229,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 	if err != nil {
 		if err.Error() == "authentication required" {
 			configPath := filepath.Join(fs.MustConfigDir(), "config.json")
-			print.Erro("Git authentication failed; use SSH keys or credentials:")
+			print.Erro("Git authentication failed. Use SSH keys or credentials:")
 			print.Erro("  1. Set up SSH keys: ssh-keygen && ssh-add ~/.ssh/id_rsa")
 			print.Erro("  2. Add git credentials to:", configPath)
 			print.Erro("     {\"git_username\": \"your-username\", \"git_password\": \"your-token\"}")
@@ -267,7 +267,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 		})
 		if err != nil {
 			configPath := filepath.Join(fs.MustConfigDir(), "config.json")
-			print.Erro("Could not create the GitHub release; check:")
+			print.Erro("Could not create the GitHub release. Check:")
 			print.Erro("  1. You have a valid GitHub API token set in:", configPath)
 			print.Erro("     {\"github_token\": \"your-github-token\"}")
 			print.Erro("  2. The token has 'repo' scope permissions")

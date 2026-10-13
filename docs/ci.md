@@ -31,7 +31,7 @@ jobs:
         run: |
           curl -fsSL https://raw.githubusercontent.com/Southclaws/sampctl/master/scripts/install-deb.sh | bash
 
-      # Some Pawn toolchains/runtimes are 32-bit; you may need i386 support on Linux.
+      # Some Pawn toolchains/runtimes are 32-bit. You may need i386 support on Linux.
       - name: Install 32-bit support (optional)
         run: |
           sudo dpkg --add-architecture i386

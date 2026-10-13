@@ -16,6 +16,6 @@ type ReleaseAssetNotFoundError struct {
 
 // Error describes the selected release and its available assets.
 func (e *ReleaseAssetNotFoundError) Error() string {
-	return fmt.Sprintf("release %s/%s:%s has no asset matching %q; available assets: %v",
+	return fmt.Sprintf("release %s/%s:%s has no asset matching %q. Available assets: %v",
 		e.Meta.User, e.Meta.Repo, e.Tag, e.Pattern, e.AvailableAssets)
 }

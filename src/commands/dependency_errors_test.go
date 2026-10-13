@@ -144,7 +144,7 @@ func TestReportCompletedDependencyOperationWithCleanupFailure(t *testing.T) {
 	ctx.App.Writer = &output
 	err := reportDependencyCommandError(ctx, "install", &pkgcontext.OperationError{Operation: "cleanup", Outcome: pkgcontext.OutcomeCommitted, Err: os.ErrPermission})
 	assert.Equal(t, 1, ExitCode(err))
-	assert.Contains(t, output.String(), "✓ Dependency changes saved; cleanup pending")
+	assert.Contains(t, output.String(), "✓ Dependency changes saved. Cleanup pending")
 	assert.NotContains(t, output.String(), "Dependency installation failed")
 }
 
@@ -155,9 +155,9 @@ func TestReportDependencyOperationOutcomes(t *testing.T) {
 		outcome pkgcontext.DependencyOperationOutcome
 		message string
 	}{
-		{name: "restored", outcome: pkgcontext.OutcomeRolledBack, message: "previous dependency state restored"},
-		{name: "incomplete recovery", outcome: pkgcontext.OutcomeRollbackIncomplete, message: "recovery is incomplete"},
-		{name: "committed cleanup", outcome: pkgcontext.OutcomeCommitted, message: "✓ Dependency changes saved; cleanup pending"},
+		{name: "restored", outcome: pkgcontext.OutcomeRolledBack, message: "Previous dependency state restored"},
+		{name: "incomplete recovery", outcome: pkgcontext.OutcomeRollbackIncomplete, message: "Recovery is incomplete"},
+		{name: "committed cleanup", outcome: pkgcontext.OutcomeCommitted, message: "✓ Dependency changes saved. Cleanup pending"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			ctx := newTestCLIContext("dev")

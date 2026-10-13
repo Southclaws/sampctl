@@ -294,7 +294,7 @@ func getPackageTag(dir string) (tag string) {
 			// error information only needs to be printed with --verbose
 			print.Verb("failed to get version information:", errInner)
 			// but we can let the user know that they should version their code!
-			print.Verb("Package has no tags; run `sampctl release` to create a version")
+			print.Verb("Package has no tags. Run `sampctl release` to create a version")
 		} else if vtag != nil {
 			tag = vtag.Name
 		}

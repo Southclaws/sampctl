@@ -144,4 +144,4 @@ Related user-facing docs:
 - Setting `entry` to your `.inc` (libraries should compile via a `.pwn` entry).
 - Forgetting to list a dependency your `.inc` relies on.
 - Shipping plugin binaries without GitHub releases / stable asset naming.
-- Conflicting `.inc` filenames across dependencies (avoid generic names; use include guards).
+- Conflicting `.inc` filenames across dependencies (avoid generic names and use include guards).

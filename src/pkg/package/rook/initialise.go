@@ -340,7 +340,7 @@ func Init(options InitOptions) (err error) {
 
 	if !gitcheck.IsInstalled() {
 		print.Warn(gitcheck.NotInstalledMessage())
-		print.Warn("Dependencies were skipped; install Git, then run 'sampctl ensure'")
+		print.Warn("Dependencies were skipped. Install Git, then run 'sampctl ensure'")
 		return nil
 	}
 

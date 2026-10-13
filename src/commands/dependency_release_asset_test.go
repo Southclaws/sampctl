@@ -45,7 +45,7 @@ func TestReportMissingPluginReleaseAsset(t *testing.T) {
 			if !errors.As(err, &got) || got != missing || ExitCode(err) != 1 {
 				t.Errorf("reportDependencyCommandError(missing Linux asset) = %v, want preserved asset failure and exit 1", err)
 			}
-			for _, want := range []string{"previous dependency state restored", "Southclaws/pawn-yaml:1.0.0", `No release asset matches "yaml.so"`, "available: yaml.dll", "Choose a release with the required file"} {
+			for _, want := range []string{"Previous dependency state restored", "Southclaws/pawn-yaml:1.0.0", `No release asset matches "yaml.so"`, "Available: yaml.dll", "Choose a release with the required file"} {
 				if !strings.Contains(output.String(), want) {
 					t.Errorf("reportDependencyCommandError(missing Linux asset) output = %q, want %q", output.String(), want)
 				}
@@ -74,7 +74,7 @@ func TestReportReleaseWithoutAssets(t *testing.T) {
 	if !errors.Is(err, missing) || ExitCode(err) != 1 {
 		t.Errorf("reportDependencyCommandError(empty release) = %v, want preserved asset failure and exit 1", err)
 	}
-	for _, want := range []string{"fixture/plugin:v1.0.0", `No release asset matches "plugin.so"`, "this release has no assets"} {
+	for _, want := range []string{"fixture/plugin:v1.0.0", `No release asset matches "plugin.so"`, "This release has no assets"} {
 		if !strings.Contains(output.String(), want) {
 			t.Errorf("reportDependencyCommandError(empty release) output = %q, want %q", output.String(), want)
 		}

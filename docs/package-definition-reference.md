@@ -9,7 +9,7 @@ For an introduction and a minimal example, see: [Packages](packages.md)
 - `preset`: selects defaults for runtime/compiler. Common values: `samp`, `openmp`.
 - `entry`: the `.pwn` file to compile.
 - `output`: where the `.amx` output should be written.
-- `runtime_dir`: directory where local runtime files should be installed; relative paths are resolved from the package root, and the package root is used by default. This applies to both SA-MP and open.mp runtimes.
+- `runtime_dir`: where to install local runtime files for SA-MP or open.mp. Relative paths start at the package root, which is the default.
 - `dependencies`: packages to download for building/running.
 - `dev_dependencies`: packages only needed for building/testing.
 
@@ -48,7 +48,7 @@ See also: [Build configuration reference](build-configuration-reference.md)
 - `include_path`: for repos where the Pawn sources are in a subfolder.
 - `resources`: advanced extra resources for a package (per-platform files, archives).
 - `extract_ignore_patterns`: patterns to skip when extracting plugin archives.
-- `experimental.build_file`: control generation of the build-time include file (`sampctl_build_file.inc`) containing build constants and git metadata. This is enabled by default; set it to `false` to disable it.
+- `experimental.build_file`: control generation of the build-time include file (`sampctl_build_file.inc`) containing build constants and git metadata. The default is `true`. Set it to `false` to disable it.
 - `contributors`, `website`: optional metadata (useful for published packages).
 
 ### Experimental build file (`experimental.build_file`)

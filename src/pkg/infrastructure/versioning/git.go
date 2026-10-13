@@ -53,7 +53,7 @@ func RefFromTag(repo *git.Repository, meta DependencyMeta) (ref *plumbing.Refere
 	}
 
 	if constraintErr != nil || len(versionedTags) == 0 {
-		print.Verb(meta, "matching tag by name; version or repository tags do not use semantic versions:", constraintErr)
+		print.Verb(meta, "matching tag by name because the version or repository tags do not use semantic versions:", constraintErr)
 
 		var tags storer.ReferenceIter
 		tags, err = repo.Tags()
@@ -83,7 +83,7 @@ func RefFromTag(repo *git.Repository, meta DependencyMeta) (ref *plumbing.Refere
 		}
 
 		if ref == nil {
-			err = errors.Errorf("no repository tag matches '%s'; available tags: %v", meta.Tag, tagList)
+			err = errors.Errorf("no repository tag matches '%s'. Available tags: %v", meta.Tag, tagList)
 		}
 	} else {
 		print.Verb(meta, "specified version and repo tags are semantic versions")
@@ -102,7 +102,7 @@ func RefFromTag(repo *git.Repository, meta DependencyMeta) (ref *plumbing.Refere
 		}
 
 		if ref == nil {
-			err = errors.Errorf("no repository tag matches '%s'; available tags: %v", meta.Tag, versionedTags)
+			err = errors.Errorf("no repository tag matches '%s'. Available tags: %v", meta.Tag, versionedTags)
 		}
 	}
 
@@ -135,7 +135,7 @@ func RefFromBranch(repo *git.Repository, meta DependencyMeta) (ref *plumbing.Ref
 		err = errors.Wrap(err, "failed to iterate branches")
 	}
 	if ref == nil {
-		err = errors.Errorf("branch '%s' not found; available branches: %v", meta.Branch, branchList)
+		err = errors.Errorf("branch '%s' not found. Available branches: %v", meta.Branch, branchList)
 	}
 	return
 }

@@ -242,7 +242,7 @@ func (pcx PackageContext) readPackageFromCachedRevision(meta versioning.Dependen
 		}
 		if found {
 			return pawnpackage.Package{}, errors.Errorf(
-				"found both %s and %s; keep one package definition file",
+				"found both %s and %s. Keep one package definition file",
 				lastPath,
 				definition.path,
 			)

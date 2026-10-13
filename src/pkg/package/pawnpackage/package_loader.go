@@ -50,7 +50,7 @@ func PackageFromDir(dir string) (pkg Package, err error) {
 
 	switch {
 	case jsonExists && yamlExists:
-		return pkg, errors.New("found both pawn.json and pawn.yaml; keep one package definition file")
+		return pkg, errors.New("found both pawn.json and pawn.yaml. Keep one package definition file")
 	case jsonExists:
 		return readPackageDefinition(jsonPath, "json")
 	case yamlExists:

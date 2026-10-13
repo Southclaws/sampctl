@@ -30,7 +30,7 @@ func packageInit(c *cli.Context) error {
 	preset := c.String("preset")
 
 	if preset != "samp" && preset != "openmp" {
-		print.Warn("Unknown preset", preset+"; using 'openmp'.")
+		print.Warn("Unknown preset", preset+". Using 'openmp'.")
 		preset = "openmp"
 	}
 
