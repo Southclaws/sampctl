@@ -33,12 +33,13 @@ func TestStdlibAliasesPreserveDependencyReferences(t *testing.T) {
 		{format: "git@github.com:%s/includes:0.3.7", want: DependencyMeta{SSH: "git", Path: "includes", Tag: "0.3.7"}},
 		{format: "git@github.com:%s#" + commit, want: DependencyMeta{SSH: "git", Commit: commit}},
 	}
-	for _, alias := range []string{"Southclaws/samp-stdlib", "sampctl/samp-stdlib"} {
+	for _, alias := range []string{"Southclaws/samp-stdlib", "sampctl/samp-stdlib", "sampctl/pawn-stdlib"} {
 		for _, test := range tests {
 			input := DependencyString(fmt.Sprintf(test.format, alias))
 			t.Run(string(input), func(t *testing.T) {
 				want := test.want
-				want.Site, want.User, want.Repo = "github.com", "pawn-lang", "samp-stdlib"
+				_, repo, _ := strings.Cut(alias, "/")
+				want.Site, want.User, want.Repo = "github.com", "pawn-lang", repo
 				got, err := input.ExplodeWithOverrides(DependencyOverrides)
 				if err != nil || got != want {
 					t.Errorf("ExplodeWithOverrides(%q) = %+v, %v, want %+v, nil", input, got, err, want)
@@ -108,6 +109,10 @@ func TestStdlibAliasesOnlyMatchTheirGitHubRepository(t *testing.T) {
 		"Southclaws/samp-stdlib.inc",
 		"Southclaws/samp-stdlibs",
 		"sampctl/samp-stdlib-other",
+		"other/pawn-stdlib",
+		"Southclaws/pawn-stdlib",
+		"sampctl/pawn-stdlib-other",
+		"https://gitlab.com/sampctl/pawn-stdlib@open.mp",
 		"https://gitlab.com/Southclaws/samp-stdlib@open.mp",
 		"https://gitlab.com/sampctl/samp-stdlib/includes",
 		"git@gitlab.com:Southclaws/samp-stdlib",

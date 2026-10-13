@@ -124,6 +124,7 @@ func (dm DependencyMeta) Validate() (err error) {
 var DependencyOverrides = map[string]string{
 	"Southclaws/samp-stdlib":                  "pawn-lang/samp-stdlib",
 	"sampctl/samp-stdlib":                     "pawn-lang/samp-stdlib",
+	"sampctl/pawn-stdlib":                     "pawn-lang/pawn-stdlib",
 	"github.com/Zeex/samp-plugin-crashdetect": "github.com/AmyrAhmady/samp-plugin-crashdetect",
 	"Zeex/samp-plugin-crashdetect":            "AmyrAhmady/samp-plugin-crashdetect",
 }

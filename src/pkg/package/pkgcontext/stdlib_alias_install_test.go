@@ -18,12 +18,17 @@ import (
 )
 
 func TestInstallLegacyStdlibReferencesPreservesDirectPin(t *testing.T) {
-	for _, format := range []string{"json", "yaml"} {
-		t.Run(format, func(t *testing.T) {
-			pcx := lifecycleContext(t, format)
+	for _, test := range []struct{ format, repo, legacy string }{
+		{"json", "samp-stdlib", "Southclaws/samp-stdlib"},
+		{"yaml", "samp-stdlib", "Southclaws/samp-stdlib"},
+		{"json", "pawn-stdlib", "sampctl/pawn-stdlib"},
+		{"yaml", "pawn-stdlib", "sampctl/pawn-stdlib"},
+	} {
+		t.Run(test.format+"/"+test.repo, func(t *testing.T) {
+			pcx := lifecycleContext(t, test.format)
 			pcx.Package.Preset = "openmp"
-			meta := versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib", Branch: "open.mp"}
-			pcx.Package.Dependencies = []versioning.DependencyString{"pawn-lang/samp-stdlib@open.mp"}
+			meta := versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: test.repo, Branch: "open.mp"}
+			pcx.Package.Dependencies = []versioning.DependencyString{versioning.DependencyString("pawn-lang/" + test.repo + "@open.mp")}
 			if err := pcx.Package.WriteDefinition(); err != nil {
 				t.Fatal(err)
 			}
@@ -65,8 +70,8 @@ func TestInstallLegacyStdlibReferencesPreservesDirectPin(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, fixture := range []struct{ repo, definition string }{
-				{"progress", `{"dependencies":["Southclaws/samp-stdlib","fixture/indirect:1.0.0","sampctl/samp-stdlib"]}`},
-				{"indirect", `{"dependencies":["sampctl/samp-stdlib","sampctl/samp-stdlib"]}`},
+				{"progress", fmt.Sprintf(`{"dependencies":[%q,"fixture/indirect:1.0.0","sampctl/%s"]}`, test.legacy, test.repo)},
+				{"indirect", fmt.Sprintf(`{"dependencies":["sampctl/%s","sampctl/%s"]}`, test.repo, test.repo)},
 			} {
 				seedReliabilityRepo(t, (versioning.DependencyMeta{User: "fixture", Repo: fixture.repo}).CachePath(pcx.CacheDir), fixture.definition)
 			}
@@ -114,11 +119,20 @@ func TestInstallLegacyStdlibReferencesPreservesDirectPin(t *testing.T) {
 }
 
 func TestStdlibAliasGraphRejectsDifferentRepositoryOrExplicitPin(t *testing.T) {
-	for _, declaration := range []versioning.DependencyString{"Southclaws/samp-stdlib@other", "unrelated/samp-stdlib"} {
-		t.Run(string(declaration), func(t *testing.T) {
+	for _, test := range []struct {
+		repo        string
+		declaration versioning.DependencyString
+	}{
+		{"samp-stdlib", "Southclaws/samp-stdlib@other"},
+		{"samp-stdlib", "unrelated/samp-stdlib"},
+		{"pawn-stdlib", "sampctl/pawn-stdlib@other"},
+		{"pawn-stdlib", "unrelated/pawn-stdlib"},
+	} {
+		t.Run(string(test.declaration), func(t *testing.T) {
+			declaration := test.declaration
 			pcx := lifecycleContext(t, "json")
-			meta := versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib", Branch: "open.mp"}
-			pcx.Package.Dependencies = []versioning.DependencyString{"pawn-lang/samp-stdlib@open.mp", "fixture/progress:1.0.0"}
+			meta := versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: test.repo, Branch: "open.mp"}
+			pcx.Package.Dependencies = []versioning.DependencyString{versioning.DependencyString("pawn-lang/" + test.repo + "@open.mp"), "fixture/progress:1.0.0"}
 			if err := pcx.Package.WriteDefinition(); err != nil {
 				t.Fatal(err)
 			}
