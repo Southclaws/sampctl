@@ -72,7 +72,7 @@ func buildRuntimeManifest(root string, cfg run.Runtime) (runtimeManifest, error)
 		if d.IsDir() {
 			return nil
 		}
-		if strings.EqualFold(relPath, manifestRel) || strings.EqualFold(relPath, installedRuntimeManifestFileName) {
+		if strings.EqualFold(relPath, manifestRel) || isRuntimeStatePath(relPath) {
 			return nil
 		}
 		if !d.Type().IsRegular() {
@@ -396,12 +396,15 @@ func validateInstalledRuntimeManifest(manifest runtimeManifest, root string) err
 	}
 	seen := make(map[string]struct{}, len(manifest.Files))
 	for _, file := range manifest.Files {
+		if file.Path != filepath.ToSlash(filepath.Clean(filepath.FromSlash(file.Path))) {
+			return errors.Wrapf(os.ErrInvalid, "runtime path %q is not normalized", file.Path)
+		}
 		path, err := runtimeFilePath(root, file.Path)
 		if err != nil {
 			return err
 		}
 		key := strings.ToLower(filepath.Clean(path))
-		if _, exists := seen[key]; exists || strings.EqualFold(file.Path, installedRuntimeManifestFileName) {
+		if _, exists := seen[key]; exists || isRuntimeStatePath(file.Path) {
 			return errors.Wrapf(os.ErrInvalid, "invalid installed runtime entry %s", file.Path)
 		}
 		seen[key] = struct{}{}
@@ -411,6 +414,11 @@ func validateInstalledRuntimeManifest(manifest runtimeManifest, root string) err
 		}
 	}
 	return nil
+}
+
+func isRuntimeStatePath(relative string) bool {
+	first := strings.ToLower(strings.Split(filepath.ToSlash(filepath.Clean(filepath.FromSlash(relative))), "/")[0])
+	return first == runtimeManifestFileName || first == installedRuntimeManifestFileName || first == RuntimeRecoveryFilename || first == runtimeLockFilename || strings.HasPrefix(first, runtimeOperationPrefix)
 }
 
 func writeInstalledRuntimeManifest(ctx context.Context, root string, manifest runtimeManifest) error {

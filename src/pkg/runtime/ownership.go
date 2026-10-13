@@ -21,6 +21,14 @@ func AdoptRuntimeOwnership(ctx context.Context, root string, previous *lockfile.
 	if previous == nil {
 		return false, nil
 	}
+	lock, err := lockRuntime(ctx, root)
+	if err != nil {
+		return false, err
+	}
+	defer func() { err = errors.Join(err, lock.Close()) }()
+	if err := recoverRuntimeLocked(ctx, root); err != nil {
+		return false, runtimeRecoveryFailure(root, previous.Version, err)
+	}
 	path := filepath.Join(root, installedRuntimeManifestFileName)
 	if _, err := os.Lstat(path); err == nil {
 		return false, nil

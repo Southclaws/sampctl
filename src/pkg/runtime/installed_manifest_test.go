@@ -92,7 +92,7 @@ func TestEnsureBinariesRetainsOwnershipDuringInterruptedUpgrade(t *testing.T) {
 	if _, err := EnsureBinariesContext(interrupted, cache, cfg); !errors.Is(err, context.Canceled) {
 		t.Fatalf("interrupted upgrade = %v, want context.Canceled", err)
 	}
-	checkRuntimeTestFile(t, filepath.Join(external, "samp03svr"), "second binary")
+	checkRuntimeTestFile(t, filepath.Join(external, "samp03svr"), "first binary")
 	checkRuntimeTestFile(t, filepath.Join(external, "z-library"), "first library")
 	after, err := os.ReadFile(manifestPath)
 	if err != nil {

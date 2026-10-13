@@ -9,6 +9,7 @@ import (
 	goruntime "runtime"
 	"strings"
 
+	"github.com/gofrs/flock"
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 
@@ -65,90 +66,39 @@ func EnsureBinaries(cacheDir string, cfg run.Runtime) (*RuntimeManifestInfo, err
 }
 
 // EnsureBinariesContext ensures the dir has all the necessary files to run a server.
-func EnsureBinariesContext(ctx context.Context, cacheDir string, cfg run.Runtime) (*RuntimeManifestInfo, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
+func EnsureBinariesContext(ctx context.Context, cacheDir string, cfg run.Runtime) (_ *RuntimeManifestInfo, err error) {
+	lock, err := lockRuntime(ctx, cfg.WorkingDir)
+	if err != nil {
+		return nil, &RuntimeInstallError{Runtime: cfg.Version, Err: err}
 	}
-	if _, err := runtimeFilePath(cfg.WorkingDir, installedRuntimeManifestFileName); err != nil {
-		return nil, err
+	defer func() { err = stderrors.Join(err, lock.Close()) }()
+	if err := recoverRuntimeLocked(ctx, cfg.WorkingDir); err != nil {
+		return nil, runtimeRecoveryFailure(cfg.WorkingDir, cfg.Version, err)
 	}
+	previous, err := loadInstalledRuntimeManifest(cfg.WorkingDir)
+	if err != nil {
+		return nil, &RuntimeInstallError{Runtime: cfg.Version, Err: errors.Wrap(err, "failed to read installed runtime state")}
+	}
+	stageLock, err := lockRuntimeStage(ctx, cacheDir, cfg)
+	if err != nil {
+		return nil, &RuntimeInstallError{Runtime: cfg.Version, Restored: previous != nil && verifyRuntimeManifest(*previous, cfg.WorkingDir) == nil, Err: err}
+	}
+	defer func() { err = stderrors.Join(err, stageLock.Close()) }()
 	manifest, stageDir, err := ensureStagedRuntime(ctx, cacheDir, cfg)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to prepare runtime files")
+		return nil, &RuntimeInstallError{Runtime: cfg.Version, Restored: previous != nil && verifyRuntimeManifest(*previous, cfg.WorkingDir) == nil, Err: errors.Wrap(err, "failed to prepare runtime files")}
 	}
 	manifestInfo := runtimeManifestToInfo(manifest)
-
-	existingManifest, readErr := loadInstalledRuntimeManifest(cfg.WorkingDir)
-	if readErr != nil {
-		return nil, errors.Wrap(readErr, "failed to read installed runtime state")
-	} else if existingManifest != nil {
-		if existingManifest.matchesRuntime(cfg) && manifestsEqual(*existingManifest, manifest) {
-			verifyErr := verifyRuntimeManifest(*existingManifest, cfg.WorkingDir)
-			if verifyErr == nil {
-				print.Verb("runtime binaries already up to date")
-				if err := writeInstalledRuntimeManifest(ctx, cfg.WorkingDir, *existingManifest); err != nil {
-					return manifestInfo, errors.Wrap(err, "runtime binaries verified. Could not save installed runtime state")
-				}
-				return manifestInfo, nil
-			}
-			print.Warn("installed runtime files failed verification. Reinstalling:", verifyErr)
-		}
-	} else if verifyErr := verifyRuntimeManifest(manifest, cfg.WorkingDir); verifyErr == nil {
+	if previous != nil && previous.matchesRuntime(cfg) && manifestsEqual(*previous, manifest) && verifyRuntimeManifest(*previous, cfg.WorkingDir) == nil {
 		print.Verb("runtime binaries already up to date")
-		if err := writeInstalledRuntimeManifest(ctx, cfg.WorkingDir, manifest); err != nil {
-			return manifestInfo, errors.Wrap(err, "runtime binaries verified. Could not save installed runtime state")
+		if err := writeInstalledRuntimeManifest(ctx, cfg.WorkingDir, *previous); err != nil {
+			return manifestInfo, &RuntimeInstallError{Runtime: cfg.Version, Restored: true, Err: errors.Wrap(err, "runtime binaries verified. Could not save installed runtime state")}
 		}
 		return manifestInfo, nil
 	}
-	managed := make(map[string]struct{})
-	if existingManifest != nil {
-		for _, file := range existingManifest.Files {
-			if _, err := runtimeFilePath(cfg.WorkingDir, file.Path); err != nil {
-				return nil, err
-			}
-			managed[strings.ToLower(filepath.Clean(filepath.FromSlash(file.Path)))] = struct{}{}
-		}
+	if err := installRuntime(ctx, cfg.WorkingDir, stageDir, manifest, previous, runtimeInstallHooks{}); err != nil {
+		return nil, err
 	}
-	for _, file := range manifest.Files {
-		target, err := runtimeFilePath(cfg.WorkingDir, file.Path)
-		if err != nil {
-			return nil, err
-		}
-		if _, err := os.Lstat(target); os.IsNotExist(err) {
-			continue
-		} else if err != nil {
-			return nil, err
-		}
-		if _, owned := managed[strings.ToLower(filepath.Clean(filepath.FromSlash(file.Path)))]; owned {
-			continue
-		}
-		if verifyRuntimeManifest(runtimeManifest{Files: []runtimeFileInfo{file}}, cfg.WorkingDir) != nil {
-			return nil, errors.Wrapf(os.ErrExist, "runtime file %s already exists and is not tracked by the installed runtime", file.Path)
-		}
-	}
-
-	if err = copyRuntimeFilesContext(ctx, manifest, stageDir, cfg.WorkingDir); err != nil {
-		return nil, errors.Wrap(err, "failed to install runtime binaries")
-	}
-	if err := verifyRuntimeManifest(manifest, cfg.WorkingDir); err != nil {
-		return nil, errors.Wrap(err, "failed to verify installed runtime binaries")
-	}
-	if existingManifest != nil {
-		obsolete, err := obsoleteRuntimeFiles(*existingManifest, manifest, cfg.WorkingDir)
-		if err != nil {
-			return nil, err
-		}
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		if err := removeRuntimeFiles(obsolete, cfg.WorkingDir); err != nil {
-			return manifestInfo, errors.Wrap(err, "runtime binaries installed. Could not remove obsolete runtime files")
-		}
-	}
-	if err := writeInstalledRuntimeManifest(ctx, cfg.WorkingDir, manifest); err != nil {
-		return manifestInfo, errors.Wrap(err, "runtime binaries installed. Could not save installed runtime state")
-	}
-
 	return manifestInfo, nil
 }
 
@@ -197,6 +147,20 @@ func pluginExtForFile(os string) (ext string) {
 		ext = ".so"
 	}
 	return
+}
+
+func lockRuntimeStage(ctx context.Context, cacheDir string, cfg run.Runtime) (*flock.Flock, error) {
+	for _, part := range []string{cfg.Platform, cfg.Version} {
+		if !filepath.IsLocal(part) || filepath.Base(part) != part || part == "." {
+			return nil, errors.Wrapf(os.ErrInvalid, "invalid runtime cache path component %q", part)
+		}
+	}
+	root := filepath.Join(cacheDir, runtimeStagingDir, cfg.Platform)
+	filename := "." + cfg.Version + ".sampctl.lock"
+	if _, err := runtimeFilePath(cacheDir, filepath.Join(runtimeStagingDir, cfg.Platform, filename)); err != nil {
+		return nil, err
+	}
+	return lockRuntimePath(ctx, root, filename)
 }
 
 func ensureStagedRuntime(ctx context.Context, cacheDir string, cfg run.Runtime) (_ runtimeManifest, _ string, err error) {
@@ -322,7 +286,7 @@ func obsoleteRuntimeFiles(previous, current runtimeManifest, root string) (runti
 		if _, exists := retained[strings.ToLower(filepath.Clean(filepath.FromSlash(file.Path)))]; exists {
 			continue
 		}
-		// A changed file belongs to the user; only remove unchanged files from the old manifest.
+		// Keep files changed by the user.
 		if verifyRuntimeManifest(runtimeManifest{Files: []runtimeFileInfo{file}}, root) == nil {
 			obsolete.Files = append(obsolete.Files, file)
 		}
