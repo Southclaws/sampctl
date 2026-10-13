@@ -2,10 +2,13 @@ package runtime
 
 import (
 	"context"
+	stderrors "errors"
+	"fmt"
 	iofs "io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/google/go-github/github"
@@ -15,7 +18,6 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	infraresource "github.com/Southclaws/sampctl/src/pkg/infrastructure/resource"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/util"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 	pkgresource "github.com/Southclaws/sampctl/src/pkg/package/resource"
@@ -76,6 +78,12 @@ type PluginFetchRequest struct {
 
 // EnsurePlugins validates and downloads plugin binary files.
 func EnsurePlugins(request EnsurePluginsRequest) (err error) {
+	if err := request.Context.Err(); err != nil {
+		return err
+	}
+	if _, err := runtimeFilePath(request.Config.WorkingDir, ".sampctl-layout-check"); err != nil {
+		return err
+	}
 	if err := fs.EnsurePackageLayout(request.Config.WorkingDir, request.Config.IsOpenMP()); err != nil {
 		return err
 	}
@@ -88,6 +96,9 @@ func EnsurePlugins(request EnsurePluginsRequest) (err error) {
 	addedComponents := make(map[run.Plugin]struct{})
 
 	for _, plugin := range request.Config.PluginDeps {
+		if err := request.Context.Err(); err != nil {
+			return err
+		}
 		// Local scheme dependencies (plugin://local/... / component://local/...) are already present
 		// in the workspace; they should not be downloaded from the network.
 		if plugin.IsLocalScheme() {
@@ -160,6 +171,9 @@ func EnsurePlugins(request EnsurePluginsRequest) (err error) {
 
 // EnsureVersionedPlugin automatically downloads a plugin binary from its github releases page
 func EnsureVersionedPlugin(request EnsureVersionedPluginRequest) (files []run.Plugin, err error) {
+	if err := request.Context.Err(); err != nil {
+		return nil, err
+	}
 	filename, resource, err := EnsureVersionedPluginCached(EnsureVersionedPluginCachedRequest{
 		Context:  request.Context,
 		Meta:     request.Meta,
@@ -221,16 +235,8 @@ func EnsureVersionedPlugin(request EnsureVersionedPluginRequest) (files []run.Pl
 			print.Verb(request.Meta, "using", len(request.IgnorePatterns), "ignore pattern(s) for extraction")
 		}
 
-		var extractedFiles map[string]string
-		switch ext {
-		case ".zip":
-			extractedFiles, err = download.UnzipWithIgnore(filename, request.Dir, paths, request.IgnorePatterns)
-		case ".gz":
-			extractedFiles, err = download.UntarWithIgnore(filename, request.Dir, paths, request.IgnorePatterns)
-		default:
-			err = errors.Errorf("unsupported archive format: %s", filename)
-			return
-		}
+		extractedFiles, extractErr := extractPluginArchive(request, filename, ext, paths)
+		err = extractErr
 		if err != nil {
 			err = errors.Wrapf(err, "failed to extract plugin %s to %s", request.Meta, request.Dir)
 			return
@@ -257,7 +263,10 @@ func EnsureVersionedPlugin(request EnsureVersionedPluginRequest) (files []run.Pl
 			return nil, errors.New("pluginDestDir is required when plugins=true")
 		}
 		finalDir := filepath.Join(request.Dir, request.PluginDestDir)
-		destination := filepath.Join(finalDir, base)
+		destination, pathErr := runtimeFilePath(request.Dir, filepath.Join(request.PluginDestDir, base))
+		if pathErr != nil {
+			return nil, pathErr
+		}
 
 		err = fs.EnsureDir(finalDir, fs.PermDirShared)
 		if err != nil {
@@ -265,7 +274,14 @@ func EnsureVersionedPlugin(request EnsureVersionedPluginRequest) (files []run.Pl
 			return
 		}
 
-		err = util.CopyFile(filename, destination)
+		info, statErr := os.Lstat(filename)
+		if statErr != nil {
+			return nil, statErr
+		}
+		if !info.Mode().IsRegular() {
+			return nil, errors.Wrap(os.ErrInvalid, "plugin asset must be a regular file")
+		}
+		err = copyFileWithModeContext(request.Context, filename, destination, info.Mode())
 		if err != nil {
 			err = errors.Wrapf(err, "failed to copy non-archive file %s to %s", filename, destination)
 			return
@@ -274,6 +290,108 @@ func EnsureVersionedPlugin(request EnsureVersionedPluginRequest) (files []run.Pl
 	}
 
 	return files, err
+}
+
+func extractPluginArchive(
+	request EnsureVersionedPluginRequest,
+	filename, ext string,
+	paths map[string]string,
+) (_ map[string]string, err error) {
+	if _, err := runtimeFilePath(request.Dir, ".sampctl-plugin-stage"); err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(request.Dir, 0o755); err != nil {
+		return nil, err
+	}
+	stage, err := os.MkdirTemp(request.Dir, ".sampctl-plugin-")
+	if err != nil {
+		return nil, err
+	}
+	defer func() { err = stderrors.Join(err, os.RemoveAll(stage)) }()
+	stagedPaths := make(map[string]string, len(paths))
+	keys := make([]string, 0, len(paths))
+	for source := range paths {
+		keys = append(keys, source)
+	}
+	sort.Strings(keys)
+	for index, source := range keys {
+		stagedPaths[source] = fmt.Sprintf("%d/", index)
+	}
+	var extracted map[string]string
+	switch ext {
+	case ".zip":
+		extracted, err = download.Unzip(filename, stage, stagedPaths)
+	case ".gz":
+		extracted, err = download.Untar(filename, stage, stagedPaths)
+	default:
+		return nil, errors.Errorf("unsupported archive format: %s", filename)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if err := request.Context.Err(); err != nil {
+		return nil, err
+	}
+	targets := make(map[string]string, len(extracted))
+	for source, staged := range extracted {
+		relative, err := filepath.Rel(stage, staged)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := runtimeFilePath(stage, relative); err != nil {
+			return nil, err
+		}
+		target := paths[source]
+		if target == "" {
+			target = filepath.Base(staged)
+		} else if strings.HasSuffix(target, "/") {
+			target = filepath.Join(target, filepath.Base(staged))
+		}
+		root := request.Dir
+		if !filepath.IsLocal(target) {
+			if request.RestrictFilesToDir {
+				return nil, errors.Wrapf(os.ErrInvalid, "plugin destination %q must stay inside its installation", target)
+			}
+			// Explicit resource mappings may target files outside the runtime directory.
+			if !filepath.IsAbs(target) {
+				target = filepath.Join(root, target)
+			}
+			root, target = filepath.Dir(target), filepath.Base(target)
+		}
+		final, err := runtimeFilePath(root, target)
+		if err != nil {
+			return nil, err
+		}
+		if ignoredRuntimePlugin(final, request.IgnorePatterns) {
+			continue
+		}
+		targets[source] = final
+	}
+	for source, target := range targets {
+		info, err := os.Lstat(extracted[source])
+		if err != nil {
+			return nil, err
+		}
+		if err := copyFileWithModeContext(request.Context, extracted[source], target, info.Mode()); err != nil {
+			return nil, err
+		}
+	}
+	return targets, nil
+}
+
+func ignoredRuntimePlugin(path string, patterns []string) bool {
+	if _, err := os.Lstat(path); err != nil {
+		return false
+	}
+	for _, pattern := range patterns {
+		if matched, err := filepath.Match(pattern, filepath.Base(path)); err == nil && matched {
+			return true
+		}
+		if matched, err := filepath.Match(pattern, path); err == nil && matched {
+			return true
+		}
+	}
+	return false
 }
 
 func detectArchiveExt(filename string) string {

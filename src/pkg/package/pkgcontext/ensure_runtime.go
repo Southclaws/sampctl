@@ -2,6 +2,9 @@ package pkgcontext
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
@@ -28,17 +31,41 @@ func (pcx *PackageContext) ensureParentRuntime(ctx context.Context) error {
 	}
 
 	pcx.ActualRuntime = cfg
-
-	if err := pcx.PackageServices.runtimeProvisioner().EnsurePackageLayout(cfg.WorkingDir, cfg.IsOpenMP()); err != nil {
+	if err := validateRuntimeDirectory(pcx.Package.LocalPath, cfg.WorkingDir); err != nil {
 		return &DependencyError{Dependency: "runtime " + cfg.Version, Operation: "ensure layout", Err: err}
 	}
+	provisioner := pcx.PackageServices.runtimeProvisioner()
+	if _, native := provisioner.(runtimeProvisionerAdapter); native && pcx.HasLockfileResolver() && filepath.Clean(cfg.WorkingDir) != filepath.Clean(pcx.Package.LocalPath) {
+		if err := regularRecoveryFile(filepath.Join(pcx.Package.LocalPath, lockfile.Filename)); err != nil {
+			return &DependencyError{Dependency: "runtime " + cfg.Version, Operation: "read previous ownership", Err: err}
+		}
+		previous, err := lockfile.Load(pcx.Package.LocalPath)
+		if err != nil {
+			return &DependencyError{Dependency: "runtime " + cfg.Version, Operation: "read previous ownership", Err: err}
+		}
+		if previous != nil {
+			if _, err := runtimepkg.AdoptRuntimeOwnership(ctx, cfg.WorkingDir, previous.Runtime); err != nil {
+				return &DependencyError{Dependency: "runtime " + cfg.Version, Operation: "adopt previous ownership", Err: err}
+			}
+		}
+	}
 
-	runtimeInfo, err := pcx.PackageServices.runtimeProvisioner().EnsureBinaries(ctx, pcx.CacheDir, cfg)
+	if err := provisioner.EnsurePackageLayout(cfg.WorkingDir, cfg.IsOpenMP()); err != nil {
+		return &DependencyError{Dependency: "runtime " + cfg.Version, Operation: "ensure layout", Err: err}
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	runtimeInfo, err := provisioner.EnsureBinaries(ctx, pcx.CacheDir, cfg)
 	if err != nil {
 		return &DependencyError{Dependency: "runtime " + cfg.Version, Operation: "ensure binaries", Err: err}
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 
-	if err := pcx.PackageServices.runtimeProvisioner().EnsurePlugins(runtimepkg.EnsurePluginsRequest{
+	if err := provisioner.EnsurePlugins(runtimepkg.EnsurePluginsRequest{
 		Context:  ctx,
 		GitHub:   pcx.GitHub,
 		Config:   &pcx.ActualRuntime,
@@ -46,6 +73,9 @@ func (pcx *PackageContext) ensureParentRuntime(ctx context.Context) error {
 		NoCache:  false,
 	}); err != nil {
 		return &DependencyError{Dependency: "runtime " + cfg.Version, Operation: "ensure plugins", Err: err}
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 
 	pcx.recordRuntimeToLockfile(runtimeInfo)
@@ -56,6 +86,25 @@ func (pcx *PackageContext) ensureParentRuntime(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func validateRuntimeDirectory(project, directory string) error {
+	root := filepath.Clean(directory)
+	if relative, err := filepath.Rel(project, directory); err == nil && filepath.IsLocal(relative) {
+		root = filepath.Clean(project)
+	}
+	for path := filepath.Clean(directory); ; path = filepath.Dir(path) {
+		info, err := os.Lstat(path)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		if err == nil && (info.Mode()&os.ModeSymlink != 0 || !info.IsDir()) {
+			return fmt.Errorf("runtime directory %s contains a symlink or non-directory: %w", path, os.ErrInvalid)
+		}
+		if path == root {
+			return nil
+		}
+	}
 }
 
 func (pcx *PackageContext) recordRuntimeToLockfile(manifestInfo *runtimepkg.RuntimeManifestInfo) {
