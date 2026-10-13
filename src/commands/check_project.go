@@ -10,6 +10,7 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/build"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
+	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
 func checkProject(dir string) (pawnpackage.Package, diagnostic) {
@@ -75,6 +76,12 @@ func findCheckProject(dir string) (string, string, error) {
 		}
 		if len(paths) > 1 {
 			return dir, "", nil
+		}
+		journal := filepath.Join(dir, pkgcontext.DependencyRecoveryFilename)
+		if _, err := os.Lstat(journal); err == nil {
+			return dir, filepath.Join(dir, "pawn.json"), nil
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return "", "", fmt.Errorf("inspect %s: %w", journal, err)
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {

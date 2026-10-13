@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
@@ -13,13 +14,13 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
 
-func checkDependencies(ctx context.Context, pkg pawnpackage.Package, lf *lockfile.Lockfile, overrides map[string]string) ([]diagnostic, error) {
+func checkDependencies(ctx context.Context, pkg pawnpackage.Package, lf *lockfile.Lockfile, overrides map[string]string, recoveryStages ...string) ([]diagnostic, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	pending := pkg.GetAllDependencies()
 	visited := make(map[string]bool)
-	results := checkDependencyStaging(pkg.Vendor)
+	results := checkDependencyStaging(pkg.Vendor, recoveryStages...)
 	for len(pending) > 0 {
 		if err := ctx.Err(); err != nil {
 			return results, err
@@ -57,7 +58,7 @@ func checkDependencies(ctx context.Context, pkg pawnpackage.Package, lf *lockfil
 	return results, nil
 }
 
-func checkDependencyStaging(vendor string) []diagnostic {
+func checkDependencyStaging(vendor string, recoveryStages ...string) []diagnostic {
 	info, err := os.Lstat(vendor)
 	if errors.Is(err, os.ErrNotExist) || err == nil && (!info.IsDir() || info.Mode()&os.ModeSymlink != 0) {
 		return nil
@@ -74,9 +75,13 @@ func checkDependencyStaging(vendor string) []diagnostic {
 		if !entry.IsDir() || !strings.HasPrefix(entry.Name(), ".sampctl-stage-") {
 			continue
 		}
+		path := filepath.Join(vendor, entry.Name())
+		if slices.Contains(recoveryStages, path) {
+			continue
+		}
 		results = append(results, diagnostic{
 			Name: "dependency staging", Status: checkWarning,
-			Message: "Dependency staging directory remains: " + entry.Name(), Path: filepath.Join(vendor, entry.Name()),
+			Message: "Dependency staging directory remains: " + entry.Name(), Path: path,
 			Action: "Wait for dependency commands to finish. If this directory remains, inspect it with --verbose and keep any backups before deleting temporary files.",
 		})
 	}

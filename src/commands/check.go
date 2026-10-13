@@ -108,6 +108,18 @@ func runChecks(ctx context.Context, opts checkOptions) ([]diagnostic, error) {
 		return nil, err
 	}
 	results := []diagnostic{checkGlobalConfig(opts.CacheDir)}
+	root, _, discoverErr := findCheckProject(opts.Dir)
+	var active bool
+	var recoveryStages []string
+	if discoverErr == nil && root != "" {
+		recovery, recoveryState, err := checkDependencyRecovery(ctx, root, opts.Fix)
+		results = append(results, recovery...)
+		active = recoveryState.Active
+		recoveryStages = recoveryState.Stages
+		if err != nil {
+			return results, err
+		}
+	}
 	pkg, project := checkProject(opts.Dir)
 	var overrides map[string]string
 	var overrideErr error
@@ -131,10 +143,16 @@ func runChecks(ctx context.Context, opts checkOptions) ([]diagnostic, error) {
 		results = append(results, diagnostic{Name: "dependency overrides", Status: checkFailed, Message: "Dependency overrides could not be read", Action: "Correct the dependency override configuration before checking dependencies.", Err: overrideErr})
 		overrides = nil
 	}
+	if active {
+		for _, name := range []string{"dependencies", "lockfile", "compiler"} {
+			results = append(results, diagnostic{Name: name, Status: checkSkipped, Message: name + " check requires the active dependency operation to finish"})
+		}
+		return results, ctx.Err()
+	}
 	lf, lockResults := checkLockfile(pkg, overrides)
 	results = append(results, lockResults...)
 	if overrideErr == nil {
-		dependencies, depErr := checkDependencies(ctx, pkg, lf, overrides)
+		dependencies, depErr := checkDependencies(ctx, pkg, lf, overrides, recoveryStages...)
 		results = append(results, dependencies...)
 		if depErr != nil {
 			return results, depErr

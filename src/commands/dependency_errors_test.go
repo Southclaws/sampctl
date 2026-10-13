@@ -71,7 +71,7 @@ func TestReportDependencyFailuresAndRecovery(t *testing.T) {
 	assert.ErrorIs(t, err, os.ErrPermission)
 	assert.Contains(t, output.String(), "user/first")
 	assert.Contains(t, output.String(), "user/second")
-	assert.Contains(t, output.String(), "Previous project state was not fully restored")
+	assert.Contains(t, output.String(), "Previous dependency state was not fully restored")
 	assert.Contains(t, output.String(), "Cannot remove temporary dependency files")
 	assert.NotContains(t, output.String(), "was restored")
 	assert.NotContains(t, output.String(), "Details:")
@@ -114,6 +114,27 @@ func TestReportNestedDependencyRecoveryFailure(t *testing.T) {
 	assert.ErrorIs(t, err, os.ErrPermission)
 	assert.Contains(t, output.String(), "user/repo")
 	assert.Contains(t, output.String(), "Cannot remove temporary dependency files")
+	assert.NotContains(t, output.String(), "sampctl check")
+}
+
+func TestUnjournaledDependencyFailuresDoNotRecommendProjectRecovery(t *testing.T) {
+	t.Parallel()
+	for _, cause := range []error{
+		context.Canceled,
+		errors.New("invalid plugin archive"),
+		&pkgcontext.OperationError{Operation: "rollback", Err: errors.New("cache backup could not be restored")},
+	} {
+		ctx := newTestCLIContext("dev")
+		var output bytes.Buffer
+		ctx.App.Writer = &output
+		err := reportDependencyCommandError(ctx, "ensure", cause)
+		if !errors.Is(err, cause) || ExitCode(err) != 1 {
+			t.Errorf("failure %v = %v, want preserved cause and nonzero exit", cause, err)
+		}
+		if strings.Contains(output.String(), "sampctl check") {
+			t.Errorf("unjournaled failure recommends unsupported project recovery: %s", output.String())
+		}
+	}
 }
 
 func TestReportCompletedDependencyOperationWithCleanupFailure(t *testing.T) {
@@ -121,10 +142,90 @@ func TestReportCompletedDependencyOperationWithCleanupFailure(t *testing.T) {
 	ctx := newTestCLIContext("dev")
 	var output bytes.Buffer
 	ctx.App.Writer = &output
-	err := reportDependencyCommandError(ctx, "install", &pkgcontext.OperationError{Operation: "cleanup", Err: os.ErrPermission})
+	err := reportDependencyCommandError(ctx, "install", &pkgcontext.OperationError{Operation: "cleanup", Outcome: pkgcontext.OutcomeCommitted, Err: os.ErrPermission})
 	assert.Equal(t, 1, ExitCode(err))
-	assert.Contains(t, output.String(), "Dependency operation completed; cleanup failed")
+	assert.Contains(t, output.String(), "✓ Dependency operation completed; cleanup is pending")
 	assert.NotContains(t, output.String(), "Dependency installation incomplete")
+}
+
+func TestReportDependencyOperationOutcomes(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		name    string
+		outcome pkgcontext.DependencyOperationOutcome
+		message string
+	}{
+		{name: "restored", outcome: pkgcontext.OutcomeRolledBack, message: "previous dependency state restored"},
+		{name: "incomplete recovery", outcome: pkgcontext.OutcomeRollbackIncomplete, message: "recovery is incomplete"},
+		{name: "committed cleanup", outcome: pkgcontext.OutcomeCommitted, message: "✓ Dependency operation completed; cleanup is pending"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := newTestCLIContext("dev")
+			var output bytes.Buffer
+			ctx.App.Writer = &output
+			var cause error = &pkgcontext.DependencyError{Dependency: "fixture/dependency", Operation: "install", Err: os.ErrPermission}
+			switch test.outcome {
+			case pkgcontext.OutcomeRollbackIncomplete:
+				cause = errors.Join(cause, &pkgcontext.OperationError{Operation: "rollback", Err: os.ErrPermission})
+			case pkgcontext.OutcomeCommitted:
+				cause = &pkgcontext.OperationError{Operation: "cleanup", Err: os.ErrPermission}
+			}
+			operation := "dependency operation"
+			var nested *pkgcontext.OperationError
+			if errors.As(cause, &nested) {
+				operation = nested.Operation
+			}
+			failure := &pkgcontext.OperationError{Operation: operation, Outcome: test.outcome, Err: cause}
+			err := reportDependencyCommandError(ctx, "install", fmt.Errorf("install: %w", failure))
+			if !errors.Is(err, os.ErrPermission) || ExitCode(err) != 1 {
+				t.Errorf("outcome %s error = %v, code = %d", test.outcome, err, ExitCode(err))
+			}
+			if !strings.Contains(output.String(), test.message) {
+				t.Errorf("outcome %s output = %s, want %q", test.outcome, output.String(), test.message)
+			}
+			if test.outcome == pkgcontext.OutcomeCommitted {
+				for _, forbidden := range []string{"✗", "installation incomplete", "state restored"} {
+					if strings.Contains(output.String(), forbidden) {
+						t.Errorf("committed output contains %q: %s", forbidden, output.String())
+					}
+				}
+				if !strings.Contains(output.String(), "Project changes were saved") || !strings.Contains(output.String(), "check --fix") {
+					t.Errorf("committed output lacks saved changes and recovery advice: %s", output.String())
+				}
+			} else if strings.Contains(output.String(), "Project changes were saved") {
+				t.Errorf("uncommitted output claims saved changes: %s", output.String())
+			}
+		})
+	}
+}
+
+func TestReportCommittedOutcomeWithOutputFailure(t *testing.T) {
+	t.Parallel()
+	ctx := newTestCLIContext("dev")
+	ctx.App.Writer = failingDiagnosticWriter{}
+	failure := &pkgcontext.OperationError{Operation: "dependency operation", Outcome: pkgcontext.OutcomeCommitted, Err: &pkgcontext.OperationError{Operation: "cleanup", Err: os.ErrPermission}}
+	err := reportDependencyCommandError(ctx, "install", failure)
+	if !errors.Is(err, os.ErrPermission) || !errors.Is(err, io.ErrClosedPipe) {
+		t.Errorf("committed output failure = %v, want both causes", err)
+	}
+	if !strings.Contains(err.Error(), "changes were saved") || strings.Contains(err.Error(), "operation failed") {
+		t.Errorf("committed output failure message = %q", err.Error())
+	}
+}
+
+func TestReportUntrackedRuntimeConflict(t *testing.T) {
+	t.Parallel()
+	ctx := newTestCLIContext("dev")
+	var output bytes.Buffer
+	ctx.App.Writer = &output
+	failure := &pkgcontext.DependencyError{Dependency: "runtime 0.3.7", Operation: "ensure binaries", Err: os.ErrExist}
+	err := reportDependencyCommandError(ctx, "ensure", failure)
+	if !errors.Is(err, os.ErrExist) || ExitCode(err) != 1 {
+		t.Errorf("runtime conflict = %v, code = %d", err, ExitCode(err))
+	}
+	if !strings.Contains(output.String(), "Preserve existing files") || strings.Contains(output.String(), "sampctl check") {
+		t.Errorf("runtime conflict advice = %s", output.String())
+	}
 }
 
 type failingDiagnosticWriter struct{}
