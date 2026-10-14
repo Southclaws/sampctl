@@ -9,9 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)

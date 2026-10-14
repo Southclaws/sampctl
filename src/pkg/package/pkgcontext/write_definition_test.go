@@ -6,12 +6,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v3"
 
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
+	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 )
 
 // TestInstallDoesNotWriteDefaultRuntimeFields verifies that installing a package

@@ -6,10 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/google/go-github/github"
+
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 )
 
 var (
