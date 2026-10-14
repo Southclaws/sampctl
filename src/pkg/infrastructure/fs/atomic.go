@@ -13,6 +13,7 @@ func WriteFileAtomic(path string, data []byte, dirPerm, filePerm os.FileMode) er
 	if err := EnsureDirForFile(path, dirPerm); err != nil {
 		return err
 	}
+
 	dir := filepath.Dir(path)
 	base := filepath.Base(path)
 	f, err := os.CreateTemp(dir, "."+base+".*")
@@ -23,21 +24,27 @@ func WriteFileAtomic(path string, data []byte, dirPerm, filePerm os.FileMode) er
 	if err := f.Chmod(PermFileTemp); err != nil {
 		return stderrors.Join(err, cleanupTempFile(f, tmp))
 	}
+
 	if _, err := f.Write(data); err != nil {
 		return stderrors.Join(err, cleanupTempFile(f, tmp))
 	}
+
 	if err := f.Chmod(filePerm); err != nil {
 		return stderrors.Join(err, cleanupTempFile(f, tmp))
 	}
+
 	if err := f.Sync(); err != nil {
 		return stderrors.Join(err, cleanupTempFile(f, tmp))
 	}
+
 	if err := f.Close(); err != nil {
 		return stderrors.Join(err, removeFileIfExists(tmp))
 	}
+
 	if err := os.Rename(tmp, path); err != nil {
 		return stderrors.Join(err, removeFileIfExists(tmp))
 	}
+
 	return SyncDir(dir)
 }
 
@@ -45,6 +52,7 @@ func WriteFromReaderAtomic(path string, r io.Reader, dirPerm, filePerm os.FileMo
 	if err := EnsureDirForFile(path, dirPerm); err != nil {
 		return err
 	}
+
 	dir := filepath.Dir(path)
 	base := filepath.Base(path)
 	f, err := os.CreateTemp(dir, "."+base+".*")
@@ -55,21 +63,27 @@ func WriteFromReaderAtomic(path string, r io.Reader, dirPerm, filePerm os.FileMo
 	if err := f.Chmod(PermFileTemp); err != nil {
 		return stderrors.Join(err, cleanupTempFile(f, tmp))
 	}
+
 	if _, err := io.Copy(f, r); err != nil {
 		return stderrors.Join(err, cleanupTempFile(f, tmp))
 	}
+
 	if err := f.Chmod(filePerm); err != nil {
 		return stderrors.Join(err, cleanupTempFile(f, tmp))
 	}
+
 	if err := f.Sync(); err != nil {
 		return stderrors.Join(err, cleanupTempFile(f, tmp))
 	}
+
 	if err := f.Close(); err != nil {
 		return stderrors.Join(err, removeFileIfExists(tmp))
 	}
+
 	if err := os.Rename(tmp, path); err != nil {
 		return stderrors.Join(err, removeFileIfExists(tmp))
 	}
+
 	return SyncDir(dir)
 }
 
@@ -79,6 +93,7 @@ func WriteJSONAtomic(path string, v any, dirPerm, filePerm os.FileMode) error {
 		return fmt.Errorf("failed to encode JSON: %w", err)
 	}
 	data = append(data, '\n')
+
 	return WriteFileAtomic(path, data, dirPerm, filePerm)
 }
 

@@ -46,6 +46,7 @@ func GetRuntimeListWithClientContext(ctx context.Context, cacheDir string, clien
 	if client == nil {
 		client = http.DefaultClient
 	}
+
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -62,6 +63,7 @@ func GetRuntimeListWithClientContext(ctx context.Context, cacheDir string, clien
 			if err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to create request")
 			}
+
 			resp, err := client.Do(req)
 			if err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to download package list")
@@ -71,21 +73,26 @@ func GetRuntimeListWithClientContext(ctx context.Context, cacheDir string, clien
 					err = errors.Wrap(closeErr, "failed to close runtime list response body")
 				}
 			}()
+
 			if resp.StatusCode != 200 {
 				return Runtimes{}, errors.Errorf("runtime list download returned HTTP %s", resp.Status)
 			}
+
 			if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to decode package list")
 			}
+
 			return out, nil
 		},
 	})
 	if err != nil {
 		return Runtimes{}, err
 	}
+
 	if refreshed {
 		fmt.Fprintln(os.Stderr, "updating runtimes list...") //nolint:gosec
 	}
+
 	return runtimes, nil
 }
 
@@ -102,6 +109,7 @@ func UpdateRuntimeListWithClientContext(ctx context.Context, cacheDir string, cl
 	if client == nil {
 		client = http.DefaultClient
 	}
+
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -118,6 +126,7 @@ func UpdateRuntimeListWithClientContext(ctx context.Context, cacheDir string, cl
 			if err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to create request")
 			}
+
 			resp, err := client.Do(req)
 			if err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to download package list")
@@ -127,15 +136,19 @@ func UpdateRuntimeListWithClientContext(ctx context.Context, cacheDir string, cl
 					err = errors.Wrap(closeErr, "failed to close runtime list response body")
 				}
 			}()
+
 			if resp.StatusCode != 200 {
 				return Runtimes{}, errors.Errorf("runtime list download returned HTTP %s", resp.Status)
 			}
+
 			if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 				return Runtimes{}, errors.Wrap(err, "failed to decode package list")
 			}
+
 			return out, nil
 		},
 	})
+
 	return err
 }
 

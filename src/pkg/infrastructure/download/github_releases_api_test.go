@@ -46,6 +46,7 @@ func (f *fakeReleasesAPI) DownloadReleaseAsset(ctx context.Context, owner, repo 
 	if f.downloadErr != nil {
 		return nil, "", f.downloadErr
 	}
+
 	return f.downloadRC, f.downloadRedirectURL, nil
 }
 
@@ -170,6 +171,7 @@ func TestReleaseAssetByPatternWithAPIReportsMissingAssetInRequestedRelease(t *te
 		}},
 	}
 	dir := t.TempDir()
+
 	_, _, err := ReleaseAssetByPatternWithAPI(ReleaseAssetAPIRequest{
 		Context: context.Background(),
 		Client:  fake,
@@ -177,24 +179,29 @@ func TestReleaseAssetByPatternWithAPIReportsMissingAssetInRequestedRelease(t *te
 		Matcher: regexp.MustCompile(`yaml.so`),
 		Dir:     dir,
 	})
+
 	var missing *ReleaseAssetNotFoundError
 	if !errors.As(err, &missing) {
 		t.Fatalf("ReleaseAssetByPatternWithAPI(%s, yaml.so) error = %v, want *ReleaseAssetNotFoundError", meta, err)
 	}
+
 	if missing.Meta != meta || missing.Tag != "1.0.0" || missing.Pattern != "yaml.so" {
 		t.Errorf("ReleaseAssetByPatternWithAPI(%s, yaml.so) error = %+v, want requested metadata, tag 1.0.0, and pattern yaml.so", meta, missing)
 	}
 	if len(missing.AvailableAssets) != 1 || missing.AvailableAssets[0] != "yaml.dll" {
 		t.Errorf("ReleaseAssetByPatternWithAPI(%s, yaml.so) available assets = %v, want [yaml.dll]", meta, missing.AvailableAssets)
 	}
+
 	if fake.tagCalls != 1 || fake.listCalls != 0 || fake.downloadCalls != 0 {
 		t.Errorf("ReleaseAssetByPatternWithAPI(%s, yaml.so) calls = {tag:%d list:%d download:%d}, want {tag:1 list:0 download:0}",
 			meta, fake.tagCalls, fake.listCalls, fake.downloadCalls)
 	}
+
 	entries, readErr := os.ReadDir(dir)
 	if readErr != nil {
 		t.Fatalf("ReadDir(%q) = %v, want no error", dir, readErr)
 	}
+
 	if len(entries) != 0 {
 		t.Errorf("ReleaseAssetByPatternWithAPI(%s, yaml.so) output directory contains %v, want no files", meta, entries)
 	}

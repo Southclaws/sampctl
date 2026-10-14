@@ -30,6 +30,7 @@ func TestCopyFileErrors(t *testing.T) {
 	t.Run("same file is a no op", func(t *testing.T) {
 		path := filepath.Join(t.TempDir(), "file.txt")
 		require.NoError(t, os.WriteFile(path, []byte("data"), 0o644))
+
 		require.NoError(t, CopyFile(path, path))
 	})
 }
@@ -40,6 +41,7 @@ func TestCopyFileContents(t *testing.T) {
 	require.NoError(t, os.WriteFile(src, []byte("payload"), 0o644))
 
 	require.NoError(t, copyFileContents(src, dst))
+
 	data, err := os.ReadFile(dst)
 	require.NoError(t, err)
 	assert.Equal(t, "payload", string(data))
@@ -62,6 +64,7 @@ func TestExistsAndDirEmpty(t *testing.T) {
 
 	emptyDir := t.TempDir()
 	assert.True(t, DirEmpty(emptyDir))
+
 	require.NoError(t, os.WriteFile(filepath.Join(emptyDir, "item.txt"), []byte("x"), 0o644))
 	assert.False(t, DirEmpty(emptyDir))
 }

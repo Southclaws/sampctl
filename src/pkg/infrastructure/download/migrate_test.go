@@ -66,6 +66,7 @@ func TestMigrationHomeDirUsesCurrentEnvironment(t *testing.T) {
 	if err != nil || home != first {
 		t.Fatalf("migrationHomeDir() = %q, %v, want HOME %q, nil", home, err, first)
 	}
+
 	t.Setenv("HOME", second)
 	home, err = migrationHomeDir()
 	if err != nil || home != second {
@@ -78,15 +79,19 @@ func TestMigrationHomeDirFallsBackToCurrentUser(t *testing.T) {
 	if err != nil {
 		t.Skipf("current user lookup unavailable: %v", err)
 	}
+
 	if current.HomeDir == "" {
 		t.Skip("current user has no home directory")
 	}
+
 	for _, key := range []string{"HOME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "home"} {
 		t.Setenv(key, "")
 	}
+
 	if runtime.GOOS == "android" || runtime.GOOS == "ios" {
 		t.Skip("native home lookup has a platform default")
 	}
+
 	home, err := migrationHomeDir()
 	if err != nil || home != current.HomeDir {
 		t.Fatalf("migrationHomeDir() = %q, %v, want account home %q, nil", home, err, current.HomeDir)

@@ -46,5 +46,6 @@ func captureStdout(fn func()) string {
 	var buf bytes.Buffer
 	_, _ = io.Copy(&buf, r)
 	_ = r.Close()
+
 	return buf.String()
 }

@@ -16,11 +16,14 @@ func ensureCacheDir(cacheDirPath string) error {
 			if removeErr := os.Remove(cacheDirPath); removeErr != nil {
 				return errors.Wrap(removeErr, "failed to remove stale cache file")
 			}
+
 			if retryErr := fs.EnsureDir(cacheDirPath, fs.PermDirPrivate); retryErr == nil {
 				return nil
 			}
 		}
+
 		return errors.Wrap(err, "failed to create cache directory")
 	}
+
 	return nil
 }

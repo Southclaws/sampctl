@@ -33,9 +33,11 @@ func GetPackageListWithClientContext(ctx context.Context, cacheDir string, clien
 	if client == nil {
 		client = http.DefaultClient
 	}
+
 	if ctx == nil {
 		ctx = context.Background()
 	}
+
 	packageFile := fs.Join(cacheDir, "packages.json")
 	packages, refreshed, err := cache.GetOrRefreshJSON(cache.JSONCacheRequest[[]pawnpackage.Package]{
 		Context:  ctx,
@@ -48,6 +50,7 @@ func GetPackageListWithClientContext(ctx context.Context, cacheDir string, clien
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to create request")
 			}
+
 			resp, err := client.Do(req)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to download package list")
@@ -57,21 +60,26 @@ func GetPackageListWithClientContext(ctx context.Context, cacheDir string, clien
 					err = errors.Wrap(closeErr, "failed to close package list response body")
 				}
 			}()
+
 			if resp.StatusCode != 200 {
 				return nil, errors.Errorf("package list download returned HTTP %s", resp.Status)
 			}
+
 			if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 				return nil, errors.Wrap(err, "failed to decode package list")
 			}
+
 			return out, nil
 		},
 	})
 	if err != nil {
 		return nil, err
 	}
+
 	if refreshed {
 		fmt.Fprintln(os.Stderr, "updating package list...") //nolint
 	}
+
 	return packages, nil
 }
 
@@ -92,9 +100,11 @@ func UpdatePackageListWithClientContext(ctx context.Context, cacheDir string, cl
 	if client == nil {
 		client = http.DefaultClient
 	}
+
 	if ctx == nil {
 		ctx = context.Background()
 	}
+
 	packageFile := fs.Join(cacheDir, "packages.json")
 	_, _, err = cache.GetOrRefreshJSON(cache.JSONCacheRequest[[]pawnpackage.Package]{
 		Context:  ctx,
@@ -107,6 +117,7 @@ func UpdatePackageListWithClientContext(ctx context.Context, cacheDir string, cl
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to create request")
 			}
+
 			resp, err := client.Do(req)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to download package list")
@@ -116,15 +127,19 @@ func UpdatePackageListWithClientContext(ctx context.Context, cacheDir string, cl
 					err = errors.Wrap(closeErr, "failed to close package list response body")
 				}
 			}()
+
 			if resp.StatusCode != 200 {
 				return nil, errors.Errorf("package list download returned HTTP %s", resp.Status)
 			}
+
 			if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 				return nil, errors.Wrap(err, "failed to decode package list")
 			}
+
 			return out, nil
 		},
 	})
+
 	return err
 }
 

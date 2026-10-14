@@ -59,12 +59,14 @@ func TestFromCache(t *testing.T) {
 func TestArchiveWrapperHelpers(t *testing.T) {
 	tarPath := filepath.Join(t.TempDir(), "archive.tar.gz")
 	createTarArchive(t, tarPath, true, map[string]string{"pkg/file.txt": "tar"})
+
 	files, err := Untar(tarPath, t.TempDir(), map[string]string{"pkg/file.txt": "out.txt"})
 	require.NoError(t, err)
 	assert.Len(t, files, 1)
 
 	zipPath := filepath.Join(t.TempDir(), "archive.zip")
 	createZipArchive(t, zipPath, map[string]string{"pkg/file.txt": "zip"})
+
 	files, err = Unzip(zipPath, t.TempDir(), map[string]string{"pkg/file.txt": "out.txt"})
 	require.NoError(t, err)
 	assert.Len(t, files, 1)
@@ -108,6 +110,7 @@ func TestUpdatePackageList(t *testing.T) {
 
 	cacheDir := t.TempDir()
 	require.NoError(t, UpdatePackageList(cacheDir))
+
 	pkgs, err := GetPackageList(cacheDir)
 	require.NoError(t, err)
 	require.Len(t, pkgs, 1)
@@ -131,6 +134,7 @@ func TestFromNetWithClientRetryBranches(t *testing.T) {
 				_, _ = w.Write([]byte("png"))
 				return
 			}
+
 			w.Header().Set("Content-Type", "application/octet-stream")
 			_, _ = w.Write([]byte("ok"))
 		}))
@@ -166,6 +170,7 @@ func TestFromNetWithClientRetryBranches(t *testing.T) {
 				_, _ = w.Write([]byte("slow down"))
 				return
 			}
+
 			w.Header().Set("Content-Type", "application/octet-stream")
 			_, _ = w.Write([]byte("ok"))
 		}))
@@ -303,6 +308,7 @@ func TestGitHubClientReleasesAdapter(t *testing.T) {
 
 	rc, _, err := api.DownloadReleaseAsset(context.Background(), "o", "r", 12)
 	require.NoError(t, err)
+
 	data, err := io.ReadAll(rc)
 	require.NoError(t, err)
 	_ = rc.Close()
@@ -340,6 +346,7 @@ func TestReleaseAssetByPattern(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "v1.0.0", tag)
 	assert.Equal(t, filepath.Join(dir, "tool.zip"), file)
+
 	data, err := os.ReadFile(file)
 	require.NoError(t, err)
 	assert.Equal(t, []byte("asset-body"), data)
@@ -413,6 +420,7 @@ func TestReleaseAssetAndReleaseLookupErrors(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.Equal(t, out, got)
+
 		data, readErr := os.ReadFile(out)
 		require.NoError(t, readErr)
 		assert.Equal(t, "redirected", string(data))

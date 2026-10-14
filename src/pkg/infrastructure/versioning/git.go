@@ -75,6 +75,7 @@ func RefFromTag(repo *git.Repository, meta DependencyMeta) (ref *plumbing.Refere
 				ref = refInner
 				return storer.ErrStop
 			}
+
 			tagList = append(tagList, tag)
 			return nil
 		})
@@ -127,6 +128,7 @@ func RefFromBranch(repo *git.Repository, meta DependencyMeta) (ref *plumbing.Ref
 			ref = pr
 			return storer.ErrStop
 		}
+
 		branchList = append(branchList, branch)
 
 		return nil
@@ -134,9 +136,11 @@ func RefFromBranch(repo *git.Repository, meta DependencyMeta) (ref *plumbing.Ref
 	if err != nil {
 		err = errors.Wrap(err, "failed to iterate branches")
 	}
+
 	if ref == nil {
 		err = errors.Errorf("branch '%s' not found. Available branches: %v", meta.Branch, branchList)
 	}
+
 	return
 }
 
@@ -164,9 +168,11 @@ func RefFromCommit(repo *git.Repository, meta DependencyMeta) (ref *plumbing.Ref
 	if err != nil {
 		err = errors.Wrap(err, "failed to iterate commits")
 	}
+
 	if ref == nil {
 		err = errors.Errorf("commit '%s' not found in the repository", meta.Commit)
 	}
+
 	return
 }
 
@@ -190,17 +196,7 @@ func GetRepoSemverTags(repo *git.Repository) (versionedTags VersionedTags, err e
 		ref := pr
 
 		if pr.Name().IsTag() {
-			ref, errInner = func() (ref *plumbing.Reference, errInnerInner error) {
-				refTagObject, errInnerInner := repo.TagObject(pr.Hash())
-				if errInnerInner != nil {
-					return pr, nil
-				}
-				refCommit, errInnerInner := refTagObject.Commit()
-				if errInnerInner != nil {
-					return nil, errInnerInner
-				}
-				return plumbing.NewHashReference(pr.Name(), refCommit.Hash), nil
-			}()
+			ref, errInner = RefFromTagRef(repo, pr)
 			if errInner != nil {
 				return errInner
 			}

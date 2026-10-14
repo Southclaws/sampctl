@@ -64,6 +64,7 @@ func TestUntarWithIgnore_ZlibFallback(t *testing.T) {
 	files, err := UntarWithIgnore(archivePath, destDir, map[string]string{"plugin.txt": "copied.txt"}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{"plugin.txt": filepath.Join(destDir, "copied.txt")}, files)
+
 	contents, err := os.ReadFile(filepath.Join(destDir, "copied.txt"))
 	require.NoError(t, err)
 	assert.Equal(t, "payload", string(contents))
@@ -122,6 +123,7 @@ func TestUnzipWithIgnore_DirectoryAndIgnoredFile(t *testing.T) {
 	}, []string{"*.dll"})
 	require.NoError(t, err)
 	assert.DirExists(t, filepath.Join(destDir, "plugins-dir"))
+
 	data, err := os.ReadFile(ignoredTarget)
 	require.NoError(t, err)
 	assert.Equal(t, "existing", string(data))
@@ -213,6 +215,7 @@ func createZipArchiveWithDir(t *testing.T, archivePath string, dirs []string, fi
 		_, err := zw.CreateHeader(h)
 		require.NoError(t, err)
 	}
+
 	for name, body := range files {
 		w, err := zw.Create(name)
 		require.NoError(t, err)

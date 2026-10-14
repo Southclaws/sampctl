@@ -50,7 +50,7 @@ func Warn(a ...interface{}) {
 	}
 }
 
-// Erro is for warnings that do not prevent the command from finishing
+// Erro prints an error without stopping the command.
 func Erro(a ...interface{}) {
 	if isColoured.Load() {
 		fmt.Print(erroStyle.Sprint("ERROR:"), " ", color.RedString(fmt.Sprintln(a...)))

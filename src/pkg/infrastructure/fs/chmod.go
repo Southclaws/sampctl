@@ -8,6 +8,7 @@ func ChmodAll(files map[string]string, mode os.FileMode) error {
 			return err
 		}
 	}
+
 	return nil
 }
 

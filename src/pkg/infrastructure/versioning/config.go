@@ -77,6 +77,7 @@ func downloadRemoteOverrides(ctx context.Context, url, cachePath string) (err er
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
+
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to download overrides: %w", err)
@@ -86,12 +87,15 @@ func downloadRemoteOverrides(ctx context.Context, url, cachePath string) (err er
 			err = fmt.Errorf("failed to close overrides response body: %w", closeErr)
 		}
 	}()
+
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to download overrides: HTTP %d", resp.StatusCode)
 	}
+
 	if err := fs.WriteFromReaderAtomic(cachePath, resp.Body, fs.PermDirPrivate, fs.PermFileShared); err != nil {
 		return fmt.Errorf("failed to write cache file: %w", err)
 	}
+
 	return nil
 }
 
@@ -151,10 +155,9 @@ func LoadDependencyOverridesContext(ctx context.Context, configPath string) map[
 		defer cancel()
 	}
 
-	// Start with built-in overrides
 	overrides := make(map[string]string)
-	for k, v := range DependencyOverrides {
-		overrides[k] = v
+	for original, replacement := range DependencyOverrides {
+		overrides[original] = replacement
 	}
 
 	// Load and merge remote overrides
@@ -176,7 +179,6 @@ func LoadDependencyOverridesContext(ctx context.Context, configPath string) map[
 
 	var config DependencyOverrideConfig
 	if err := json.Unmarshal(data, &config); err != nil {
-		// If parsing fails, just return current overrides
 		return overrides
 	}
 
@@ -192,6 +194,7 @@ func LoadLocalDependencyOverrides(cacheDir string) (map[string]string, error) {
 	for original, replacement := range DependencyOverrides {
 		overrides[original] = replacement
 	}
+
 	var loadErrors []error
 	for _, name := range []string{"remote-dependency-overrides.json", "dependency-overrides.json"} {
 		path := filepath.Join(cacheDir, name)
@@ -199,6 +202,7 @@ func LoadLocalDependencyOverrides(cacheDir string) (map[string]string, error) {
 		if os.IsNotExist(err) {
 			continue
 		}
+
 		if err == nil {
 			var info os.FileInfo
 			info, err = os.Stat(path)
@@ -210,18 +214,22 @@ func LoadLocalDependencyOverrides(cacheDir string) (map[string]string, error) {
 			loadErrors = append(loadErrors, fmt.Errorf("read dependency overrides %s: %w", path, err))
 			continue
 		}
+
 		data, err := os.ReadFile(path)
 		if err != nil {
 			loadErrors = append(loadErrors, fmt.Errorf("read dependency overrides %s: %w", path, err))
 			continue
 		}
+
 		var config DependencyOverrideConfig
 		if err := json.Unmarshal(data, &config); err != nil {
 			loadErrors = append(loadErrors, fmt.Errorf("parse dependency overrides %s: %w", path, err))
 			continue
 		}
+
 		mergeDependencyOverrides(overrides, config.Overrides)
 	}
+
 	return overrides, errors.Join(loadErrors...)
 }
 
@@ -238,6 +246,7 @@ func mergeDependencyOverrides(overrides, additions map[string]string) {
 				}
 			}
 		}
+
 		overrides[original] = replacement
 	}
 }
@@ -252,7 +261,6 @@ func SaveDependencyOverrides(overrides map[string]string, configPath string) err
 		}
 	}
 
-	// Create directory if it doesn't exist
 	dir := filepath.Dir(configPath)
 	if err := fs.EnsureDir(dir, fs.PermDirPrivate); err != nil {
 		return err
@@ -277,8 +285,10 @@ func ClearRemoteOverridesCache() error {
 	if err != nil {
 		return err
 	}
+
 	if _, err := os.Stat(cachePath); os.IsNotExist(err) {
-		return nil // File doesn't exist, nothing to clear
+		return nil
 	}
+
 	return os.Remove(cachePath)
 }

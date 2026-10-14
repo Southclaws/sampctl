@@ -19,6 +19,7 @@ func TestLoadLocalDependencyOverrides(t *testing.T) {
 	require.NoError(t, os.WriteFile(localPath, []byte(`{"overrides":{"old/repo":"local/repo"}}`), 0o644))
 	oldTime := time.Now().Add(-2 * CacheValidityDuration)
 	require.NoError(t, os.Chtimes(cachedPath, oldTime, oldTime))
+
 	originalLoader := remoteOverridesLoader
 	remoteOverridesLoader = func(context.Context) map[string]string {
 		t.Fatal("local diagnostics fetched remote overrides")
@@ -31,6 +32,7 @@ func TestLoadLocalDependencyOverrides(t *testing.T) {
 	assert.Equal(t, "local/repo", overrides["old/repo"])
 	assert.Equal(t, "new/only", overrides["cached/only"])
 	assert.Equal(t, DependencyOverrides["Zeex/samp-plugin-crashdetect"], overrides["Zeex/samp-plugin-crashdetect"])
+
 	info, err := os.Stat(cachedPath)
 	require.NoError(t, err)
 	assert.WithinDuration(t, oldTime, info.ModTime(), time.Second)
@@ -42,6 +44,7 @@ func TestLoadLocalDependencyOverridesMissingAndInvalid(t *testing.T) {
 		overrides, err := LoadLocalDependencyOverrides(cacheDir)
 		require.NoError(t, err)
 		assert.Equal(t, DependencyOverrides, overrides)
+
 		_, err = os.Stat(cacheDir)
 		assert.True(t, os.IsNotExist(err))
 	})
@@ -49,6 +52,7 @@ func TestLoadLocalDependencyOverridesMissingAndInvalid(t *testing.T) {
 		cacheDir := t.TempDir()
 		path := filepath.Join(cacheDir, "dependency-overrides.json")
 		require.NoError(t, os.WriteFile(path, []byte("{"), 0o644))
+
 		overrides, err := LoadLocalDependencyOverrides(cacheDir)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), path)
@@ -88,9 +92,11 @@ func TestExplodeWithOverridesIsLocal(t *testing.T) {
 				require.Error(t, err)
 				return
 			}
+
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
 	}
+
 	assert.Nil(t, loadedOverrides)
 }

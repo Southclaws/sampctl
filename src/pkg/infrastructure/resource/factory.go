@@ -35,17 +35,10 @@ func (f *DefaultResourceFactory) FromDependencyString(depString string, resource
 		return nil, errors.Wrap(err, "failed to parse dependency string")
 	}
 
-	// Handle URL-like schemes
-	if meta.Scheme != "" {
-		if meta.Local != "" {
-			// Local scheme
-			return NewLocalResource(meta.Local, resourceType), nil
-		}
-		// Remote scheme - treat as Git repository
-		return NewGitResource(meta, resourceType), nil
+	if meta.Scheme != "" && meta.Local != "" {
+		return NewLocalResource(meta.Local, resourceType), nil
 	}
 
-	// Regular Git repository
 	return NewGitResource(meta, resourceType), nil
 }
 
@@ -56,9 +49,7 @@ func (f *DefaultResourceFactory) FromURL(urlStr string, resourceType ResourceTyp
 		return nil, errors.Wrap(err, "failed to parse URL")
 	}
 
-	// Check if it's a GitHub URL that might be a release asset
 	if strings.Contains(parsedURL.Host, "github.com") && strings.Contains(parsedURL.Path, "/releases/") {
-		// Try to parse as GitHub release asset
 		pathParts := strings.Split(strings.Trim(parsedURL.Path, "/"), "/")
 		if len(pathParts) >= 4 && pathParts[2] == "releases" {
 			user := pathParts[0]
@@ -70,14 +61,12 @@ func (f *DefaultResourceFactory) FromURL(urlStr string, resourceType ResourceTyp
 				Repo: repo,
 			}
 
-			// Create a pattern that matches any asset (could be improved with specific pattern)
 			pattern := regexp.MustCompile(".*")
 
 			return NewGitHubReleaseResource(meta, pattern, resourceType, f.ghClient), nil
 		}
 	}
 
-	// Default to HTTP resource
 	return NewHTTPResource(urlStr, "", "", resourceType), nil
 }
 
@@ -133,6 +122,7 @@ func (m *DefaultResourceManager) EnsureAll(ctx context.Context, resources []Reso
 			return errors.Wrapf(err, "failed to ensure resource: %s", resource.Identifier())
 		}
 	}
+
 	return nil
 }
 
@@ -216,6 +206,7 @@ func (m *DefaultResourceManager) cleanResourceDir(resourceDir string) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to inspect resource directory: %s", resourceDir)
 	}
+
 	if isEmpty {
 		err := os.Remove(resourceDir)
 		if err != nil {
@@ -238,14 +229,12 @@ func (m *DefaultResourceManager) cleanVersionDir(versionDir string) error {
 	for _, hashEntry := range hashEntries {
 		hashPath := filepath.Join(versionDir, hashEntry.Name())
 
-		// Check if cache entry is expired
 		info, err := hashEntry.Info()
 		if err != nil {
 			continue
 		}
 
 		if time.Since(info.ModTime()) > cacheTTL {
-			// Remove expired cache entry
 			err := os.RemoveAll(hashPath)
 			if err != nil {
 				return errors.Wrapf(err, "failed to remove expired cache entry: %s", hashPath)
@@ -258,6 +247,7 @@ func (m *DefaultResourceManager) cleanVersionDir(versionDir string) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to inspect version directory: %s", versionDir)
 	}
+
 	if isEmpty {
 		err := os.Remove(versionDir)
 		if err != nil {

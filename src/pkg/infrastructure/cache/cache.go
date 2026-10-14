@@ -23,10 +23,12 @@ func IsFresh(path string, ttl time.Duration) bool {
 	if ttl <= 0 {
 		return false
 	}
+
 	info, err := os.Stat(path)
 	if err != nil {
 		return false
 	}
+
 	return time.Since(info.ModTime()) < ttl
 }
 
@@ -36,9 +38,11 @@ func ReadJSON[T any](path string) (T, error) {
 	if err != nil {
 		return out, err
 	}
+
 	if err := json.Unmarshal(data, &out); err != nil {
 		return out, err
 	}
+
 	return out, nil
 }
 
@@ -52,8 +56,10 @@ func GetOrRefreshJSON[T any](request JSONCacheRequest[T]) (value T, refreshed bo
 	if err != nil {
 		return value, false, err
 	}
+
 	if err := fs.WriteJSONAtomic(request.Path, value, request.DirPerm, request.FilePerm); err != nil {
 		return value, false, err
 	}
+
 	return value, true, nil
 }
