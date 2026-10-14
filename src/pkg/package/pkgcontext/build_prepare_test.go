@@ -213,6 +213,39 @@ func TestBuildPrepareGeneratesFileBeforeDependencyCancellation(t *testing.T) {
 	}
 }
 
+func TestBuildPrepareBuildFileWriteFailurePrecedesCancellation(t *testing.T) {
+	root := t.TempDir()
+	buildFile := filepath.Join(root, "sampctl_build_file.inc")
+	require.NoError(t, os.Mkdir(buildFile, 0o755))
+
+	config := &build.Config{Includes: []string{"configured"}}
+	pcx := &PackageContext{
+		Package: pawnpackage.Package{
+			LocalPath: root,
+			Build:     config,
+			Experimental: &pawnpackage.ExperimentalConfig{
+				BuildFile: boolPtr(true),
+			},
+		},
+		PackageResolvedState: PackageResolvedState{
+			AllDependencies: []versioning.DependencyMeta{{User: "fixture", Repo: "dependency"}},
+			AllIncludePaths: []string{"trailing-resource"},
+		},
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	prepared, err := pcx.buildPrepare(ctx, "", true, false)
+	require.ErrorContains(t, err, "failed to write build include file")
+	assert.NotErrorIs(t, err, context.Canceled)
+	var pathErr *os.PathError
+	require.ErrorAs(t, err, &pathErr)
+	assert.Equal(t, buildFile, pathErr.Path)
+
+	require.Same(t, config, prepared)
+	assert.Equal(t, []string{"configured", root}, prepared.Includes)
+}
+
 func writeBuildPreparePackage(t *testing.T, dir, definition string) {
 	t.Helper()
 	require.NoError(t, os.MkdirAll(dir, 0o755))
