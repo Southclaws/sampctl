@@ -135,7 +135,7 @@ func TestOpenMPConfigOverridePrecedenceAndInputOwnership(t *testing.T) {
 }
 
 func TestOpenMPConfigFailureOrdering(t *testing.T) {
-	for _, stage := range []string{"stale removal", "assembly", "create", "encode"} {
+	for _, stage := range []string{"assembly", "encode type", "encode nan", "legacy encode", "publish", "legacy publish", "stale removal"} {
 		t.Run(stage, func(t *testing.T) {
 			cfg := &run.Runtime{
 				WorkingDir: t.TempDir(), RuntimeType: run.RuntimeTypeOpenMP,
@@ -143,23 +143,29 @@ func TestOpenMPConfigFailureOrdering(t *testing.T) {
 			}
 			legacyPath := filepath.Join(cfg.WorkingDir, "server.cfg")
 			configPath := filepath.Join(cfg.WorkingDir, "config.json")
-			require.NoError(t, os.WriteFile(configPath, []byte("original"), 0o600))
+			require.NoError(t, os.WriteFile(configPath, []byte(`{"previous":true}`), 0o600))
+			require.NoError(t, os.WriteFile(legacyPath, []byte("previous legacy"), 0o600))
 			nan := float32(math.NaN())
 			switch stage {
-			case "stale removal":
-				require.NoError(t, os.Mkdir(legacyPath, 0o700))
-				require.NoError(t, os.WriteFile(filepath.Join(legacyPath, "keep"), nil, 0o600))
-				cfg.StreamDistance = &nan
 			case "assembly":
-				require.NoError(t, os.WriteFile(legacyPath, []byte("stale"), 0o600))
 				cfg.StreamDistance = &nan
-			case "create":
+			case "publish":
 				require.NoError(t, os.Remove(configPath))
 				require.NoError(t, os.Mkdir(configPath, 0o700))
-				require.NoError(t, os.WriteFile(legacyPath, []byte("stale"), 0o600))
-			case "encode":
-				require.NoError(t, os.WriteFile(legacyPath, []byte("stale"), 0o600))
+				require.NoError(t, os.WriteFile(filepath.Join(configPath, "keep"), []byte("keep"), 0o600))
+			case "encode type":
 				cfg.Network = map[string]any{"invalid": make(chan int)}
+			case "encode nan":
+				cfg.Network = map[string]any{"invalid": math.NaN()}
+			case "legacy encode":
+				cfg.Extra["legacy"] = "unsupported \U0001f600"
+			case "legacy publish", "stale removal":
+				require.NoError(t, os.Remove(legacyPath))
+				require.NoError(t, os.Mkdir(legacyPath, 0o700))
+				require.NoError(t, os.WriteFile(filepath.Join(legacyPath, "keep"), []byte("keep"), 0o600))
+				if stage == "stale removal" {
+					cfg.Extra = nil
+				}
 			}
 
 			err := GenerateConfig(cfg)
@@ -167,34 +173,49 @@ func TestOpenMPConfigFailureOrdering(t *testing.T) {
 			switch stage {
 			case "stale removal":
 				require.ErrorContains(t, err, "failed to remove stale server.cfg")
-				require.DirExists(t, legacyPath)
 			case "assembly":
 				require.ErrorContains(t, err, "failed to marshal structured config")
 				var unsupported *json.UnsupportedValueError
 				require.ErrorAs(t, err, &unsupported)
-			case "create":
-				var pathErr *os.PathError
-				require.ErrorAs(t, err, &pathErr)
-				require.Equal(t, "open", pathErr.Op)
-				require.Equal(t, configPath, pathErr.Path)
-			case "encode":
+			case "publish":
 				require.ErrorContains(t, err, "failed to write config.json")
+			case "encode type":
+				require.ErrorContains(t, err, "failed to encode config.json")
 				var unsupported *json.UnsupportedTypeError
 				require.ErrorAs(t, err, &unsupported)
+			case "encode nan":
+				require.ErrorContains(t, err, "failed to encode config.json")
+				var unsupported *json.UnsupportedValueError
+				require.ErrorAs(t, err, &unsupported)
+			case "legacy encode", "legacy publish":
+				require.ErrorContains(t, err, "failed to generate legacy server.cfg")
 			}
-			if stage != "stale removal" {
-				require.NoDirExists(t, legacyPath)
-				require.NoFileExists(t, legacyPath)
-			}
-			if stage != "create" {
+			if stage == "legacy publish" || stage == "stale removal" {
 				content, readErr := os.ReadFile(configPath)
 				require.NoError(t, readErr)
-				if stage == "encode" {
-					require.Empty(t, content)
-				} else {
-					require.Equal(t, "original", string(content))
-				}
+				require.True(t, json.Valid(content))
+				require.NotContains(t, string(content), "previous")
+				kept, readErr := os.ReadFile(filepath.Join(legacyPath, "keep"))
+				require.NoError(t, readErr)
+				require.Equal(t, "keep", string(kept))
+			} else {
+				legacy, readErr := os.ReadFile(legacyPath)
+				require.NoError(t, readErr)
+				require.Equal(t, "previous legacy", string(legacy))
 			}
+			if stage != "publish" && stage != "legacy publish" && stage != "stale removal" {
+				content, readErr := os.ReadFile(configPath)
+				require.NoError(t, readErr)
+				require.Equal(t, `{"previous":true}`, string(content))
+			}
+			if stage == "publish" {
+				kept, readErr := os.ReadFile(filepath.Join(configPath, "keep"))
+				require.NoError(t, readErr)
+				require.Equal(t, "keep", string(kept))
+			}
+			staged, globErr := filepath.Glob(filepath.Join(cfg.WorkingDir, ".*"))
+			require.NoError(t, globErr)
+			require.Empty(t, staged)
 		})
 	}
 }
