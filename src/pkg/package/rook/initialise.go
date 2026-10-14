@@ -116,8 +116,6 @@ type InitOptions struct {
 // Init prompts the user to initialise a package.
 func Init(options InitOptions) (err error) {
 	var (
-		pwnFiles []string
-		incFiles []string
 		dir      = options.Dir
 		dirName  = filepath.Base(options.Dir)
 		ctx      = options.Context
@@ -126,132 +124,19 @@ func Init(options InitOptions) (err error) {
 		auth     = options.Auth
 		platform = options.Platform
 		cacheDir = options.CacheDir
-		preset   = options.Preset
 		version  = options.Version
 	)
 
-	if !fs.Exists(dir) {
-		return errors.New("directory does not exist")
-	}
-
-	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) (innerErr error) {
-		if info.IsDir() {
-			return nil
-		}
-
-		// skip anything in dependencies
-		base, errInner := filepath.Rel(dir, path)
-		if errInner != nil {
-			return errInner
-		}
-		if strings.Contains(filepath.Dir(base), "dependencies") {
-			return nil
-		}
-
-		ext := filepath.Ext(path)
-		rel, innerErr := filepath.Rel(dir, path)
-		if innerErr != nil {
-			return
-		}
-
-		switch ext {
-		case ".pwn":
-			pwnFiles = append(pwnFiles, rel)
-		case ".inc":
-			incFiles = append(incFiles, rel)
-		}
-
-		return
-	})
+	pwnFiles, incFiles, err := discoverInitSources(dir)
 	if err != nil {
-		return
+		return err
 	}
-
-	sort.Strings(pwnFiles)
-	sort.Strings(incFiles)
 
 	color.Green("Found %d pwn files and %d inc files.", len(pwnFiles), len(incFiles))
 
-	answers := Answers{
-		Preset: normalizePreset(preset),
-		Format: defaultInitFormat,
-	}
-
-	initModes := initModeOptions(pwnFiles, incFiles)
-	err = survey.AskOne(&survey.Select{
-		Message: "How do you want to start this package?",
-		Options: initModes,
-		Default: initModes[0],
-	}, &answers.InitMode, survey.WithValidator(requiredSelection))
+	answers, err := collectInitAnswers(options, pwnFiles, incFiles)
 	if err != nil {
-		return
-	}
-
-	runtimeChoice := runtimeChoiceFromPreset(preset)
-	err = survey.AskOne(&survey.Select{
-		Message: "Which runtime should this package target?",
-		Options: []string{runtimeOptionOpenMP, runtimeOptionSAMP},
-		Default: runtimeChoice,
-	}, &runtimeChoice, survey.WithValidator(requiredSelection))
-	if err != nil {
-		return
-	}
-	answers.Preset = presetFromRuntimeChoice(runtimeChoice)
-
-	err = survey.AskOne(&survey.Select{
-		Message: "Which starter setup do you want?",
-		Options: []string{starterStandard, starterVSCode, starterSublime, starterMinimal},
-		Default: starterStandard,
-	}, &answers.Starter, survey.WithValidator(requiredSelection))
-	if err != nil {
-		return
-	}
-
-	formatChoice := formatChoiceFromFormat(defaultInitFormat)
-	err = survey.AskOne(&survey.Select{
-		Message: "Which package file format do you want?",
-		Options: []string{formatOptionJSON, formatOptionYAML},
-		Default: formatChoice,
-	}, &formatChoice, survey.WithValidator(requiredSelection))
-	if err != nil {
-		return
-	}
-	answers.Format = formatFromChoice(formatChoice)
-
-	publishChoice := publishChoiceFromMode(answers.PublishMode)
-	err = survey.AskOne(&survey.Select{
-		Message: "Do you plan to release this as a package on GitHub?",
-		Options: []string{publishLocal, publishGitHub},
-		Default: publishChoice,
-	}, &publishChoice, survey.WithValidator(requiredSelection))
-	if err != nil {
-		return
-	}
-	answers.PublishMode = publishModeFromChoice(publishChoice)
-
-	if answers.PublishMode == publishGitHub {
-		err = survey.AskOne(&survey.Input{
-			Message: "GitHub repository to publish from (owner/repo)",
-			Default: defaultRepositorySpec(cfg.DefaultUser, dirName),
-		}, &answers.Repository, survey.WithValidator(validateRepositorySpec))
-		if err != nil {
-			return
-		}
-	}
-
-	if answers.InitMode == initModeUsePwn {
-		if len(pwnFiles) == 1 {
-			answers.Entry = pwnFiles[0]
-		} else {
-			err = survey.AskOne(&survey.Select{
-				Message: "Which existing .pwn file should sampctl build?",
-				Options: pwnFiles,
-				Default: pwnFiles[0],
-			}, &answers.Entry, survey.WithValidator(requiredSelection))
-			if err != nil {
-				return
-			}
-		}
+		return err
 	}
 
 	metadataUser := defaultMetadataUser(cfg.DefaultUser)
@@ -371,6 +256,140 @@ func Init(options InitOptions) (err error) {
 	}
 
 	return nil
+}
+
+func discoverInitSources(dir string) (pwnFiles, incFiles []string, err error) {
+	if !fs.Exists(dir) {
+		return nil, nil, errors.New("directory does not exist")
+	}
+
+	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) (innerErr error) {
+		if info.IsDir() {
+			return nil
+		}
+
+		// skip anything in dependencies
+		base, errInner := filepath.Rel(dir, path)
+		if errInner != nil {
+			return errInner
+		}
+		if strings.Contains(filepath.Dir(base), "dependencies") {
+			return nil
+		}
+
+		ext := filepath.Ext(path)
+		rel, innerErr := filepath.Rel(dir, path)
+		if innerErr != nil {
+			return
+		}
+
+		switch ext {
+		case ".pwn":
+			pwnFiles = append(pwnFiles, rel)
+		case ".inc":
+			incFiles = append(incFiles, rel)
+		}
+
+		return
+	})
+	if err != nil {
+		return
+	}
+
+	sort.Strings(pwnFiles)
+	sort.Strings(incFiles)
+
+	return pwnFiles, incFiles, nil
+}
+
+func collectInitAnswers(options InitOptions, pwnFiles, incFiles []string) (answers Answers, err error) {
+	preset := options.Preset
+	cfg := options.Config
+	dirName := filepath.Base(options.Dir)
+
+	answers = Answers{
+		Preset: normalizePreset(preset),
+		Format: defaultInitFormat,
+	}
+
+	initModes := initModeOptions(pwnFiles, incFiles)
+	err = survey.AskOne(&survey.Select{
+		Message: "How do you want to start this package?",
+		Options: initModes,
+		Default: initModes[0],
+	}, &answers.InitMode, survey.WithValidator(requiredSelection))
+	if err != nil {
+		return
+	}
+
+	runtimeChoice := runtimeChoiceFromPreset(preset)
+	err = survey.AskOne(&survey.Select{
+		Message: "Which runtime should this package target?",
+		Options: []string{runtimeOptionOpenMP, runtimeOptionSAMP},
+		Default: runtimeChoice,
+	}, &runtimeChoice, survey.WithValidator(requiredSelection))
+	if err != nil {
+		return
+	}
+	answers.Preset = presetFromRuntimeChoice(runtimeChoice)
+
+	err = survey.AskOne(&survey.Select{
+		Message: "Which starter setup do you want?",
+		Options: []string{starterStandard, starterVSCode, starterSublime, starterMinimal},
+		Default: starterStandard,
+	}, &answers.Starter, survey.WithValidator(requiredSelection))
+	if err != nil {
+		return
+	}
+
+	formatChoice := formatChoiceFromFormat(defaultInitFormat)
+	err = survey.AskOne(&survey.Select{
+		Message: "Which package file format do you want?",
+		Options: []string{formatOptionJSON, formatOptionYAML},
+		Default: formatChoice,
+	}, &formatChoice, survey.WithValidator(requiredSelection))
+	if err != nil {
+		return
+	}
+	answers.Format = formatFromChoice(formatChoice)
+
+	publishChoice := publishChoiceFromMode(answers.PublishMode)
+	err = survey.AskOne(&survey.Select{
+		Message: "Do you plan to release this as a package on GitHub?",
+		Options: []string{publishLocal, publishGitHub},
+		Default: publishChoice,
+	}, &publishChoice, survey.WithValidator(requiredSelection))
+	if err != nil {
+		return
+	}
+	answers.PublishMode = publishModeFromChoice(publishChoice)
+
+	if answers.PublishMode == publishGitHub {
+		err = survey.AskOne(&survey.Input{
+			Message: "GitHub repository to publish from (owner/repo)",
+			Default: defaultRepositorySpec(cfg.DefaultUser, dirName),
+		}, &answers.Repository, survey.WithValidator(validateRepositorySpec))
+		if err != nil {
+			return
+		}
+	}
+
+	if answers.InitMode == initModeUsePwn {
+		if len(pwnFiles) == 1 {
+			answers.Entry = pwnFiles[0]
+		} else {
+			err = survey.AskOne(&survey.Select{
+				Message: "Which existing .pwn file should sampctl build?",
+				Options: pwnFiles,
+				Default: pwnFiles[0],
+			}, &answers.Entry, survey.WithValidator(requiredSelection))
+			if err != nil {
+				return
+			}
+		}
+	}
+
+	return answers, nil
 }
 
 func fetchInitTemplates(ctx context.Context, dir string, profile starterProfile, answers Answers) error {
