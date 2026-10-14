@@ -23,12 +23,15 @@ func TestLatestTagFromCache_TieBreaksNonSemverByName(t *testing.T) {
 
 	repo, err := git.PlainInit(cachePath, false)
 	require.NoError(t, err)
+
 	wt, err := repo.Worktree()
 	require.NoError(t, err)
 
 	require.NoError(t, os.WriteFile(filepath.Join(cachePath, "file.txt"), []byte("one"), 0o644))
+
 	_, err = wt.Add("file.txt")
 	require.NoError(t, err)
+
 	_, err = wt.Commit("c1", &git.CommitOptions{
 		Author:    &object.Signature{Name: "test", Email: "test@example.com", When: time.Unix(100, 0)},
 		Committer: &object.Signature{Name: "test", Email: "test@example.com", When: time.Unix(100, 0)},
@@ -40,6 +43,7 @@ func TestLatestTagFromCache_TieBreaksNonSemverByName(t *testing.T) {
 
 	_, err = repo.CreateTag("latest", head.Hash(), nil)
 	require.NoError(t, err)
+
 	_, err = repo.CreateTag("stable", head.Hash(), nil)
 	require.NoError(t, err)
 

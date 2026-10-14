@@ -79,9 +79,11 @@ func NewPackageContext(options NewPackageContextOptions) (pcx *PackageContext, e
 	if err != nil {
 		return nil, err
 	}
+
 	if err = pcx.ensureCachedDependencies(); err != nil {
 		return nil, err
 	}
+
 	print.Verb(pcx.Package, "flattened dependencies to", len(pcx.AllDependencies), "leaves")
 	return pcx, nil
 }
@@ -92,6 +94,7 @@ func LoadPackageContext(options NewPackageContextOptions) (pcx *PackageContext, 
 	if err = pcx.loadPackageDefinition(options); err != nil {
 		return nil, err
 	}
+
 	return pcx, nil
 }
 
@@ -190,14 +193,17 @@ func (pcx *PackageContext) readPackageDefinition(dir string) (pawnpackage.Packag
 	if err != nil || pkg.Format == "" {
 		return pkg, err
 	}
+
 	data, err := os.ReadFile(filepath.Join(dir, "pawn."+pkg.Format))
 	if err != nil {
 		return pkg, err
 	}
+
 	pkg, err = pawnpackage.PackageFromDefinition(data, pkg.Format)
 	if err != nil {
 		return pkg, err
 	}
+
 	pcx.loadedDefinition = data
 	return pkg, nil
 }
@@ -207,6 +213,7 @@ func (pcx *PackageContext) ensureCachedDependencies() error {
 	if err := pcx.EnsureDependenciesCached(); err != nil {
 		return errors.Wrap(err, "failed to ensure dependencies are cached")
 	}
+
 	return nil
 }
 
@@ -246,6 +253,7 @@ func (pcx *PackageContext) InitLockfileResolver(sampctlVersion string) error {
 
 	pcx.UseLockfile = true
 	pcx.AppVersion = sampctlVersion
+
 	return nil
 }
 

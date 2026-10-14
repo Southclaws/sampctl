@@ -59,20 +59,24 @@ func TestWatchedRuntimeRestartStopsPreviousRun(t *testing.T) {
 		go func() {
 			running.Store(true)
 			ready <- struct{}{}
+
 			<-ctx.Done()
 			running.Store(false)
 			stopped.Add(1)
 			done <- ctx.Err()
 			close(done)
 		}()
+
 		return done
 	}
 
 	var runtime watchedRuntime
 	runtime.Restart(parent, starter)
 	<-ready
+
 	runtime.Restart(parent, starter)
 	<-ready
+
 	runtime.Stop()
 
 	assert.Equal(t, int32(2), started.Load())
@@ -121,6 +125,7 @@ func TestWatchedRuntimeRestartStopsPendingStartup(t *testing.T) {
 	runtime.Restart(parent, starter)
 	close(release)
 	<-ready
+
 	runtime.Stop()
 
 	assert.Equal(t, int32(2), started.Load())
@@ -140,11 +145,13 @@ func TestWatchedRuntimeStopUsesInjectedLogger(t *testing.T) {
 		go func() {
 			running.Store(true)
 			ready <- struct{}{}
+
 			<-ctx.Done()
 			running.Store(false)
 			done <- ctx.Err()
 			close(done)
 		}()
+
 		return done
 	}
 

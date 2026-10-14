@@ -31,6 +31,7 @@ func TestUpdateLockfileRecordsRequiredByForTransitiveDependencies(t *testing.T) 
 
 	pcx, err := NewPackageContext(NewPackageContextOptions{Parent: true, Dir: projectDir, Platform: "linux", CacheDir: cacheDir})
 	require.NoError(t, err)
+
 	require.NoError(t, pcx.InitLockfileResolver("dev"))
 
 	require.NoError(t, pcx.UpdateLockfile(context.Background(), DependencyUpdateRequest{}))
@@ -56,13 +57,16 @@ func seedLockfileRepo(t *testing.T, cacheDir string, meta versioning.DependencyM
 
 	repo, err := git.PlainInit(cachePath, false)
 	require.NoError(t, err)
+
 	wt, err := repo.Worktree()
 	require.NoError(t, err)
 
 	require.NoError(t, os.WriteFile(filepath.Join(cachePath, "pawn.json"), []byte(pawnJSON), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(cachePath, meta.Repo+".pwn"), []byte("main() {}"), 0o644))
+
 	_, err = wt.Add("pawn.json")
 	require.NoError(t, err)
+
 	_, err = wt.Add(meta.Repo + ".pwn")
 	require.NoError(t, err)
 
@@ -71,6 +75,7 @@ func seedLockfileRepo(t *testing.T, cacheDir string, meta versioning.DependencyM
 		Committer: &object.Signature{Name: "test", Email: "test@example.com", When: time.Unix(100, 0)},
 	})
 	require.NoError(t, err)
+
 	_, err = repo.CreateTag(meta.Tag, hash, nil)
 	require.NoError(t, err)
 

@@ -20,6 +20,7 @@ func (pcx *PackageContext) ensureDependencyRepositoryContext(ctx context.Context
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+
 	repo, err := pcx.PackageServices.repositoryStore().Open(dependencyPath)
 	if err == nil {
 		head, headErr := repo.Head()
@@ -48,6 +49,7 @@ func (pcx *PackageContext) cloneDependencyFromCacheContext(ctx context.Context, 
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+
 	repo, err := pcx.EnsureDependencyFromCacheContext(ctx, meta, dependencyPath, false)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to clone dependency from cache")
@@ -73,26 +75,32 @@ func (pcx *PackageContext) recloneDependencyContext(ctx context.Context, meta ve
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+
 	print.Verb(meta, "re-cloning dependency at", dependencyPath)
 
 	if _, err := pcx.EnsureDependencyCachedContext(ctx, meta, false); err != nil {
 		return nil, errors.Wrap(err, "failed to ensure cached dependency for recovery")
 	}
+
 	from, err := pcx.cacheRepositoryPath(meta)
 	if err != nil {
 		return nil, err
 	}
+
 	unlock, err := lockRepositoryPath(ctx, from)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { err = stderrors.Join(err, unlock()) }()
+
 	if err := validateRepositoryDestination(from); err != nil {
 		return nil, err
 	}
+
 	if err := validateRepositoryDestination(dependencyPath); err != nil {
 		return nil, err
 	}
+
 	return pcx.cloneRepositoryContext(repoEnsureRequest{Context: ctx, From: from, To: dependencyPath, Branch: meta.Branch, FullClone: true})
 }
 
@@ -109,10 +117,12 @@ func (pcx *PackageContext) updateRepoStateWithRecoveryContext(ctx context.Contex
 	if ctx.Err() != nil || stderrors.Is(err, context.Canceled) || stderrors.Is(err, context.DeadlineExceeded) {
 		return err
 	}
+
 	valid, validationErr := pcx.PackageServices.repositoryHealth().Validate(dependencyPath)
 	if validationErr != nil || valid {
 		return err
 	}
+
 	print.Verb(meta, "repository update failed and repository is invalid")
 	if repairErr := pcx.PackageServices.repositoryHealth().Repair(dependencyPath); repairErr == nil {
 		print.Verb(meta, "repository repaired, retrying update")
@@ -149,6 +159,7 @@ func (pcx *PackageContext) updateRepoStateContext(ctx context.Context, repo *git
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+
 	print.Verb(meta, "updating repository state")
 	remoteURL := getRepositoryOriginURL(repo)
 
@@ -163,6 +174,7 @@ func (pcx *PackageContext) updateRepoStateContext(ctx context.Context, repo *git
 		if err != nil {
 			return errors.Wrap(err, "failed to get repo worktree")
 		}
+
 		repo, err = pcx.EnsureDependencyFromCacheContext(ctx, meta, wt.Filesystem.Root(), true)
 		if err != nil {
 			return errors.Wrap(err, "failed to ensure dependency in cache")
@@ -232,6 +244,7 @@ func (pcx *PackageContext) updateRepoStateContext(ctx context.Context, repo *git
 		if err := ctx.Err(); err != nil {
 			return err
 		}
+
 		if err = wt.Checkout(&git.CheckoutOptions{Hash: ref.Hash(), Force: true}); err != nil {
 			return errors.Wrapf(err, "failed to check out requested commit %s", ref.Hash())
 		}
@@ -258,5 +271,6 @@ func getRepositoryOriginURL(repo *git.Repository) string {
 	if remote == nil || remote.Config() == nil || len(remote.Config().URLs) == 0 {
 		return ""
 	}
+
 	return remote.Config().URLs[0]
 }

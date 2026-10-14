@@ -26,9 +26,11 @@ func (pcx *PackageContext) installPackageResources(
 	if err != nil {
 		return err
 	}
+
 	if err := pkg.Validate(); err != nil {
 		return errors.Wrap(err, "invalid dependency package definition")
 	}
+
 	resourceMeta := pcx.resourceDependencyMeta(originalMeta, installedMeta)
 	applyDependencyMetaToPackage(&pkg, resourceMeta)
 
@@ -99,6 +101,7 @@ func (pcx *PackageContext) resourcePackageDefinition(ctx context.Context, meta v
 	if err := ctx.Err(); err != nil {
 		return pawnpackage.Package{}, err
 	}
+
 	// Resource installation needs a package definition (`pawn.json`/`pawn.yaml`). Prefer the cached copy,
 	// then the checked-out dependency, and finally the remote definition to avoid dropping include paths.
 	pkg, err := pcx.packageFromCachedRevisionContext(ctx, meta, meta.CachePath(pcx.CacheDir))

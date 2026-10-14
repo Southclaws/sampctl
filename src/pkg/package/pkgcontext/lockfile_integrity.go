@@ -22,9 +22,11 @@ func (pcx *PackageContext) verifyDependencyIntegrityWithRecoveryContext(ctx cont
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+
 	if forceUpdate {
 		return nil
 	}
+
 	if err := pcx.verifyLockedDependencyIntegrity(meta, dependencyPath); err == nil {
 		return nil
 	} else {

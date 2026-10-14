@@ -304,6 +304,7 @@ func (pcx *PackageContext) executeBuild(request buildExecutionRequest) (problems
 		print.Erro("Failed to execute post-build command:", err)
 		return problems, result, err
 	}
+
 	return problems, result, nil
 }
 
@@ -491,6 +492,7 @@ func (pcx *PackageContext) ensureBuildFile(config *build.Config) (err error) {
 		if name == "" {
 			return
 		}
+
 		if quoted {
 			escaped := strings.ReplaceAll(value, "\\", "\\\\")
 			escaped = strings.ReplaceAll(escaped, "\"", "\\\"")
@@ -500,6 +502,7 @@ func (pcx *PackageContext) ensureBuildFile(config *build.Config) (err error) {
 			builder.WriteString("#define " + name + " \"" + escaped + "\"\n")
 			return
 		}
+
 		builder.WriteString("#define " + name + " " + value + "\n")
 	}
 
@@ -508,12 +511,14 @@ func (pcx *PackageContext) ensureBuildFile(config *build.Config) (err error) {
 		if v == "" {
 			return false
 		}
+
 		if v[0] == '-' {
 			v = v[1:]
 			if v == "" {
 				return false
 			}
 		}
+
 		dotSeen := false
 		for _, r := range v {
 			if r == '.' {
@@ -527,6 +532,7 @@ func (pcx *PackageContext) ensureBuildFile(config *build.Config) (err error) {
 				return false
 			}
 		}
+
 		return true
 	}
 
@@ -536,6 +542,7 @@ func (pcx *PackageContext) ensureBuildFile(config *build.Config) (err error) {
 		if err != nil {
 			return "", ""
 		}
+
 		head := strings.TrimSpace(string(headBytes))
 		if strings.HasPrefix(head, "ref: ") {
 			ref := strings.TrimSpace(strings.TrimPrefix(head, "ref: "))
@@ -547,9 +554,11 @@ func (pcx *PackageContext) ensureBuildFile(config *build.Config) (err error) {
 			branch = filepath.Base(ref)
 			return commit, branch
 		}
+
 		if head != "" {
 			commit = head
 		}
+
 		return commit, branch
 	}
 

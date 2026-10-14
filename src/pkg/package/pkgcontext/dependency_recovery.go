@@ -86,10 +86,12 @@ func (journal *dependencyJournal) relative(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	relative, err := filepath.Rel(journal.project, path)
 	if err != nil || !filepath.IsLocal(relative) || relative == "." {
 		return "", fmt.Errorf("recovery path %s is outside project %s", path, journal.project)
 	}
+
 	return filepath.ToSlash(relative), nil
 }
 
@@ -98,9 +100,11 @@ func (journal *dependencyJournal) save() error {
 	if err := regularRecoveryFile(path); err != nil {
 		return err
 	}
+
 	if err := fs.WriteJSONAtomic(path, journal, 0o700, 0o600); err != nil {
 		return fmt.Errorf("persist dependency recovery record %s: %w", path, err)
 	}
+
 	return nil
 }
 
@@ -109,6 +113,7 @@ func newDependencyJournal(project, operation string, files ...projectFileSnapsho
 	if err != nil {
 		return nil, err
 	}
+
 	journal := &dependencyJournal{Version: 1, ID: rand.Text(), Operation: operation, Phase: "active", project: project}
 	for _, file := range files {
 		if file.path == "" {
@@ -122,9 +127,11 @@ func newDependencyJournal(project, operation string, files ...projectFileSnapsho
 		recorded.Hash = recoverySnapshotHash(recorded)
 		journal.Files = append(journal.Files, recorded)
 	}
+
 	if err := journal.save(); err != nil {
 		return nil, err
 	}
+
 	return journal, nil
 }
 
@@ -133,12 +140,14 @@ func (journal *dependencyJournal) recordWrite(path string, data []byte) error {
 	if err != nil {
 		return err
 	}
+
 	for i := range journal.Files {
 		if journal.Files[i].Path == relative {
 			journal.Files[i].Writes = append(journal.Files[i].Writes, slices.Clone(data))
 			return journal.save()
 		}
 	}
+
 	return fmt.Errorf("project file %s has no recovery snapshot", path)
 }
 
@@ -147,10 +156,12 @@ func readDependencyJournal(project string) (*dependencyJournal, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	path := filepath.Join(project, DependencyRecoveryFilename)
 	if err := regularRecoveryFile(path); err != nil {
 		return nil, err
 	}
+
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
@@ -158,18 +169,22 @@ func readDependencyJournal(project string) (*dependencyJournal, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	journal := &dependencyJournal{project: project}
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(journal); err != nil {
 		return nil, fmt.Errorf("invalid dependency recovery record %s: %w", path, err)
 	}
+
 	if err := decoder.Decode(new(any)); !errors.Is(err, io.EOF) {
 		return nil, fmt.Errorf("invalid trailing data in dependency recovery record %s", path)
 	}
+
 	if err := journal.validate(); err != nil {
 		return nil, fmt.Errorf("invalid dependency recovery record %s: %w", path, err)
 	}
+
 	return journal, nil
 }
 
@@ -184,6 +199,7 @@ func regularRecoveryFile(path string) error {
 	if !info.Mode().IsRegular() {
 		return fmt.Errorf("recovery file %s must be a regular file", path)
 	}
+
 	return nil
 }
 
@@ -194,10 +210,12 @@ func InspectDependencyRecovery(ctx context.Context, project string) (status Depe
 	if err := ctx.Err(); err != nil {
 		return status, err
 	}
+
 	lockPath := filepath.Join(project, ".sampctl-dependencies.lock")
 	if err := regularRecoveryFile(lockPath); err != nil {
 		return status, err
 	}
+
 	if _, err := os.Lstat(lockPath); err == nil {
 		// Open read-only: inspection must not create or truncate project files.
 		lock := flock.New(lockPath, flock.SetFlag(os.O_RDONLY))
@@ -213,17 +231,21 @@ func InspectDependencyRecovery(ctx context.Context, project string) (status Depe
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return status, err
 	}
+
 	journal, err := readDependencyJournal(project)
 	if err != nil {
 		return status, err
 	}
+
 	if journal == nil {
 		return status, nil
 	}
+
 	status = journal.status()
 	if err := journal.validateState(ctx); err != nil {
 		return status, err
 	}
+
 	status.CanRecover = true
 	return status, nil
 }
@@ -240,10 +262,12 @@ func lockDependencyProject(ctx context.Context, project string) (*flock.Flock, e
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+
 	project, err := filepath.Abs(project)
 	if err != nil {
 		return nil, &OperationError{Operation: "project", Err: err}
 	}
+
 	info, err := os.Lstat(project)
 	if err != nil {
 		return nil, &OperationError{Operation: "project", Err: fmt.Errorf("inspect project directory %s: %w", project, err)}
@@ -251,10 +275,12 @@ func lockDependencyProject(ctx context.Context, project string) (*flock.Flock, e
 	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
 		return nil, &OperationError{Operation: "project", Err: fmt.Errorf("project directory %s must be a directory, not a symbolic link or file", project)}
 	}
+
 	path := filepath.Join(project, ".sampctl-dependencies.lock")
 	if err := regularRecoveryFile(path); err != nil {
 		return nil, err
 	}
+
 	lock := flock.New(path)
 	locked, err := lock.TryLock()
 	if err != nil || !locked {
@@ -263,6 +289,7 @@ func lockDependencyProject(ctx context.Context, project string) (*flock.Flock, e
 		}
 		return nil, &OperationError{Operation: "project", Err: errors.Join(err, lock.Close())}
 	}
+
 	return lock, nil
 }
 
@@ -273,11 +300,13 @@ func RecoverDependencyOperation(ctx context.Context, project string) (status Dep
 	if _, err := os.Lstat(filepath.Join(project, DependencyRecoveryFilename)); errors.Is(err, os.ErrNotExist) {
 		return status, ctx.Err()
 	}
+
 	lock, err := lockDependencyProject(ctx, project)
 	if err != nil {
 		return status, err
 	}
 	defer func() { err = errors.Join(err, lock.Unlock()) }()
+
 	return recoverDependencyOperationLocked(ctx, project)
 }
 
@@ -289,6 +318,7 @@ func recoverDependencyOperationLocked(ctx context.Context, project string) (Depe
 	if journal == nil {
 		return DependencyRecoveryStatus{}, nil
 	}
+
 	status := journal.status()
 	if err := journal.recover(ctx, os.Rename, os.RemoveAll); err != nil {
 		outcome := OutcomeRollbackIncomplete
@@ -299,6 +329,7 @@ func recoverDependencyOperationLocked(ctx context.Context, project string) (Depe
 		}
 		return status, &OperationError{Operation: "recovery", Outcome: outcome, Err: err}
 	}
+
 	status.CanRecover = true
 	return status, nil
 }
@@ -313,9 +344,11 @@ func (journal *dependencyJournal) validate() error {
 	if journal.Version != 1 || journal.ID == "" || strings.ContainsAny(journal.ID, "/\\:") || journal.Operation == "" {
 		return errors.New("unsupported version or missing operation identity")
 	}
+
 	if journal.Phase != "active" && journal.Phase != "committed" && journal.Phase != "restored" {
 		return fmt.Errorf("unknown operation phase %q", journal.Phase)
 	}
+
 	seen := make(map[string]bool)
 	for _, file := range journal.Files {
 		if file.Path != "pawn.json" && file.Path != "pawn.yaml" && file.Path != lockfile.Filename {
@@ -326,6 +359,7 @@ func (journal *dependencyJournal) validate() error {
 		}
 		seen[file.Path] = true
 	}
+
 	seen = make(map[string]bool)
 	for _, stage := range journal.Stages {
 		if !safeRecoveryRelative(stage.Path) || filepath.ToSlash(filepath.Dir(stage.Path)) != "dependencies" || !strings.HasPrefix(filepath.Base(stage.Path), ".sampctl-stage-"+journal.ID+"-") || seen[stage.Path] {
@@ -338,6 +372,7 @@ func (journal *dependencyJournal) validate() error {
 		if !stage.Cleanup && len(stage.CleanupEntries) != 0 {
 			return errors.New("staging cleanup inventory has no cleanup intent")
 		}
+
 		cleanupPaths := make(map[string]bool, len(stage.CleanupEntries))
 		for _, entry := range stage.CleanupEntries {
 			mode := os.FileMode(entry.Mode)
@@ -363,28 +398,36 @@ func (journal *dependencyJournal) validate() error {
 				return fmt.Errorf("unsupported cleanup inventory type %q", entry.Path)
 			}
 		}
+
 		for _, name := range stage.Allowed {
 			if !safeRecoveryRelative(name) || strings.Contains(name, "/") || name == ".sampctl-owner" {
 				return fmt.Errorf("invalid staged entry %q", name)
 			}
 		}
 	}
+
 	targets := make(map[string]bool)
 	stagedPaths := make(map[string]bool)
 	for _, change := range journal.Changes {
 		if !safeRecoveryRelative(change.Source) || !safeRecoveryRelative(change.Target) || !recoveryWithin("dependencies", change.Target) {
 			return fmt.Errorf("invalid installation paths for %q", change.Target)
 		}
+
 		name := strings.ToLower(strings.Split(change.Target, "/")[1])
 		if strings.HasPrefix(name, ".sampctl-") || strings.EqualFold(change.Target, "dependencies/.resources") {
 			return fmt.Errorf("reserved installation target %q", change.Target)
 		}
-		if !validRecoveryHash(change.NewHash) || (change.OldHash != "" && !validRecoveryHash(change.OldHash)) || (change.OldHash == "") != (change.Backup == "") {
+
+		hasPrevious := change.OldHash != ""
+		hasBackup := change.Backup != ""
+		if !validRecoveryHash(change.NewHash) || (hasPrevious && !validRecoveryHash(change.OldHash)) || hasPrevious != hasBackup {
 			return fmt.Errorf("invalid installation paths or fingerprints for %q", change.Target)
 		}
+
 		if change.Phase != "prepared" && change.Phase != "backed_up" && change.Phase != "promoted" {
 			return fmt.Errorf("invalid installation phase for %q", change.Target)
 		}
+
 		targetKey := strings.ToLower(change.Target)
 		for target := range targets {
 			if target == targetKey || recoveryWithin(target, targetKey) || recoveryWithin(targetKey, target) {
@@ -392,6 +435,7 @@ func (journal *dependencyJournal) validate() error {
 			}
 		}
 		targets[targetKey] = true
+
 		for _, path := range []string{change.Source, change.Backup} {
 			if path == "" {
 				continue
@@ -404,6 +448,7 @@ func (journal *dependencyJournal) validate() error {
 			}
 			stagedPaths[key] = true
 		}
+
 		owned := false
 		for _, stage := range journal.Stages {
 			if !recoveryWithin(stage.Path, change.Source) {
@@ -421,6 +466,7 @@ func (journal *dependencyJournal) validate() error {
 			return fmt.Errorf("unowned staging or backup path for %q", change.Target)
 		}
 	}
+
 	return nil
 }
 
@@ -446,26 +492,32 @@ func recoveryCleanupEntries(ctx context.Context, root string) ([]dependencyRecov
 	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
 		return nil, fmt.Errorf("cleanup path %s must be a directory", root)
 	}
+
 	var entries []dependencyRecoveryCleanupEntry
 	var buffer []byte
 	err = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
+
 		if err := ctx.Err(); err != nil {
 			return err
 		}
+
 		if path == root {
 			return nil
 		}
+
 		relative, err := filepath.Rel(root, path)
 		if err != nil {
 			return err
 		}
+
 		info, err := entry.Info()
 		if err != nil {
 			return err
 		}
+
 		file := dependencyRecoveryCleanupEntry{Path: filepath.ToSlash(relative), Mode: uint32(info.Mode())}
 		switch {
 		case info.IsDir():
@@ -479,6 +531,7 @@ func recoveryCleanupEntries(ctx context.Context, root string) ([]dependencyRecov
 			if err != nil {
 				return err
 			}
+
 			hash := sha256.New()
 			if buffer == nil {
 				buffer = make([]byte, 32*1024)
@@ -494,6 +547,7 @@ func recoveryCleanupEntries(ctx context.Context, root string) ([]dependencyRecov
 		entries = append(entries, file)
 		return nil
 	})
+
 	return entries, errors.Join(err, ctx.Err())
 }
 
@@ -502,15 +556,18 @@ func validateRecoveryCleanup(ctx context.Context, root string, expected []depend
 	if err != nil {
 		return err
 	}
+
 	recorded := make(map[string]dependencyRecoveryCleanupEntry, len(expected))
 	for _, entry := range expected {
 		recorded[entry.Path] = entry
 	}
+
 	for _, entry := range entries {
 		if original, exists := recorded[entry.Path]; !exists || original != entry {
 			return fmt.Errorf("staged path %s is unrecognized or changed. Left in place for manual recovery", filepath.Join(root, filepath.FromSlash(entry.Path)))
 		}
 	}
+
 	return nil
 }
 
@@ -534,6 +591,7 @@ func (journal *dependencyJournal) safePath(relative string) error {
 			return fmt.Errorf("recovery ancestor is not a directory: %s", current)
 		}
 	}
+
 	return nil
 }
 
@@ -548,6 +606,7 @@ func recoveryTreeHash(ctx context.Context, path string, syncFiles bool) (string,
 	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
 		return "", fmt.Errorf("dependency recovery directory %s must be a directory", path)
 	}
+
 	hash := sha256.New()
 	var directories []string
 	var buffer []byte
@@ -555,17 +614,21 @@ func recoveryTreeHash(ctx context.Context, path string, syncFiles bool) (string,
 		if err != nil {
 			return err
 		}
+
 		if err := ctx.Err(); err != nil {
 			return err
 		}
+
 		info, err := entry.Info()
 		if err != nil {
 			return err
 		}
+
 		relative, err := filepath.Rel(path, entryPath)
 		if err != nil {
 			return err
 		}
+
 		size := info.Size()
 		if info.IsDir() {
 			size = 0
@@ -573,6 +636,7 @@ func recoveryTreeHash(ctx context.Context, path string, syncFiles bool) (string,
 		if _, err := fmt.Fprintf(hash, "%q:%d:%d:", filepath.ToSlash(relative), info.Mode(), size); err != nil {
 			return err
 		}
+
 		switch {
 		case info.IsDir():
 			directories = append(directories, entryPath)
@@ -589,6 +653,7 @@ func recoveryTreeHash(ctx context.Context, path string, syncFiles bool) (string,
 			if err != nil {
 				return err
 			}
+
 			if buffer == nil {
 				buffer = make([]byte, 32*1024)
 			}
@@ -603,11 +668,13 @@ func recoveryTreeHash(ctx context.Context, path string, syncFiles bool) (string,
 		default:
 			return fmt.Errorf("unsupported dependency entry %s", entryPath)
 		}
+
 		return nil
 	})
 	if err != nil {
 		return "", err
 	}
+
 	if syncFiles {
 		for i := len(directories) - 1; i >= 0; i-- {
 			if err := ctx.Err(); err != nil {
@@ -618,6 +685,7 @@ func recoveryTreeHash(ctx context.Context, path string, syncFiles bool) (string,
 			}
 		}
 	}
+
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
@@ -625,13 +693,16 @@ func recoveryFileEqual(path string, left, right []byte) bool {
 	if bytes.Equal(left, right) {
 		return true
 	}
+
 	if path != lockfile.Filename {
 		return false
 	}
+
 	var l, r map[string]json.RawMessage
 	if json.Unmarshal(left, &l) != nil || json.Unmarshal(right, &r) != nil {
 		return false
 	}
+
 	delete(l, "generated")
 	delete(r, "generated")
 	lb, le := json.Marshal(l)
@@ -641,11 +712,13 @@ func recoveryFileEqual(path string, left, right []byte) bool {
 	if le != nil || re != nil || json.Unmarshal(lb, &lv) != nil || json.Unmarshal(rb, &rv) != nil {
 		return false
 	}
+
 	lb, le = json.Marshal(lv)
 	rb, re = json.Marshal(rv)
 	if le != nil || re != nil {
 		return false
 	}
+
 	return bytes.Equal(lb, rb)
 }
 
@@ -653,6 +726,7 @@ func (journal *dependencyJournal) validateState(ctx context.Context) error {
 	if err := journal.validate(); err != nil {
 		return err
 	}
+
 	for _, file := range journal.Files {
 		if err := journal.safePath(file.Path); err != nil {
 			return err
@@ -683,10 +757,12 @@ func (journal *dependencyJournal) validateState(ctx context.Context) error {
 			return fmt.Errorf("project file %s does not match the recovery record. Keep the record and inspect the file", journal.path(file.Path))
 		}
 	}
+
 	for _, stage := range journal.Stages {
 		if err := journal.safePath(stage.Path); err != nil {
 			return err
 		}
+
 		entries, err := os.ReadDir(journal.path(stage.Path))
 		if errors.Is(err, os.ErrNotExist) {
 			continue
@@ -694,15 +770,18 @@ func (journal *dependencyJournal) validateState(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+
 		if stage.Cleanup {
 			if err := validateRecoveryCleanup(ctx, journal.path(stage.Path), stage.CleanupEntries); err != nil {
 				return err
 			}
 		}
+
 		markerPath := filepath.Join(journal.path(stage.Path), ".sampctl-owner")
 		if err := regularRecoveryFile(markerPath); err != nil {
 			return err
 		}
+
 		marker, err := os.ReadFile(markerPath)
 		if !stage.Cleanup && (err != nil || string(marker) != journal.ID) {
 			if len(entries) == 0 && errors.Is(err, os.ErrNotExist) {
@@ -710,6 +789,7 @@ func (journal *dependencyJournal) validateState(ctx context.Context) error {
 			}
 			return fmt.Errorf("staging directory ownership cannot be verified: %s", journal.path(stage.Path))
 		}
+
 		for _, entry := range entries {
 			if entry.Name() == ".sampctl-owner" {
 				if !entry.Type().IsRegular() {
@@ -728,6 +808,7 @@ func (journal *dependencyJournal) validateState(ctx context.Context) error {
 			}
 		}
 	}
+
 	for _, change := range journal.Changes {
 		cleaning := false
 		for _, stage := range journal.Stages {
@@ -735,6 +816,7 @@ func (journal *dependencyJournal) validateState(ctx context.Context) error {
 				cleaning = stage.Cleanup
 			}
 		}
+
 		for _, path := range []string{change.Target, change.Source, change.Backup} {
 			if path != "" {
 				if err := journal.safePath(path); err != nil {
@@ -742,10 +824,12 @@ func (journal *dependencyJournal) validateState(ctx context.Context) error {
 				}
 			}
 		}
+
 		target, err := recoveryTreeHash(ctx, journal.path(change.Target), false)
 		if err != nil {
 			return err
 		}
+
 		var source, backup string
 		backupExists := false
 		// Cleanup inventories already verify staged contents. Installed
@@ -770,21 +854,25 @@ func (journal *dependencyJournal) validateState(ctx context.Context) error {
 			}
 			backupExists = err == nil
 		}
+
 		if source != "" && source != change.NewHash && !cleaning {
 			return fmt.Errorf("staged replacement has changed: %s", journal.path(change.Source))
 		}
+
 		if journal.Phase == "committed" {
 			if target != change.NewHash || (source != "" && !cleaning) || (!cleaning && backup != "" && backup != change.OldHash) {
 				return fmt.Errorf("committed dependency %s is missing or changed. Backup kept at %s", journal.path(change.Target), journal.path(change.Backup))
 			}
 			continue
 		}
+
 		if journal.Phase == "restored" {
 			if target != change.OldHash || backupExists {
 				return fmt.Errorf("restored dependency %s has changed. Keep the recovery record and inspect the directory", journal.path(change.Target))
 			}
 			continue
 		}
+
 		if backup != "" {
 			if backup != change.OldHash || (target != "" && target != change.NewHash) || (target != "" && source != "") {
 				return fmt.Errorf("cannot restore dependency %s from backup %s automatically. Inspect both directories", journal.path(change.Target), journal.path(change.Backup))
@@ -795,6 +883,7 @@ func (journal *dependencyJournal) validateState(ctx context.Context) error {
 			return fmt.Errorf("cannot remove unexpected dependency %s during recovery. Inspect the directory", journal.path(change.Target))
 		}
 	}
+
 	return ctx.Err()
 }
 
@@ -802,6 +891,7 @@ func renameRecoveryPath(rename func(string, string) error, from, to string) erro
 	if err := rename(from, to); err != nil {
 		return err
 	}
+
 	return errors.Join(fs.SyncDir(filepath.Dir(from)), fs.SyncDir(filepath.Dir(to)))
 }
 
@@ -809,11 +899,13 @@ func (journal *dependencyJournal) recover(ctx context.Context, rename func(strin
 	if err := journal.validateState(ctx); err != nil {
 		return err
 	}
+
 	if journal.Phase == "active" {
 		for i := len(journal.Changes) - 1; i >= 0; i-- {
 			if err := ctx.Err(); err != nil {
 				return err
 			}
+
 			change := journal.Changes[i]
 			target := journal.path(change.Target)
 			backup := journal.path(change.Backup)
@@ -824,6 +916,7 @@ func (journal *dependencyJournal) recover(ctx context.Context, rename func(strin
 					return err
 				}
 			}
+
 			if _, err := os.Lstat(target); err == nil {
 				// Move the known replacement back to its recorded source. Avoid
 				// destructive removal so another interruption retains both copies.
@@ -833,39 +926,47 @@ func (journal *dependencyJournal) recover(ctx context.Context, rename func(strin
 			} else if !errors.Is(err, os.ErrNotExist) {
 				return err
 			}
+
 			if change.Backup != "" {
 				if err := renameRecoveryPath(rename, backup, target); err != nil {
 					return fmt.Errorf("restore dependency %s from %s: %w", target, backup, err)
 				}
 			}
 		}
+
 		for _, file := range journal.Files {
 			if err := ctx.Err(); err != nil {
 				return err
 			}
+
 			snapshot := projectFileSnapshot{path: journal.path(file.Path), data: file.Data, mode: os.FileMode(file.Mode), exists: file.Exists}
 			if err := snapshot.restore(); err != nil {
 				return fmt.Errorf("restore project file %s: %w", snapshot.path, err)
 			}
+
 			if err := fs.SyncDir(journal.project); err != nil {
 				return err
 			}
 		}
+
 		journal.Phase = "restored"
 		if err := journal.save(); err != nil {
 			return err
 		}
 	}
+
 	for i := range journal.Stages {
 		stage := &journal.Stages[i]
 		if err := ctx.Err(); err != nil {
 			return err
 		}
+
 		if !stage.Cleanup {
 			entries, err := recoveryCleanupEntries(ctx, journal.path(stage.Path))
 			if err != nil {
 				return err
 			}
+
 			// Missing entries are safe after partial deletion. Changed or new entries
 			// must remain distinguishable from the owned files scheduled for cleanup.
 			stage.CleanupEntries = entries
@@ -874,15 +975,19 @@ func (journal *dependencyJournal) recover(ctx context.Context, rename func(strin
 				return err
 			}
 		}
+
 		if err := removeAll(journal.path(stage.Path)); err != nil {
 			return fmt.Errorf("clean dependency staging directory %s: %w", journal.path(stage.Path), err)
 		}
+
 		if err := fs.SyncDir(filepath.Dir(journal.path(stage.Path))); err != nil {
 			return err
 		}
 	}
+
 	if err := os.Remove(journal.path(DependencyRecoveryFilename)); err != nil {
 		return fmt.Errorf("remove dependency recovery record: %w", err)
 	}
+
 	return fs.SyncDir(journal.project)
 }

@@ -28,6 +28,7 @@ func TestStagedResourcesKeepAdditionalFilesInsideOwnedDirectory(t *testing.T) {
 			case "traversal":
 				target = "../../../marker"
 			}
+
 			res := resource.Resource{
 				Name: "^asset[.]zip$", Platform: "linux", Version: "0.3.7", Archive: true,
 				Includes: []string{"^include[.]inc$"}, Files: map[string]string{"^extra[.]inc$": target},
@@ -37,6 +38,7 @@ func TestStagedResourcesKeepAdditionalFilesInsideOwnedDirectory(t *testing.T) {
 			cachePath := meta.CachePath(pcx.CacheDir)
 			seedReliabilityRepo(t, cachePath, string(definition))
 			writeStagingResourceArchive(t, filepath.Join(cachePath, "asset.zip"))
+
 			err = pcx.ensurePackage(context.Background(), meta, false)
 			if destination == "relative" {
 				require.NoError(t, err)
@@ -45,6 +47,7 @@ func TestStagedResourcesKeepAdditionalFilesInsideOwnedDirectory(t *testing.T) {
 				assert.ErrorIs(t, err, os.ErrInvalid)
 				assert.NoDirExists(t, filepath.Join(pcx.Package.Vendor, meta.Repo))
 			}
+
 			contents, err := os.ReadFile(marker)
 			require.NoError(t, err)
 			require.Equal(t, "previous", string(contents))
@@ -57,6 +60,7 @@ func writeStagingResourceArchive(t *testing.T, path string) {
 	t.Helper()
 	file, err := os.Create(path)
 	require.NoError(t, err)
+
 	archive := zip.NewWriter(file)
 	for _, name := range []string{"include.inc", "extra.inc"} {
 		writer, err := archive.Create(name)
@@ -64,6 +68,8 @@ func writeStagingResourceArchive(t *testing.T, path string) {
 		_, err = writer.Write([]byte("replacement"))
 		require.NoError(t, err)
 	}
+
 	require.NoError(t, archive.Close())
+
 	require.NoError(t, file.Close())
 }

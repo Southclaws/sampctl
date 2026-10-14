@@ -26,18 +26,23 @@ func TestTagTaglessDependencies_RollsBackOnCacheRefreshFailure(t *testing.T) {
 	depMeta := versioning.DependencyMeta{User: depUser, Repo: depRepo}
 	cachePath := depMeta.CachePath(cacheDir)
 	require.NoError(t, os.MkdirAll(cachePath, 0o755))
+
 	repo, err := git.PlainInit(cachePath, false)
 	require.NoError(t, err)
+
 	wt, err := repo.Worktree()
 	require.NoError(t, err)
 
 	require.NoError(t, os.WriteFile(filepath.Join(cachePath, "pawn.json"), []byte("{\n\t\"dependencies\": [\"other/dep\"]\n}\n"), 0o644))
+
 	_, err = wt.Add("pawn.json")
 	require.NoError(t, err)
 
 	require.NoError(t, os.WriteFile(filepath.Join(cachePath, "file.txt"), []byte("one"), 0o644))
+
 	_, err = wt.Add("file.txt")
 	require.NoError(t, err)
+
 	_, err = wt.Commit("c1", &git.CommitOptions{
 		Author:    &object.Signature{Name: "test", Email: "test@example.com", When: time.Unix(100, 0)},
 		Committer: &object.Signature{Name: "test", Email: "test@example.com", When: time.Unix(100, 0)},
@@ -46,6 +51,7 @@ func TestTagTaglessDependencies_RollsBackOnCacheRefreshFailure(t *testing.T) {
 
 	head, err := repo.Head()
 	require.NoError(t, err)
+
 	_, err = repo.CreateTag("1.2.3", head.Hash(), nil)
 	require.NoError(t, err)
 
@@ -58,6 +64,7 @@ func TestTagTaglessDependencies_RollsBackOnCacheRefreshFailure(t *testing.T) {
 	}
 	initialBytes, err := json.MarshalIndent(cfg, "", "\t")
 	require.NoError(t, err)
+
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), initialBytes, 0o644))
 
 	pkg, err := pawnpackage.PackageFromDir(projectDir)

@@ -16,6 +16,7 @@ func (pcx *PackageContext) validateDependencyDestinations() error {
 			candidates = append(candidates, meta)
 		}
 	}
+
 	seen := make(map[string]versioning.DependencyMeta)
 	var failures []error
 	for _, meta := range candidates {
@@ -26,6 +27,7 @@ func (pcx *PackageContext) validateDependencyDestinations() error {
 			failures = append(failures, err)
 		}
 	}
+
 	return errors.Join(failures...)
 }
 
@@ -45,6 +47,7 @@ func inheritDirectDependencyConstraint(meta versioning.DependencyMeta, constrain
 	if meta.IsLocalScheme() || hasExplicitDependencyConstraint(meta) {
 		return meta
 	}
+
 	if direct, ok := constraints[dependencyRepositoryIdentity(meta)]; ok {
 		meta.Tag, meta.Branch, meta.Commit = direct.Tag, direct.Branch, direct.Commit
 	}
@@ -65,6 +68,7 @@ func registerDependencyDestination(seen map[string]versioning.DependencyMeta, me
 			First: previous, Second: meta, Directory: meta.Repo,
 		}}
 	}
+
 	seen[key] = meta
 	return nil
 }

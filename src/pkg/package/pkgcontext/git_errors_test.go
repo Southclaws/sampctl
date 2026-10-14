@@ -23,13 +23,16 @@ func TestWrapGitErrorDoesNotRecommendCredentialsForOtherFailures(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
+
 			err := WrapGitError(test.cause, versioning.DependencyMeta{User: "fixture", Repo: "public"})
 			if !errors.Is(err, test.cause) {
 				t.Errorf("WrapGitError(%v) = %v, want preserved cause", test.cause, err)
 			}
+
 			if !strings.Contains(err.Error(), "fixture/public") || !strings.Contains(err.Error(), "--verbose") {
 				t.Errorf("WrapGitError(%v) = %q, want dependency context and verbose advice", test.cause, err)
 			}
+
 			if strings.Contains(err.Error(), "credentials") || strings.Contains(err.Error(), "secret") {
 				t.Errorf("WrapGitError(%v) = %q, want no credential advice or sensitive details", test.cause, err)
 			}

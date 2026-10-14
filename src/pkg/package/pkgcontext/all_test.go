@@ -22,9 +22,11 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
+
 	if err := seedPkgContextFixtures(filepath.Clean("./tests/cache")); err != nil {
 		panic(err)
 	}
+
 	if err := stripPkgContextFixtureCacheRemotes(filepath.Clean("./tests/cache")); err != nil {
 		panic(err)
 	}
@@ -39,6 +41,7 @@ func stripPkgContextFixtureCacheRemotes(root string) error {
 		if err != nil {
 			return err
 		}
+
 		if !info.IsDir() || info.Name() != ".git" {
 			return nil
 		}
@@ -47,6 +50,7 @@ func stripPkgContextFixtureCacheRemotes(root string) error {
 		if err != nil {
 			return err
 		}
+
 		if err := repo.DeleteRemote("origin"); err != nil && !strings.Contains(err.Error(), "remote not found") {
 			return err
 		}

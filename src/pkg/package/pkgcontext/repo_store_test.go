@@ -123,10 +123,13 @@ func TestEnsureRepoExistsUsesInjectedRepositoryStoreForClone(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NoError(t, os.WriteFile(filepath.Join(path, "README.md"), []byte("ok"), 0o644))
+
 		wt, err := repo.Worktree()
 		require.NoError(t, err)
+
 		_, err = wt.Add("README.md")
 		require.NoError(t, err)
+
 		_, err = wt.Commit("init", &git.CommitOptions{Author: &object.Signature{Name: "test", Email: "test@example.com"}})
 		require.NoError(t, err)
 
@@ -148,6 +151,7 @@ func TestEnsureRepoExistsUsesInjectedRepositoryStoreForClone(t *testing.T) {
 	assert.Equal(t, 2, store.openCalls)
 	assert.Equal(t, 1, store.cloneCalls)
 	assert.Equal(t, 1, health.validateCalls)
+
 	valid, err := ValidateRepository(to)
 	require.NoError(t, err)
 	assert.True(t, valid)
@@ -163,15 +167,20 @@ func TestEnsureDependencyCachedUsesFullCloneForPinnedRevision(t *testing.T) {
 
 			repo, err := git.PlainInit(path, false)
 			require.NoError(t, err)
+
 			require.NoError(t, os.WriteFile(filepath.Join(path, "README.md"), []byte("ok"), 0o644))
+
 			wt, err := repo.Worktree()
 			require.NoError(t, err)
+
 			_, err = wt.Add("README.md")
 			require.NoError(t, err)
+
 			_, err = wt.Commit("init", &git.CommitOptions{
 				Author: &object.Signature{Name: "test", Email: "test@example.com"},
 			})
 			require.NoError(t, err)
+
 			return repo, nil
 		},
 	}
@@ -199,11 +208,15 @@ func TestEnsureDependencyRepositoryUsesInjectedRepositoryStoreForOpen(t *testing
 	depPath := t.TempDir()
 	repo, err := git.PlainInit(depPath, false)
 	require.NoError(t, err)
+
 	require.NoError(t, os.WriteFile(filepath.Join(depPath, "README.md"), []byte("ok"), 0o644))
+
 	wt, err := repo.Worktree()
 	require.NoError(t, err)
+
 	_, err = wt.Add("README.md")
 	require.NoError(t, err)
+
 	_, err = wt.Commit("init", &git.CommitOptions{Author: &object.Signature{Name: "test", Email: "test@example.com"}})
 	require.NoError(t, err)
 
@@ -238,13 +251,18 @@ func TestEnsureRepoExistsUsesInjectedRepositoryHealth(t *testing.T) {
 		cloneFn: func(path string, _ bool, _ *git.CloneOptions) (*git.Repository, error) {
 			repo, err := git.PlainInit(path, false)
 			require.NoError(t, err)
+
 			require.NoError(t, os.WriteFile(filepath.Join(path, "README.md"), []byte("ok"), 0o644))
+
 			wt, err := repo.Worktree()
 			require.NoError(t, err)
+
 			_, err = wt.Add("README.md")
 			require.NoError(t, err)
+
 			_, err = wt.Commit("init", &git.CommitOptions{Author: &object.Signature{Name: "test", Email: "test@example.com"}})
 			require.NoError(t, err)
+
 			return repo, nil
 		},
 	}

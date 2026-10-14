@@ -87,11 +87,13 @@ func (state *PackageLockfileState) LockedVersion(meta versioning.DependencyMeta,
 	if state == nil || state.lockfileResolver == nil || forceUpdate {
 		return meta
 	}
+
 	locked := state.lockfileResolver.GetLockedVersion(meta)
 	if locked.Commit != "" {
 		// Keep the branch cache directory while checking out the locked commit.
 		locked.Branch = meta.Branch
 	}
+
 	return locked
 }
 

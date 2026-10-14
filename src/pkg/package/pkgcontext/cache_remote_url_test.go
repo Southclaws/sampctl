@@ -33,6 +33,7 @@ func TestCacheRefreshUsesDeclaredHTTPTransport(t *testing.T) {
 			if err := repo.SetConfig(cfg); err != nil {
 				t.Fatal(err)
 			}
+
 			var requests atomic.Int32
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				requests.Add(1)
@@ -40,15 +41,19 @@ func TestCacheRefreshUsesDeclaredHTTPTransport(t *testing.T) {
 				if hasAuth != authenticated || authenticated && (username != "fixture" || password != "fixture-token") {
 					t.Errorf("HTTP refresh authentication = (%q, %t), want configured=%t", username, hasAuth, authenticated)
 				}
+
 				http.NotFound(w, r)
 			}))
 			t.Cleanup(server.Close)
+
 			pcx := PackageContext{}
 			if authenticated {
 				pcx.GitAuth = &gitHTTP.BasicAuth{Username: "fixture", Password: "fixture-token"}
 			}
+
 			ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 			defer cancel()
+
 			_, err = pcx.ensureRepoExistsWithMeta(repoEnsureWithMetaRequest{
 				Meta:              versioning.DependencyMeta{User: "fixture", Repo: "public"},
 				repoEnsureRequest: repoEnsureRequest{Context: ctx, From: server.URL + "/fixture/public", To: path, ForceUpdate: true},
@@ -68,6 +73,7 @@ func TestCacheRefreshFetchesFromDeclaredSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	cfg, err := cached.Config()
 	if err != nil {
 		t.Fatal(err)
@@ -76,23 +82,29 @@ func TestCacheRefreshFetchesFromDeclaredSource(t *testing.T) {
 	if err := cached.SetConfig(cfg); err != nil {
 		t.Fatal(err)
 	}
+
 	if err := os.WriteFile(filepath.Join(remotePath, "include.inc"), []byte("updated"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+
 	wt, err := remote.Worktree()
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if _, err := wt.Add("include.inc"); err != nil {
 		t.Fatal(err)
 	}
+
 	if _, err := wt.Commit("advance source", &git.CommitOptions{Author: &object.Signature{Name: "test", Email: "test@example.invalid", When: time.Unix(200, 0)}}); err != nil {
 		t.Fatal(err)
 	}
+
 	pcx := PackageContext{}
 	if _, err := pcx.ensureRepoExists(repoEnsureRequest{Context: t.Context(), From: remotePath, To: cachePath, ForceUpdate: true}); err != nil {
 		t.Fatalf("ensureRepoExists(declared source) error = %v, want nil", err)
 	}
+
 	if contents, err := os.ReadFile(filepath.Join(cachePath, "include.inc")); err != nil || string(contents) != "updated" {
 		t.Errorf("ReadFile(refreshed cache) = %q, %v, want updated source content", contents, err)
 	}

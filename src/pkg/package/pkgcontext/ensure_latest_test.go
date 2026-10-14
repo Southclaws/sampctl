@@ -59,6 +59,7 @@ func TestResolveDynamicDependencyReferenceLatestForceUpdatePrefersFreshRelease(t
 			_, _ = w.Write([]byte(`[{"tag_name":"v1.1.0","draft":false,"prerelease":false}]`))
 			return
 		}
+
 		http.NotFound(w, r)
 	}))
 	defer server.Close()
@@ -126,6 +127,7 @@ func TestEnsurePackageLatestForceUpdateUsesResolvedTag(t *testing.T) {
 
 	repo, err := git.PlainOpen(filepath.Join(vendorDir, meta.Repo))
 	require.NoError(t, err)
+
 	tag, err := versioning.GetRepoCurrentVersionedTag(repo)
 	require.NoError(t, err)
 	require.NotNil(t, tag)
@@ -140,6 +142,7 @@ func seedLatestTagRepo(t *testing.T, cacheDir string, meta versioning.Dependency
 
 	repo, err := git.PlainInit(cachePath, false)
 	require.NoError(t, err)
+
 	wt, err := repo.Worktree()
 	require.NoError(t, err)
 
@@ -167,10 +170,12 @@ func seedLatestRepoWithoutTags(t *testing.T, cacheDir string, meta versioning.De
 
 	repo, err := git.PlainInit(cachePath, false)
 	require.NoError(t, err)
+
 	wt, err := repo.Worktree()
 	require.NoError(t, err)
 
 	require.NoError(t, os.WriteFile(filepath.Join(cachePath, "file.txt"), []byte("main"), 0o644))
+
 	_, err = wt.Add("file.txt")
 	require.NoError(t, err)
 

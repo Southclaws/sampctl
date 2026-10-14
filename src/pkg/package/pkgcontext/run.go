@@ -115,6 +115,7 @@ func (pcx *PackageContext) RunPrepare(ctx context.Context) (err error) {
 	if err != nil {
 		return errors.Wrap(err, "failed to resolve package output path")
 	}
+
 	if !fs.Exists(filename) || pcx.ForceBuild {
 		problems, _, err = pcx.Build(ctx, BuildOptions{
 			Name:      pcx.BuildName,
@@ -133,6 +134,7 @@ func (pcx *PackageContext) RunPrepare(ctx context.Context) (err error) {
 			}
 		}
 	}
+
 	if !canRun {
 		err = errors.New("cannot run package because the build failed")
 		return
@@ -211,6 +213,7 @@ func (pcx *PackageContext) runtimeOutputPath() (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "failed to resolve package output path")
 	}
+
 	return outputPath, nil
 }
 
@@ -260,6 +263,7 @@ func (pcx *PackageContext) copyRuntimeBinary(outputPath string) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to copy amx file to temporary runtime directory")
 	}
+
 	return nil
 }
 
@@ -282,6 +286,7 @@ func (pcx *PackageContext) startWatchedRuntime(ctx context.Context, running *ato
 		print.Verb("watch-run: finished")
 		done <- err
 	}()
+
 	return done
 }
 
@@ -301,6 +306,7 @@ func (pcx *PackageContext) prepareTemporaryRuntime(filename string) error {
 	if !fs.Exists(scriptfiles) {
 		scriptfiles = ""
 	}
+
 	err := pcx.PackageServices.runtimeEnvironment().PrepareRuntimeDirectory(
 		pcx.CacheDir,
 		pcx.ActualRuntime.Version,

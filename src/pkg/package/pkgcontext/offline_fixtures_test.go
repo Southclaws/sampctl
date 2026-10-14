@@ -27,6 +27,7 @@ func seedPkgContextFixtures(cacheDir string) error {
 	if err := os.RemoveAll(cacheDir); err != nil {
 		return err
 	}
+
 	if err := os.MkdirAll(cacheDir, 0o700); err != nil {
 		return err
 	}
@@ -91,6 +92,7 @@ func seedPkgContextFixtures(cacheDir string) error {
 	); err != nil {
 		return err
 	}
+
 	if err := writePkgContextTarGz(filepath.Join(cacheDir, "packages", "Southclaws", "pawn-requests", "default", "requests-1.0.0-linux.tar.gz"), map[string]string{
 		"requests-1.0.0-linux/pawno/include/requests.inc": "// fixture\n",
 		"requests-1.0.0-linux/plugins/requests.so":        "fixture plugin",
@@ -123,6 +125,7 @@ func seedPkgContextFixtures(cacheDir string) error {
 	); err != nil {
 		return err
 	}
+
 	return writePkgContextTarGz(filepath.Join(cacheDir, "packages", "sampctl", "package-resource-test", "default", "test-1.0.0-linux.tar.gz"), map[string]string{
 		"test-1.0.0-linux/pawno/include/include.inc": "// fixture\n",
 		"test-1.0.0-linux/plugins/test.so":           "fixture plugin",
@@ -140,6 +143,7 @@ func seedPkgContextRepo(cacheDir string, meta versioning.DependencyMeta, pkg paw
 	if err != nil {
 		return "", err
 	}
+
 	wt, err := repo.Worktree()
 	if err != nil {
 		return "", err
@@ -149,9 +153,11 @@ func seedPkgContextRepo(cacheDir string, meta versioning.DependencyMeta, pkg paw
 	if err != nil {
 		return "", err
 	}
+
 	if err := os.WriteFile(filepath.Join(cachePath, "pawn.json"), data, 0o644); err != nil {
 		return "", err
 	}
+
 	if _, err := wt.Add("pawn.json"); err != nil {
 		return "", err
 	}
@@ -182,6 +188,7 @@ func seedPkgContextRepo(cacheDir string, meta versioning.DependencyMeta, pkg paw
 			return "", err
 		}
 	}
+
 	if branch != "" {
 		if err := repo.Storer.SetReference(plumbing.NewHashReference(plumbing.NewBranchReferenceName(branch), hash)); err != nil {
 			return "", err

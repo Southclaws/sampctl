@@ -18,9 +18,11 @@ func validateLocalDependencyPath(root string, meta versioning.DependencyMeta) er
 	if !info.IsDir() && !info.Mode().IsRegular() {
 		return fmt.Errorf("local dependency %s is not a regular file or directory", path)
 	}
+
 	if meta.IsIncludes() && !info.IsDir() {
 		return fmt.Errorf("local include dependency %s is not a directory", path)
 	}
+
 	file, err := os.Open(path)
 	if err != nil {
 		return err
@@ -28,6 +30,7 @@ func validateLocalDependencyPath(root string, meta versioning.DependencyMeta) er
 	if err := file.Close(); err != nil {
 		return err
 	}
+
 	if info.IsDir() && (meta.IsPlugin() || meta.Scheme == "component") {
 		pkg, err := pawnpackage.PackageFromDir(path)
 		if err != nil {
@@ -35,5 +38,6 @@ func validateLocalDependencyPath(root string, meta versioning.DependencyMeta) er
 		}
 		return pkg.Validate()
 	}
+
 	return nil
 }

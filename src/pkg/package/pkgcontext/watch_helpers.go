@@ -40,6 +40,7 @@ func (d *watchDebouncer) Queue(eventName string, delay time.Duration) {
 		default:
 		}
 	}
+
 	d.timer.Reset(delay)
 	d.ch = d.timer.C
 }
@@ -73,6 +74,7 @@ func (d *watchDebouncer) Stop() {
 	if d.timer == nil {
 		return
 	}
+
 	if !d.timer.Stop() {
 		select {
 		case <-d.timer.C:
@@ -91,6 +93,7 @@ type watchedRuntime struct {
 
 func (w *watchedRuntime) Restart(parent context.Context, starter func(context.Context, *atomic.Bool) <-chan error) {
 	w.Stop()
+
 	runCtx, cancel := context.WithCancel(parent)
 	w.cancel = cancel
 	w.done = starter(runCtx, &w.running)

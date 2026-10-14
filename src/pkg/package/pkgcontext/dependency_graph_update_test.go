@@ -31,7 +31,7 @@ func TestEnsureProjectRefreshesTransitiveDependenciesForUpdatedDirectDependency(
 		`{"entry":"liba.pwn","output":"gamemodes/liba.amx","dependencies":["user/lib-b:1.0.0"]}`,
 		`{"entry":"liba.pwn","output":"gamemodes/liba.amx","dependencies":["user/lib-c:1.0.0"]}`,
 	)
-	// Both tagged revisions are cached; keep graph resolution offline.
+	// Both tagged revisions are cached. Keep graph resolution offline.
 	require.NoError(t, cachedRepo.DeleteRemote("origin"))
 
 	rootConfig := map[string]any{
@@ -114,6 +114,7 @@ func seedStaleCachedLatestDependency(
 	sourcePath := filepath.Join(t.TempDir(), meta.Repo+"-source")
 	repo, err := git.PlainInit(sourcePath, false)
 	require.NoError(t, err)
+
 	worktree, err := repo.Worktree()
 	require.NoError(t, err)
 
@@ -122,8 +123,10 @@ func seedStaleCachedLatestDependency(
 
 		require.NoError(t, os.WriteFile(filepath.Join(sourcePath, "pawn.json"), []byte(definition), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(sourcePath, meta.Repo+".pwn"), []byte("main() {}"), 0o644))
+
 		_, err = worktree.Add("pawn.json")
 		require.NoError(t, err)
+
 		_, err = worktree.Add(meta.Repo + ".pwn")
 		require.NoError(t, err)
 
@@ -132,6 +135,7 @@ func seedStaleCachedLatestDependency(
 			Committer: &object.Signature{Name: "test", Email: "test@example.com", When: time.Unix(time.Now().Unix(), 0)},
 		})
 		require.NoError(t, commitErr)
+
 		return hash
 	}
 
@@ -145,16 +149,20 @@ func seedStaleCachedLatestDependency(
 
 	cachePath := meta.CachePath(cacheDir)
 	require.NoError(t, os.MkdirAll(filepath.Dir(cachePath), 0o755))
+
 	_, err = git.PlainClone(cachePath, false, &git.CloneOptions{URL: sourcePath})
 	require.NoError(t, err)
 
 	cachedRepo, err := git.PlainOpen(cachePath)
 	require.NoError(t, err)
+
 	cachedWorktree, err := cachedRepo.Worktree()
 	require.NoError(t, err)
+
 	require.NoError(t, cachedWorktree.Reset(&git.ResetOptions{
 		Commit: firstHash,
 		Mode:   git.HardReset,
 	}))
+
 	return cachedRepo
 }

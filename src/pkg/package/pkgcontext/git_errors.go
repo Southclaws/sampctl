@@ -59,6 +59,7 @@ func WrapGitError(err error, meta versioning.DependencyMeta) error {
 	case strings.Contains(errText, "repository access blocked"):
 		message = "repository access blocked. Check your repository access"
 	}
+
 	return &gitOperationError{message: fmt.Sprintf("dependency '%s/%s': %s", meta.User, meta.Repo, message), cause: err}
 }
 
@@ -66,15 +67,18 @@ func isTransientGitError(err error) bool {
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return false
 	}
+
 	var pathErr *os.PathError
 	var permanent *plumbing.PermanentError
 	if errors.As(err, &pathErr) || errors.As(err, &permanent) {
 		return false
 	}
+
 	var unexpected *plumbing.UnexpectedError
 	if errors.As(err, &unexpected) {
 		return isTransientGitError(unexpected.Err)
 	}
+
 	var responseErr *gitHTTP.Err
 	if errors.As(err, &responseErr) && responseErr.Response != nil {
 		switch responseErr.Response.StatusCode {
@@ -84,6 +88,7 @@ func isTransientGitError(err error) bool {
 			return false
 		}
 	}
+
 	var dnsErr *net.DNSError
 	if errors.As(err, &dnsErr) && dnsErr.IsNotFound {
 		return false
@@ -91,10 +96,12 @@ func isTransientGitError(err error) bool {
 	if dnsErr != nil && dnsErr.IsTemporary {
 		return true
 	}
+
 	var netErr net.Error
 	if errors.As(err, &netErr) && netErr.Timeout() {
 		return true
 	}
+
 	return errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) ||
 		errors.Is(err, syscall.ECONNRESET) || errors.Is(err, syscall.ECONNREFUSED) ||
 		errors.Is(err, syscall.ENETUNREACH) || errors.Is(err, syscall.EHOSTUNREACH) ||

@@ -63,12 +63,15 @@ func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Cont
 	if !pcx.Package.Parent {
 		return errors.New("package is not a parent package")
 	}
+
 	if pcx.Package.LocalPath == "" {
 		return errors.New("package has no known local path")
 	}
+
 	if ctx == nil {
 		ctx = context.Background()
 	}
+
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -85,12 +88,14 @@ func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Cont
 			directDependencies[managedDependencyIdentity(meta)] = true
 		}
 	}
+
 	destinations := make(map[string]versioning.DependencyMeta)
 	var recurse func(versioning.DependencyMeta, bool, int) error
 	recurse = func(meta versioning.DependencyMeta, direct bool, depth int) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
+
 		prefix := strings.Repeat("|-", depth+1)
 		currentPackage := pcx.Package
 		if depth != 0 {
@@ -103,6 +108,7 @@ func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Cont
 				}
 				effectiveMeta = resolvedMeta
 			}
+
 			refreshCache := forceUpdate
 			if refreshCache {
 				noOrigin, err := pcx.cachedRepoHasNoOriginContext(ctx, effectiveMeta)
@@ -114,6 +120,7 @@ func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Cont
 			if _, err := pcx.EnsureDependencyCachedContext(ctx, effectiveMeta, refreshCache); err != nil {
 				return &DependencyError{Dependency: meta.String(), Operation: "cache", Err: err}
 			}
+
 			var err error
 			currentPackage, err = pcx.packageFromCachedRevisionContext(ctx, effectiveMeta, effectiveMeta.CachePath(pcx.CacheDir))
 			if err != nil {
@@ -132,6 +139,7 @@ func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Cont
 			if err := ctx.Err(); err != nil {
 				return stderrors.Join(append(failures, err)...)
 			}
+
 			subMeta, err := dependency.Explode()
 			if err != nil {
 				failures = append(failures, &DependencyError{Dependency: string(dependency), Operation: "parse", Err: errors.Wrapf(err, "invalid dependency in %s", currentPackage)})
@@ -144,6 +152,7 @@ func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Cont
 					continue
 				}
 			}
+
 			if subMeta.IsURLScheme() {
 				err = pcx.handleURLSchemeCaching(subMeta, prefix)
 			} else if identity := managedDependencyIdentity(subMeta); !visited[identity] {
@@ -161,8 +170,10 @@ func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Cont
 				}
 			}
 		}
+
 		return stderrors.Join(failures...)
 	}
+
 	return recurse(pcx.Package.Dependency(), false, 0)
 }
 
@@ -216,6 +227,7 @@ func (pcx PackageContext) readPackageFromCachedRevision(meta versioning.Dependen
 	if err != nil {
 		return pawnpackage.Package{}, err
 	}
+
 	tree, err := commit.Tree()
 	if err != nil {
 		return pawnpackage.Package{}, err
@@ -251,6 +263,7 @@ func (pcx PackageContext) readPackageFromCachedRevision(meta versioning.Dependen
 		if contentErr != nil {
 			return pawnpackage.Package{}, contentErr
 		}
+
 		pkg, err = pawnpackage.PackageFromDefinition([]byte(contents), definition.format)
 		if err != nil {
 			return pawnpackage.Package{}, err
@@ -391,6 +404,7 @@ func (pcx PackageContext) EnsureDependencyFromCacheContext(ctx context.Context, 
 		err = errors.Wrap(err, "failed to make canonical path to cached copy")
 		return
 	}
+
 	cacheRepoExists := fs.Exists(filepath.Join(from, ".git"))
 	if !cacheRepoExists || forceUpdate {
 		if forceUpdate && cacheRepoExists {
@@ -413,14 +427,17 @@ func (pcx PackageContext) EnsureDependencyFromCacheContext(ctx context.Context, 
 			}
 		}
 	}
+
 	unlock, err := lockRepositoryPath(ctx, from)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { err = stderrors.Join(err, unlock()) }()
+
 	if err := validateRepositoryDestination(from); err != nil {
 		return nil, err
 	}
+
 	if destination, absErr := filepath.Abs(path); absErr != nil {
 		return nil, absErr
 	} else if destination == from {
@@ -439,6 +456,7 @@ func (pcx PackageContext) EnsureDependencyFromCacheContext(ctx context.Context, 
 			ForceUpdate: forceUpdate,
 		},
 	})
+
 	return
 }
 
@@ -456,6 +474,7 @@ func (pcx PackageContext) EnsureDependencyCachedContext(ctx context.Context, met
 	if err != nil {
 		return nil, err
 	}
+
 	return pcx.ensureRepoExistsWithMeta(repoEnsureWithMetaRequest{
 		Meta: meta,
 		repoEnsureRequest: repoEnsureRequest{
@@ -474,17 +493,21 @@ func (pcx PackageContext) ensureRepoExists(request repoEnsureRequest) (repo *git
 	if request.Context == nil {
 		request.Context = context.Background()
 	}
+
 	if err := request.Context.Err(); err != nil {
 		return nil, err
 	}
+
 	if err := validateRepositoryDestination(request.To); err != nil {
 		return nil, err
 	}
+
 	unlock, err := lockRepositoryPath(request.Context, request.To)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { err = stderrors.Join(err, unlock()) }()
+
 	if err := validateRepositoryDestination(request.To); err != nil {
 		return nil, err
 	}
@@ -506,9 +529,11 @@ func (pcx PackageContext) ensureRepoExists(request repoEnsureRequest) (repo *git
 		}
 		return pcx.cloneRepositoryContext(request)
 	}
+
 	if request.ForceUpdate {
 		return pcx.updateRepositoryStaged(request)
 	}
+
 	return repo, nil
 }
 
@@ -520,10 +545,12 @@ func (pcx PackageContext) updateRepository(repo *git.Repository, request repoEns
 	if request.Context == nil {
 		request.Context = context.Background()
 	}
+
 	wt, err := repo.Worktree()
 	if err != nil {
 		return pcx.cloneRepositoryContext(request)
 	}
+
 	pullOpts := &git.PullOptions{RemoteURL: request.From, Auth: pcx.authForRemote(request.From, request.SSH)}
 	if request.Branch != "" {
 		pullOpts.ReferenceName = plumbing.ReferenceName("refs/heads/" + request.Branch)
@@ -540,12 +567,15 @@ func (pcx PackageContext) updateRepository(repo *git.Repository, request repoEns
 			return nil, err
 		}
 	}
+
 	if ctxErr := request.Context.Err(); ctxErr != nil {
 		return nil, ctxErr
 	}
+
 	if stderrors.Is(err, context.Canceled) || stderrors.Is(err, context.DeadlineExceeded) || !isRepositoryCorrupt(request.To) {
 		return nil, errors.Wrap(err, "failed to update repository")
 	}
+
 	return pcx.cloneRepositoryContext(request)
 }
 
@@ -569,9 +599,11 @@ func (pcx PackageContext) ensureRepoExistsWithMeta(request repoEnsureWithMetaReq
 			ForceUpdate: request.ForceUpdate,
 		})
 	}
+
 	if err != nil {
 		err = WrapGitError(err, request.Meta)
 	}
+
 	return repo, err
 }
 
@@ -608,10 +640,12 @@ func toGitSSHURL(meta versioning.DependencyMeta) string {
 	if site == "" {
 		site = "github.com"
 	}
+
 	user := meta.SSH
 	if user == "" {
 		user = "git"
 	}
+
 	return fmt.Sprintf("%s@%s:%s/%s", user, site, meta.User, meta.Repo)
 }
 
