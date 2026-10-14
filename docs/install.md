@@ -84,3 +84,8 @@ However, this method won’t support automatic updates via `scoop update`.
 sampctl version
 sampctl help
 ```
+
+## Build from source
+
+Use Go 1.26.9 or newer. Run `task install` to install `sampctl` into `GOBIN`,
+or into `$(go env GOPATH)/bin` when `GOBIN` is unset.

@@ -12,7 +12,7 @@ import (
 func GenerateDocs(app *cli.App) (result string) {
 	buffer := bytes.Buffer{}
 
-	buffer.WriteString(fmt.Sprintf("# `%s`\n\n%s - %s <%s>\n\n", app.Name, app.Version, app.Author, app.Email))
+	buffer.WriteString(fmt.Sprintf("# `%s`\n\n%s\n\n", app.Name, app.Usage))
 
 	if app.Description != "" {
 		buffer.WriteString(app.Description)
@@ -35,7 +35,7 @@ func GenerateDocs(app *cli.App) (result string) {
 		buffer.WriteString("\n\n")
 	}
 
-	return buffer.String()
+	return strings.TrimRight(buffer.String(), "\n") + "\n"
 }
 
 //nolint:gosec

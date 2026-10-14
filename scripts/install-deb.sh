@@ -1,19 +1,31 @@
-#!/usr/bin/env bash
-# a simple install script for sampctl
+#!/bin/sh
+set -eu
 
-ARCH=$(uname -m)
-PATTERN="browser_download_url.*386\.deb"
+case "$(uname -m)" in
+	x86_64 | amd64) architecture=amd64 ;;
+	aarch64 | arm64) architecture=arm64 ;;
+	i386 | i486 | i586 | i686) architecture=386 ;;
+	armv7 | armv7l) architecture=armv7 ;;
+	*)
+		printf 'unsupported architecture: %s\n' "$(uname -m)" >&2
+		exit 1
+		;;
+esac
 
-if [ $ARCH = "x86_64" ]; then
-	PATTERN="browser_download_url.*amd64\.deb"
+release=$(curl -fsSL https://api.github.com/repos/Southclaws/sampctl/releases/latest)
+url=$(printf '%s\n' "$release" | awk -F '"' -v ending="_$architecture.deb" '
+	$2 == "browser_download_url" && substr($4, length($4) - length(ending) + 1) == ending {
+		print $4
+		exit
+	}')
+if [ -z "$url" ]; then
+	printf 'no matching linux release asset for %s\n' "$architecture" >&2
+	exit 1
 fi
 
-curl -s https://api.github.com/repos/Southclaws/sampctl/releases/latest |
-	grep $PATTERN |
-	cut -d : -f 2,3 |
-	tr -d \" |
-	wget -qi - -O tmp.deb
+temporary=$(mktemp -d)
+trap 'rm -rf "$temporary"' 0
+trap 'exit 1' HUP INT TERM
 
-sudo dpkg -i tmp.deb
-
-rm tmp.deb
+curl -fsSL "$url" -o "$temporary/sampctl.deb"
+sudo dpkg -i "$temporary/sampctl.deb"
