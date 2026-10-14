@@ -8,17 +8,51 @@ on:
       - "*"
 
 permissions:
-  contents: write
-  packages: write
-  pull-requests: write
+  contents: read
 
 jobs:
-  goreleaser:
+  quality:
+    name: Release Quality
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install Go tools
+        run: go install tool
+      - name: Run tests with race detection
+        run: go test -race -count=1 -timeout=10m ./...
+      - name: Run Go vet
+        run: go vet ./...
+      - name: Run staticcheck
+        run: staticcheck ./...
+      - name: Run lint
+        run: golangci-lint run
+      - name: Check formatting
+        run: golangci-lint fmt --diff
+      - name: Verify modules
+        run: go mod verify
+      - name: Check vulnerabilities
+        run: govulncheck ./...
+
+  goreleaser:
+    needs: quality
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') && needs.quality.result == 'success'
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
       - run: git fetch --force --tags
       - uses: actions/setup-go@v7
