@@ -40,6 +40,7 @@ func FindIncludes(files []string) (includes []versioning.DependencyString) {
 	mux := &sync.Mutex{}
 	seen := map[versioning.DependencyString]struct{}{}
 	wg := sync.WaitGroup{}
+
 	for _, file := range files {
 		wg.Add(1)
 		go func(innerFile string) {
@@ -70,6 +71,7 @@ func FindIncludes(files []string) (includes []versioning.DependencyString) {
 			}
 		}(file)
 	}
+
 	wg.Wait()
 	sort.Slice(includes, func(i, j int) bool { return includes[i] < includes[j] })
 	return

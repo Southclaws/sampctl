@@ -54,7 +54,7 @@ func (ghr *GitHubReleaseResource) cachedExact(version string) (bool, string) {
 		return false, ""
 	}
 
-	info, err := os.Stat(cacheDir)
+	info, err := os.Lstat(cacheDir)
 	if err != nil {
 		return false, ""
 	}
@@ -62,9 +62,14 @@ func (ghr *GitHubReleaseResource) cachedExact(version string) (bool, string) {
 	// Backward compatibility: older cache layout stored the downloaded asset directly
 	// at the hash path
 	if !info.IsDir() {
+		if !info.Mode().IsRegular() {
+			return false, ""
+		}
+
 		if ghr.baseResource.cacheTTL > 0 && time.Since(info.ModTime()) > ghr.baseResource.cacheTTL {
 			return false, ""
 		}
+
 		return true, cacheDir
 	}
 
@@ -73,27 +78,40 @@ func (ghr *GitHubReleaseResource) cachedExact(version string) (bool, string) {
 		return false, ""
 	}
 
-	var cachedFile string
 	for _, entry := range entries {
-		if entry.IsDir() {
+		if isTemporaryAsset(entry.Name()) || ghr.assetPattern == nil || !ghr.assetPattern.MatchString(entry.Name()) {
 			continue
 		}
-		cachedFile = filepath.Join(cacheDir, entry.Name())
-		break
-	}
-	if cachedFile == "" {
-		return false, ""
+
+		fileInfo, err := entry.Info()
+		if err != nil || !fileInfo.Mode().IsRegular() {
+			continue
+		}
+
+		if ghr.baseResource.cacheTTL > 0 && time.Since(fileInfo.ModTime()) > ghr.baseResource.cacheTTL {
+			continue
+		}
+
+		return true, filepath.Join(cacheDir, entry.Name())
 	}
 
-	fileInfo, err := os.Stat(cachedFile)
-	if err != nil {
-		return false, ""
-	}
-	if ghr.baseResource.cacheTTL > 0 && time.Since(fileInfo.ModTime()) > ghr.baseResource.cacheTTL {
-		return false, ""
+	return false, ""
+}
+
+func isTemporaryAsset(name string) bool {
+	// Atomic writers stage downloads as .<asset name>.<random decimal suffix>.
+	separator := strings.LastIndexByte(name, '.')
+	if !strings.HasPrefix(name, ".") || separator < 2 || separator == len(name)-1 {
+		return false
 	}
 
-	return true, cachedFile
+	for _, digit := range name[separator+1:] {
+		if digit < '0' || digit > '9' {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (ghr *GitHubReleaseResource) cachedResolvedLatest() (bool, string) {
@@ -175,6 +193,7 @@ func NewGitHubReleaseResource(
 		sum := md5.Sum([]byte(assetPattern.String()))
 		identifier = fmt.Sprintf("%s-%x", identifier, sum[:4])
 	}
+
 	version := depMeta.Tag
 	if version == "" {
 		version = "latest"
@@ -242,6 +261,7 @@ func (ghr *GitHubReleaseResource) Ensure(ctx context.Context, version, path stri
 	if version == "" {
 		version = ghr.baseResource.version
 	}
+
 	if ghr.ghClient == nil {
 		return errors.New("no GitHub client provided")
 	}
@@ -256,9 +276,11 @@ func (ghr *GitHubReleaseResource) Ensure(ctx context.Context, version, path stri
 		if err := ghr.baseResource.MarkCached(cachedPath); err != nil {
 			return errors.Wrap(err, "failed to update cache timestamp")
 		}
+
 		if path != "" && path != cachedPath {
 			return ghr.copyToTarget(cachedPath, path)
 		}
+
 		return nil
 	}
 
@@ -305,19 +327,23 @@ func (ghr *GitHubReleaseResource) Ensure(ctx context.Context, version, path stri
 		if err != nil {
 			return err
 		}
+
 		if err := ensureCacheDir(newCacheDirPath); err != nil {
 			return err
 		}
+
 		newFilename := filepath.Join(newCacheDirPath, filepath.Base(filename))
 		if filename != newFilename {
 			if err := os.Rename(filename, newFilename); err != nil {
 				if copyErr := util.CopyFile(filename, newFilename); copyErr != nil {
 					return errors.Wrap(err, "failed to move downloaded asset")
 				}
+
 				if removeErr := os.Remove(filename); removeErr != nil && !os.IsNotExist(removeErr) {
 					return errors.Wrap(removeErr, "failed to remove original downloaded asset after copy")
 				}
 			}
+
 			filename = newFilename
 		}
 	}
@@ -327,18 +353,21 @@ func (ghr *GitHubReleaseResource) Ensure(ctx context.Context, version, path stri
 		if err != nil {
 			return errors.Wrap(err, "failed to extract archive")
 		}
+
 		if path != "" {
 			for _, extractedFile := range extractedFiles {
 				relPath, err := filepath.Rel(filepath.Dir(filename), extractedFile)
 				if err != nil {
 					continue
 				}
+
 				targetFile := filepath.Join(path, relPath)
 				if err := ghr.copyToTarget(extractedFile, targetFile); err != nil {
 					return errors.Wrapf(err, "failed to copy extracted file %s to target", extractedFile)
 				}
 			}
 		}
+
 		return nil
 	}
 

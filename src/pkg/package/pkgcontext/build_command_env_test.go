@@ -20,10 +20,12 @@ func TestPrintBuildCommandDoesNotExposeInheritedEnvironment(t *testing.T) {
 			"DYLD_LIBRARY_PATH=/fixtures/compiler/darwin",
 		},
 	}
+
 	output, err := os.CreateTemp(t.TempDir(), "build-command-output-")
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	func() {
 		original := os.Stdout
 		os.Stdout = output
@@ -33,8 +35,10 @@ func TestPrintBuildCommandDoesNotExposeInheritedEnvironment(t *testing.T) {
 				t.Errorf("close captured build command output: %v", err)
 			}
 		}()
+
 		printBuildCommand(command)
 	}()
+
 	data, err := os.ReadFile(output.Name())
 	if err != nil {
 		t.Fatal(err)
@@ -48,6 +52,7 @@ func TestPrintBuildCommandDoesNotExposeInheritedEnvironment(t *testing.T) {
 			t.Errorf("printBuildCommand output is missing %q", expected)
 		}
 	}
+
 	for _, secret := range []string{
 		"synthetic-secret-token", "synthetic-private-key", "/private/home-directory",
 		"/private/search-path", "synthetic-unrelated-library-path",

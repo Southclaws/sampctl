@@ -14,10 +14,12 @@ func isTransientDownloadError(err error) bool {
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return false
 	}
+
 	var pathErr *os.PathError
 	if errors.As(err, &pathErr) {
 		return false
 	}
+
 	var dnsErr *net.DNSError
 	if errors.As(err, &dnsErr) && dnsErr.IsNotFound {
 		return false
@@ -25,10 +27,12 @@ func isTransientDownloadError(err error) bool {
 	if dnsErr != nil && dnsErr.IsTemporary {
 		return true
 	}
+
 	var netErr net.Error
 	if errors.As(err, &netErr) && netErr.Timeout() {
 		return true
 	}
+
 	return errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) ||
 		errors.Is(err, syscall.ECONNRESET) || errors.Is(err, syscall.ECONNREFUSED) ||
 		errors.Is(err, syscall.ENETUNREACH) || errors.Is(err, syscall.EHOSTUNREACH) ||
@@ -54,9 +58,11 @@ func (reader downloadContextReader) Read(data []byte) (int, error) {
 	if err := reader.ctx.Err(); err != nil {
 		return 0, err
 	}
+
 	n, err := reader.reader.Read(data)
 	if ctxErr := reader.ctx.Err(); ctxErr != nil {
 		return n, ctxErr
 	}
+
 	return n, err
 }

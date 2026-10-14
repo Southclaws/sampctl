@@ -17,8 +17,9 @@ import (
 	"testing"
 	"time"
 
-	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 	"github.com/stretchr/testify/require"
+
+	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 )
 
 const (
@@ -39,12 +40,14 @@ type safeBuffer struct {
 func (buffer *safeBuffer) Write(p []byte) (int, error) {
 	buffer.mu.Lock()
 	defer buffer.mu.Unlock()
+
 	return buffer.b.Write(p)
 }
 
 func (buffer *safeBuffer) String() string {
 	buffer.mu.Lock()
 	defer buffer.mu.Unlock()
+
 	return buffer.b.String()
 }
 
@@ -144,6 +147,7 @@ func TestExecuteRuntimeHandlesSIGINTHelper(t *testing.T) {
 	})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "received signal:")
+	require.ErrorIs(t, err, context.Canceled)
 }
 
 func startRuntimeSignalHelper(t *testing.T) (*bufio.Scanner, *safeBuffer, *exec.Cmd) {
@@ -174,6 +178,7 @@ func waitForRuntimeReady(t *testing.T, stdout *bufio.Scanner, stderr *safeBuffer
 				return
 			}
 		}
+
 		readyCh <- stdout.Err()
 	}()
 
@@ -196,6 +201,7 @@ func waitForHelperExit(cmd *exec.Cmd, stderr *safeBuffer) error {
 		if err == nil {
 			return nil
 		}
+
 		return fmt.Errorf("helper process failed: %w: %s", err, stderr.String())
 	case <-time.After(5 * time.Second):
 		return fmt.Errorf("timed out waiting for helper exit: %s", stderr.String())

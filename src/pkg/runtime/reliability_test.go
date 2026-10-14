@@ -37,6 +37,7 @@ func TestEnsureBinariesPreservesInstallationOnUnsafeDestination(t *testing.T) {
 	if _, err := EnsureBinariesContext(context.Background(), cache, cfg); !errors.Is(err, os.ErrInvalid) {
 		t.Errorf("EnsureBinariesContext(unsafe destination) = %v, want os.ErrInvalid", err)
 	}
+
 	checkRuntimeTestFile(t, filepath.Join(cfg.WorkingDir, "samp03svr"), "previous binary")
 	checkRuntimeTestFile(t, filepath.Join(cfg.WorkingDir, "obsolete"), "previous library")
 	checkRuntimeTestFile(t, filepath.Join(stage, "samp03svr"), "replacement binary")
@@ -47,9 +48,11 @@ func TestEnsureBinariesPreservesUntrackedExternalInstallation(t *testing.T) {
 	cache := t.TempDir()
 	seedValidatedRuntimeStage(t, cache, cfg, map[string]string{"samp03svr": "replacement"})
 	writeRuntimeTestFile(t, filepath.Join(cfg.WorkingDir, "samp03svr"), "user installation")
+
 	if _, err := EnsureBinariesContext(context.Background(), cache, cfg); !errors.Is(err, os.ErrExist) {
 		t.Errorf("EnsureBinariesContext(untracked installation) = %v, want os.ErrExist", err)
 	}
+
 	checkRuntimeTestFile(t, filepath.Join(cfg.WorkingDir, "samp03svr"), "user installation")
 }
 
@@ -70,10 +73,12 @@ func TestRuntimeCacheRebuildFailurePreservesPreviousFiles(t *testing.T) {
 	if !hit {
 		t.Fatal("seeded runtime archive is missing")
 	}
+
 	writeRuntimeTestFile(t, archive, "incomplete archive")
 	if _, _, err := ensureStagedRuntime(context.Background(), cache, cfg); err == nil {
 		t.Error("ensureStagedRuntime(incomplete archive) = nil, want extraction failure")
 	}
+
 	checkRuntimeTestFile(t, filepath.Join(stage, expectedRuntimeBinary(platform)), "previous cache")
 }
 
@@ -84,14 +89,17 @@ func TestRuntimeCopyCancellationPreservesExistingFile(t *testing.T) {
 	writeRuntimeTestFile(t, target, "previous")
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
+
 	if err := copyFileWithModeContext(ctx, source, target, 0o755); !errors.Is(err, context.Canceled) {
 		t.Errorf("copyFileWithModeContext(canceled) = %v, want context.Canceled", err)
 	}
+
 	checkRuntimeTestFile(t, target, "previous")
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if len(entries) != 2 {
 		t.Errorf("copyFileWithModeContext(canceled) left %d entries, want two original files", len(entries))
 	}
@@ -105,6 +113,7 @@ func TestRuntimeCopyProcessInterruption(t *testing.T) {
 		}
 		t.Fatal("runtime copy completed without simulating termination")
 	}
+
 	root := t.TempDir()
 	source, target := filepath.Join(root, "source"), filepath.Join(root, "target")
 	payload := strings.Repeat("replacement", 10000)
@@ -121,6 +130,7 @@ func TestRuntimeCopyProcessInterruption(t *testing.T) {
 	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 72 {
 		t.Fatalf("interrupted runtime copy = %v, output %q, want exit 72", err, output)
 	}
+
 	pending, err := filepath.Glob(filepath.Join(root, ".target.*"))
 	if err != nil || len(pending) != 1 {
 		t.Fatalf("interrupted runtime copy left %v, error %v, want one temporary output", pending, err)
@@ -129,6 +139,7 @@ func TestRuntimeCopyProcessInterruption(t *testing.T) {
 	if err != nil || info.Size() == 0 {
 		t.Fatalf("interrupted runtime copy temporary output = %v, error %v, want nonempty file", info, err)
 	}
+
 	checkRuntimeTestFile(t, target, "previous valid binary")
 	if err := copyFileWithModeContext(context.Background(), source, target, 0o755); err != nil {
 		t.Fatal(err)
@@ -147,6 +158,7 @@ func (c *runtimeExitContext) Err() error {
 		// Terminate after the first buffer reaches the temporary output file.
 		os.Exit(72)
 	}
+
 	return nil
 }
 
@@ -162,9 +174,11 @@ func TestEnsureBinariesPreservesModifiedObsoleteFiles(t *testing.T) {
 	}
 	saveRuntimeTestLockfile(t, cfg.WorkingDir, previous)
 	writeRuntimeTestFile(t, filepath.Join(cfg.WorkingDir, "obsolete"), "user changes")
+
 	if _, err := EnsureBinariesContext(context.Background(), cache, cfg); err != nil {
 		t.Fatal(err)
 	}
+
 	checkRuntimeTestFile(t, filepath.Join(cfg.WorkingDir, "samp03svr"), "replacement")
 	checkRuntimeTestFile(t, filepath.Join(cfg.WorkingDir, "obsolete"), "user changes")
 }
@@ -184,10 +198,12 @@ func TestEnsureBinariesNativeRuntimeVariants(t *testing.T) {
 			cache := t.TempDir()
 			seedValidatedRuntimeStage(t, cache, cfg, map[string]string{tt.binary: "runtime"})
 			writeRuntimeTestFile(t, filepath.Join(cfg.WorkingDir, "server.cfg"), "user configuration")
+
 			info, err := EnsureBinariesContext(context.Background(), cache, cfg)
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			if info.RuntimeType != string(tt.runtimeType) {
 				t.Errorf("EnsureBinariesContext(%s).RuntimeType = %q, want %q", tt.name, info.RuntimeType, tt.runtimeType)
 			}
@@ -209,16 +225,19 @@ func TestPluginExtractionFailurePreservesInstalledFiles(t *testing.T) {
 	if _, err := w.Write([]byte("new")); err != nil {
 		t.Fatal(err)
 	}
+
 	if err := w.WriteHeader(&tar.Header{Name: "second.so", Size: 100, Mode: 0o755}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := w.Write([]byte("incomplete")); err != nil {
 		t.Fatal(err)
 	}
+
 	filename := filepath.Join(t.TempDir(), "incomplete.tar.gz")
 	if err := os.WriteFile(filename, archive.Bytes(), 0o600); err != nil {
 		t.Fatal(err)
 	}
+
 	request := EnsureVersionedPluginRequest{Context: context.Background(), Dir: root}
 	if _, err := extractPluginArchive(request, filename, ".gz", map[string]string{
 		"first.so":  "plugins/first.so",
@@ -226,12 +245,14 @@ func TestPluginExtractionFailurePreservesInstalledFiles(t *testing.T) {
 	}); err == nil {
 		t.Error("extractPluginArchive(truncated archive) = nil, want extraction error")
 	}
+
 	checkRuntimeTestFile(t, filepath.Join(root, "plugins", "first.so"), "previous first")
 	checkRuntimeTestFile(t, filepath.Join(root, "plugins", "second.so"), "previous second")
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if len(entries) != 1 || entries[0].Name() != "plugins" {
 		t.Errorf("extractPluginArchive(truncated archive) left %v, want only plugins directory", entries)
 	}
@@ -257,6 +278,7 @@ func TestPluginExtractionPreservesIgnoredAndExplicitResourceFiles(t *testing.T) 
 	if _, exists := result["user.so"]; exists {
 		t.Error("extractPluginArchive(ignored plugin) returned user.so, want ignored file omitted")
 	}
+
 	checkRuntimeTestFile(t, filepath.Join(root, "plugins", "user.so"), "user plugin")
 	checkRuntimeTestFile(t, target, "extra configuration")
 }
@@ -267,6 +289,7 @@ func TestRuntimeManifestRejectsSymlinksAndTraversal(t *testing.T) {
 	if err := os.Symlink(external, filepath.Join(root, "linked")); err != nil {
 		t.Skipf("creating symlink: %v", err)
 	}
+
 	for _, relative := range []string{"linked/file", "../outside", filepath.Join(external, "file")} {
 		manifest := runtimeManifest{Files: []runtimeFileInfo{{Path: relative, Size: 9}}}
 		if err := verifyRuntimeManifest(manifest, root); !errors.Is(err, os.ErrInvalid) {
@@ -276,6 +299,7 @@ func TestRuntimeManifestRejectsSymlinksAndTraversal(t *testing.T) {
 			t.Errorf("removeRuntimeFiles(%q) = %v, want os.ErrInvalid", relative, err)
 		}
 	}
+
 	checkRuntimeTestFile(t, filepath.Join(external, "file"), "user file")
 }
 
@@ -290,6 +314,7 @@ func TestRuntimePackageRequiresAnExecutableServer(t *testing.T) {
 	if err := validateRuntimePackage(manifest, root); !errors.Is(err, os.ErrNotExist) {
 		t.Errorf("validateRuntimePackage(no server) = %v, want os.ErrNotExist", err)
 	}
+
 	writeRuntimeTestFile(t, filepath.Join(root, "samp03svr"), "")
 	manifest, err = buildRuntimeManifest(root, cfg)
 	if err != nil {
@@ -306,6 +331,7 @@ func seedValidatedRuntimeStage(t *testing.T, cache string, cfg run.Runtime, file
 	for relative, data := range files {
 		writeRuntimeTestFile(t, filepath.Join(stage, relative), data)
 	}
+
 	manifest, err := buildRuntimeManifest(stage, cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -313,6 +339,7 @@ func seedValidatedRuntimeStage(t *testing.T, cache string, cfg run.Runtime, file
 	if err := writeRuntimeManifest(runtimeManifestPath(stage), manifest); err != nil {
 		t.Fatal(err)
 	}
+
 	return stage
 }
 
@@ -321,6 +348,7 @@ func writeRuntimeTestFile(t *testing.T, path, data string) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
+
 	if err := os.WriteFile(path, []byte(data), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -332,6 +360,7 @@ func checkRuntimeTestFile(t *testing.T, path, want string) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if string(got) != want {
 		t.Errorf("ReadFile(%s) = %q, want %q", path, got, want)
 	}

@@ -35,10 +35,12 @@ func Get() OSVersion {
 			// GetVersion never fails.
 			panic(err)
 		}
+
 		osv.MajorVersion = uint8(osv.Version & 0xFF)
 		osv.MinorVersion = uint8(osv.Version >> 8 & 0xFF)
 		osv.Build = uint16(osv.Version >> 16)
 	})
+
 	return osv
 }
 

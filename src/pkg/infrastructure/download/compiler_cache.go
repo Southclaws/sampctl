@@ -40,6 +40,7 @@ func GetCompilerListWithClientContext(ctx context.Context, cacheDir string, clie
 	if client == nil {
 		client = http.DefaultClient
 	}
+
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -62,6 +63,7 @@ func GetCompilerListWithClientContext(ctx context.Context, cacheDir string, clie
 		}
 		return nil, errors.Wrap(err, "failed to read package cache file")
 	}
+
 	return compilers, nil
 }
 
@@ -78,6 +80,7 @@ func UpdateCompilerListWithClientContext(ctx context.Context, cacheDir string, c
 	if client == nil {
 		client = http.DefaultClient
 	}
+
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -86,6 +89,7 @@ func UpdateCompilerListWithClientContext(ctx context.Context, cacheDir string, c
 	if err != nil {
 		return errors.Wrap(err, "failed to create request")
 	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return errors.Wrap(err, "failed to download package list")
@@ -95,6 +99,7 @@ func UpdateCompilerListWithClientContext(ctx context.Context, cacheDir string, c
 			err = errors.Wrap(closeErr, "failed to close compiler list response body")
 		}
 	}()
+
 	if resp.StatusCode != 200 {
 		return errors.Errorf("compiler list download returned HTTP %s", resp.Status)
 	}
@@ -108,6 +113,7 @@ func UpdateCompilerListWithClientContext(ctx context.Context, cacheDir string, c
 	if err := fs.WriteJSONAtomic(fs.Join(cacheDir, "compilers.json"), compilers, fs.PermDirPrivate, fs.PermFileShared); err != nil {
 		return errors.Wrap(err, "failed to write compilers list to file")
 	}
+
 	return nil
 }
 

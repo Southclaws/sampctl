@@ -11,8 +11,10 @@ func identifierFromDependencyMeta(meta versioning.DependencyMeta) string {
 	if site == "" {
 		site = "github.com"
 	}
+
 	if meta.Scheme != "" {
 		return filepath.Join(meta.Scheme, site, meta.User, meta.Repo)
 	}
+
 	return filepath.Join(site, meta.User, meta.Repo)
 }

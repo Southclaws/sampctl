@@ -32,17 +32,21 @@ func TestInstallLegacyStdlibReferencesPreservesDirectPin(t *testing.T) {
 			if err := pcx.Package.WriteDefinition(); err != nil {
 				t.Fatal(err)
 			}
+
 			pinned, err := seedPkgContextRepo(pcx.CacheDir, meta, pawnpackage.Package{User: meta.User, Repo: meta.Repo}, nil, meta.Branch,
 				map[string]string{"a_samp.inc": "// locked open.mp includes\n"})
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			if err := pcx.InitLockfileResolver("test"); err != nil {
 				t.Fatal(err)
 			}
+
 			if err := pcx.RecordDependencyResolution(meta, lockfile.DependencyResolution{Commit: pinned, Resolved: meta.Branch}, false, ""); err != nil {
 				t.Fatal(err)
 			}
+
 			if err := pcx.SaveLockfile(); err != nil {
 				t.Fatal(err)
 			}
@@ -52,23 +56,29 @@ func TestInstallLegacyStdlibReferencesPreservesDirectPin(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			worktree, err := repo.Worktree()
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			if err := os.WriteFile(filepath.Join(meta.CachePath(pcx.CacheDir), "a_samp.inc"), []byte("// newer branch includes\n"), 0o644); err != nil {
 				t.Fatal(err)
 			}
+
 			if _, err := worktree.Add("a_samp.inc"); err != nil {
 				t.Fatal(err)
 			}
+
 			newer, err := worktree.Commit("newer", &git.CommitOptions{Author: &object.Signature{Name: "test", Email: "test@example.com"}})
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			if err := repo.Storer.SetReference(plumbing.NewHashReference(plumbing.NewBranchReferenceName(meta.Branch), newer)); err != nil {
 				t.Fatal(err)
 			}
+
 			for _, fixture := range []struct{ repo, definition string }{
 				{"progress", fmt.Sprintf(`{"dependencies":[%q,"fixture/indirect:1.0.0","sampctl/%s"]}`, test.legacy, test.repo)},
 				{"indirect", fmt.Sprintf(`{"dependencies":["sampctl/%s","sampctl/%s"]}`, test.repo, test.repo)},
@@ -81,15 +91,19 @@ func TestInstallLegacyStdlibReferencesPreservesDirectPin(t *testing.T) {
 					if !filepath.IsAbs(opts.URL) {
 						return nil, fmt.Errorf("unexpected remote clone from %s", opts.URL)
 					}
+
 					return git.PlainClone(path, bare, opts)
 				},
 			}
+
 			if err := pcx.Install(t.Context(), []versioning.DependencyString{"fixture/progress:1.0.0"}, false); err != nil {
 				t.Fatalf("Install(progress with legacy stdlib references) = %v, want success", err)
 			}
+
 			if len(pcx.AllDependencies) != 3 {
 				t.Errorf("Install(progress).AllDependencies = %v, want one stdlib plus progress and indirect", pcx.AllDependencies)
 			}
+
 			persisted, err := lockfile.Load(pcx.Package.LocalPath)
 			if err != nil || persisted == nil {
 				t.Fatalf("Load(pawn.lock) = %v, %v, want a saved lockfile", persisted, err)
@@ -101,13 +115,16 @@ func TestInstallLegacyStdlibReferencesPreservesDirectPin(t *testing.T) {
 			if want := []string{"github.com/fixture/indirect", "github.com/fixture/progress"}; !slices.Equal(stdlib.RequiredBy, want) {
 				t.Errorf("Install(progress) stdlib parents = %v, want %v", stdlib.RequiredBy, want)
 			}
+
 			if len(persisted.Dependencies) != 3 {
 				t.Errorf("Install(progress) locked dependencies = %v, want one canonical stdlib entry and two consumers", persisted.Dependencies)
 			}
+
 			installed, err := os.ReadFile(filepath.Join(pcx.Package.Vendor, meta.Repo, "a_samp.inc"))
 			if err != nil || string(installed) != "// locked open.mp includes\n" {
 				t.Errorf("Install(progress) installed stdlib = %q, %v, want the locked open.mp includes", installed, err)
 			}
+
 			for _, owner := range []string{"Southclaws", "sampctl"} {
 				if _, err := os.Lstat((versioning.DependencyMeta{User: owner, Repo: meta.Repo}).CachePath(pcx.CacheDir)); !errors.Is(err, os.ErrNotExist) {
 					t.Errorf("Install(progress) created a legacy %s stdlib cache, stat error = %v, want os.ErrNotExist", owner, err)
@@ -136,6 +153,7 @@ func TestStdlibAliasGraphRejectsDifferentRepositoryOrExplicitPin(t *testing.T) {
 			if err := pcx.Package.WriteDefinition(); err != nil {
 				t.Fatal(err)
 			}
+
 			if _, err := seedPkgContextRepo(pcx.CacheDir, meta, pawnpackage.Package{User: meta.User, Repo: meta.Repo}, nil, meta.Branch, nil); err != nil {
 				t.Fatal(err)
 			}
@@ -146,6 +164,7 @@ func TestStdlibAliasGraphRejectsDifferentRepositoryOrExplicitPin(t *testing.T) {
 					return nil, fmt.Errorf("unexpected clone from %s", opts.URL)
 				},
 			}
+
 			err := pcx.EnsureDependenciesCachedContext(t.Context())
 			var conflict *DependencyDestinationConflictError
 			if !errors.As(err, &conflict) {
@@ -154,6 +173,7 @@ func TestStdlibAliasGraphRejectsDifferentRepositoryOrExplicitPin(t *testing.T) {
 			if conflict.First != meta || conflict.Directory != meta.Repo || conflict.Second == meta {
 				t.Errorf("EnsureDependenciesCachedContext(%s) conflict = %+v, want the distinct repository or explicit pin preserved", declaration, conflict)
 			}
+
 			if _, err := os.Lstat(pcx.Package.Vendor); !errors.Is(err, os.ErrNotExist) {
 				t.Errorf("EnsureDependenciesCachedContext(%s) created installed dependencies, stat = %v, want os.ErrNotExist", declaration, err)
 			}

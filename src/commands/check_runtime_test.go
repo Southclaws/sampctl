@@ -15,32 +15,39 @@ import (
 
 func TestCheckRuntimeRecoveryIsReadOnlyAndRepairsCommittedCleanup(t *testing.T) {
 	t.Parallel()
+
 	pkg, root, record := checkRuntimeFixture(t)
 	before, err := os.ReadFile(record)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	results, err := checkRuntime(t.Context(), pkg, checkOptions{Platform: "linux"})
 	if err != nil || len(results) != 1 || results[0].Status != checkFailed || !results[0].CanFix {
 		t.Fatalf("checkRuntime(pending cleanup) = %+v, %v, want one repairable failure", results, err)
 	}
+
 	after, err := os.ReadFile(record)
 	if err != nil || string(after) != string(before) {
 		t.Fatalf("checkRuntime(read only) recovery = %q, %v, want unchanged record", after, err)
 	}
+
 	results, err = checkRuntime(t.Context(), pkg, checkOptions{Platform: "linux", Fix: true})
 	if err != nil || len(results) != 2 || results[0].Status != checkRepaired || results[1].Status != checkPassed {
 		t.Fatalf("checkRuntime(fix committed cleanup) = %+v, %v, want verified repair and valid runtime", results, err)
 	}
+
 	if _, err := os.Lstat(record); !os.IsNotExist(err) {
 		t.Errorf("checkRuntime(fix committed cleanup) recovery record error = %v, want removed record", err)
 	}
+
 	for _, name := range []string{"samp03svr", "server.cfg", "user.txt"} {
 		got, err := os.ReadFile(filepath.Join(root, name))
 		if err != nil || string(got) != "original "+name {
 			t.Errorf("checkRuntime(fix committed cleanup) %s = %q, %v, want preserved contents", name, got, err)
 		}
 	}
+
 	results, err = checkRuntime(t.Context(), pkg, checkOptions{Platform: "linux", Fix: true})
 	if err != nil || len(results) != 1 || results[0].Status != checkPassed || results[0].RepairAttempted {
 		t.Errorf("checkRuntime(repeated fix) = %+v, %v, want valid runtime without another repair", results, err)
@@ -49,22 +56,27 @@ func TestCheckRuntimeRecoveryIsReadOnlyAndRepairsCommittedCleanup(t *testing.T) 
 
 func TestCheckRuntimeRefusesChangedFilesDuringRecovery(t *testing.T) {
 	t.Parallel()
+
 	pkg, root, record := checkRuntimeFixture(t)
 	if err := os.WriteFile(filepath.Join(root, "samp03svr"), []byte("user changes"), 0o700); err != nil {
 		t.Fatal(err)
 	}
+
 	before, err := os.ReadFile(record)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	results, err := checkRuntime(t.Context(), pkg, checkOptions{Platform: "linux", Fix: true})
 	if err != nil || len(results) != 1 || results[0].Status != checkFailed || results[0].CanFix || results[0].RepairAttempted {
 		t.Fatalf("checkRuntime(changed committed runtime) = %+v, %v, want manual inspection", results, err)
 	}
+
 	after, err := os.ReadFile(record)
 	if err != nil || string(after) != string(before) {
 		t.Errorf("checkRuntime(changed committed runtime) record = %q, %v, want preserved record", after, err)
 	}
+
 	got, err := os.ReadFile(filepath.Join(root, "samp03svr"))
 	if err != nil || string(got) != "user changes" {
 		t.Errorf("checkRuntime(changed committed runtime) binary = %q, %v, want user changes", got, err)
@@ -73,17 +85,22 @@ func TestCheckRuntimeRefusesChangedFilesDuringRecovery(t *testing.T) {
 
 func TestCheckRuntimeDoesNotCreateMissingInstallation(t *testing.T) {
 	t.Parallel()
+
 	root := filepath.Join(t.TempDir(), "not-installed")
 	pkg := pawnpackage.Package{LocalPath: t.TempDir(), RuntimeDir: root}
+
 	results, err := checkRuntime(t.Context(), pkg, checkOptions{Fix: true, Platform: "linux"})
 	if err != nil || len(results) != 1 || results[0].Status != checkSkipped {
 		t.Errorf("checkRuntime(no installation) = %+v, %v, want skipped check", results, err)
 	}
+
 	if _, err := os.Lstat(root); !os.IsNotExist(err) {
 		t.Errorf("checkRuntime(no installation) directory error = %v, want no created directory", err)
 	}
+
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
+
 	if _, err := checkRuntime(ctx, pkg, checkOptions{}); err != context.Canceled {
 		t.Errorf("checkRuntime(cancelled) error = %v, want context.Canceled", err)
 	}
@@ -98,6 +115,7 @@ func checkRuntimeFixture(t *testing.T) (pawnpackage.Package, string, string) {
 			t.Fatal(err)
 		}
 	}
+
 	type fileRecord struct {
 		Path string `json:"path"`
 		Size int64  `json:"size"`
@@ -118,13 +136,16 @@ func checkRuntimeFixture(t *testing.T) (pawnpackage.Package, string, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if err := os.WriteFile(filepath.Join(root, ".sampctl-runtime.json"), ownership, 0o600); err != nil {
 		t.Fatal(err)
 	}
+
 	stage := ".sampctl-runtime-operation-check-fixture"
 	if err := os.Mkdir(filepath.Join(root, stage), 0o700); err != nil {
 		t.Fatal(err)
 	}
+
 	journal := map[string]any{
 		"format": 1, "phase": "committed", "stage": stage, "current": current,
 		"files": []map[string]any{
@@ -136,9 +157,11 @@ func checkRuntimeFixture(t *testing.T) (pawnpackage.Package, string, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	path := filepath.Join(root, runtimepkg.RuntimeRecoveryFilename)
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
+
 	return pkg, root, path
 }

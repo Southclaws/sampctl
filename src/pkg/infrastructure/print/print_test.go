@@ -14,6 +14,7 @@ func TestPrints(t *testing.T) {
 	isColoured.Store(false)
 
 	Verb("should not appear")
+
 	SetVerbose()
 	Verb("A Verbose message")
 	Info("An info message")

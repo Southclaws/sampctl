@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/creack/pty"
 	"github.com/pkg/errors"
@@ -18,7 +19,13 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 )
 
+const runtimeOutputDrainTimeout = 2 * time.Second
+
 func platformRun(ctx context.Context, cmd *exec.Cmd, w io.Writer, r io.Reader, onStart func(*os.Process)) (err error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	cmd.SysProcAttr = getRuntimePtySysProcAttr()
 	ptmx, err := pty.Start(cmd)
 	if err != nil {
@@ -28,9 +35,11 @@ func platformRun(ctx context.Context, cmd *exec.Cmd, w io.Writer, r io.Reader, o
 		print.Verb("PTY allocation failed, falling back to regular execution:", err)
 		return platformRunFallback(cloneRuntimeCommand(ctx, cmd), w, r, onStart)
 	}
+
 	if ptmx == nil {
 		return errors.New("failed to allocate a terminal for the server")
 	}
+
 	if onStart != nil && cmd.Process != nil {
 		onStart(cmd.Process)
 	}
@@ -57,18 +66,35 @@ func platformRun(ctx context.Context, cmd *exec.Cmd, w io.Writer, r io.Reader, o
 		}
 	}()
 
+	terminal, errPty := pollableRuntimePty(ptmx)
+	if errPty != nil {
+		errKill := terminateRuntimeProcess(cmd.Process)
+		errWait := cmd.Wait()
+		return errors.Wrap(stderrors.Join(errPty, errKill, errWait), "failed to prepare pty forwarding")
+	}
+	ptmx = terminal
+
+	var stopInput func()
+	if input, ok := r.(*os.File); ok {
+		var errInput error
+		stopInput, errInput = startRuntimeFileInput(ptmx, input)
+		if errInput != nil {
+			print.Verb("failed to forward server input:", errInput)
+		}
+	} else if r != nil {
+		// An arbitrary reader cannot be interrupted without its cooperation.
+		// Its owner must release blocked reads; process exit must not wait for it.
+		go func() {
+			_, errInner := io.Copy(ptmx, r)
+			if errInner != nil && !isBenignPtyCopyError(errInner) {
+				print.Verb("failed to forward server input:", errInner)
+			}
+		}()
+	}
+
 	cmdErrCh := make(chan error, 1)
 	wrErrCh := make(chan error, 1)
 
-	go func() {
-		if r == nil {
-			return
-		}
-		_, errInner := io.Copy(ptmx, r)
-		if errInner != nil && !isBenignPtyCopyError(errInner) {
-			print.Verb("failed to forward server input:", errInner)
-		}
-	}()
 	go func() {
 		_, errInner := io.Copy(w, ptmx)
 		wrErrCh <- errInner
@@ -78,10 +104,27 @@ func platformRun(ctx context.Context, cmd *exec.Cmd, w io.Writer, r io.Reader, o
 	}()
 
 	cmdErr := <-cmdErrCh
-	errWrite := <-wrErrCh
+	if stopInput != nil {
+		stopInput()
+	}
+
+	// Bound output draining when descendants retain the slave after command exit.
+	drainCtx, cancelDrain := context.WithTimeout(ctx, runtimeOutputDrainTimeout)
+	defer cancelDrain()
+	var errWrite error
+	select {
+	case errWrite = <-wrErrCh:
+	case <-drainCtx.Done():
+		print.Verb("stopping server output drain:", drainCtx.Err())
+		if errClose := closePty(); errClose != nil && !isBenignPtyCopyError(errClose) {
+			print.Verb("failed to close pty while stopping output:", errClose)
+		}
+		errWrite = <-wrErrCh
+	}
 	if errWrite != nil && !isBenignPtyCopyError(errWrite) {
 		print.Verb("failed to forward server output:", errWrite)
 	}
+
 	if errClose := closePty(); errClose != nil && !isBenignPtyCopyError(errClose) {
 		print.Verb("failed to close pty after command exit:", errClose)
 	}
@@ -123,6 +166,7 @@ func platformRunFallback(cmd *exec.Cmd, w io.Writer, r io.Reader, onStart func(*
 	if err != nil {
 		return errors.Wrap(err, "failed to start command")
 	}
+
 	if onStart != nil && cmd.Process != nil {
 		onStart(cmd.Process)
 	}

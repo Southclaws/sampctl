@@ -5,12 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
-	"strings"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
@@ -20,20 +18,24 @@ func checkManagedCache(ctx context.Context, opts checkOptions) ([]diagnostic, er
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+
 	access := inspectCheckCacheDirectory(opts.CacheDir)
 	results := []diagnostic{access}
 	if access.Status == checkFailed || access.Status == checkSkipped {
 		return results, nil
 	}
+
 	for _, name := range []string{"compilers.json", "packages.json", "runtimes.json"} {
 		if err := ctx.Err(); err != nil {
 			return results, err
 		}
+
 		path := filepath.Join(opts.CacheDir, name)
 		result, exists := inspectCheckCacheMetadata(opts.CacheDir, path)
 		if !exists {
 			continue
 		}
+
 		if opts.Fix && result.CanFix {
 			var err error
 			result, err = repairDiagnostic(ctx, result, func(ctx context.Context) error {
@@ -46,14 +48,17 @@ func checkManagedCache(ctx context.Context, opts checkOptions) ([]diagnostic, er
 				return append(results, result), err
 			}
 		}
+
 		results = append(results, result)
 	}
+
 	return results, nil
 }
 
 func inspectCheckCacheDirectory(path string) diagnostic {
 	result := diagnostic{Name: "cache", Status: checkFailed, Path: path}
 	result.Action = "Check access to the sampctl cache directory."
+
 	_, err := os.Lstat(path)
 	if errors.Is(err, os.ErrNotExist) {
 		result.Status, result.Message, result.Action = checkSkipped, "No sampctl cache yet", ""
@@ -63,25 +68,30 @@ func inspectCheckCacheDirectory(path string) diagnostic {
 		result.Message, result.Err = "Cannot access the sampctl cache", err
 		return result
 	}
+
 	info, err := os.Stat(path)
 	if err != nil {
 		result.Message, result.Err = "Cannot access the sampctl cache", err
 		return result
 	}
+
 	if !info.IsDir() {
 		result.Message = "The sampctl cache path is not a directory"
 		return result
 	}
+
 	if _, err := os.ReadDir(path); err != nil {
 		result.Message, result.Err = "Cannot read the sampctl cache", err
 		return result
 	}
+
 	if runtime.GOOS != "windows" && info.Mode().Perm()&0o222 == 0 {
 		result.Status = checkWarning
 		result.Message = "The sampctl cache directory has no write permissions"
 		result.Action = "Check the cache directory permissions before downloading files."
 		return result
 	}
+
 	result.Status, result.Message, result.Action = checkPassed, "The sampctl cache is accessible", ""
 	return result
 }
@@ -89,6 +99,7 @@ func inspectCheckCacheDirectory(path string) diagnostic {
 func inspectCheckCacheMetadata(cacheDir, path string) (diagnostic, bool) {
 	name := filepath.Base(path)
 	result := diagnostic{Name: "cache metadata", Status: checkFailed, Path: path}
+
 	info, err := os.Lstat(path)
 	if errors.Is(err, os.ErrNotExist) {
 		result.Status, result.Message = checkPassed, name+" cache file is absent"
@@ -99,11 +110,13 @@ func inspectCheckCacheMetadata(cacheDir, path string) (diagnostic, bool) {
 		result.Action = "Check access to this cache file."
 		return result, true
 	}
+
 	if !info.Mode().IsRegular() {
 		result.Message = name + " cache is not a regular file"
 		result.Action = "Check that this path points to a regular file."
 		return result, true
 	}
+
 	invalid, err := validateCheckCacheMetadata(path)
 	if err != nil {
 		result.Message, result.Err = name+" cache cannot be read", err
@@ -120,6 +133,7 @@ func inspectCheckCacheMetadata(cacheDir, path string) (diagnostic, bool) {
 		}
 		return result, true
 	}
+
 	result.Status, result.Message = checkPassed, name+" cache is valid"
 	return result, true
 }
@@ -129,6 +143,7 @@ func validateCheckCacheMetadata(path string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
 	return validateCheckCacheMetadataData(filepath.Base(path), data)
 }
 
@@ -168,6 +183,7 @@ func validateCheckCacheMetadataData(name string, data []byte) (bool, error) {
 	default:
 		return false, fmt.Errorf("unsupported metadata cache %q", name)
 	}
+
 	var syntaxError *json.SyntaxError
 	var typeError *json.UnmarshalTypeError
 	return errors.As(err, &syntaxError) || errors.As(err, &typeError), err
@@ -177,15 +193,18 @@ func invalidateCheckCacheMetadata(ctx context.Context, cacheDir, path string) (e
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+
 	root, relative, original, err := openCheckManagedFileRoot(cacheDir, path)
 	if err != nil {
 		return err
 	}
 	defer func() { err = errors.Join(err, root.Close()) }()
+
 	data, err := readCheckManagedFile(root, relative, original)
 	if err != nil {
 		return err
 	}
+
 	invalid, err := validateCheckCacheMetadataData(filepath.Base(path), data)
 	if !invalid {
 		if err != nil {
@@ -193,117 +212,23 @@ func invalidateCheckCacheMetadata(ctx context.Context, cacheDir, path string) (e
 		}
 		return fmt.Errorf("metadata cache changed and is now valid")
 	}
+
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+
 	current, err := root.Lstat(relative)
 	if err != nil {
 		return err
 	}
+
 	if !os.SameFile(original, current) || !current.Mode().IsRegular() {
 		return fmt.Errorf("metadata cache changed during repair")
 	}
+
 	if err := root.Remove(relative); err != nil {
 		return fmt.Errorf("invalidate %s cache: %w", filepath.Base(path), err)
 	}
+
 	return nil
-}
-
-func readCheckManagedFile(root *os.Root, path string, original os.FileInfo) (data []byte, err error) {
-	file, err := root.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { err = errors.Join(err, file.Close()) }()
-	current, err := file.Stat()
-	if err != nil {
-		return nil, err
-	}
-	if !os.SameFile(original, current) {
-		return nil, fmt.Errorf("managed cache file changed during repair")
-	}
-	return io.ReadAll(file)
-}
-
-func checkManagedRegularPath(cacheDir, path string) (os.FileInfo, error) {
-	root, err := filepath.Abs(cacheDir)
-	if err != nil {
-		return nil, err
-	}
-	target, err := filepath.Abs(path)
-	if err != nil {
-		return nil, err
-	}
-	rel, err := filepath.Rel(root, target)
-	if err != nil {
-		return nil, err
-	}
-	if !filepath.IsLocal(rel) || rel == "." {
-		return nil, fmt.Errorf("path %q is outside the managed cache", path)
-	}
-	info, err := checkManagedDirectoryAncestors(root)
-	if err != nil {
-		return nil, err
-	}
-	current := root
-	for _, component := range strings.Split(rel, string(filepath.Separator)) {
-		current = filepath.Join(current, component)
-		info, err = os.Lstat(current)
-		if err != nil {
-			return nil, err
-		}
-		if info.Mode()&os.ModeSymlink != 0 {
-			return nil, fmt.Errorf("managed cache path %q contains a symlink", current)
-		}
-	}
-	if !info.Mode().IsRegular() {
-		return nil, fmt.Errorf("managed cache file %q is not regular", path)
-	}
-	return info, nil
-}
-
-func checkManagedDirectoryAncestors(path string) (os.FileInfo, error) {
-	info, err := os.Lstat(path)
-	if err != nil {
-		return nil, err
-	}
-	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-		return nil, fmt.Errorf("managed cache root is not a regular directory")
-	}
-	for parent := filepath.Dir(path); ; parent = filepath.Dir(parent) {
-		parentInfo, err := os.Lstat(parent)
-		if err != nil {
-			return nil, err
-		}
-		if parentInfo.Mode()&os.ModeSymlink != 0 {
-			return nil, fmt.Errorf("managed cache ancestor %q is a symlink", parent)
-		}
-		if filepath.Dir(parent) == parent {
-			break
-		}
-	}
-	return info, nil
-}
-
-func openCheckManagedFileRoot(cacheDir, path string) (*os.Root, string, os.FileInfo, error) {
-	info, err := checkManagedRegularPath(cacheDir, path)
-	if err != nil {
-		return nil, "", nil, err
-	}
-	relative, err := filepath.Rel(cacheDir, path)
-	if err != nil {
-		return nil, "", nil, err
-	}
-	root, err := os.OpenRoot(cacheDir)
-	if err != nil {
-		return nil, "", nil, err
-	}
-	current, err := root.Lstat(relative)
-	if err != nil || !os.SameFile(info, current) {
-		if err == nil {
-			err = fmt.Errorf("managed cache file changed during repair")
-		}
-		return nil, "", nil, errors.Join(err, root.Close())
-	}
-	return root, relative, info, nil
 }

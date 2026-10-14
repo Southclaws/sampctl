@@ -1,7 +1,7 @@
 VERSION 0.8
 
 deps:
-    FROM golang:1.25-bookworm
+    FROM golang:1.26.9-bookworm
     WORKDIR /workspace
     
     RUN dpkg --add-architecture i386 && \
@@ -15,7 +15,7 @@ deps:
     RUN go mod verify
 
 quality-deps:
-    FROM golang:1.25-bookworm
+    FROM golang:1.26.9-bookworm
     WORKDIR /workspace
 
     RUN dpkg --add-architecture i386 && \

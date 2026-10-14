@@ -23,6 +23,7 @@ func platformRun(_ context.Context, cmd *exec.Cmd, w io.Writer, r io.Reader, onS
 	if version.Build >= osversion.V1809 {
 		return usePty(cmd, w, r, onStart)
 	}
+
 	return useTty(cmd, w, r, onStart)
 }
 
@@ -39,6 +40,7 @@ func usePty(cmd *exec.Cmd, w io.Writer, r io.Reader, onStart func(*os.Process)) 
 	if err != nil {
 		return errors.Wrap(err, "failed to start pty")
 	}
+
 	if cpty == nil {
 		return errors.New("failed to allocate a terminal for the server")
 	}
@@ -66,6 +68,7 @@ func usePty(cmd *exec.Cmd, w io.Writer, r io.Reader, onStart func(*os.Process)) 
 		if r == nil {
 			return
 		}
+
 		_, _ = io.Copy(cpty, r)
 	}()
 	go func() {
@@ -110,12 +113,15 @@ func useTty(cmd *exec.Cmd, w io.Writer, r io.Reader, onStart func(*os.Process)) 
 	cmd.Stderr = w
 	cmd.Stdout = w
 	cmd.Stdin = r
+
 	if err = cmd.Start(); err != nil {
 		return err
 	}
+
 	if onStart != nil && cmd.Process != nil {
 		onStart(cmd.Process)
 	}
+
 	err = cmd.Wait()
 	// process kill on windows: "exit status 1"
 	if err != nil && err.Error() == "exit status 1" {
@@ -135,5 +141,6 @@ func terminateRuntimeProcess(process *os.Process) error {
 	if err != nil && err.Error() == "process already finished" {
 		return nil
 	}
+
 	return err
 }

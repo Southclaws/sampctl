@@ -31,6 +31,7 @@ func writeDefinitionFile(path, label string, contents []byte) error {
 		}
 		mode = info.Mode().Perm()
 	}
+
 	if err := fs.WriteFileAtomic(path, contents, fs.PermDirPrivate, mode); err != nil {
 		return errors.Wrapf(err, "failed to write %s", label)
 	}

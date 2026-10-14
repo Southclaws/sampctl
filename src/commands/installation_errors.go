@@ -17,14 +17,17 @@ func runtimeInstallFailureDiagnostic(failure *runtimepkg.RuntimeInstallError, de
 		if failure.RecoveryPending {
 			message += ". Cleanup pending"
 		}
+
 	} else if failure.Restored {
 		message += ". Previous runtime state restored"
 	}
+
 	if failure.RecoveryPending {
 		action = "Run `sampctl check` and follow its recovery instructions. Keep the backups."
 	} else if errors.Is(failure.Err, os.ErrExist) {
 		action = "Move the conflicting or modified runtime file aside before retrying. Use --verbose for its path."
 	}
+
 	return diagnostic{Name: "runtime", Status: checkFailed, Message: message, Action: action, Err: details}
 }
 
@@ -36,12 +39,15 @@ func compilerInstallFailureDiagnostic(failure *compiler.InstallationError, detai
 		if failure.RecoveryPending {
 			message += ". Cleanup pending"
 		}
+
 	} else if failure.Restored {
 		message += ". Previous compiler restored"
 	}
+
 	if failure.RecoveryPending {
 		action = "Run `sampctl check` and follow its recovery instructions. Keep the backups."
 	}
+
 	return diagnostic{Name: "compiler", Status: checkFailed, Message: message, Action: action, Path: failure.Path, Err: details}
 }
 
@@ -66,5 +72,6 @@ func compilerExecutionFailureDiagnostic(failure *compiler.ExecutionError, detail
 		result.Message = "Compiler command failed"
 		result.Action = "Run with --verbose to see the compiler output."
 	}
+
 	return result
 }

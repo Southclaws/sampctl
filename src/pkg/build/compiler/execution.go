@@ -53,16 +53,19 @@ func lockCompilerExecution(ctx context.Context, cmd *exec.Cmd) (func() error, er
 			return func() error { return nil }, nil
 		}
 	}
+
 	unlock, err := lockCompilerRead(ctx, dir)
 	if err != nil {
 		return nil, err
 	}
+
 	if journal, err := readCompilerJournal(dir); err != nil || journal != nil {
 		if err == nil {
 			err = errors.New("compiler installation has pending recovery")
 		}
 		return nil, errors.Join(&InstallationError{Path: dir, RecoveryPending: true, Err: err}, unlock())
 	}
+
 	completion, err := readCompilerCompletion(dir)
 	if err == nil {
 		err = verifyCompilerInstallation(ctx, dir, completion.Meta, completion.Platform, completion.Package)
@@ -70,6 +73,7 @@ func lockCompilerExecution(ctx context.Context, cmd *exec.Cmd) (func() error, er
 	if err != nil {
 		return nil, errors.Join(&InstallationError{Path: dir, Err: err}, unlock())
 	}
+
 	return unlock, nil
 }
 
@@ -77,9 +81,11 @@ func runCompilerCommand(ctx context.Context, cmd *exec.Cmd) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+
 	if err := cmd.Start(); err != nil {
 		return err
 	}
+
 	finished := make(chan error, 1)
 	go func() { finished <- cmd.Wait() }()
 	select {

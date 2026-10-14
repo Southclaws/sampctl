@@ -61,6 +61,7 @@ func TestEnsureParentRuntimeUsesInjectedRuntimeProvisioner(t *testing.T) {
 		"runtime": map[string]any{"version": "0.3.7"},
 	})
 	require.NoError(t, err)
+
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), data, 0o644))
 
 	resolver := &fakeDependencyLock{lockfile: lockfile.New("dev")}
@@ -122,6 +123,7 @@ func TestEnsureParentRuntimeUsesConfiguredRuntimeDirectory(t *testing.T) {
 				"runtime":     map[string]any{"version": tt.version},
 			})
 			require.NoError(t, err)
+
 			require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), data, 0o644))
 
 			provisioner := &fakeRuntimeProvisioner{
@@ -142,6 +144,7 @@ func TestEnsureParentRuntimeUsesConfiguredRuntimeDirectory(t *testing.T) {
 
 			err = pcx.ensureParentRuntime(context.Background())
 			require.NoError(t, err)
+
 			expectedDir := filepath.Join(projectDir, "server")
 			assert.Equal(t, expectedDir, provisioner.workingDir)
 			assert.Equal(t, expectedDir, provisioner.config.WorkingDir)

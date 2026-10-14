@@ -14,6 +14,7 @@ import (
 
 func TestEnsurePluginsReportsUnsupportedRuntime(t *testing.T) {
 	t.Parallel()
+
 	cacheDir := filepath.Join(t.TempDir(), "cache")
 	workDir := t.TempDir()
 	meta := versioning.DependencyMeta{User: "fixture", Repo: "YSF", Tag: "v2.2"}
@@ -31,14 +32,17 @@ func TestEnsurePluginsReportsUnsupportedRuntime(t *testing.T) {
 		RuntimeType: run.RuntimeTypeOpenMP,
 		PluginDeps:  []versioning.DependencyMeta{meta},
 	}
+
 	err := EnsurePlugins(EnsurePluginsRequest{Context: context.Background(), Config: cfg, CacheDir: cacheDir})
 	var missing *PluginResourceNotFoundError
 	if !errors.As(err, &missing) {
 		t.Fatalf("EnsurePlugins(SA-MP resource, openmp) error = %v, want *PluginResourceNotFoundError", err)
 	}
+
 	if missing.Meta != meta || missing.Platform != "linux" || missing.Version != "openmp" {
 		t.Errorf("EnsurePlugins(SA-MP resource, openmp) failure = %+v, want %s, linux, openmp", missing, meta)
 	}
+
 	if _, err := os.Stat(filepath.Join(workDir, "plugins", "YSF.so")); !errors.Is(err, os.ErrNotExist) {
 		t.Errorf("EnsurePlugins(SA-MP resource, openmp) plugin stat error = %v, want no incompatible binary installed", err)
 	}
@@ -56,11 +60,13 @@ func TestEnsurePluginsReportsUnsupportedRuntime(t *testing.T) {
 
 func TestGetResourceReportsDefaultRuntime(t *testing.T) {
 	t.Parallel()
+
 	_, err := GetResource(nil, "linux", "")
 	var missing *PluginResourceNotFoundError
 	if !errors.As(err, &missing) {
 		t.Fatalf("GetResource(no resources, linux, default) error = %v, want *PluginResourceNotFoundError", err)
 	}
+
 	if missing.Platform != "linux" || missing.Version != "0.3.7" {
 		t.Errorf("GetResource(no resources, linux, default) failure = %+v, want linux, 0.3.7", missing)
 	}

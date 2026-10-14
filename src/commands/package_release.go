@@ -25,6 +25,7 @@ func packageRelease(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+
 	state, err := getCommandState(c)
 	if err != nil {
 		return err

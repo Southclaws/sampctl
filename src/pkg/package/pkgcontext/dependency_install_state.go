@@ -37,15 +37,18 @@ func (state *dependencyInstallState) stage(vendor string, names ...string) (stri
 	if err != nil {
 		return "", err
 	}
+
 	if err := ensureManagedDirectory(vendor); err != nil {
 		return "", err
 	}
+
 	if state.journal != nil {
 		path := filepath.Join(vendor, fmt.Sprintf(".sampctl-stage-%s-%d", state.journal.ID, len(state.journal.Stages)))
 		relative, err := state.journal.relative(path)
 		if err != nil {
 			return "", err
 		}
+
 		allowed := append([]string{".resources"}, names...)
 		for _, name := range names {
 			allowed = append(allowed, "."+name+".sampctl.lock")
@@ -54,23 +57,29 @@ func (state *dependencyInstallState) stage(vendor string, names ...string) (stri
 		if err := state.journal.validate(); err != nil {
 			return "", err
 		}
+
 		if err := state.journal.save(); err != nil {
 			return "", err
 		}
+
 		state.stages = append(state.stages, path)
 		if err := os.Mkdir(path, 0o700); err != nil {
 			return "", fmt.Errorf("create dependency staging directory: %w", err)
 		}
+
 		if err := fs.WriteFileAtomic(filepath.Join(path, ".sampctl-owner"), []byte(state.journal.ID), 0o700, 0o600); err != nil {
 			return "", err
 		}
+
 		return path, fs.SyncDir(vendor)
 	}
+
 	path, err := os.MkdirTemp(vendor, ".sampctl-stage-")
 	if err != nil {
 		return "", fmt.Errorf("create dependency staging directory: %w", err)
 	}
 	state.stages = append(state.stages, path)
+
 	return path, nil
 }
 
@@ -83,32 +92,40 @@ func (state *dependencyInstallState) promoteContext(ctx context.Context, source,
 	if err != nil {
 		return err
 	}
+
 	target, err = filepath.Abs(target)
 	if err != nil {
 		return err
 	}
+
 	stage, err := state.stageForSource(source)
 	if err != nil {
 		return err
 	}
+
 	if err := ensureManagedDirectoryWithin(stage, filepath.Dir(source)); err != nil {
 		return err
 	}
+
 	if err := ensureManagedDirectoryWithin(filepath.Dir(stage), filepath.Dir(target)); err != nil {
 		return err
 	}
+
 	info, err := os.Lstat(target)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("inspect dependency destination %s: %w", target, err)
 	}
+
 	change := dependencyInstallation{target: target}
 	if state.journal != nil {
 		return state.promoteRecorded(ctx, source, target, stage, info)
 	}
+
 	if err == nil {
 		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
 			return fmt.Errorf("dependency destination %s must be a directory, not a symbolic link or file", target)
 		}
+
 		backup, err := os.MkdirTemp(filepath.Dir(source), ".previous-")
 		if err != nil {
 			return fmt.Errorf("prepare dependency backup: %w", err)
@@ -122,10 +139,12 @@ func (state *dependencyInstallState) promoteContext(ctx context.Context, source,
 	} else {
 		state.installations = append(state.installations, change)
 	}
+
 	if err := state.rename(source, target); err != nil {
 		return fmt.Errorf("promote dependency %s: %w", target, err)
 	}
 	state.installations[len(state.installations)-1].promoted = true
+
 	return nil
 }
 
@@ -133,14 +152,17 @@ func (state *dependencyInstallState) allowStageSource(source string) error {
 	if state.journal == nil {
 		return nil
 	}
+
 	stage, err := state.stageForSource(source)
 	if err != nil {
 		return err
 	}
+
 	relative, err := filepath.Rel(stage, source)
 	if err != nil {
 		return err
 	}
+
 	name := strings.Split(relative, string(filepath.Separator))[0]
 	for i := range state.journal.Stages {
 		if state.journal.path(state.journal.Stages[i].Path) == stage {
@@ -149,10 +171,12 @@ func (state *dependencyInstallState) allowStageSource(source string) error {
 					return nil
 				}
 			}
+
 			state.journal.Stages[i].Allowed = append(state.journal.Stages[i].Allowed, name)
 			return state.journal.save()
 		}
 	}
+
 	return fmt.Errorf("unrecorded staging source %s", source)
 }
 
@@ -160,30 +184,37 @@ func (state *dependencyInstallState) promoteRecorded(ctx context.Context, source
 	if previous != nil && (!previous.IsDir() || previous.Mode()&os.ModeSymlink != 0) {
 		return fmt.Errorf("dependency destination %s must be a directory", target)
 	}
+
 	if err := state.allowStageSource(source); err != nil {
 		return err
 	}
+
 	newHash, err := recoveryTreeHash(ctx, source, true)
 	if err != nil || newHash == "" {
 		return errors.Join(err, errors.New("staged dependency is missing"))
 	}
+
 	oldHash, err := recoveryTreeHash(ctx, target, false)
 	if err != nil {
 		return err
 	}
+
 	sourceRel, err := state.journal.relative(source)
 	if err != nil {
 		return err
 	}
+
 	targetRel, err := state.journal.relative(target)
 	if err != nil {
 		return err
 	}
+
 	for _, change := range state.journal.Changes {
 		if change.Target == targetRel && change.NewHash == newHash && oldHash == newHash {
 			return nil
 		}
 	}
+
 	change := dependencyRecoveryChange{Source: sourceRel, Target: targetRel, OldHash: oldHash, NewHash: newHash, Phase: "prepared"}
 	if oldHash != "" {
 		backup := filepath.Join(stage, fmt.Sprintf(".previous-%d", len(state.journal.Changes)))
@@ -195,22 +226,27 @@ func (state *dependencyInstallState) promoteRecorded(ctx context.Context, source
 			return err
 		}
 	}
+
 	state.journal.Changes = append(state.journal.Changes, change)
 	if err := state.journal.validate(); err != nil {
 		state.journal.Changes = state.journal.Changes[:len(state.journal.Changes)-1]
 		return err
 	}
+
 	if err := state.journal.save(); err != nil {
 		return err
 	}
+
 	installation := dependencyInstallation{target: target}
 	if change.Backup != "" {
 		installation.backup = state.journal.path(change.Backup)
 	}
 	state.installations = append(state.installations, installation)
+
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+
 	if change.Backup != "" {
 		if err := renameRecoveryPath(state.rename, target, installation.backup); err != nil {
 			return fmt.Errorf("back up dependency %s: %w", target, err)
@@ -220,9 +256,11 @@ func (state *dependencyInstallState) promoteRecorded(ctx context.Context, source
 			return err
 		}
 	}
+
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+
 	if err := renameRecoveryPath(state.rename, source, target); err != nil {
 		return fmt.Errorf("promote dependency %s: %w", target, err)
 	}
@@ -246,17 +284,21 @@ func ensureManagedDirectoryWithin(root, path string) error {
 	if err != nil {
 		return err
 	}
+
 	path, err = filepath.Abs(path)
 	if err != nil {
 		return err
 	}
+
 	relative, err := filepath.Rel(root, path)
 	if err != nil || !filepath.IsLocal(relative) {
 		return fmt.Errorf("dependency directory %s is outside managed directory %s", path, root)
 	}
+
 	if err := ensureManagedDirectory(root); err != nil {
 		return err
 	}
+
 	current := root
 	for _, component := range strings.Split(relative, string(filepath.Separator)) {
 		current = filepath.Join(current, component)
@@ -264,6 +306,7 @@ func ensureManagedDirectoryWithin(root, path string) error {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -271,6 +314,7 @@ func (state *dependencyInstallState) rollback() error {
 	if state.journal != nil {
 		return state.journal.recover(context.Background(), state.rename, state.removeAll)
 	}
+
 	var failures []error
 	for i := len(state.installations) - 1; i >= 0; i-- {
 		change := state.installations[i]
@@ -286,9 +330,11 @@ func (state *dependencyInstallState) rollback() error {
 			}
 		}
 	}
+
 	if err := errors.Join(failures...); err != nil {
 		return err
 	}
+
 	return state.commit()
 }
 
@@ -296,12 +342,14 @@ func (state *dependencyInstallState) commit() error {
 	if state.journal != nil {
 		return state.journal.recover(context.Background(), state.rename, state.removeAll)
 	}
+
 	var failures []error
 	for _, stage := range state.stages {
 		if err := state.removeAll(stage); err != nil {
 			failures = append(failures, fmt.Errorf("clean dependency staging directory %s: %w", stage, err))
 		}
 	}
+
 	return errors.Join(failures...)
 }
 
@@ -319,6 +367,7 @@ func ensureManagedDirectory(path string) error {
 	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
 		return fmt.Errorf("managed dependency directory %s must be a directory, not a symbolic link or file", path)
 	}
+
 	return nil
 }
 

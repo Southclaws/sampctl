@@ -21,25 +21,30 @@ func cleanWorktreeWithObsoleteSubmodules(ctx context.Context, repo *git.Reposito
 	if status.IsClean() {
 		return true, nil
 	}
+
 	for _, file := range status {
 		if file.Staging != git.Unmodified && file.Staging != git.Untracked {
 			return false, nil
 		}
 	}
+
 	idx, err := repo.Storer.Index()
 	if err != nil {
 		return false, err
 	}
+
 	modules, err := worktree.Submodules()
 	if err != nil {
 		return false, err
 	}
+
 	actualModules := make(map[string]plumbing.Hash)
 	obsolete := false
 	for _, module := range modules {
 		if err := ctx.Err(); err != nil {
 			return false, err
 		}
+
 		path := module.Config().Path
 		entry, err := idx.Entry(path)
 		if err != nil && err != index.ErrEntryNotFound {
@@ -49,6 +54,7 @@ func cleanWorktreeWithObsoleteSubmodules(ctx context.Context, repo *git.Reposito
 			obsolete = true
 			continue
 		}
+
 		moduleStatus, err := module.Status()
 		if err != nil {
 			return false, err
@@ -59,6 +65,7 @@ func cleanWorktreeWithObsoleteSubmodules(ctx context.Context, repo *git.Reposito
 		}
 		actualModules[path] = hash
 	}
+
 	if !obsolete {
 		return false, nil
 	}
@@ -69,6 +76,7 @@ func cleanWorktreeWithObsoleteSubmodules(ctx context.Context, repo *git.Reposito
 	if err != nil {
 		return false, fmt.Errorf("compare vendored worktree files: %w", err)
 	}
+
 	patterns, err := gitignore.ReadPatterns(worktree.Filesystem, nil)
 	if err != nil {
 		return false, err
@@ -80,6 +88,7 @@ func cleanWorktreeWithObsoleteSubmodules(ctx context.Context, repo *git.Reposito
 		}
 		return false, nil
 	}
+
 	return true, ctx.Err()
 }
 

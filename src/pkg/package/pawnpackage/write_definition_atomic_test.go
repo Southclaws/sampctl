@@ -10,6 +10,7 @@ import (
 
 func TestWriteDefinitionMatchesEncodedDefinitionAndPreservesPermissions(t *testing.T) {
 	t.Parallel()
+
 	for _, format := range []string{"json", "yaml"} {
 		t.Run(format, func(t *testing.T) {
 			pkg := Package{Format: format, LocalPath: t.TempDir(), User: "fixture", Repo: "project", Entry: "main.pwn"}
@@ -17,13 +18,16 @@ func TestWriteDefinitionMatchesEncodedDefinitionAndPreservesPermissions(t *testi
 			if err := os.WriteFile(path, []byte("previous definition"), 0o640); err != nil {
 				t.Fatal(err)
 			}
+
 			encoded, err := pkg.EncodeDefinition()
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			if err := pkg.WriteDefinition(); err != nil {
 				t.Fatal(err)
 			}
+
 			contents, err := os.ReadFile(path)
 			if err != nil {
 				t.Fatal(err)
@@ -31,6 +35,7 @@ func TestWriteDefinitionMatchesEncodedDefinitionAndPreservesPermissions(t *testi
 			if !bytes.Equal(contents, encoded) {
 				t.Errorf("WriteDefinition(%s) = %s, want EncodeDefinition() = %s", format, contents, encoded)
 			}
+
 			info, err := os.Stat(path)
 			if err != nil {
 				t.Fatal(err)
@@ -44,11 +49,13 @@ func TestWriteDefinitionMatchesEncodedDefinitionAndPreservesPermissions(t *testi
 
 func TestWriteDefinitionRejectsSymlink(t *testing.T) {
 	t.Parallel()
+
 	pkg := Package{Format: "json", LocalPath: t.TempDir()}
 	outside := filepath.Join(t.TempDir(), "outside.json")
 	if err := os.WriteFile(outside, []byte("keep"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+
 	link := filepath.Join(pkg.LocalPath, "pawn.json")
 	if err := os.Symlink(outside, link); err != nil {
 		if runtime.GOOS == "windows" {
@@ -56,9 +63,11 @@ func TestWriteDefinitionRejectsSymlink(t *testing.T) {
 		}
 		t.Fatal(err)
 	}
+
 	if err := pkg.WriteDefinition(); err == nil {
 		t.Fatal("WriteDefinition through a symlink succeeded")
 	}
+
 	contents, err := os.ReadFile(outside)
 	if err != nil {
 		t.Fatal(err)
@@ -66,6 +75,7 @@ func TestWriteDefinitionRejectsSymlink(t *testing.T) {
 	if string(contents) != "keep" {
 		t.Errorf("external definition = %q, want keep", contents)
 	}
+
 	info, err := os.Lstat(link)
 	if err != nil {
 		t.Fatal(err)
@@ -77,17 +87,21 @@ func TestWriteDefinitionRejectsSymlink(t *testing.T) {
 
 func TestWriteDefinitionRejectsDirectory(t *testing.T) {
 	t.Parallel()
+
 	pkg := Package{Format: "json", LocalPath: t.TempDir()}
 	path := filepath.Join(pkg.LocalPath, "pawn.json")
 	if err := os.Mkdir(path, 0o755); err != nil {
 		t.Fatal(err)
 	}
+
 	if err := os.WriteFile(filepath.Join(path, "keep"), []byte("keep"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+
 	if err := pkg.WriteDefinition(); err == nil {
 		t.Fatal("WriteDefinition over a directory succeeded")
 	}
+
 	if _, err := os.Stat(filepath.Join(path, "keep")); err != nil {
 		t.Errorf("rejected definition write lost directory contents: %v", err)
 	}

@@ -32,10 +32,12 @@ func TestCommitIntegrityWithVendoredFormerSubmodule(t *testing.T) {
 		}},
 		{name: "staged", change: func(t *testing.T, repo *git.Repository, dir string) {
 			writeVendoredIntegrityFile(t, dir, "vendor/library.inc", "staged")
+
 			worktree, err := repo.Worktree()
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			if _, err := worktree.Add("vendor/library.inc"); err != nil {
 				t.Fatal(err)
 			}
@@ -58,15 +60,18 @@ func TestCommitIntegrityWithVendoredFormerSubmodule(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			dir := worktree.Filesystem.Root()
 			if test.change != nil {
 				test.change(t, repo, dir)
 			}
+
 			before := snapshotIntegrityFiles(t, dir)
 			clean, err := VerifyIntegrityContext(t.Context(), dir, CalculateCommitIntegrity(commit))
 			if err != nil || clean != test.clean {
 				t.Errorf("VerifyIntegrityContext(%s) = %t, %v, want %t, nil", test.name, clean, err, test.clean)
 			}
+
 			if after := snapshotIntegrityFiles(t, dir); !reflect.DeepEqual(after, before) {
 				t.Errorf("VerifyIntegrityContext(%s) changed repository files or metadata", test.name)
 			}

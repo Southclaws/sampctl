@@ -98,6 +98,7 @@ func PackageFromDefinition(data []byte, format string) (pkg Package, err error) 
 	} else {
 		return pkg, errors.Errorf("unsupported package definition format %q", format)
 	}
+
 	if err != nil {
 		return pkg, err
 	}
@@ -136,6 +137,7 @@ func (f *GitHubRemotePackageFetcher) Fetch(ctx context.Context, meta versioning.
 	if f.GitHub == nil {
 		return f.packageFromOfficialRepo(ctx, meta)
 	}
+
 	pkg, err = f.packageFromRepo(ctx, meta)
 	if err != nil {
 		var remote *github.ErrorResponse
@@ -145,6 +147,7 @@ func (f *GitHubRemotePackageFetcher) Fetch(ctx context.Context, meta versioning.
 		print.Verb(meta, "failed to get package definition from repository:", err)
 		return f.packageFromOfficialRepo(ctx, meta)
 	}
+
 	return pkg, nil
 }
 
@@ -230,6 +233,7 @@ func fetchRemoteDefinitionFromGitHub(request remoteDefinitionRequest) (Package, 
 				lastErr = err
 				continue
 			}
+
 			if fileContent == nil {
 				return Package{}, errors.Errorf("empty response for %s/%s (%s)", request.Owner, request.Repo, path)
 			}
@@ -305,6 +309,7 @@ func (f *GitHubRemotePackageFetcher) packageFromOfficialRepo(
 	if baseURL == "" {
 		baseURL = officialPackageRepoBaseURL
 	}
+
 	client := f.HTTPClient
 	if client == nil {
 		client = packageDefinitionHTTPClient
@@ -345,9 +350,11 @@ func fetchRemoteDefinition(ctx context.Context, client *http.Client, candidates 
 		}
 		lastErr = err
 	}
+
 	if lastErr == nil {
 		lastErr = errors.New("no remote definition candidates provided")
 	}
+
 	return Package{}, lastErr
 }
 

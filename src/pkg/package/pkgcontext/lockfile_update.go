@@ -75,10 +75,6 @@ func (pcx *PackageContext) resolveLockfileDependencyMeta(
 	return resolvedMeta, nil
 }
 
-func (pcx *PackageContext) currentLockfileDependencies() ([]lockfileDependencyState, error) {
-	return pcx.lockfileDependencies(context.Background(), DependencyUpdateRequest{}, false)
-}
-
 func (pcx *PackageContext) lockfileDependencies(ctx context.Context, request DependencyUpdateRequest, refresh bool) ([]lockfileDependencyState, error) {
 	states := make(map[string]*lockfileDependencyState)
 	visited := make(map[string]bool)
@@ -166,6 +162,7 @@ func (pcx *PackageContext) lockfileDependencies(ctx context.Context, request Dep
 				}
 			}
 		}
+
 		return stderrors.Join(failures...)
 	}
 
@@ -186,6 +183,7 @@ func (pcx *PackageContext) refreshLockfileDependency(ctx context.Context, meta v
 	if err != nil {
 		return pawnpackage.Package{}, err
 	}
+
 	refreshCache := force
 	if refreshCache {
 		noOrigin, err := pcx.cachedRepoHasNoOriginContext(ctx, resolved)
@@ -197,11 +195,13 @@ func (pcx *PackageContext) refreshLockfileDependency(ctx context.Context, meta v
 	if _, err := pcx.EnsureDependencyCachedContext(ctx, resolved, refreshCache); err != nil {
 		return pawnpackage.Package{}, err
 	}
+
 	path := resolved.CachePath(pcx.CacheDir)
 	unlock, err := lockRepositoryPath(ctx, path)
 	if err != nil {
 		return pawnpackage.Package{}, err
 	}
+
 	repo, err := pcx.repositoryStore().Open(path)
 	var resolution lockfile.DependencyResolution
 	if err == nil {
@@ -211,18 +211,16 @@ func (pcx *PackageContext) refreshLockfileDependency(ctx context.Context, meta v
 	if err != nil {
 		return pawnpackage.Package{}, err
 	}
+
 	if previous, ok := pcx.PreviousDependency(meta); ok && resolved.Commit != "" && previous.Commit == resolution.Commit && previous.Resolved != "" {
 		resolution.Resolved = previous.Resolved
 	}
 	if err := pcx.RecordDependencyResolution(meta, resolution, !direct, parent); err != nil {
 		return pawnpackage.Package{}, err
 	}
+
 	resolved.Tag, resolved.Branch, resolved.Commit = "", "", resolution.Commit
 	return pcx.packageFromCachedRevisionContext(ctx, resolved, path)
-}
-
-func (pcx *PackageContext) lockfileDependencyPackage(meta versioning.DependencyMeta) (pawnpackage.Package, error) {
-	return pcx.lockfileDependencyPackageContext(context.Background(), meta)
 }
 
 func (pcx *PackageContext) lockfileDependencyPackageContext(ctx context.Context, meta versioning.DependencyMeta) (pawnpackage.Package, error) {
@@ -262,6 +260,7 @@ func (pcx *PackageContext) recordRootLocalDependencies() error {
 			return &DependencyError{Dependency: string(depStr), Operation: "record lockfile", Err: err}
 		}
 	}
+
 	return nil
 }
 
@@ -287,14 +286,18 @@ func (pcx *PackageContext) UpdateProjectLockfile(ctx context.Context, request De
 		return err
 	}
 	defer func() { err = pcx.finishDependencyOperation(state, err) }()
+
 	if err := pcx.UpdateLockfile(ctx, request); err != nil {
 		return err
 	}
+
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+
 	if err := pcx.saveDependencyLockfile(); err != nil {
 		return &OperationError{Operation: "lockfile", Err: err}
 	}
+
 	return nil
 }

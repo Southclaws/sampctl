@@ -48,6 +48,7 @@ func TestReadJSON(t *testing.T) {
 
 	invalidPath := filepath.Join(t.TempDir(), "invalid.json")
 	require.NoError(t, os.WriteFile(invalidPath, []byte(`{"name":`), 0o644))
+
 	_, err = ReadJSON[payload](invalidPath)
 	require.Error(t, err)
 }

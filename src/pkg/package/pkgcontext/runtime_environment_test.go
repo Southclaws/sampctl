@@ -24,12 +24,14 @@ type fakeRuntimeEnvironment struct {
 	lastWorkingDir string
 	lastCacheDir   string
 	lastBinaryPath string
+	lastRunOptions runtimepkg.RunOptions
 }
 
 var _ RuntimeEnvironment = (*fakeRuntimeEnvironment)(nil)
 
-func (f *fakeRuntimeEnvironment) Run(context.Context, runtimecfg.Runtime, runtimepkg.RunOptions) error {
+func (f *fakeRuntimeEnvironment) Run(_ context.Context, _ runtimecfg.Runtime, options runtimepkg.RunOptions) error {
 	f.runCalled = true
+	f.lastRunOptions = options
 	return nil
 }
 
@@ -76,6 +78,7 @@ func TestRunPrepareUsesInjectedRuntimeEnvironment(t *testing.T) {
 	}
 	data, err := json.Marshal(config)
 	require.NoError(t, err)
+
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), data, 0o644))
 
 	fakeEnv := &fakeRuntimeEnvironment{}
@@ -116,6 +119,7 @@ func TestRunPrepareUsesConfiguredRuntimeDirectory(t *testing.T) {
 	}
 	data, err := json.Marshal(config)
 	require.NoError(t, err)
+
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), data, 0o644))
 
 	fakeEnv := &fakeRuntimeEnvironment{}
@@ -132,6 +136,7 @@ func TestRunPrepareUsesConfiguredRuntimeDirectory(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, fakeEnv.ensureCalled)
 	assert.True(t, fakeEnv.generateCalled)
+
 	expectedRuntimeDir := filepath.Join(projectDir, "server")
 	assert.Equal(t, expectedRuntimeDir, fakeEnv.lastWorkingDir)
 
@@ -159,6 +164,7 @@ func TestRunPreparePreservesLocalRuntimeWithoutRuntimeDir(t *testing.T) {
 	}
 	data, err := json.Marshal(config)
 	require.NoError(t, err)
+
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), data, 0o644))
 
 	fakeEnv := &fakeRuntimeEnvironment{}

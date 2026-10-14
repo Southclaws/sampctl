@@ -41,6 +41,7 @@ func Test_PackageInstall(t *testing.T) {
 			"dependencies": ["pawn-lang/samp-stdlib"]
 		}`), args{[]versioning.DependencyString{"Southclaws/pawn-errors:1.2.3"}, true}, false},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := filepath.Join("./tests/install", tt.name)
@@ -108,6 +109,7 @@ func Test_PackageGet(t *testing.T) {
 		{"direct", args{versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-errors", Tag: "1.2.3"}, "./tests/get/direct"}, false},
 		{"get-auto", args{versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-errors", Tag: "1.2.3"}, "./tests/get"}, false},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.args.dir == "./tests/get" {

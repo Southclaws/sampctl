@@ -153,6 +153,7 @@ func TestConfigDirPathDoesNotCreateDirectory(t *testing.T) {
 	dir := ConfigDirPath()
 	assert.Equal(t, configFolderName, filepath.Base(dir))
 	assert.NoDirExists(t, dir)
+
 	created, err := ConfigDir()
 	require.NoError(t, err)
 	assert.Equal(t, dir, created)

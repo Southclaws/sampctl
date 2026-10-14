@@ -34,12 +34,13 @@ var (
 	fromNetClientFactory = func() *http.Client { return &http.Client{Timeout: 60 * time.Second} }
 	fromNetBackoff       = func(attempt int) time.Duration {
 		base := 250 * time.Millisecond
-		d := base << max(0, attempt-1)
-		if d > 4*time.Second {
-			d = 4 * time.Second
+		delay := base << max(0, attempt-1)
+		if delay > 4*time.Second {
+			delay = 4 * time.Second
 		}
-		j := time.Duration(rand.IntN(200)) * time.Millisecond
-		return d + j
+
+		jitter := time.Duration(rand.IntN(200)) * time.Millisecond
+		return delay + jitter
 	}
 )
 
@@ -115,8 +116,6 @@ func MigrateOldConfig(cacheDir string) error {
 		return errors.Wrap(err, "failed to get home directory")
 	}
 
-	// Attempt to check if the old cache directory exists and if it does
-	// move it to the new cache directory
 	oldCacheDir := filepath.Join(home, ".samp")
 	if _, err := os.Stat(oldCacheDir); !os.IsNotExist(err) {
 		err = copy.Copy(oldCacheDir, cacheDir)
@@ -138,22 +137,27 @@ func migrationHomeDir() (string, error) {
 	if home := os.Getenv("HOME"); home != "" {
 		return home, nil
 	}
+
 	if home, err := os.UserHomeDir(); err == nil && home != "" {
 		return home, nil
 	}
+
 	if runtime.GOOS == "windows" {
 		drive, path := os.Getenv("HOMEDRIVE"), os.Getenv("HOMEPATH")
 		if drive != "" && path != "" {
 			return drive + path, nil
 		}
 	}
+
 	current, err := user.Current()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to look up current user")
 	}
+
 	if current.HomeDir == "" {
 		return "", errors.New("current user has no home directory")
 	}
+
 	return current.HomeDir, nil
 }
 
@@ -186,12 +190,15 @@ func FromNet(ctx context.Context, location, cachePath string) (result string, er
 
 func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath string) (result string, err error) {
 	print.Verb("downloading package to", cachePath)
+
 	if ctx == nil {
 		ctx = context.Background()
 	}
+
 	if client == nil {
 		client = fromNetClientFactory()
 	}
+
 	maxAttempts := fromNetMaxAttempts
 	backoff := fromNetBackoff
 
@@ -200,6 +207,7 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return "", ctxErr
 		}
+
 		req, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, location, nil)
 		if reqErr != nil {
 			return "", errors.Wrap(reqErr, "failed to create request")
@@ -212,6 +220,7 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return "", ctxErr
 			}
+
 			lastErr = errors.Wrapf(doErr, "failed to download package from %s", location)
 			if isTransientDownloadError(doErr) && attempt < maxAttempts {
 				if sleepErr := sleepRetryBackoff(ctx, backoff(attempt)); sleepErr != nil {
@@ -219,6 +228,7 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 				}
 				continue
 			}
+
 			return "", lastErr
 		}
 
@@ -228,38 +238,40 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 				print.Warn("failed to drain unsuccessful download response:", copyErr)
 			}
 			closeWithWarning(resp.Body, "download response body")
+
 			lastErr = errors.Errorf("download returned HTTP %d", resp.StatusCode)
 			err = lastErr
 			if !retryable {
 				// Non-retryable status codes (e.g., 401/403/404) won't improve with retries.
 				return "", err
 			}
+
 			if attempt < maxAttempts {
 				if resp.StatusCode == http.StatusTooManyRequests {
-					if ra := resp.Header.Get("Retry-After"); ra != "" {
-						if secs, convErr := strconv.Atoi(strings.TrimSpace(ra)); convErr == nil && secs > 0 && secs <= 10 {
-							if sleepErr := sleepRetryBackoff(ctx, time.Duration(secs)*time.Second); sleepErr != nil {
+					if retryAfter := resp.Header.Get("Retry-After"); retryAfter != "" {
+						if seconds, parseErr := strconv.Atoi(strings.TrimSpace(retryAfter)); parseErr == nil && seconds > 0 && seconds <= 10 {
+							if sleepErr := sleepRetryBackoff(ctx, time.Duration(seconds)*time.Second); sleepErr != nil {
 								return "", sleepErr
 							}
 							continue
 						}
 					}
 				}
+
 				if sleepErr := sleepRetryBackoff(ctx, backoff(attempt)); sleepErr != nil {
 					return "", sleepErr
 				}
 				continue
 			}
+
 			return "", err
 		}
 
-		ct := resp.Header.Get("Content-Type")
-		if ct != "" {
-			if t, _, parseErr := mime.ParseMediaType(ct); parseErr == nil {
-				if !(strings.HasPrefix(t, "application/") || strings.HasPrefix(t, "text/")) {
-					closeWithWarning(resp.Body, "download response body")
-					return "", errors.Errorf("download returned an unsupported content type: %s", t)
-				}
+		if contentType := resp.Header.Get("Content-Type"); contentType != "" {
+			mediaType, _, parseErr := mime.ParseMediaType(contentType)
+			if parseErr == nil && !strings.HasPrefix(mediaType, "application/") && !strings.HasPrefix(mediaType, "text/") {
+				closeWithWarning(resp.Body, "download response body")
+				return "", errors.Errorf("download returned an unsupported content type: %s", mediaType)
 			}
 		}
 
@@ -268,6 +280,7 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return "", ctxErr
 			}
+
 			lastErr = errors.Wrap(writeErr, "failed to write package to cache")
 			err = lastErr
 			if isTransientDownloadError(writeErr) && attempt < maxAttempts {
@@ -276,17 +289,21 @@ func FromNetWithClient(ctx context.Context, client HTTPDoer, location, cachePath
 				}
 				continue
 			}
+
 			return "", err
 		}
+
 		if closeErr := resp.Body.Close(); closeErr != nil {
 			return "", errors.Wrap(closeErr, "failed to close download response body")
 		}
+
 		return cachePath, nil
 	}
 
 	if lastErr == nil {
 		lastErr = errors.New("download failed")
 	}
+
 	return "", lastErr
 }
 
@@ -329,8 +346,8 @@ func ReleaseAssetByPattern(request ReleaseAssetRequest) (filename, tag string, e
 
 func ReleaseAssetByPatternWithAPI(request ReleaseAssetAPIRequest) (filename, tag string, err error) {
 	var (
-		asset  *github.ReleaseAsset
-		assets = make([]string, 0)
+		asset           *github.ReleaseAsset
+		availableAssets = make([]string, 0)
 	)
 
 	var release *github.RepositoryRelease
@@ -343,27 +360,29 @@ func ReleaseAssetByPatternWithAPI(request ReleaseAssetAPIRequest) (filename, tag
 		return
 	}
 
-	for _, a := range release.Assets {
-		rel := a
-		if request.Matcher.MatchString(*a.Name) {
-			asset = &rel
+	for _, candidate := range release.Assets {
+		if request.Matcher.MatchString(*candidate.Name) {
+			asset = &candidate
 			break
 		}
-		assets = append(assets, *a.Name)
+		availableAssets = append(availableAssets, *candidate.Name)
 	}
+
 	if asset == nil {
 		releaseTag := release.GetTagName()
 		if releaseTag == "" {
 			releaseTag = request.Meta.Tag
 		}
+
 		err = &ReleaseAssetNotFoundError{
 			Meta:            request.Meta,
 			Tag:             releaseTag,
 			Pattern:         request.Matcher.String(),
-			AvailableAssets: assets,
+			AvailableAssets: availableAssets,
 		}
 		return
 	}
+
 	tag = release.GetTagName()
 	if request.Dir == "" {
 		request.Dir = filepath.Join("assets", request.Meta.User, request.Meta.Repo, tag)
@@ -412,9 +431,11 @@ func downloadReleaseAsset(request ReleaseAssetDownloadRequest) (string, error) {
 	if request.Context == nil {
 		request.Context = context.Background()
 	}
+
 	if err := request.Context.Err(); err != nil {
 		return "", err
 	}
+
 	if request.Asset == nil {
 		return "", errors.New("no release asset selected")
 	}
@@ -424,25 +445,31 @@ func downloadReleaseAsset(request ReleaseAssetDownloadRequest) (string, error) {
 		if err != nil {
 			return "", errors.Wrap(err, "failed to download release asset via GitHub API")
 		}
+
 		if redirectURL != "" {
 			return FromNet(request.Context, redirectURL, request.Destination)
 		}
+
 		if rc == nil {
 			return "", errors.New("empty response body for release asset download")
 		}
+
 		if writeErr := fs.WriteFromReaderAtomic(request.Destination, downloadContextReader{ctx: request.Context, reader: rc}, fs.PermDirPrivate, fs.PermFileShared); writeErr != nil {
 			closeWithWarning(rc, "release asset response body")
 			return "", errors.Wrap(writeErr, "failed to write package to cache")
 		}
+
 		if closeErr := rc.Close(); closeErr != nil {
 			return "", errors.Wrap(closeErr, "failed to close release asset response body")
 		}
+
 		return request.Destination, nil
 	}
 
 	if request.Asset.BrowserDownloadURL == nil || *request.Asset.BrowserDownloadURL == "" {
 		return "", errors.New("release asset has no download URL")
 	}
+
 	return FromNet(request.Context, *request.Asset.BrowserDownloadURL, request.Destination)
 }
 
@@ -450,6 +477,7 @@ func closeWithWarning(closer io.Closer, label string) {
 	if closer == nil {
 		return
 	}
+
 	if err := closer.Close(); err != nil {
 		print.Warn("failed to close", label+":", err)
 	}

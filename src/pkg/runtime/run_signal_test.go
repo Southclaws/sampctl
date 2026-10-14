@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"syscall"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -23,7 +24,7 @@ func TestShouldKillTrackedProcess(t *testing.T) {
 		},
 		{
 			name: "signal error",
-			term: termination{err: errors.New("received signal: interrupt")},
+			term: termination{err: errors.Wrapf(context.Canceled, "received signal: %v", syscall.SIGINT)},
 			want: true,
 		},
 		{

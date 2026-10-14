@@ -31,6 +31,7 @@ func (opts *CompilerOptions) ToArgs() []string {
 	for _, builder := range compilerOptionBuilders {
 		args = append(args, builder(opts)...)
 	}
+
 	return args
 }
 
@@ -53,6 +54,7 @@ func intOption(value *int, prefix string, bounds ...int) []string {
 	if value == nil {
 		return nil
 	}
+
 	v := *value
 	if len(bounds) > 0 && v < bounds[0] {
 		v = bounds[0]
@@ -60,6 +62,7 @@ func intOption(value *int, prefix string, bounds ...int) []string {
 	if len(bounds) > 1 && v > bounds[1] {
 		v = bounds[1]
 	}
+
 	return []string{fmt.Sprintf("%s%d", prefix, v)}
 }
 
@@ -67,12 +70,15 @@ func boolOption(value *bool, trueArg, falseArg string) []string {
 	if value == nil {
 		return nil
 	}
+
 	if *value {
 		return []string{trueArg}
 	}
+
 	if falseArg == "" {
 		return nil
 	}
+
 	return []string{falseArg}
 }
 
@@ -188,11 +194,10 @@ func Default() *Config {
 func (cc *CompilerConfig) ResolveCompilerConfig() CompilerConfig {
 	resolved := *cc
 
-	// If a preset is specified, apply it first
 	if cc.Preset != "" {
 		presets := GetPredefinedCompilers()
 		if preset, exists := presets[cc.Preset]; exists {
-			// Apply preset values only if they're not already set
+			// Explicit settings take precedence over the preset.
 			if resolved.Site == "" {
 				resolved.Site = preset.Site
 			}
@@ -227,9 +232,11 @@ func ensureCompilerVersion(version string) string {
 	if version == "" {
 		version = "3.10.10"
 	}
+
 	if !strings.HasPrefix(version, "v") {
 		return "v" + version
 	}
+
 	return version
 }
 
@@ -267,9 +274,7 @@ func (ps ProblemSeverity) String() string {
 	return "unknown"
 }
 
-// Problem represents an issue with a line in a file with a severity level, these have a full
-// file path, a line number, a severity level (warnings, errors and fatal errors) and a short
-// description of the problem.
+// Problem records a compiler diagnostic with its file, line, severity, code, and description.
 type Problem struct {
 	File        string
 	Line        int
@@ -296,6 +301,7 @@ func (bps Problems) Warnings() (warnings []Problem) {
 			warnings = append(warnings, b)
 		}
 	}
+
 	return
 }
 
@@ -306,6 +312,7 @@ func (bps Problems) Errors() (warnings []Problem) {
 			warnings = append(warnings, b)
 		}
 	}
+
 	return
 }
 
@@ -316,10 +323,11 @@ func (bps Problems) Fatal() (fatal bool) {
 			return true
 		}
 	}
+
 	return false
 }
 
 // IsValid returns true if the Problems only contains warnings, if there are errors it's false
 func (bps Problems) IsValid() bool {
-	return len(bps.Errors()) == 0
+	return !bps.Fatal() && len(bps.Errors()) == 0
 }

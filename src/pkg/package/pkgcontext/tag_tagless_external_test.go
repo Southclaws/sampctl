@@ -36,6 +36,7 @@ func TestTagTaglessDependencies_PinsLatestTagFromCache(t *testing.T) {
 
 	write := func(name, contents string) {
 		require.NoError(t, os.WriteFile(filepath.Join(cachePath, name), []byte(contents), 0o644))
+
 		_, err = wt.Add(name)
 		require.NoError(t, err)
 	}
@@ -46,17 +47,20 @@ func TestTagTaglessDependencies_PinsLatestTagFromCache(t *testing.T) {
 			Committer: &object.Signature{Name: "test", Email: "test@example.com", When: when},
 		})
 		require.NoError(t, err)
+
 		return hash.String()
 	}
 
 	write("file.txt", "one")
 	write("pawn.json", "{}")
 	_ = commit("c1", time.Unix(100, 0))
+
 	_, err = repo.CreateTag("1.0.0", headHash(repo, t), nil)
 	require.NoError(t, err)
 
 	write("file.txt", "two")
 	_ = commit("c2", time.Unix(200, 0))
+
 	_, err = repo.CreateTag("2.0.0", headHash(repo, t), nil)
 	require.NoError(t, err)
 
@@ -67,6 +71,7 @@ func TestTagTaglessDependencies_PinsLatestTagFromCache(t *testing.T) {
 	}
 	b, err := json.MarshalIndent(cfg, "", "\t")
 	require.NoError(t, err)
+
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), b, 0o644))
 
 	pkg, err := pawnpackage.PackageFromDir(projectDir)
@@ -83,6 +88,7 @@ func TestTagTaglessDependencies_PinsLatestTagFromCache(t *testing.T) {
 
 	finalBytes, err := os.ReadFile(filepath.Join(projectDir, "pawn.json"))
 	require.NoError(t, err)
+
 	var final map[string]any
 	require.NoError(t, json.Unmarshal(finalBytes, &final))
 
@@ -93,5 +99,6 @@ func TestTagTaglessDependencies_PinsLatestTagFromCache(t *testing.T) {
 func headHash(repo *git.Repository, t *testing.T) plumbing.Hash {
 	head, err := repo.Head()
 	require.NoError(t, err)
+
 	return head.Hash()
 }

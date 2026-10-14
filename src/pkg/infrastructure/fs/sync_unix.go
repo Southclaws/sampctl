@@ -14,9 +14,11 @@ func SyncDir(path string) error {
 	if err != nil {
 		return err
 	}
+
 	err = directory.Sync()
 	if errors.Is(err, syscall.EINVAL) || errors.Is(err, syscall.ENOTSUP) {
 		err = nil
 	}
+
 	return errors.Join(err, directory.Close())
 }

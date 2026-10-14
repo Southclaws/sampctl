@@ -64,12 +64,10 @@ func (br *BaseResource) Cached(version string) (bool, string) {
 		return false, ""
 	}
 
-	// Check if cached file/directory exists
 	if !fs.Exists(cachePath) {
 		return false, ""
 	}
 
-	// Check if cache is still valid (not expired)
 	info, err := os.Stat(cachePath)
 	if err != nil {
 		return false, ""
@@ -101,7 +99,6 @@ func (br *BaseResource) cachePath(version string) (string, error) {
 		return "", err
 	}
 
-	// Create a hash of the identifier + version for unique cache paths
 	sum := md5.Sum([]byte(br.identifier + ":" + version))
 
 	return filepath.Join(
@@ -180,26 +177,22 @@ func (br *BaseResource) EnsureFromLocal(_ context.Context, version, targetPath s
 		return err
 	}
 
-	// Check if already cached
 	if cached, path := br.Cached(version); cached {
-		// Copy from cache to target if different
 		if path != targetPath && targetPath != "" {
 			return util.CopyFile(path, targetPath)
 		}
+
 		return nil
 	}
 
-	// Ensure cache directory exists
 	if err := br.ensureCacheDir(cachePath); err != nil {
 		return errors.Wrap(err, "failed to create cache directory")
 	}
 
-	// Copy local file to cache
 	if err := util.CopyFile(br.localPath, cachePath); err != nil {
 		return errors.Wrap(err, "failed to copy local file to cache")
 	}
 
-	// Copy to target path if specified
 	if targetPath != "" && targetPath != cachePath {
 		if err := util.CopyFile(cachePath, targetPath); err != nil {
 			return errors.Wrap(err, "failed to copy to target path")
@@ -220,19 +213,18 @@ func (br *BaseResource) EnsureFromURL(ctx context.Context, version, targetPath s
 		return err
 	}
 
-	// Check if already cached
 	if cached, path := br.Cached(version); cached {
 		if err := br.MarkCached(path); err != nil {
 			return errors.Wrap(err, "failed to update cache timestamp")
 		}
-		// Copy from cache to target if different
+
 		if path != targetPath && targetPath != "" {
 			return util.CopyFile(path, targetPath)
 		}
+
 		return nil
 	}
 
-	// Ensure cache directory exists
 	if err := br.ensureCacheDir(cachePath); err != nil {
 		return errors.Wrap(err, "failed to create cache directory")
 	}
@@ -242,7 +234,6 @@ func (br *BaseResource) EnsureFromURL(ctx context.Context, version, targetPath s
 		return errors.Wrap(err, "failed to download resource")
 	}
 
-	// Copy to target path if specified
 	if targetPath != "" && targetPath != cachePath {
 		if err := util.CopyFile(cachePath, targetPath); err != nil {
 			return errors.Wrap(err, "failed to copy to target path")

@@ -1,69 +1,71 @@
 package util
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 )
 
-// CopyFile copies a file from src to dst. If src and dst files exist, and are
-// the same, then return success. Otherwise, attempt to create a hard link
-// between the two files. If that fail, copy the file contents from src to dst.
+// CopyFile copies src to an independent file at dst.
+// If both paths refer to the same file, it returns success.
 func CopyFile(src, dst string) (err error) {
-	sfi, err := os.Stat(src)
+	sourceInfo, err := os.Stat(src)
 	if err != nil {
 		return
 	}
-	if !sfi.Mode().IsRegular() {
-		// cannot copy non-regular files (e.g., directories, symlinks, devices, etc.)
-		return fmt.Errorf("CopyFile: non-regular source file %s (%q)", sfi.Name(), sfi.Mode().String())
+
+	if !sourceInfo.Mode().IsRegular() {
+		return fmt.Errorf("CopyFile: non-regular source file %s (%q)", sourceInfo.Name(), sourceInfo.Mode().String())
 	}
-	dfi, err := os.Stat(dst)
+
+	destinationInfo, err := os.Stat(dst)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return
 		}
 	} else {
-		if !(dfi.Mode().IsRegular()) {
-			return fmt.Errorf("CopyFile: non-regular destination file %s (%q)", dfi.Name(), dfi.Mode().String())
+		if !destinationInfo.Mode().IsRegular() {
+			return fmt.Errorf("CopyFile: non-regular destination file %s (%q)", destinationInfo.Name(), destinationInfo.Mode().String())
 		}
-		if os.SameFile(sfi, dfi) {
+
+		if os.SameFile(sourceInfo, destinationInfo) {
 			return
 		}
 	}
-	if err = os.Link(src, dst); err == nil {
-		return
-	}
-	err = copyFileContents(src, dst)
-	return
+
+	return copyFileContents(src, dst)
 }
 
-// copyFileContents copies the contents of the file named src to the file named
-// by dst. The file will be created if it does not already exist. If the
-// destination file exists, all it's contents will be replaced by the contents
-// of the source file.
+// copyFileContents creates or replaces dst with the contents of src.
 func copyFileContents(src, dst string) (err error) {
 	in, err := os.Open(src)
 	if err != nil {
 		return
 	}
-	defer in.Close() // nolint
-	out, err := os.Create(dst)
+	defer func() { err = errors.Join(err, in.Close()) }()
+
+	info, err := in.Stat()
 	if err != nil {
 		return
 	}
-	defer func() {
-		cerr := out.Close()
-		if err == nil {
-			err = cerr
-		}
-	}()
-	if _, err = io.Copy(out, in); err != nil {
-		return
+
+	mode := info.Mode().Perm()
+	if destinationInfo, statErr := os.Stat(dst); statErr == nil {
+		mode = destinationInfo.Mode().Perm()
+	} else if !os.IsNotExist(statErr) {
+		return statErr
 	}
-	err = out.Sync()
-	return
+
+	// Preserve the existing requirement that the destination directory exists.
+	if _, err := os.Stat(filepath.Dir(dst)); err != nil {
+		return err
+	}
+
+	return fs.WriteFromReaderAtomic(dst, in, fs.PermDirPrivate, mode)
 }
 
 // FullPath returns an absolute path when possible, otherwise it falls back to the input path.

@@ -53,6 +53,7 @@ func getServerBinary(cacheDir, version, platform string) (binary string) {
 			break
 		}
 	}
+
 	if binary != "" {
 		return binary
 	}
@@ -91,6 +92,7 @@ func MatchesChecksum(src, platform, cacheDir, version string) (ok bool, err erro
 	if err != nil {
 		return false, errors.Wrap(err, "failed to read downloaded server package")
 	}
+
 	if len(contents) == 0 {
 		return false, errors.Errorf("server package '%s' is empty", src)
 	}
@@ -132,6 +134,7 @@ func findPackageRecursive(ctx context.Context, cacheDir, version string, aliases
 			return
 		}
 	}
+
 	if aliases {
 		for alias, target := range packages.Aliases {
 			if alias == version {

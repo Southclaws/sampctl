@@ -28,6 +28,7 @@ func NewHTTPResource(url, filename, version string, resourceType ResourceType) *
 	}
 
 	hr.baseResource.SetDownloadURL(url)
+
 	return hr
 }
 
@@ -66,7 +67,9 @@ func (hr *HTTPResource) Ensure(ctx context.Context, version, path string) error 
 	if hr.baseResource == nil {
 		return errors.New("HTTP resource is missing its base configuration")
 	}
+
 	hr.baseResource.SetDownloadURL(hr.url)
+
 	return hr.baseResource.EnsureFromURL(ctx, version, path)
 }
 

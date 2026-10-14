@@ -79,9 +79,11 @@ func Delete(dir string) error {
 	if !fs.Exists(path) {
 		return nil
 	}
+
 	if err := os.Remove(path); err != nil {
 		return errors.Wrap(err, "failed to remove lockfile")
 	}
+
 	return nil
 }
 
@@ -93,5 +95,6 @@ func LoadOrCreate(dir, sampctlVersion string) (*Lockfile, error) {
 	if existing != nil {
 		return existing, nil
 	}
+
 	return New(sampctlVersion), nil
 }

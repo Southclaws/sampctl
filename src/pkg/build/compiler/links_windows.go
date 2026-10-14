@@ -16,11 +16,14 @@ func compilerPathSingleLink(path string, info os.FileInfo) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
 	current, statErr := file.Stat()
 	if statErr != nil || !os.SameFile(info, current) {
 		return false, errors.Join(statErr, file.Close())
 	}
+
 	var attributes windows.ByHandleFileInformation
 	queryErr := windows.GetFileInformationByHandle(windows.Handle(file.Fd()), &attributes)
+
 	return attributes.NumberOfLinks == 1, errors.Join(queryErr, file.Close())
 }

@@ -115,6 +115,7 @@ func (pkg Package) effectivePreset() string {
 			return "openmp"
 		}
 	}
+
 	for _, rt := range pkg.Runtimes {
 		if rt != nil && rt.Version != "" {
 			if run.DetectRuntimeType(rt.Version) == run.RuntimeTypeOpenMP {
@@ -184,6 +185,18 @@ func (pkg Package) Validate() (err error) {
 		return errors.New("package entry and output point to the same file")
 	}
 
+	for _, cfg := range pkg.Builds {
+		if cfg == nil {
+			return errors.New("builds contains a null configuration")
+		}
+	}
+
+	for _, cfg := range pkg.Runtimes {
+		if cfg == nil {
+			return errors.New("runtimes contains a null configuration")
+		}
+	}
+
 	return
 }
 
@@ -232,6 +245,7 @@ func (pkg Package) WriteDefinition() error {
 	if err != nil {
 		return err
 	}
+
 	name := "pawn." + pkg.Format
 	return writeDefinitionFile(filepath.Join(pkg.LocalPath, name), name, contents)
 }
@@ -257,6 +271,7 @@ func (pkg Package) EncodeDefinition() ([]byte, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to encode package metadata")
 	}
+
 	return contents, nil
 }
 

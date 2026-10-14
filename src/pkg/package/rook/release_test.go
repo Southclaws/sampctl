@@ -49,6 +49,7 @@ func Test_generateVersionIncString(t *testing.T) {
 `,
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ver, _ := semver.NewVersion(tt.args.version)
@@ -279,6 +280,7 @@ func TestUploadReleaseAsset(t *testing.T) {
 		var err error
 		gotBody, err = io.ReadAll(r.Body)
 		require.NoError(t, err)
+
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"id":1,"name":"fixture.zip","state":"uploaded"}`))
 	}))
@@ -303,6 +305,7 @@ func TestUploadReleaseAsset(t *testing.T) {
 		Release:     release,
 		ArchivePath: archivePath,
 	}))
+
 	assert.Equal(t, http.MethodPost, gotMethod)
 	assert.Equal(t, "/repos/owner/repo/releases/42/assets", gotPath)
 	assert.Equal(t, "fixture.zip", gotName)
@@ -512,6 +515,7 @@ func TestReleaseIntegration(t *testing.T) {
 
 	wt, err := repo.Worktree()
 	require.NoError(t, err)
+
 	status, err := wt.Status()
 	require.NoError(t, err)
 	assert.True(t, status.IsClean(), "Initial worktree should be clean")

@@ -27,6 +27,7 @@ func TestPackageContext_ensureRepoExists_forceUpdateFetchesNewTags(t *testing.T)
 		require.NoError(t, err)
 
 		require.NoError(t, os.WriteFile(filepath.Join(remoteDir, filename), []byte(contents), 0o600))
+
 		_, err = wt.Add(filename)
 		require.NoError(t, err)
 
@@ -53,6 +54,7 @@ func TestPackageContext_ensureRepoExists_forceUpdateFetchesNewTags(t *testing.T)
 	tags, err := repoCached.Tags()
 	require.NoError(t, err)
 	defer tags.Close()
+
 	var tagCount int
 	err = tags.ForEach(func(_ *plumbing.Reference) error {
 		tagCount++
@@ -65,6 +67,7 @@ func TestPackageContext_ensureRepoExists_forceUpdateFetchesNewTags(t *testing.T)
 
 	head, err := repoRemote.Head()
 	require.NoError(t, err)
+
 	_, err = repoRemote.CreateTag("v1.0.0", head.Hash(), nil)
 	require.NoError(t, err)
 
@@ -79,9 +82,11 @@ func TestPackageContext_ensureRepoExists_forceUpdateFetchesNewTags(t *testing.T)
 
 	repoCached, err = git.PlainOpen(cacheDir)
 	require.NoError(t, err)
+
 	tags, err = repoCached.Tags()
 	require.NoError(t, err)
 	defer tags.Close()
+
 	tagCount = 0
 	err = tags.ForEach(func(_ *plumbing.Reference) error {
 		tagCount++
@@ -101,9 +106,11 @@ func TestPackageContext_ensureRepoExists_forceUpdateFetchesNewTags(t *testing.T)
 
 	repoCached, err = git.PlainOpen(cacheDir)
 	require.NoError(t, err)
+
 	tags, err = repoCached.Tags()
 	require.NoError(t, err)
 	defer tags.Close()
+
 	tagCount = 0
 	err = tags.ForEach(func(_ *plumbing.Reference) error {
 		tagCount++

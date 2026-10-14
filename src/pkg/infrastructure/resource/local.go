@@ -32,6 +32,7 @@ func NewLocalResource(localPath string, resourceType ResourceType) *LocalResourc
 	}
 
 	lr.baseResource.SetLocalPath(localPath)
+
 	return lr
 }
 
@@ -52,20 +53,15 @@ func (lr *LocalResource) Identifier() string {
 
 // Ensure acquires the local resource, copying it if necessary
 func (lr *LocalResource) Ensure(_ context.Context, _ string, path string) error {
-	// For local resources, we can just copy directly without caching
-	// unless a cache is specifically requested
-
 	if path == "" {
-		// No target path specified, resource is already "ensured" at its local path
+		// With no target, the resource remains at its original path.
 		return nil
 	}
 
-	// Check if source exists
 	if _, err := os.Stat(lr.localPath); err != nil {
 		return errors.Wrapf(err, "local resource not found: %s", lr.localPath)
 	}
 
-	// Copy to target path
 	if err := util.CopyFile(lr.localPath, path); err != nil {
 		return errors.Wrap(err, "failed to copy local resource to target path")
 	}
@@ -73,9 +69,8 @@ func (lr *LocalResource) Ensure(_ context.Context, _ string, path string) error 
 	return nil
 }
 
-// Cached always returns true for local resources since they don't need caching
+// Cached returns the original path when the local resource exists.
 func (lr *LocalResource) Cached(_ string) (bool, string) {
-	// Local resources are always "cached" at their original location
 	if _, err := os.Stat(lr.localPath); err == nil {
 		return true, lr.localPath
 	}

@@ -20,6 +20,7 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, "create isolated versioning test home:", err)
 		os.Exit(1)
 	}
+
 	for _, name := range []string{"HOME", "XDG_CONFIG_HOME", "APPDATA"} {
 		if err := os.Setenv(name, home); err != nil {
 			fmt.Fprintln(os.Stderr, "set versioning test environment:", err)
@@ -38,13 +39,16 @@ func TestMain(m *testing.M) {
 		return map[string]string{}
 	}
 	ResetDependencyOverrides()
+
 	code := m.Run()
+
 	remoteOverridesLoader = originalLoader
 	ResetDependencyOverrides()
 	if err := os.RemoveAll(home); err != nil {
 		fmt.Fprintln(os.Stderr, "remove versioning test home:", err)
 		code = 1
 	}
+
 	os.Exit(code)
 }
 
@@ -171,28 +175,23 @@ func TestDependencyOverrideIntegration(t *testing.T) {
 }
 
 func TestDependencyOverrideConfig(t *testing.T) {
-	// Create a temporary directory for test config
 	tmpDir, err := os.MkdirTemp("", "sampctl-config-test")
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
 
 	configPath := filepath.Join(tmpDir, "dependency-overrides.json")
 
-	// Test saving and loading config
 	testOverrides := map[string]string{
 		"old-user/old-repo":  "new-user/new-repo",
 		"github.com/foo/bar": "github.com/baz/qux",
 		"deprecated/package": "maintained/package",
 	}
 
-	// Save config
 	err = SaveDependencyOverrides(testOverrides, configPath)
 	require.NoError(t, err)
 
-	// Load config
 	loadedOverrides := LoadDependencyOverrides(configPath)
 
-	// Check that loaded overrides contain both built-in and user-defined overrides
 	for original, replacement := range DependencyOverrides {
 		assert.Equal(t, replacement, loadedOverrides[original], "built-in override should be preserved")
 	}
@@ -203,10 +202,8 @@ func TestDependencyOverrideConfig(t *testing.T) {
 }
 
 func TestLoadDependencyOverridesWithNonexistentFile(t *testing.T) {
-	// Test loading from a file that doesn't exist
 	loadedOverrides := LoadDependencyOverrides("/nonexistent/path/config.json")
 
-	// Should return built-in overrides
 	for original, replacement := range DependencyOverrides {
 		assert.Equal(t, replacement, loadedOverrides[original])
 	}
@@ -231,10 +228,8 @@ func TestLoadDependencyOverridesContextPassesContextToRemoteLoader(t *testing.T)
 }
 
 func TestApplyDependencyOverridesWithConfig(t *testing.T) {
-	// Reset the global loaded overrides
 	ResetDependencyOverrides()
 
-	// Create a temporary config with custom overrides
 	tmpDir, err := os.MkdirTemp("", "sampctl-test")
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
@@ -247,10 +242,8 @@ func TestApplyDependencyOverridesWithConfig(t *testing.T) {
 	err = SaveDependencyOverrides(customOverrides, configPath)
 	require.NoError(t, err)
 
-	// Test that the function works with built-in overrides
 	result := ApplyDependencyOverrides("Zeex/samp-plugin-crashdetect")
 	assert.Equal(t, "AmyrAhmady/samp-plugin-crashdetect", result)
 
-	// Reset for other tests
 	ResetDependencyOverrides()
 }

@@ -57,6 +57,7 @@ func TestDownloadRetriesOn500ThenSucceeds(t *testing.T) {
 			_, _ = w.Write([]byte("temporary"))
 			return
 		}
+
 		w.Header().Set("Content-Type", "application/octet-stream")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))

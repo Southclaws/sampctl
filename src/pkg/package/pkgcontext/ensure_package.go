@@ -63,11 +63,13 @@ func (pcx *PackageContext) ensureManagedPackage(request ensurePackageRequest) (e
 	if err := request.Context.Err(); err != nil {
 		return err
 	}
+
 	if !request.Meta.IsURLScheme() {
 		if err := validateManagedDependencyName(request.Meta.Repo); err != nil {
 			return err
 		}
 	}
+
 	state := pcx.dependencyInstalls
 	if state == nil {
 		projectState, beginErr := pcx.beginDependencyOperationState(request.Context, pcx.HasLockfileResolver(), true, "ensure dependency")
@@ -89,6 +91,7 @@ func (pcx *PackageContext) ensureManagedPackage(request ensurePackageRequest) (e
 			}
 		}()
 	}
+
 	if request.Meta.IsURLScheme() {
 		if request.Meta.IsLocalScheme() {
 			if err := validateLocalDependencyPath(pcx.Package.LocalPath, request.Meta); err != nil {
@@ -97,6 +100,7 @@ func (pcx *PackageContext) ensureManagedPackage(request ensurePackageRequest) (e
 		}
 		return pcx.ensureURLSchemeDependency(request.Context, request.Meta)
 	}
+
 	effectiveMeta := pcx.PackageLockfileState.LockedVersion(request.Meta, request.ForceUpdate)
 	effectiveMeta, err = pcx.resolveDynamicDependencyReference(request.Context, effectiveMeta, request.Meta, request.ForceUpdate)
 	if err != nil {
@@ -105,6 +109,7 @@ func (pcx *PackageContext) ensureManagedPackage(request ensurePackageRequest) (e
 	if err := validateManagedDependencyName(effectiveMeta.Repo); err != nil {
 		return err
 	}
+
 	return pcx.ensureStagedPackage(request, effectiveMeta, state)
 }
 
@@ -113,9 +118,11 @@ func (pcx *PackageContext) dependencyRecordSnapshot(meta versioning.DependencyMe
 	if lf == nil {
 		return func() {}
 	}
+
 	key := lockfile.DependencyKey(meta)
 	previous, exists := lf.GetDependency(key)
 	previous.RequiredBy = slices.Clone(previous.RequiredBy)
+
 	return func() {
 		if exists {
 			lf.AddDependency(key, previous)
@@ -130,6 +137,7 @@ func (pcx *PackageContext) ensureStagedPackage(request ensurePackageRequest, eff
 	if err != nil {
 		return err
 	}
+
 	staged := *pcx
 	staged.Package.Vendor = stage
 	staged.AllIncludePaths = nil
@@ -138,9 +146,11 @@ func (pcx *PackageContext) ensureStagedPackage(request ensurePackageRequest, eff
 	if err := stagePreviousDependency(request.Context, finalPath, dependencyPath); err != nil {
 		return err
 	}
+
 	if err := staged.prepareDependency(request, effectiveMeta, dependencyPath); err != nil {
 		return err
 	}
+
 	if err := request.Context.Err(); err != nil {
 		return err
 	}
@@ -149,6 +159,7 @@ func (pcx *PackageContext) ensureStagedPackage(request ensurePackageRequest, eff
 			return err
 		}
 	}
+
 	return pcx.promoteStagedResources(request.Context, stage, staged.AllIncludePaths, state)
 }
 
@@ -162,6 +173,7 @@ func (pcx *PackageContext) promoteStagedResources(ctx context.Context, stage str
 		if err := ctx.Err(); err != nil {
 			return err
 		}
+
 		relative, err := filepath.Rel(stage, includePath)
 		if err != nil || !filepath.IsLocal(relative) {
 			return fmt.Errorf("resource include directory escapes dependency staging: %s", includePath)
@@ -172,6 +184,7 @@ func (pcx *PackageContext) promoteStagedResources(ctx context.Context, stage str
 		}
 		pcx.AllIncludePaths = append(pcx.AllIncludePaths, target)
 	}
+
 	return nil
 }
 
@@ -205,6 +218,7 @@ func (pcx *PackageContext) prepareDependency(request ensurePackageRequest, effec
 	if err := pcx.installPackageResources(request.Context, request.Meta, effectiveMeta); err != nil {
 		return errors.Wrap(err, "failed to install package resources")
 	}
+
 	return pcx.recordDependencyResolution(request.Meta, request.ParentRepo, repo)
 }
 
@@ -219,24 +233,30 @@ func stagePreviousDependency(ctx context.Context, source, destination string) er
 	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
 		return fmt.Errorf("existing dependency %s must be a directory, not a symbolic link or file", source)
 	}
+
 	gitDirectory := filepath.Join(source, ".git")
 	if _, err := os.Lstat(gitDirectory); stderrors.Is(err, os.ErrNotExist) {
 		return validateRepositoryDestination(source)
 	}
+
 	if err := filepath.WalkDir(gitDirectory, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
+
 		if entry.Type()&os.ModeSymlink != 0 {
 			return fmt.Errorf("dependency Git metadata contains a symbolic link: %s", path)
 		}
+
 		return ctx.Err()
 	}); err != nil {
 		return fmt.Errorf("cannot safely stage existing dependency %s: %w", source, err)
 	}
+
 	if err := copyDependencyForStaging(ctx, source, destination); err != nil {
 		return fmt.Errorf("stage existing dependency %s: %w", source, err)
 	}
+
 	return nil
 }
 
@@ -244,22 +264,27 @@ func unchangedDependency(existing, prepared string, force bool) bool {
 	if force {
 		return false
 	}
+
 	oldRepo, err := git.PlainOpen(existing)
 	if err != nil {
 		return false
 	}
+
 	newRepo, err := git.PlainOpen(prepared)
 	if err != nil {
 		return false
 	}
+
 	oldHead, err := oldRepo.Head()
 	if err != nil {
 		return false
 	}
+
 	newHead, err := newRepo.Head()
 	if err != nil || oldHead.Hash() != newHead.Hash() {
 		return false
 	}
+
 	worktree, err := oldRepo.Worktree()
 	if err != nil {
 		return false
@@ -301,5 +326,6 @@ func (pcx *PackageContext) recordDependencyResolution(meta versioning.Dependency
 	if err := pcx.PackageLockfileState.RecordDependencyResolution(meta, resolution, isTransitive, parentRepo); err != nil {
 		return errors.Wrap(err, "failed to record dependency resolution to lockfile")
 	}
+
 	return nil
 }

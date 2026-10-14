@@ -25,6 +25,7 @@ func (pcx *PackageContext) Install(
 		return err
 	}
 	defer func() { err = pcx.finishDependencyOperation(state, err) }()
+
 	changed := false
 	for _, target := range targets {
 		if err := ctx.Err(); err != nil {
@@ -52,21 +53,27 @@ func (pcx *PackageContext) Install(
 		}
 		changed = true
 	}
+
 	if !changed {
 		return nil
 	}
+
 	if err := pcx.EnsureDependenciesCachedContext(ctx); err != nil {
 		return err
 	}
+
 	if err := pcx.EnsureDependencies(ctx, false); err != nil {
 		return err
 	}
+
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+
 	if err := pcx.writeDependencyDefinition(); err != nil {
 		return &OperationError{Operation: "manifest", Err: err}
 	}
+
 	return pcx.syncDependencyLockfile(ctx)
 }
 

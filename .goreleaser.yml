@@ -46,8 +46,12 @@ dockers_v2:
     images:
       - "ghcr.io/southclaws/sampctl"
     dockerfile: Dockerfile
+    # Downloaded Pawn compilers and server runtimes require x86 execution.
+    platforms:
+      - linux/amd64
     tags:
       - "{{ .Tag }}"
+      - "{{ if ne .Tag .Version }}{{ .Version }}{{ end }}"
       - "v{{ .Major }}"
       - "v{{ .Major }}.{{ .Minor }}"
       - "latest"

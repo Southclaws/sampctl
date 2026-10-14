@@ -21,6 +21,7 @@ func ValidateRepository(path string) (valid bool, err error) {
 		print.Verb("repository missing .git directory:", path)
 		return false, nil
 	}
+
 	if err := validateRepositoryDestination(path); err != nil {
 		return false, err
 	}
@@ -126,6 +127,7 @@ func CleanInvalidRepository(path string) error {
 	if !fs.Exists(path) {
 		return nil
 	}
+
 	if err := validateRepositoryDestination(path); err != nil {
 		return err
 	}
@@ -151,6 +153,7 @@ func DiagnoseRepository(path string) (diagnosis string, healthy bool) {
 	if !fs.Exists(gitDir) {
 		return "Missing .git directory", false
 	}
+
 	if err := validateRepositoryDestination(path); err != nil {
 		return "Unsafe repository directory: " + err.Error(), false
 	}

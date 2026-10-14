@@ -92,6 +92,7 @@ func TestIsCheckInvocation(t *testing.T) {
 		{name: "invalid global flag value", args: []string{"sampctl", "--verbose=invalid", "check"}, want: true},
 		{name: "missing executable"},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, isCheckInvocation(tt.args))
@@ -113,6 +114,7 @@ func TestExitCode(t *testing.T) {
 		{name: "internal error", err: &commandExitError{code: 2, err: errors.New("failed")}, want: 2},
 		{name: "wrapped internal error", err: fmt.Errorf("check: %w", &commandExitError{code: 2, err: errors.New("failed")}), want: 2},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, ExitCode(tt.err))
@@ -125,12 +127,15 @@ func TestCommandExitErrorPreservesCauseWithoutCLIExitCoder(t *testing.T) {
 
 	cause := errors.New("fixture failure")
 	err := &commandExitError{code: 2, err: cause}
+
 	assert.ErrorIs(t, err, cause)
 	assert.Equal(t, cause.Error(), err.Error())
 	assert.Empty(t, (&commandExitError{code: 1}).Error())
+
 	reported := &commandExitError{code: 2, err: cause, reported: true}
 	assert.Empty(t, reported.Error())
 	assert.ErrorIs(t, reported, cause)
+
 	_, exits := any(err).(cli.ExitCoder)
 	assert.False(t, exits, "urfave must not exit from library code")
 }
@@ -157,6 +162,7 @@ func TestRunCheckPreservesLegacyStateAndClassifiesUsageError(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("APPDATA", t.TempDir())
 	configdir.Refresh()
+
 	legacyDir := filepath.Join(os.Getenv("HOME"), ".samp")
 	require.NoError(t, os.Mkdir(legacyDir, 0o700))
 	legacyConfig := filepath.Join(legacyDir, "config.json")
@@ -172,6 +178,7 @@ func TestRunCheckPreservesLegacyStateAndClassifiesUsageError(t *testing.T) {
 		require.Error(t, err)
 		assert.Equal(t, 2, ExitCode(err))
 		assert.NoDirExists(t, fs.ConfigDirPath())
+
 		got, err := os.ReadFile(legacyConfig)
 		require.NoError(t, err)
 		assert.Equal(t, contents, got)
@@ -185,6 +192,7 @@ func TestCheckAppSkipsConfigLifecycle(t *testing.T) {
 	configPath := filepath.Join(cacheDir, "config.json")
 	contents := []byte("{broken")
 	require.NoError(t, os.WriteFile(configPath, contents, 0o600))
+
 	state := newCommandState("1.2.3", cacheDir)
 	app := newCLIApp("1.2.3", state)
 	app.Writer = io.Discard
@@ -204,6 +212,7 @@ func TestCheckAppSkipsConfigLifecycle(t *testing.T) {
 	assert.Nil(t, state.cfg)
 	assert.Nil(t, state.gh)
 	assert.Nil(t, state.gitAuth)
+
 	got, err := os.ReadFile(configPath)
 	require.NoError(t, err)
 	assert.Equal(t, contents, got)
@@ -228,6 +237,7 @@ func TestCheckCommandExitCodesAndOutput(t *testing.T) {
 			if tc.contents != "" {
 				require.NoError(t, os.WriteFile(filepath.Join(dir, "pawn.json"), []byte(tc.contents), 0o600))
 			}
+
 			cacheDir := filepath.Join(t.TempDir(), "missing")
 			state := newCommandState("1.2.3", cacheDir)
 			app := newCLIApp("1.2.3", state)
@@ -235,17 +245,21 @@ func TestCheckCommandExitCodesAndOutput(t *testing.T) {
 			app.Writer = &output
 			app.ErrWriter = &output
 			args := append([]string{"sampctl", "check", "--dir", dir}, tc.args...)
+
 			err := app.Run(args)
 			assert.Equal(t, tc.code, ExitCode(err), output.String())
 			assert.NoDirExists(t, cacheDir)
+
 			if tc.diagnostic != "" {
 				assert.Equal(t, 1, strings.Count(output.String(), tc.diagnostic), output.String())
 			}
+
 			if tc.code == 1 {
 				require.Error(t, err)
 				assert.Empty(t, err.Error(), "an already rendered health failure must not be printed again")
 				assert.NotContains(t, output.String(), "invalid character")
 			}
+
 			if tc.code == 2 {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "does not accept positional arguments")
@@ -281,12 +295,45 @@ func TestPlatformUsesFlagOrRuntimeDefault(t *testing.T) {
 	flagSet.String("platform", "", "")
 	require.NoError(t, flagSet.Parse([]string{"--platform=linux"}))
 	ctx := cli.NewContext(app, flagSet, nil)
+
 	assert.Equal(t, "linux", platform(ctx))
 
 	defaultSet := flag.NewFlagSet("test-default", flag.ContinueOnError)
 	defaultSet.String("platform", "", "")
 	ctx = cli.NewContext(app, defaultSet, nil)
+
 	assert.Equal(t, runtime.GOOS, platform(ctx))
+}
+
+func TestPlatformResolvesGlobalAndCommandFlags(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "global", args: []string{"--platform", "windows", "build"}, want: "windows"},
+		{name: "command", args: []string{"build", "--platform", "darwin"}, want: "darwin"},
+		{name: "command overrides global", args: []string{"--platform", "windows", "build", "--platform", "darwin"}, want: "darwin"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			app := newCLIApp("test", newCommandState("test", t.TempDir()))
+			app.Before, app.After = nil, nil
+			var selected string
+			for i := range app.Commands {
+				if app.Commands[i].Name == "build" {
+					app.Commands[i].Action = func(c *cli.Context) error {
+						selected = platform(c)
+						return nil
+					}
+				}
+			}
+
+			require.NoError(t, app.Run(append([]string{"sampctl"}, tc.args...)))
+			assert.Equal(t, tc.want, selected)
+		})
+	}
 }
 
 func TestNewCommandContextCancel(t *testing.T) {

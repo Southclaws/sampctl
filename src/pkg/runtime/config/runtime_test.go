@@ -55,6 +55,7 @@ func TestRuntimeFromDir(t *testing.T) {
 				assert.Error(t, err)
 				return
 			}
+
 			assert.NoError(t, err)
 			assert.Equal(t, tt.wantCfg, gotCfg)
 		})
@@ -102,6 +103,7 @@ func TestRuntimeFromJSON(t *testing.T) {
 				assert.Error(t, err)
 				return
 			}
+
 			assert.NoError(t, err)
 
 			// because the RuntimeFromJSON function does not know the dir
@@ -153,6 +155,7 @@ func TestRuntimeFromYAML(t *testing.T) {
 				assert.Error(t, err)
 				return
 			}
+
 			assert.NoError(t, err)
 
 			// because the RuntimeFromYAML function does not know the dir

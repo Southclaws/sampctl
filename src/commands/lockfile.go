@@ -13,6 +13,7 @@ func initLockfileResolver(c *cli.Context, target pkgcontext.LockfileInitializer)
 	if err != nil {
 		return err
 	}
+
 	return target.InitLockfileResolver(state.version)
 }
 

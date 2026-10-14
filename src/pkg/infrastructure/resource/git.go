@@ -81,21 +81,18 @@ func (gr *GitResource) Ensure(ctx context.Context, version, path string) error {
 		return err
 	}
 
-	// Check if already cached
 	if cached, cachedPath := gr.Cached(version); cached {
-		// Mark as recently accessed
 		if err := gr.baseResource.MarkCached(cachedPath); err != nil {
 			return errors.Wrap(err, "failed to update cache timestamp")
 		}
 
-		// Copy/link to target path if different
 		if path != "" && path != cachedPath {
 			return gr.copyToTarget(cachedPath, path)
 		}
+
 		return nil
 	}
 
-	// Ensure cache directory exists
 	if err := gr.baseResource.ensureCacheDir(cachePath); err != nil {
 		return errors.Wrap(err, "failed to create cache directory")
 	}
@@ -109,6 +106,7 @@ func (gr *GitResource) Ensure(ctx context.Context, version, path string) error {
 	if err := os.RemoveAll(cachePath); err != nil {
 		return errors.Wrap(err, "failed to remove expired git cache path")
 	}
+
 	if err := os.MkdirAll(filepath.Dir(cachePath), 0o700); err != nil {
 		return errors.Wrap(err, "failed to create parent cache directory")
 	}
@@ -131,16 +129,16 @@ func (gr *GitResource) Ensure(ctx context.Context, version, path string) error {
 	}
 
 	if meta.Commit != "" {
-		wt, werr := repo.Worktree()
-		if werr != nil {
-			return errors.Wrap(werr, "failed to get git worktree")
+		worktree, err := repo.Worktree()
+		if err != nil {
+			return errors.Wrap(err, "failed to get git worktree")
 		}
-		if werr := wt.Checkout(&git.CheckoutOptions{Hash: plumbing.NewHash(meta.Commit)}); werr != nil {
-			return errors.Wrap(werr, "failed to checkout commit")
+
+		if err := worktree.Checkout(&git.CheckoutOptions{Hash: plumbing.NewHash(meta.Commit)}); err != nil {
+			return errors.Wrap(err, "failed to checkout commit")
 		}
 	}
 
-	// Copy to target path if specified
 	if path != "" && path != cachePath {
 		if err := gr.copyToTarget(cachePath, path); err != nil {
 			return errors.Wrap(err, "failed to copy to target path")
@@ -152,14 +150,11 @@ func (gr *GitResource) Ensure(ctx context.Context, version, path string) error {
 
 // copyToTarget handles copying/linking files or directories to target location
 func (gr *GitResource) copyToTarget(source, target string) error {
-	// For now, use simple copy operation
-	// In the future, this could be optimized with hard links or symlinks
 	return filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		// Calculate relative path
 		relPath, err := filepath.Rel(source, path)
 		if err != nil {
 			return err

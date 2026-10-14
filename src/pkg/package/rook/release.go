@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/Masterminds/semver"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
@@ -21,7 +22,6 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
-	"gopkg.in/AlecAivazis/survey.v1"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
@@ -78,7 +78,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 						"x.y.z: Enter a custom initial version",
 					},
 				},
-				Validate: survey.Required,
+				Validate: requiredSelection,
 			},
 		}
 	} else {
@@ -101,7 +101,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 						fmt.Sprintf("%s: Breaking API changes", bumpMajor.String()),
 					},
 				},
-				Validate: survey.Required,
+				Validate: requiredSelection,
 			},
 		}
 	}
@@ -134,6 +134,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 	if err != nil {
 		return errors.Wrap(err, "failed to open wizard")
 	}
+
 	versionText := strings.Split(answers.Version, ":")[0]
 
 	if versionText == "x.y.z" {
@@ -205,6 +206,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 	if err != nil {
 		return errors.Wrap(err, "failed to create new commit for release")
 	}
+
 	refName := plumbing.ReferenceName("refs/tags/" + newVersion.String())
 	ref := plumbing.NewHashReference(refName, hash)
 	err = repo.Storer.SetReference(ref)
@@ -475,6 +477,7 @@ func createReleaseArchive(pkg pawnpackage.Package, version *semver.Version) (str
 		}
 		return "", errors.Wrap(err, "failed to create archive contents")
 	}
+
 	if err := zipWriter.Close(); err != nil {
 		if closeErr := archiveFile.Close(); closeErr != nil {
 			print.Warn("failed to close archive file after writer error:", closeErr)
@@ -484,6 +487,7 @@ func createReleaseArchive(pkg pawnpackage.Package, version *semver.Version) (str
 		}
 		return "", errors.Wrap(err, "failed to finalize archive")
 	}
+
 	if err := archiveFile.Close(); err != nil {
 		if removeErr := os.Remove(archivePath); removeErr != nil && !os.IsNotExist(removeErr) {
 			print.Warn("failed to remove incomplete release archive:", removeErr)
@@ -547,10 +551,12 @@ func formatBytes(bytes int64) string {
 	if bytes < unit {
 		return fmt.Sprintf("%d B", bytes)
 	}
+
 	div, exp := int64(unit), 0
 	for n := bytes / unit; n >= unit; n /= unit {
 		div *= unit
 		exp++
 	}
+
 	return fmt.Sprintf("%.1f %ciB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }

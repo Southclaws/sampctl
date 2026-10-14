@@ -49,9 +49,11 @@ func shouldCheckForUpdates(cfg *config.Config, generateCompletion, bare bool, no
 	if cfg == nil || generateCompletion || bare {
 		return false
 	}
+
 	if cfg.HideVersionUpdateMessage != nil && *cfg.HideVersionUpdateMessage {
 		return false
 	}
+
 	if now.Minute()%2 != 0 || now.Second()%2 != 0 {
 		return false
 	}
@@ -89,10 +91,12 @@ func reportUpgradeCheckError(err error) {
 			print.Erro(err)
 			return
 		}
+
 		if len(message) >= len("invalid current sampctl version: ") && message[:len("invalid current sampctl version")] == "invalid current sampctl version" {
 			print.Verb(err)
 			return
 		}
+
 		print.Erro(err)
 	}
 }

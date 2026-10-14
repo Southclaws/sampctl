@@ -204,5 +204,6 @@ func mustHashFile(t *testing.T, path string) string {
 
 	hash, _, err := hashFile(path)
 	require.NoError(t, err)
+
 	return hash
 }

@@ -41,6 +41,7 @@ func TestEnsureProjectInitialisesLockfileAndPinsDependencies(t *testing.T) {
 		fullPath := filepath.Join(cachePath, name)
 		require.NoError(t, os.MkdirAll(filepath.Dir(fullPath), 0o755))
 		require.NoError(t, os.WriteFile(fullPath, []byte(contents), 0o644))
+
 		_, err = wt.Add(name)
 		require.NoError(t, err)
 	}
@@ -52,12 +53,14 @@ func TestEnsureProjectInitialisesLockfileAndPinsDependencies(t *testing.T) {
 			Committer: &object.Signature{Name: "test", Email: "test@example.com", When: when},
 		})
 		require.NoError(t, err)
+
 		return hash
 	}
 
 	writeDep("pawn.json", `{"entry":"dep.pwn","output":"gamemodes/dep.amx"}`)
 	writeDep("dep.pwn", `main() {}`)
 	_ = commitDep("initial", time.Unix(100, 0))
+
 	_, err = repo.CreateTag("1.0.0", headHashForEnsureProject(repo, t), nil)
 	require.NoError(t, err)
 
@@ -72,6 +75,7 @@ func TestEnsureProjectInitialisesLockfileAndPinsDependencies(t *testing.T) {
 	}
 	configBytes, err := json.MarshalIndent(rootConfig, "", "\t")
 	require.NoError(t, err)
+
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), configBytes, 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "main.pwn"), []byte("main() {}"), 0o644))
 
@@ -84,6 +88,7 @@ func TestEnsureProjectInitialisesLockfileAndPinsDependencies(t *testing.T) {
 		CacheDir: cacheDir,
 	})
 	require.NoError(t, err)
+
 	require.NoError(t, pcx.InitLockfileResolver("dev"))
 
 	updated, err := pcx.EnsureProject(context.Background(), DependencyUpdateRequest{Enabled: true})
@@ -129,19 +134,24 @@ func TestEnsureProjectRecordsLocalDependenciesAndPrunesRemovedEntries(t *testing
 
 	repo, err := git.PlainInit(cachePath, false)
 	require.NoError(t, err)
+
 	wt, err := repo.Worktree()
 	require.NoError(t, err)
+
 	require.NoError(t, os.WriteFile(filepath.Join(cachePath, "pawn.json"), []byte(`{"entry":"dep.pwn","output":"gamemodes/dep.amx"}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(cachePath, "dep.pwn"), []byte("main() {}"), 0o644))
+
 	_, err = wt.Add("pawn.json")
 	require.NoError(t, err)
 	_, err = wt.Add("dep.pwn")
 	require.NoError(t, err)
+
 	_, err = wt.Commit("initial", &git.CommitOptions{
 		Author:    &object.Signature{Name: "test", Email: "test@example.com", When: time.Unix(100, 0)},
 		Committer: &object.Signature{Name: "test", Email: "test@example.com", When: time.Unix(100, 0)},
 	})
 	require.NoError(t, err)
+
 	_, err = repo.CreateTag("1.0.0", headHashForEnsureProject(repo, t), nil)
 	require.NoError(t, err)
 
@@ -156,6 +166,7 @@ func TestEnsureProjectRecordsLocalDependenciesAndPrunesRemovedEntries(t *testing
 	}
 	configBytes, err := json.MarshalIndent(rootConfig, "", "\t")
 	require.NoError(t, err)
+
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), configBytes, 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "main.pwn"), []byte("main() {}"), 0o644))
 
@@ -163,6 +174,7 @@ func TestEnsureProjectRecordsLocalDependenciesAndPrunesRemovedEntries(t *testing
 
 	pcx, err := NewPackageContext(NewPackageContextOptions{Parent: true, Dir: projectDir, Platform: "linux", CacheDir: cacheDir})
 	require.NoError(t, err)
+
 	require.NoError(t, pcx.InitLockfileResolver("dev"))
 
 	updated, err := pcx.EnsureProject(context.Background(), DependencyUpdateRequest{})
@@ -178,10 +190,12 @@ func TestEnsureProjectRecordsLocalDependenciesAndPrunesRemovedEntries(t *testing
 	rootConfig["dependencies"] = []string{"includes://local/includes"}
 	configBytes, err = json.MarshalIndent(rootConfig, "", "\t")
 	require.NoError(t, err)
+
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), configBytes, 0o644))
 
 	pcx, err = NewPackageContext(NewPackageContextOptions{Parent: true, Dir: projectDir, Platform: "linux", CacheDir: cacheDir})
 	require.NoError(t, err)
+
 	require.NoError(t, pcx.InitLockfileResolver("dev"))
 
 	updated, err = pcx.EnsureProject(context.Background(), DependencyUpdateRequest{})
@@ -214,6 +228,7 @@ func TestEnsureProjectWithoutUpdateDoesNotRewriteTaglessDependencies(t *testing.
 	}
 	configBytes, err := json.MarshalIndent(rootConfig, "", "\t")
 	require.NoError(t, err)
+
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), configBytes, 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "main.pwn"), []byte("main() {}"), 0o644))
 
@@ -226,6 +241,7 @@ func TestEnsureProjectWithoutUpdateDoesNotRewriteTaglessDependencies(t *testing.
 		CacheDir: cacheDir,
 	})
 	require.NoError(t, err)
+
 	require.NoError(t, pcx.InitLockfileResolver("dev"))
 
 	updated, err := pcx.EnsureProject(context.Background(), DependencyUpdateRequest{})
@@ -257,6 +273,7 @@ func TestEnsureProjectForceUpdateRewritesPinnedTarget(t *testing.T) {
 	}
 	configBytes, err := json.MarshalIndent(rootConfig, "", "\t")
 	require.NoError(t, err)
+
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), configBytes, 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "main.pwn"), []byte("main() {}"), 0o644))
 
@@ -269,6 +286,7 @@ func TestEnsureProjectForceUpdateRewritesPinnedTarget(t *testing.T) {
 		CacheDir: cacheDir,
 	})
 	require.NoError(t, err)
+
 	require.NoError(t, pcx.InitLockfileResolver("dev"))
 
 	updated, err := pcx.EnsureProject(context.Background(), DependencyUpdateRequest{
@@ -311,6 +329,7 @@ func seedStagedRuntime(t *testing.T, cacheDir string, cfg run.Runtime) {
 
 	manifestBytes, err := json.MarshalIndent(manifest, "", "  ")
 	require.NoError(t, err)
+
 	require.NoError(t, os.WriteFile(filepath.Join(stageDir, "sampctl-runtime-manifest.json"), manifestBytes, 0o600))
 }
 
@@ -318,6 +337,7 @@ func headHashForEnsureProject(repo *git.Repository, t *testing.T) plumbing.Hash 
 	t.Helper()
 	head, err := repo.Head()
 	require.NoError(t, err)
+
 	return head.Hash()
 }
 

@@ -146,6 +146,41 @@ func TestGetResourceAndPath(t *testing.T) {
 	assert.Equal(t, filepath.Join("plugins", "streamer", "v1.0.0"), GetResourcePath(versioning.DependencyMeta{Repo: "streamer", Tag: "v1.0.0"}))
 }
 
+func TestEnsurePluginsRegistersEveryArchiveMatch(t *testing.T) {
+	t.Parallel()
+
+	for _, scheme := range []string{"plugin", "component"} {
+		t.Run(scheme, func(t *testing.T) {
+			t.Parallel()
+
+			cacheDir, workingDir := t.TempDir(), t.TempDir()
+			meta := versioning.DependencyMeta{Scheme: scheme, User: "fixture", Repo: "multiple", Tag: "v1"}
+			resource := res.Resource{
+				Name: `^multiple\.zip$`, Platform: "linux", Archive: true,
+				Plugins: []string{`^plugins/.*\.so$`, `^plugins/first\.so$`},
+			}
+			seedCachedPluginPackage(t, cacheDir, meta, pluginFixturePackage(meta, []res.Resource{resource}), "multiple.zip", map[string]string{
+				"plugins/first.so": "first", "plugins/second.so": "second",
+			})
+			cfg := run.Runtime{
+				WorkingDir: workingDir, Version: "openmp", Platform: "linux",
+				PluginDeps: []versioning.DependencyMeta{meta},
+			}
+
+			err := EnsurePlugins(EnsurePluginsRequest{Context: t.Context(), Config: &cfg, CacheDir: cacheDir})
+			require.NoError(t, err)
+			plugins, directory := cfg.Plugins, "plugins"
+			if scheme == "component" {
+				plugins, directory = cfg.Components, "components"
+			}
+			require.ElementsMatch(t, []run.Plugin{"first", "second"}, plugins)
+			for _, plugin := range plugins {
+				require.FileExists(t, filepath.Join(workingDir, directory, string(plugin)+".so"))
+			}
+		})
+	}
+}
+
 func TestHasExplicitDependencyReference(t *testing.T) {
 	t.Parallel()
 

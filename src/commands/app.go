@@ -30,6 +30,7 @@ func Run(args []string, version string) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to find the sampctl config directory")
 		}
+
 		if err := download.MigrateOldConfig(cacheDir); err != nil {
 			return errors.Wrap(err, "failed to move the old sampctl config directory")
 		}
@@ -46,6 +47,7 @@ func Run(args []string, version string) error {
 		}
 		return err
 	}
+
 	if checking {
 		return nil
 	}
@@ -57,15 +59,18 @@ func isCheckInvocation(args []string) bool {
 	if len(args) < 2 {
 		return false
 	}
+
 	set := flag.NewFlagSet("sampctl", flag.ContinueOnError)
 	set.SetOutput(io.Discard)
 	flags := withGlobalFlags(globalFlags(), []cli.Flag{cli.HelpFlag, cli.VersionFlag, cli.BashCompletionFlag})
 	for _, f := range flags {
 		f.Apply(set)
 	}
+
 	if err := set.Parse(args[1:]); err != nil {
 		return isCheckCommand(set.Args())
 	}
+
 	return isCheckCommand(cli.Args(set.Args()))
 }
 
@@ -93,7 +98,9 @@ func newCLIApp(version string, state *commandState) *cli.App {
 		if isCheckCommand(c.Args()) {
 			return nil
 		}
+
 		state.maybeCheckForUpdates(c)
+
 		return nil
 	}
 	app.OnUsageError = func(_ *cli.Context, err error, _ bool) error {
@@ -320,7 +327,12 @@ func newDocsCommand() cli.Command {
 func platform(c *cli.Context) (platform string) {
 	platform = c.String("platform")
 	if platform == "" {
+		platform = c.GlobalString("platform")
+	}
+
+	if platform == "" {
 		platform = runtime.GOOS
 	}
+
 	return
 }

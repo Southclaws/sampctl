@@ -68,6 +68,7 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 			context.Canceled,
 		},
 	}
+
 	for _, tt := range tests {
 		os.RemoveAll(tt.pcx.Package.LocalPath)
 		os.MkdirAll(tt.pcx.Package.LocalPath, 0o700) //nolint
@@ -83,6 +84,7 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
+
 			if tt.wantIs != nil {
 				assert.ErrorIs(t, err, tt.wantIs)
 			}
@@ -132,6 +134,7 @@ func TestPackageContext_EnsurePackage(t *testing.T) {
 			false,
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			pcxWorkspace := t.TempDir()

@@ -23,6 +23,7 @@ func newConfigGenerator(cfg *run.Runtime) configGenerator {
 	if cfg.IsOpenMP() {
 		return newOpenMPConfig(cfg.WorkingDir)
 	}
+
 	return newSAMPConfig(cfg.WorkingDir)
 }
 
@@ -78,6 +79,7 @@ func fromSlice(name string, obj reflect.Value, required bool, num bool) (result 
 		}
 		result += "\n"
 	}
+
 	return
 }
 
@@ -87,6 +89,7 @@ func fromBool(name string, obj reflect.Value, required bool, defaultValue string
 		if required {
 			return "", errors.Errorf("field %s is required", name)
 		}
+
 		value, err = strconv.ParseBool(defaultValue)
 		if err != nil {
 			return "", errors.Wrapf(err, "invalid default bool value %q for %s", defaultValue, name)
@@ -110,6 +113,7 @@ func fromInt(name string, obj reflect.Value, required bool, defaultValue string)
 		if required {
 			return "", errors.Errorf("field %s is required", name)
 		}
+
 		tmp, err := strconv.Atoi(defaultValue)
 		if err != nil {
 			return "", errors.Wrapf(err, "invalid default int value %q for %s", defaultValue, name)
@@ -129,6 +133,7 @@ func fromFloat(name string, obj reflect.Value, required bool, defaultValue strin
 		if required {
 			return "", errors.Errorf("field %s is required", name)
 		}
+
 		value, err = strconv.ParseFloat(defaultValue, 32)
 		if err != nil {
 			return "", errors.Wrapf(err, "invalid default float value %q for %s", defaultValue, name)
@@ -152,6 +157,7 @@ func fromMap(name string, obj reflect.Value, required bool) (result string, err 
 	for _, key := range obj.MapKeys() {
 		lines = append(lines, fmt.Sprintf("%s %s", key.String(), obj.MapIndex(key).String()))
 	}
+
 	sort.Strings(lines)
 	result = strings.Join(lines, "\n") + "\n"
 

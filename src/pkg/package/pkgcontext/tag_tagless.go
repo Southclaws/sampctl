@@ -66,6 +66,11 @@ func formatPinnedDependency(meta versioning.DependencyMeta) string {
 	if meta.Path != "" {
 		base += "/" + strings.TrimPrefix(meta.Path, "/")
 	}
+	if meta.SSH != "" {
+		base = meta.SSH + "@" + normalizeDependencySite(meta.Site) + ":" + base
+	} else if site := normalizeDependencySite(meta.Site); !strings.EqualFold(site, "github.com") {
+		base = "https://" + site + "/" + base
+	}
 
 	if meta.Tag != "" {
 		return base + ":" + meta.Tag
@@ -84,6 +89,7 @@ func (pcx *PackageContext) resolveLatestTag(ctx context.Context, meta versioning
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
+
 	if forceUpdate {
 		tag, err := pcx.resolveFreshLatestTag(ctx, meta)
 		if err == nil && tag != "" {
@@ -141,6 +147,7 @@ func (pcx *PackageContext) resolveLatestTag(ctx context.Context, meta versioning
 		}
 		return "", errors.Wrap(err, "failed to read tags after refreshing dependency cache")
 	}
+
 	return tag, nil
 }
 
@@ -148,6 +155,7 @@ func (pcx *PackageContext) resolveFreshLatestTag(ctx context.Context, meta versi
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
+
 	if pcx.GitHub != nil && (meta.Site == "" || meta.Site == "github.com") {
 		tag, err := pcx.latestTagFromGitHubRelease(ctx, meta)
 		if err == nil && tag != "" {
@@ -202,18 +210,22 @@ func (pcx *PackageContext) cachedRepoHasNoOriginContext(ctx context.Context, met
 	if err := ctx.Err(); err != nil {
 		return false, err
 	}
+
 	repoPath, err := pcx.cacheRepositoryPath(meta)
 	if err != nil {
 		return false, err
 	}
+
 	unlock, err := lockRepositoryPath(ctx, repoPath)
 	if err != nil {
 		return false, err
 	}
 	defer func() { err = stderrors.Join(err, unlock()) }()
+
 	if err := validateRepositoryDestination(repoPath); err != nil {
 		return false, err
 	}
+
 	repo, err := pcx.PackageServices.repositoryStore().Open(repoPath)
 	if err != nil {
 		if errors.Is(err, os.ErrPermission) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
@@ -221,6 +233,10 @@ func (pcx *PackageContext) cachedRepoHasNoOriginContext(ctx context.Context, met
 		}
 		return false, nil
 	}
+	if err := validateCachedRepositoryOrigin(repo, meta); err != nil {
+		return false, err
+	}
+
 	remote, err := repo.Remote("origin")
 	if errors.Is(err, git.ErrRemoteNotFound) {
 		return true, nil
@@ -231,6 +247,7 @@ func (pcx *PackageContext) cachedRepoHasNoOriginContext(ctx context.Context, met
 		}
 		return false, nil
 	}
+
 	return remote == nil || remote.Config() == nil || len(remote.Config().URLs) == 0 || remote.Config().URLs[0] == "", nil
 }
 
@@ -254,6 +271,7 @@ func (pcx *PackageContext) latestTagFromGitHubRelease(ctx context.Context, meta 
 			return r.GetTagName(), nil
 		}
 	}
+
 	for _, r := range releases {
 		if r.GetDraft() {
 			continue
@@ -274,18 +292,22 @@ func (pcx *PackageContext) latestTagFromCacheContext(ctx context.Context, meta v
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
+
 	cachePath, err := pcx.cacheRepositoryPath(meta)
 	if err != nil {
 		return "", err
 	}
+
 	unlock, err := lockRepositoryPath(ctx, cachePath)
 	if err != nil {
 		return "", err
 	}
 	defer func() { err = stderrors.Join(err, unlock()) }()
+
 	if err := validateRepositoryDestination(cachePath); err != nil {
 		return "", err
 	}
+
 	gitPath := filepath.Join(cachePath, ".git")
 	if !fs.Exists(gitPath) {
 		return "", errors.New("no cached repository")
@@ -294,6 +316,9 @@ func (pcx *PackageContext) latestTagFromCacheContext(ctx context.Context, meta v
 	repo, err := git.PlainOpen(cachePath)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to open cached repository")
+	}
+	if err := validateCachedRepositoryOrigin(repo, meta); err != nil {
+		return "", err
 	}
 
 	versionedTags, err := versioning.GetRepoSemverTags(repo)
@@ -330,6 +355,7 @@ func (pcx *PackageContext) latestTagFromCacheContext(ctx context.Context, meta v
 		if errInner != nil {
 			return nil
 		}
+
 		commit, errInner := repo.CommitObject(ref.Hash())
 		if errInner != nil {
 			return nil
@@ -379,5 +405,6 @@ func (pcx *PackageContext) latestTagFromCacheContext(ctx context.Context, meta v
 	if bestName == "" {
 		return "", errors.New("no tags")
 	}
+
 	return bestName, nil
 }

@@ -44,12 +44,15 @@ func TestDependencyGraphUsesPinnedRevisionDefinition(t *testing.T) {
 
 			repo, err := git.PlainInit(cachePath, false)
 			require.NoError(t, err)
+
 			wt, err := repo.Worktree()
 			require.NoError(t, err)
 
 			require.NoError(t, os.WriteFile(filepath.Join(cachePath, "library.inc"), []byte("// legacy\n"), 0o600))
+
 			_, err = wt.Add("library.inc")
 			require.NoError(t, err)
+
 			legacyCommit, err := wt.Commit("legacy release", &git.CommitOptions{
 				Author: &object.Signature{
 					Name:  "test",
@@ -58,13 +61,16 @@ func TestDependencyGraphUsesPinnedRevisionDefinition(t *testing.T) {
 				},
 			})
 			require.NoError(t, err)
+
 			_, err = repo.CreateTag("1.0.0", legacyCommit, nil)
 			require.NoError(t, err)
 
 			definition := `{"dependencies":["openmultiplayer/omp-stdlib"]}`
 			require.NoError(t, os.WriteFile(filepath.Join(cachePath, "pawn.json"), []byte(definition), 0o600))
+
 			_, err = wt.Add("pawn.json")
 			require.NoError(t, err)
+
 			_, err = wt.Commit("add current dependencies", &git.CommitOptions{
 				Author: &object.Signature{
 					Name:  "test",
@@ -81,6 +87,7 @@ func TestDependencyGraphUsesPinnedRevisionDefinition(t *testing.T) {
 			} else {
 				dependency += "#" + pinned.Commit
 			}
+
 			pcx := PackageContext{
 				Package: pawnpackage.Package{
 					Parent:       true,

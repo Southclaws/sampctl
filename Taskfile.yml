@@ -7,6 +7,9 @@ vars:
   GO_BIN: { sh: 'printf %s "${GOBIN:-$(go env GOPATH)/bin}"' }
   PATH: { sh: "pwd" }
 
+env:
+  GOTOOLCHAIN: { sh: "awk '/^go / { print \"go\" $2; exit }' go.mod" }
+
 tasks:
   # Default task should clean up and build a static version of sampctl
   default:
@@ -25,7 +28,8 @@ tasks:
   # Install sampctl into the go bin folder
   install:
     cmds:
-      - go install {{.LDFLAGS}} ./src
+      - mkdir -p "{{.GO_BIN}}"
+      - go build {{.LDFLAGS}} -o "{{.GO_BIN}}/sampctl{{exeExt}}" ./src
 
   # Remove sampctl binary
   clean:
@@ -85,12 +89,12 @@ tasks:
   # https://github.com/goreleaser/goreleaser/issues/409
   release:
     cmds:
-      - <<
-        PATH="/usr/local/opt/gnu-tar/libexec/gnubin:{{.PATH}}"
+      - >
+        PATH="/usr/local/opt/gnu-tar/libexec/gnubin:$PATH"
         GITHUB_TOKEN={{.GITHUB_TOKEN}}
         goreleaser
         --snapshot
-        --rm-dist
+        --clean
 
   # Generating documentation via docgen
   docs:
@@ -101,13 +105,13 @@ tasks:
   # Building the sampctl docker image
   docker:build:
     cmds:
-      - docker build -t southclaws/sampctl:{{.VERSION}} .
+      - docker build --target development --build-arg VERSION={{.VERSION}} -t ghcr.io/southclaws/sampctl:{{.VERSION}} .
 
   # Building and pushing the sampctl docker image
   docker:push:
     deps: ["docker:build"]
     cmds:
-      - docker push southclaws/sampctl:{{.VERSION}}
+      - docker push ghcr.io/southclaws/sampctl:{{.VERSION}}
 
   # Creates a docker enviornment with ubuntu to test sampctl functionality
   env:ubuntu:

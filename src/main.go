@@ -14,6 +14,7 @@ func main() {
 		if err.Error() != "" {
 			print.Erro(err)
 		}
+
 		os.Exit(commands.ExitCode(err))
 	}
 }

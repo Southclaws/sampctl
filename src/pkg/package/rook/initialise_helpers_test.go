@@ -9,9 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -145,6 +146,7 @@ func TestGetTemplateFile(t *testing.T) {
 	defer func() { http.DefaultTransport = oldTransport }()
 
 	require.NoError(t, getTemplateFile(context.Background(), tmpDir, "README.md", answers))
+
 	contents, err := os.ReadFile(filepath.Join(tmpDir, "README.md"))
 	require.NoError(t, err)
 	assert.Equal(t, "repo=my-repo escaped=my--repo", string(contents))
@@ -203,6 +205,7 @@ func TestGetTemplateFileUsesLocalReadmeTemplateForLocalPackages(t *testing.T) {
 	defer func() { http.DefaultTransport = oldTransport }()
 
 	require.NoError(t, getTemplateFile(context.Background(), tmpDir, "README.md", answers))
+
 	contents, err := os.ReadFile(filepath.Join(tmpDir, "README.md"))
 	require.NoError(t, err)
 	assert.Contains(t, string(contents), "# my-local-package")

@@ -58,15 +58,9 @@ func packageBuild(c *cli.Context) error {
 
 	build := c.Args().Get(0)
 
-	pcx, _, err := loadPackageContext(c, dir, false)
+	pcx, _, err := loadPackageContextWithCache(c, dir, false, true, useLockfile)
 	if err != nil {
 		return errors.Wrap(err, "failed to load the Pawn package")
-	}
-
-	if useLockfile {
-		if err = initLockfileResolver(c, pcx); err != nil {
-			print.Warn("Failed to load the lockfile:", err)
-		}
 	}
 
 	ctx, cancel := newCommandContext()
@@ -119,17 +113,15 @@ func packageBuild(c *cli.Context) error {
 		))
 
 		if useLockfile && !problems.Fatal() && len(problems.Errors()) == 0 {
-			config := pcx.Package.GetBuildConfig(build)
-			if config != nil {
-				if saveErr := persistBuildLockfile(
-					pcx,
-					config.Compiler.Version,
-					config.Compiler.Preset,
-					pcx.Package.Entry,
-					pcx.Package.Output,
-				); saveErr != nil {
-					print.Warn("failed to save lockfile:", saveErr)
-				}
+			config := pcx.ActualBuild
+			if saveErr := persistBuildLockfile(
+				pcx,
+				config.Compiler.Version,
+				config.Compiler.Preset,
+				config.Input,
+				config.Output,
+			); saveErr != nil {
+				print.Warn("failed to save lockfile:", saveErr)
 			}
 		}
 	}

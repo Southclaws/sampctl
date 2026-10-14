@@ -33,6 +33,7 @@ func TestTagTaglessDependencies_DoesNotModifyAlreadyVersioned(t *testing.T) {
 	}
 	initialBytes, err := json.MarshalIndent(cfg, "", "\t")
 	require.NoError(t, err)
+
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), initialBytes, 0o644))
 
 	pkg, err := pawnpackage.PackageFromDir(projectDir)
@@ -42,6 +43,7 @@ func TestTagTaglessDependencies_DoesNotModifyAlreadyVersioned(t *testing.T) {
 	pkg.SetDependencyMeta(versioning.DependencyMeta{User: "local", Repo: "project"})
 
 	pcx := pkgcontext.PackageContext{Package: pkg, PackageServices: pkgcontext.PackageServices{CacheDir: cacheDir, Platform: "linux"}}
+
 	updated, err := pcx.TagTaglessDependencies(context.Background(), false)
 	require.NoError(t, err)
 	require.False(t, updated)
@@ -67,6 +69,7 @@ func TestTagTaglessDependencies_TagsMultipleAndDevDependencies(t *testing.T) {
 	}
 	b, err := json.MarshalIndent(cfg, "", "\t")
 	require.NoError(t, err)
+
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), b, 0o644))
 
 	pkg, err := pawnpackage.PackageFromDir(projectDir)
@@ -76,12 +79,14 @@ func TestTagTaglessDependencies_TagsMultipleAndDevDependencies(t *testing.T) {
 	pkg.SetDependencyMeta(versioning.DependencyMeta{User: "local", Repo: "project"})
 
 	pcx := pkgcontext.PackageContext{Package: pkg, PackageServices: pkgcontext.PackageServices{CacheDir: cacheDir, Platform: "linux"}}
+
 	updated, err := pcx.TagTaglessDependencies(context.Background(), false)
 	require.NoError(t, err)
 	require.True(t, updated)
 
 	finalBytes, err := os.ReadFile(filepath.Join(projectDir, "pawn.json"))
 	require.NoError(t, err)
+
 	var final map[string]any
 	require.NoError(t, json.Unmarshal(finalBytes, &final))
 
@@ -105,6 +110,7 @@ func TestTagTaglessDependencies_TagsDependencyWithPath(t *testing.T) {
 	}
 	b, err := json.MarshalIndent(cfg, "", "\t")
 	require.NoError(t, err)
+
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), b, 0o644))
 
 	pkg, err := pawnpackage.PackageFromDir(projectDir)
@@ -114,12 +120,14 @@ func TestTagTaglessDependencies_TagsDependencyWithPath(t *testing.T) {
 	pkg.SetDependencyMeta(versioning.DependencyMeta{User: "local", Repo: "project"})
 
 	pcx := pkgcontext.PackageContext{Package: pkg, PackageServices: pkgcontext.PackageServices{CacheDir: cacheDir, Platform: "linux"}}
+
 	updated, err := pcx.TagTaglessDependencies(context.Background(), false)
 	require.NoError(t, err)
 	require.True(t, updated)
 
 	finalBytes, err := os.ReadFile(filepath.Join(projectDir, "pawn.json"))
 	require.NoError(t, err)
+
 	var final map[string]any
 	require.NoError(t, json.Unmarshal(finalBytes, &final))
 
@@ -141,6 +149,7 @@ func TestTagTaglessDependencies_UsesGitHubFallbackWhenNoTagsInCache(t *testing.T
 			_, _ = w.Write([]byte(`[{"tag_name":"stable","draft":false,"prerelease":false}]`))
 			return
 		}
+
 		http.NotFound(w, r)
 	}))
 	defer srv.Close()
@@ -158,6 +167,7 @@ func TestTagTaglessDependencies_UsesGitHubFallbackWhenNoTagsInCache(t *testing.T
 	}
 	b, err := json.MarshalIndent(cfg, "", "\t")
 	require.NoError(t, err)
+
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), b, 0o644))
 
 	pkg, err := pawnpackage.PackageFromDir(projectDir)
@@ -167,12 +177,14 @@ func TestTagTaglessDependencies_UsesGitHubFallbackWhenNoTagsInCache(t *testing.T
 	pkg.SetDependencyMeta(versioning.DependencyMeta{User: "local", Repo: "project"})
 
 	pcx := pkgcontext.PackageContext{Package: pkg, PackageServices: pkgcontext.PackageServices{CacheDir: cacheDir, Platform: "linux", GitHub: gh}}
+
 	updated, err := pcx.TagTaglessDependencies(context.Background(), false)
 	require.NoError(t, err)
 	require.True(t, updated)
 
 	finalBytes, err := os.ReadFile(filepath.Join(projectDir, "pawn.json"))
 	require.NoError(t, err)
+
 	var final map[string]any
 	require.NoError(t, json.Unmarshal(finalBytes, &final))
 
@@ -193,6 +205,7 @@ func TestTagTaglessDependencies_DoesNotTagWhenNoTagsAndNoGitHub(t *testing.T) {
 	}
 	initialBytes, err := json.MarshalIndent(cfg, "", "\t")
 	require.NoError(t, err)
+
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "pawn.json"), initialBytes, 0o644))
 
 	pkg, err := pawnpackage.PackageFromDir(projectDir)
@@ -202,6 +215,7 @@ func TestTagTaglessDependencies_DoesNotTagWhenNoTagsAndNoGitHub(t *testing.T) {
 	pkg.SetDependencyMeta(versioning.DependencyMeta{User: "local", Repo: "project"})
 
 	pcx := pkgcontext.PackageContext{Package: pkg, PackageServices: pkgcontext.PackageServices{CacheDir: cacheDir, Platform: "linux"}}
+
 	updated, err := pcx.TagTaglessDependencies(context.Background(), false)
 	require.NoError(t, err)
 	require.False(t, updated)
@@ -218,14 +232,17 @@ func seedCachedRepoWithTag(t *testing.T, cacheDir, user, repoName, tag string) {
 
 	repo, err := git.PlainInit(cachePath, false)
 	require.NoError(t, err)
+
 	wt, err := repo.Worktree()
 	require.NoError(t, err)
 
 	require.NoError(t, os.WriteFile(filepath.Join(cachePath, "pawn.json"), []byte("{}"), 0o644))
+
 	_, err = wt.Add("pawn.json")
 	require.NoError(t, err)
 
 	require.NoError(t, os.WriteFile(filepath.Join(cachePath, "file.txt"), []byte("one"), 0o644))
+
 	_, err = wt.Add("file.txt")
 	require.NoError(t, err)
 
@@ -237,6 +254,7 @@ func seedCachedRepoWithTag(t *testing.T, cacheDir, user, repoName, tag string) {
 
 	head, err := repo.Head()
 	require.NoError(t, err)
+
 	_, err = repo.CreateTag(tag, head.Hash(), nil)
 	require.NoError(t, err)
 }
@@ -248,14 +266,17 @@ func seedCachedRepoNoTags(t *testing.T, cacheDir, user, repoName string) {
 
 	repo, err := git.PlainInit(cachePath, false)
 	require.NoError(t, err)
+
 	wt, err := repo.Worktree()
 	require.NoError(t, err)
 
 	require.NoError(t, os.WriteFile(filepath.Join(cachePath, "pawn.json"), []byte("{}"), 0o644))
+
 	_, err = wt.Add("pawn.json")
 	require.NoError(t, err)
 
 	require.NoError(t, os.WriteFile(filepath.Join(cachePath, "file.txt"), []byte("one"), 0o644))
+
 	_, err = wt.Add("file.txt")
 	require.NoError(t, err)
 

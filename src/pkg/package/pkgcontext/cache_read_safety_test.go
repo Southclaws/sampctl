@@ -22,6 +22,7 @@ func TestDependencyRecloneLocksSharedSourceThroughoutClone(t *testing.T) {
 	meta := versioning.DependencyMeta{User: "fixture", Repo: "dependency"}
 	cachePath := meta.CachePath(cacheDir)
 	cacheFixtureRepository(t, cachePath, "")
+
 	lockPath := filepath.Join(filepath.Dir(cachePath), "."+filepath.Base(cachePath)+".sampctl.lock")
 	store := &fakeRepositoryStore{
 		openFn: git.PlainOpen,
@@ -29,15 +30,19 @@ func TestDependencyRecloneLocksSharedSourceThroughoutClone(t *testing.T) {
 			lock := flock.New(lockPath)
 			locked, err := lock.TryLock()
 			require.NoError(t, err)
+
 			require.NoError(t, lock.Close())
 			if locked {
 				t.Error("shared source cache is unlocked while cloning")
 			}
+
 			return git.PlainClone(path, bare, opts)
 		},
 	}
+
 	pcx := PackageContext{PackageServices: PackageServices{CacheDir: cacheDir, RepoStore: store}}
 	destination := filepath.Join(t.TempDir(), "dependency")
+
 	_, err := pcx.recloneDependencyContext(context.Background(), meta, destination)
 	require.NoError(t, err)
 	require.FileExists(t, filepath.Join(destination, "include.inc"))
@@ -49,15 +54,19 @@ func TestCachedTagLookupRejectsMetadataSymlink(t *testing.T) {
 	meta := versioning.DependencyMeta{User: "fixture", Repo: "dependency"}
 	cachePath := meta.CachePath(cacheDir)
 	repo := cacheFixtureRepository(t, cachePath, "")
+
 	head, err := repo.Head()
 	require.NoError(t, err)
+
 	_, err = repo.CreateTag("1.0.0", head.Hash(), nil)
 	require.NoError(t, err)
+
 	external := filepath.Join(t.TempDir(), "metadata")
 	require.NoError(t, os.Rename(filepath.Join(cachePath, ".git"), external))
 	if err := os.Symlink(external, filepath.Join(cachePath, ".git")); err != nil {
 		t.Skipf("symbolic links unavailable: %v", err)
 	}
+
 	pcx := PackageContext{PackageServices: PackageServices{CacheDir: cacheDir}}
 	_, err = pcx.latestTagFromCache(meta)
 	require.ErrorIs(t, err, os.ErrInvalid)
@@ -70,14 +79,18 @@ func TestLatestTagLookupWaitsForCacheLockAndHonorsCancellation(t *testing.T) {
 	repo := cacheFixtureRepository(t, cachePath, "")
 	head, err := repo.Head()
 	require.NoError(t, err)
+
 	_, err = repo.CreateTag("1.0.0", head.Hash(), nil)
 	require.NoError(t, err)
+
 	unlock, err := lockRepositoryPath(t.Context(), cachePath)
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, unlock()) })
+
 	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Millisecond)
 	defer cancel()
 	pcx := PackageContext{PackageServices: PackageServices{CacheDir: cacheDir}}
+
 	_, err = pcx.resolveLatestTag(ctx, meta, false)
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Errorf("resolveLatestTag(locked source) = %v, want cancellation", err)
@@ -104,6 +117,7 @@ func TestCacheOriginPermissionFailureIsNotMistakenForMissingRemote(t *testing.T)
 			return repo, nil
 		}},
 	}}
+
 	noOrigin, err := pcx.cachedRepoHasNoOriginContext(t.Context(), meta)
 	require.ErrorIs(t, err, os.ErrPermission)
 	require.False(t, noOrigin)

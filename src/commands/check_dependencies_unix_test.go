@@ -23,11 +23,13 @@ func TestCheckDependenciesRejectsSpecialFiles(t *testing.T) {
 	source := filepath.Join(path, "library.inc")
 	require.NoError(t, os.Remove(source))
 	require.NoError(t, syscall.Mkfifo(source, 0o600))
+
 	results, err := checkDependencies(context.Background(), pkg, nil, nil)
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	assert.Equal(t, checkFailed, results[0].Status)
 	assert.Error(t, results[0].Err)
+
 	info, err := os.Stat(source)
 	require.NoError(t, err)
 	assert.NotZero(t, info.Mode()&os.ModeNamedPipe)
@@ -43,6 +45,7 @@ func TestCheckDependenciesRejectsSpecialMetadata(t *testing.T) {
 			metadata := filepath.Join(path, ".git", name)
 			require.NoError(t, os.Remove(metadata))
 			require.NoError(t, syscall.Mkfifo(metadata, 0o600))
+
 			results, err := checkDependencies(context.Background(), pkg, nil, nil)
 			require.NoError(t, err)
 			require.Len(t, results, 1)

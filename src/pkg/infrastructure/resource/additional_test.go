@@ -61,6 +61,7 @@ func TestBaseResourceEnsureFromLocalRequiresPath(t *testing.T) {
 
 	br := NewBaseResource("fixture/local", "v1", ResourceTypeArbitraryFile)
 	br.SetCacheDir(t.TempDir())
+
 	err := br.EnsureFromLocal(context.Background(), "v1", "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no local path")
@@ -192,6 +193,7 @@ func TestHTTPResourceEnsure(t *testing.T) {
 
 	target := filepath.Join(t.TempDir(), "file.txt")
 	require.NoError(t, hr.Ensure(context.Background(), "v1", target))
+
 	data, err := os.ReadFile(target)
 	require.NoError(t, err)
 	assert.Equal(t, "http-resource", string(data))
@@ -218,6 +220,7 @@ func TestGitResourceCachedEnsureAndCopy(t *testing.T) {
 
 	target := filepath.Join(t.TempDir(), "target")
 	require.NoError(t, gr.Ensure(context.Background(), meta.Tag, target))
+
 	data, err := os.ReadFile(filepath.Join(target, "sub", "file.txt"))
 	require.NoError(t, err)
 	assert.Equal(t, "git-data", string(data))
@@ -235,6 +238,7 @@ func TestGitHubReleaseResourceEnsure(t *testing.T) {
 	t.Run("requires github client", func(t *testing.T) {
 		res := NewGitHubReleaseResource(meta, matcher, ResourceTypePlugin, nil)
 		res.SetCacheDir(t.TempDir())
+
 		err := res.Ensure(context.Background(), "latest", filepath.Join(t.TempDir(), "out"))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "no GitHub client")
@@ -286,6 +290,7 @@ func TestGitHubReleaseResourceEnsure(t *testing.T) {
 
 		target := filepath.Join(t.TempDir(), "copied.zip")
 		require.NoError(t, res.Ensure(context.Background(), "v1.0.0", target))
+
 		data, err := os.ReadFile(target)
 		require.NoError(t, err)
 		assert.Equal(t, "cached", string(data))
@@ -425,5 +430,6 @@ func createZipBytes(t *testing.T, files map[string]string) []byte {
 		require.NoError(t, err)
 	}
 	require.NoError(t, zw.Close())
+
 	return buf.Bytes()
 }

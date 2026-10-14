@@ -63,6 +63,7 @@ func TestGetCommandEnv(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", configHome)
 	t.Setenv("APPDATA", configHome)
 	configdir.Refresh()
+
 	cacheDir := fs.ConfigDirPath()
 	if rel, err := filepath.Rel(configHome, cacheDir); err != nil || !filepath.IsLocal(rel) {
 		t.Fatalf("ConfigDirPath() = %q, want path inside temporary home %q (relative path %q, error %v)", cacheDir, configHome, rel, err)
@@ -77,8 +78,10 @@ func TestGetCommandEnv(t *testing.T) {
 
 	env, err := getCommandEnv(ctx)
 	require.NoError(t, err)
+
 	expectedCacheDir, err := fs.ConfigDir()
 	require.NoError(t, err)
+
 	assert.True(t, env.Verbose)
 	assert.Equal(t, "linux", env.Platform)
 	assert.Equal(t, expectedCacheDir, env.CacheDir)

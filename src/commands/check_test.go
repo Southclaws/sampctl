@@ -19,6 +19,7 @@ import (
 
 func TestCheckProject(t *testing.T) {
 	t.Parallel()
+
 	for _, tc := range []struct {
 		name, contents string
 		status         checkStatus
@@ -36,11 +37,13 @@ func TestCheckProject(t *testing.T) {
 			if tc.contents != "" {
 				require.NoError(t, os.WriteFile(filepath.Join(dir, "pawn.json"), []byte(tc.contents), 0o600))
 			}
+
 			pkg, result := checkProject(dir)
 			assert.Equal(t, tc.status, result.Status)
 			if tc.status == checkPassed {
 				assert.Equal(t, dir, pkg.LocalPath)
 			}
+
 			if tc.name == "malformed" {
 				assert.Contains(t, result.Message, "line 2")
 				assert.NotContains(t, result.Message, "invalid character")
@@ -51,14 +54,18 @@ func TestCheckProject(t *testing.T) {
 
 func TestCheckProjectDiscoversParentAndRejectsAmbiguousDefinitions(t *testing.T) {
 	t.Parallel()
+
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "pawn.yaml"), []byte("entry: main.pwn\n"), 0o600))
 	child := filepath.Join(dir, "src", "nested")
 	require.NoError(t, os.MkdirAll(child, 0o700))
+
 	pkg, result := checkProject(child)
 	assert.Equal(t, checkPassed, result.Status)
 	assert.Equal(t, dir, pkg.LocalPath)
+
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "pawn.json"), []byte(`{}`), 0o600))
+
 	_, result = checkProject(child)
 	assert.Equal(t, checkFailed, result.Status)
 	assert.Contains(t, result.Message, "both pawn.json and pawn.yaml")
@@ -66,7 +73,9 @@ func TestCheckProjectDiscoversParentAndRejectsAmbiguousDefinitions(t *testing.T)
 
 func TestRepairDiagnostic(t *testing.T) {
 	t.Parallel()
+
 	repairErr := errors.New("repair failed")
+
 	for _, tc := range []struct {
 		name      string
 		repairErr error
@@ -82,6 +91,7 @@ func TestRepairDiagnostic(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
+
 			d := diagnostic{Name: "fixture", Status: checkFailed, CanFix: true, Message: "broken resource"}
 			got, err := repairDiagnostic(ctx, d, func(ctx context.Context) error {
 				if tc.cancel {
@@ -97,16 +107,19 @@ func TestRepairDiagnostic(t *testing.T) {
 			})
 			assert.True(t, got.RepairAttempted)
 			assert.Equal(t, tc.verified, got.RepairVerified)
+
 			if tc.cancel {
 				require.ErrorIs(t, err, context.Canceled)
 			} else {
 				require.NoError(t, err)
 			}
+
 			if tc.verified && tc.repairErr == nil {
 				assert.Equal(t, checkRepaired, got.Status)
 			} else {
 				assert.Equal(t, checkFailed, got.Status)
 			}
+
 			if tc.repairErr != nil {
 				assert.ErrorIs(t, got.Err, repairErr)
 			}
@@ -116,6 +129,7 @@ func TestRepairDiagnostic(t *testing.T) {
 
 func TestWriteCheckResults(t *testing.T) {
 	t.Parallel()
+
 	results := []diagnostic{
 		{Name: "project", Status: checkPassed, Message: "Project configuration is valid"},
 		{Name: "compiler", Status: checkFailed, Message: "Compiler is missing", Action: "Check the compiler path.", Path: "/fixture/compiler", Err: errors.New("underlying fixture error"), CanFix: true},
@@ -124,6 +138,7 @@ func TestWriteCheckResults(t *testing.T) {
 		{Name: "cache", Status: checkRepaired, Message: "Cache metadata repaired", RepairAttempted: true, RepairVerified: true},
 	}
 	var normal, verbose bytes.Buffer
+
 	code, err := writeCheckResults(&normal, results, checkOutputOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, 1, code)
@@ -136,10 +151,12 @@ func TestWriteCheckResults(t *testing.T) {
 	assert.Contains(t, normal.String(), "sampctl check --fix")
 	assert.NotContains(t, normal.String(), "underlying fixture error")
 	assert.NotContains(t, normal.String(), "/fixture/compiler")
+
 	_, err = writeCheckResults(&verbose, results, checkOutputOptions{Verbose: true})
 	require.NoError(t, err)
 	assert.Contains(t, verbose.String(), "    Details: underlying fixture error")
 	assert.Contains(t, verbose.String(), "    Path: /fixture/compiler")
+
 	assert.Equal(t, checkPassed, results[0].Status, "rendering must not reorder the caller's results")
 	assert.Less(t, bytes.Index(normal.Bytes(), []byte("Compiler is missing")), bytes.Index(normal.Bytes(), []byte("Git is unavailable")))
 	assert.Less(t, bytes.Index(normal.Bytes(), []byte("Git is unavailable")), bytes.Index(normal.Bytes(), []byte("Project configuration is valid")))
@@ -147,6 +164,7 @@ func TestWriteCheckResults(t *testing.T) {
 
 func TestWriteCheckResultsSummary(t *testing.T) {
 	t.Parallel()
+
 	for _, tc := range []struct {
 		name    string
 		results []diagnostic
@@ -173,15 +191,18 @@ func TestWriteCheckResultsSummary(t *testing.T) {
 
 func TestRunChecksAggregatesAndSkipsDependentChecks(t *testing.T) {
 	t.Parallel()
+
 	dir, cacheDir := t.TempDir(), t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "pawn.json"), []byte(`{"invalid"`), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(cacheDir, "config.json"), []byte(`{"invalid"`), 0o600))
+
 	results, err := runChecks(context.Background(), checkOptions{Dir: dir, CacheDir: cacheDir, Platform: "linux"})
 	require.NoError(t, err)
 	states := make(map[string]checkStatus)
 	for _, result := range results {
 		states[result.Name] = result.Status
 	}
+
 	assert.Equal(t, checkFailed, states["project"])
 	assert.Equal(t, checkFailed, states["configuration"])
 	assert.Equal(t, checkSkipped, states["dependencies"])
@@ -193,20 +214,25 @@ func TestRunChecksAggregatesAndSkipsDependentChecks(t *testing.T) {
 
 func TestRunChecksOutsideProjectDoesNotCreateCache(t *testing.T) {
 	t.Parallel()
+
 	dir := t.TempDir()
 	cacheDir := filepath.Join(t.TempDir(), "missing", "sampctl")
+
 	results, err := runChecks(context.Background(), checkOptions{Dir: dir, CacheDir: cacheDir, Platform: "linux", Fix: true})
 	require.NoError(t, err)
+
 	var out bytes.Buffer
 	code, err := writeCheckResults(&out, results, checkOutputOptions{})
 	require.NoError(t, err)
 	assert.Zero(t, code, out.String())
+
 	_, err = os.Stat(cacheDir)
 	assert.True(t, os.IsNotExist(err))
 }
 
 func TestRunChecksPreservesProjectAndExternalFiles(t *testing.T) {
 	t.Parallel()
+
 	dir, cacheDir := t.TempDir(), t.TempDir()
 	compilerDir := filepath.Join(dir, "custom")
 	require.NoError(t, os.Mkdir(compilerDir, 0o700))
@@ -214,6 +240,7 @@ func TestRunChecksPreservesProjectAndExternalFiles(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		binary = "pawncc.exe"
 	}
+
 	files := map[string]string{
 		filepath.Join(dir, "pawn.json"):                     `{"build":{"compiler":{"path":"custom"}}}`,
 		filepath.Join(dir, "pawn.lock"):                     `{"version":1,"dependencies":{}}`,
@@ -229,13 +256,16 @@ func TestRunChecksPreservesProjectAndExternalFiles(t *testing.T) {
 		require.NoError(t, err)
 		before[path] = info
 	}
+
 	child := filepath.Join(dir, "nested")
 	require.NoError(t, os.Mkdir(child, 0o700))
 	opts := checkOptions{Dir: child, CacheDir: cacheDir, Platform: runtime.GOOS}
+
 	results, err := runChecks(context.Background(), opts)
 	require.NoError(t, err)
 	assert.Contains(t, results, diagnostic{Name: "compiler", Status: checkPassed, Message: "Compiler is available", Path: filepath.Join(compilerDir, binary)})
 	assertCheckFixtureUnchanged(t, files, before, "")
+
 	opts.Fix = true
 	for range 2 {
 		_, err = runChecks(context.Background(), opts)
@@ -251,9 +281,11 @@ func assertCheckFixtureUnchanged(t *testing.T, files map[string]string, before m
 		if path == removed {
 			continue
 		}
+
 		data, err := os.ReadFile(path)
 		require.NoError(t, err)
 		assert.Equal(t, contents, string(data), path)
+
 		info, err := os.Stat(path)
 		require.NoError(t, err)
 		assert.Equal(t, before[path].Mode(), info.Mode(), path)
@@ -263,6 +295,7 @@ func assertCheckFixtureUnchanged(t *testing.T, files map[string]string, before m
 
 func TestCheckOutputWriteFailure(t *testing.T) {
 	t.Parallel()
+
 	cause := errors.New("writer failed")
 	code, err := writeCheckResults(checkErrorWriter{err: cause}, nil, checkOutputOptions{})
 	assert.Equal(t, 2, code)
@@ -275,6 +308,7 @@ func (w checkErrorWriter) Write([]byte) (int, error) { return 0, w.err }
 
 func TestCheckDependenciesNeedGit(t *testing.T) {
 	t.Parallel()
+
 	for _, tc := range []struct {
 		name string
 		deps []versioning.DependencyString

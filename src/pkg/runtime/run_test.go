@@ -74,6 +74,7 @@ func TestWaitForRuntimeTermination(t *testing.T) {
 
 		require.Error(t, term.err)
 		assert.Contains(t, term.err.Error(), "received signal: interrupt")
+		assert.ErrorIs(t, term.err, context.Canceled)
 	})
 
 	t.Run("returns termination after stream closes", func(t *testing.T) {

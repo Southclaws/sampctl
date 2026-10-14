@@ -40,11 +40,13 @@ func (f *fakeEnsureCommandTarget) UpdateLockfile(_ context.Context, request pkgc
 
 func TestParseEnsureRejectsConflictingLockFlags(t *testing.T) {
 	t.Parallel()
+
 	ctx := newTestCLIContext("dev")
 	set := flag.NewFlagSet("ensure", flag.ContinueOnError)
 	set.Bool("no-lock", true, "")
 	set.Bool("lock-only", true, "")
 	ctx = cli.NewContext(ctx.App, set, nil)
+
 	_, err := parseEnsureUpdateRequest(ctx)
 	require.EqualError(t, err, "cannot use --lock-only with --no-lock")
 }

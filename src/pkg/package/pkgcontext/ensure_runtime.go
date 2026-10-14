@@ -16,6 +16,7 @@ func (pcx *PackageContext) ensureParentRuntime(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+
 	cfg, err := pcx.Package.GetRuntimeConfig(pcx.Runtime)
 	if err != nil {
 		return &DependencyError{Dependency: "runtime", Operation: "read configuration", Err: err}
@@ -34,11 +35,13 @@ func (pcx *PackageContext) ensureParentRuntime(ctx context.Context) error {
 	if err := validateRuntimeDirectory(pcx.Package.LocalPath, cfg.WorkingDir); err != nil {
 		return &DependencyError{Dependency: "runtime " + cfg.Version, Operation: "ensure layout", Err: err}
 	}
+
 	provisioner := pcx.PackageServices.runtimeProvisioner()
 	if _, native := provisioner.(runtimeProvisionerAdapter); native && pcx.HasLockfileResolver() && filepath.Clean(cfg.WorkingDir) != filepath.Clean(pcx.Package.LocalPath) {
 		if err := regularRecoveryFile(filepath.Join(pcx.Package.LocalPath, lockfile.Filename)); err != nil {
 			return &DependencyError{Dependency: "runtime " + cfg.Version, Operation: "read previous ownership", Err: err}
 		}
+
 		previous, err := lockfile.Load(pcx.Package.LocalPath)
 		if err != nil {
 			return &DependencyError{Dependency: "runtime " + cfg.Version, Operation: "read previous ownership", Err: err}
@@ -93,6 +96,7 @@ func validateRuntimeDirectory(project, directory string) error {
 	if relative, err := filepath.Rel(project, directory); err == nil && filepath.IsLocal(relative) {
 		root = filepath.Clean(project)
 	}
+
 	for path := filepath.Clean(directory); ; path = filepath.Dir(path) {
 		info, err := os.Lstat(path)
 		if err != nil && !os.IsNotExist(err) {
@@ -101,6 +105,7 @@ func validateRuntimeDirectory(project, directory string) error {
 		if err == nil && (info.Mode()&os.ModeSymlink != 0 || !info.IsDir()) {
 			return fmt.Errorf("runtime directory %s contains a symlink or non-directory: %w", path, os.ErrInvalid)
 		}
+
 		if path == root {
 			return nil
 		}
@@ -142,8 +147,9 @@ func (pcx *PackageContext) RecordBuildToLockfile(compilerVersion, compilerPreset
 	}
 
 	outputHash := ""
-	if output != "" && fs.Exists(output) {
-		hash, err := hashOutputFile(output)
+	outputPath := packagePath(pcx.Package.LocalPath, output)
+	if output != "" && fs.Exists(outputPath) {
+		hash, err := hashOutputFile(outputPath)
 		if err != nil {
 			print.Warn("failed to hash output file:", err)
 		} else {

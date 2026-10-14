@@ -78,6 +78,7 @@ func TestShouldCheckForUpdates(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
 			got := shouldCheckForUpdates(tt.cfg, tt.generateCompletion, tt.bare, tt.now)
 			assert.Equal(t, tt.want, got)
 		})
@@ -104,11 +105,13 @@ func TestNeedsUpgrade(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
 			got, err := needsUpgrade(tt.current, tt.latest)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
 			}
+
 			assert.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})

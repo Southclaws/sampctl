@@ -14,6 +14,7 @@ func checkRuntime(ctx context.Context, pkg pawnpackage.Package, opts checkOption
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+
 	var results []diagnostic
 	if state.Pending || state.Active || inspectErr != nil {
 		result := runtimeRecoveryDiagnostic(state, inspectErr)
@@ -30,11 +31,13 @@ func checkRuntime(ctx context.Context, pkg pawnpackage.Package, opts checkOption
 				return []diagnostic{result}, err
 			}
 		}
+
 		results = append(results, result)
 		if state.Pending || state.Active || inspectErr != nil {
 			return results, ctx.Err()
 		}
 	}
+
 	result := diagnostic{Name: "runtime", Path: root}
 	info, err := runtimepkg.GetRuntimeManifestInfo(root)
 	if err != nil {
@@ -60,6 +63,7 @@ func checkRuntime(ctx context.Context, pkg pawnpackage.Package, opts checkOption
 			result.Status, result.Message = checkPassed, "Managed runtime files are valid"
 		}
 	}
+
 	return append(results, result), ctx.Err()
 }
 
@@ -81,9 +85,11 @@ func runtimeRecoveryDiagnostic(state runtimepkg.RuntimeRecoveryStatus, err error
 	default:
 		result.Message = "A runtime update was interrupted"
 	}
+
 	result.CanFix = state.Pending && state.CanRecover && !state.Active && err == nil
 	if result.CanFix {
 		result.Action = "Run `sampctl check --fix` or retry `sampctl ensure` to finish recovery."
 	}
+
 	return result
 }

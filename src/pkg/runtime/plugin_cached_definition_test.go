@@ -20,6 +20,7 @@ import (
 
 func TestEnsureVersionedPluginCachedUsesDefinitionOnAssetMiss(t *testing.T) {
 	t.Parallel()
+
 	for _, scheme := range []string{"", "plugin", "component"} {
 		t.Run(fmt.Sprintf("scheme=%q", scheme), func(t *testing.T) {
 			cacheDir := filepath.Join(t.TempDir(), "cache")
@@ -29,6 +30,7 @@ func TestEnsureVersionedPluginCachedUsesDefinitionOnAssetMiss(t *testing.T) {
 			if err := os.Remove(assetPath); err != nil {
 				t.Fatal(err)
 			}
+
 			var releaseRequests, assetRequests, definitionRequests atomic.Int32
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch r.URL.Path {
@@ -54,6 +56,7 @@ func TestEnsureVersionedPluginCachedUsesDefinitionOnAssetMiss(t *testing.T) {
 				}
 			}))
 			t.Cleanup(server.Close)
+
 			client := github.NewClient(server.Client())
 			baseURL, err := url.Parse(server.URL + "/")
 			if err != nil {
@@ -63,6 +66,7 @@ func TestEnsureVersionedPluginCachedUsesDefinitionOnAssetMiss(t *testing.T) {
 			request := EnsureVersionedPluginCachedRequest{
 				Context: context.Background(), Meta: meta, Platform: "linux", Version: "openmp", CacheDir: cacheDir, GitHub: client,
 			}
+
 			filename, resource, err := EnsureVersionedPluginCached(request)
 			if err != nil {
 				t.Fatalf("EnsureVersionedPluginCached(cached definition, absent asset) error = %v, want release download", err)
@@ -70,15 +74,18 @@ func TestEnsureVersionedPluginCachedUsesDefinitionOnAssetMiss(t *testing.T) {
 			if resource == nil || resource.Name != definition.Name {
 				t.Errorf("EnsureVersionedPluginCached(cached definition, absent asset) resource = %v, want cached matcher %s", resource, definition.Name)
 			}
+
 			data, err := os.ReadFile(filename)
 			if err != nil || string(data) != "legacy plugin" {
 				t.Errorf("EnsureVersionedPluginCached(cached definition, absent asset) asset = %q, %v, want downloaded plugin", data, err)
 			}
+
 			request.GitHub = nil
 			repeatedFilename, _, err := EnsureVersionedPluginCached(request)
 			if err != nil || repeatedFilename != filename {
 				t.Errorf("EnsureVersionedPluginCached(repeat, no GitHub client) = %q, %v, want cached asset %q", repeatedFilename, err, filename)
 			}
+
 			if releases, assets, definitions := releaseRequests.Load(), assetRequests.Load(), definitionRequests.Load(); releases != 1 || assets != 1 || definitions != 0 {
 				t.Errorf("EnsureVersionedPluginCached(cached definition) requests = releases:%d assets:%d definitions:%d, want 1, 1, 0", releases, assets, definitions)
 			}

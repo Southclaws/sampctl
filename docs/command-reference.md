@@ -2,6 +2,9 @@
 
 This page is a quick map of what commands exist and what they’re for.
 
+The [generated CLI reference](cli-reference.md) lists every command and flag.
+Refresh it with `task docs`.
+
 For full help (including flags), use:
 
 ```bash

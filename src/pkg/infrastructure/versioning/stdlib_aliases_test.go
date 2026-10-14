@@ -10,6 +10,7 @@ import (
 func TestStdlibAliasesPreserveDependencyReferences(t *testing.T) {
 	ResetDependencyOverrides()
 	t.Cleanup(ResetDependencyOverrides)
+
 	const commit = "1234567890123456789012345678901234567890"
 	tests := []struct {
 		format string
@@ -40,10 +41,12 @@ func TestStdlibAliasesPreserveDependencyReferences(t *testing.T) {
 				want := test.want
 				_, repo, _ := strings.Cut(alias, "/")
 				want.Site, want.User, want.Repo = "github.com", "pawn-lang", repo
+
 				got, err := input.ExplodeWithOverrides(DependencyOverrides)
 				if err != nil || got != want {
 					t.Errorf("ExplodeWithOverrides(%q) = %+v, %v, want %+v, nil", input, got, err, want)
 				}
+
 				got, err = input.Explode()
 				if err != nil || got != want {
 					t.Errorf("Explode(%q) = %+v, %v, want %+v, nil", input, got, err, want)
@@ -135,21 +138,26 @@ func TestConfiguredStdlibAliasOverridesTakePrecedence(t *testing.T) {
 			if err := SaveDependencyOverrides(map[string]string{key: "maintained/samp-stdlib:2.0"}, configPath); err != nil {
 				t.Fatal(err)
 			}
+
 			ResetDependencyOverrides()
 			t.Cleanup(ResetDependencyOverrides)
+
 			local, err := LoadLocalDependencyOverrides(filepath.Dir(configPath))
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			for _, reference := range []DependencyString{"Southclaws/samp-stdlib:1.0", "https://github.com/Southclaws/samp-stdlib@open.mp", "includes://Southclaws/samp-stdlib/includes@open.mp"} {
 				want := DependencyMeta{Site: "github.com", User: "maintained", Repo: "samp-stdlib", Tag: "2.0"}
 				if strings.HasPrefix(string(reference), "includes://") {
 					want.Scheme, want.Path = "includes", "includes"
 				}
+
 				got, err := reference.Explode()
 				if err != nil || got != want {
 					t.Errorf("Explode(%q), override %q = %+v, %v, want %+v, nil", reference, key, got, err, want)
 				}
+
 				got, err = reference.ExplodeWithOverrides(local)
 				if err != nil || got != want {
 					t.Errorf("ExplodeWithOverrides(%q), override %q = %+v, %v, want %+v, nil", reference, key, got, err, want)

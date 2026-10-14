@@ -47,6 +47,7 @@ func snapshotProjectFile(path string) (projectFileSnapshot, error) {
 	if !info.Mode().IsRegular() {
 		return snapshot, fmt.Errorf("%s must be a regular file", path)
 	}
+
 	snapshot.exists = true
 	snapshot.mode = info.Mode().Perm()
 	snapshot.data, err = os.ReadFile(path)
@@ -57,6 +58,7 @@ func (snapshot projectFileSnapshot) restore() error {
 	if snapshot.path == "" {
 		return nil
 	}
+
 	info, err := os.Lstat(snapshot.path)
 	if errors.Is(err, os.ErrNotExist) && !snapshot.exists {
 		return nil
@@ -67,13 +69,16 @@ func (snapshot projectFileSnapshot) restore() error {
 	if info != nil && !info.Mode().IsRegular() {
 		return fmt.Errorf("cannot restore %s: path is no longer a regular file", snapshot.path)
 	}
+
 	if !snapshot.exists {
 		return os.Remove(snapshot.path)
 	}
+
 	current, readErr := os.ReadFile(snapshot.path)
 	if readErr == nil && bytes.Equal(current, snapshot.data) && info.Mode().Perm() == snapshot.mode {
 		return nil
 	}
+
 	return fs.WriteFileAtomic(snapshot.path, snapshot.data, fs.PermDirPrivate, snapshot.mode)
 }
 
@@ -90,10 +95,12 @@ func (pcx *PackageContext) beginDependencyOperationState(ctx context.Context, in
 	if err != nil {
 		return nil, err
 	}
+
 	recovery, err := recoverDependencyOperationLocked(ctx, pcx.Package.LocalPath)
 	if err != nil {
 		return nil, errors.Join(err, projectLock.Unlock())
 	}
+
 	if recovery.Pending && pcx.Package.Format != "" {
 		previous := pcx.Package
 		pkg, err := pcx.readPackageDefinition(previous.LocalPath)
@@ -105,6 +112,7 @@ func (pcx *PackageContext) beginDependencyOperationState(ctx context.Context, in
 		pcx.Package = pkg
 		pcx.PackageResolvedState = PackageResolvedState{}
 	}
+
 	state, err := pcx.snapshotDependencyProject(includeLockfile)
 	if err != nil && allowMissingManifest && (errors.Is(err, os.ErrNotExist) || pcx.Package.Format == "") {
 		state = &dependencyProjectState{pkg: pcx.Package, resolved: pcx.PackageResolvedState}
@@ -122,8 +130,10 @@ func (pcx *PackageContext) beginDependencyOperationState(ctx context.Context, in
 	if err != nil {
 		return nil, errors.Join(err, projectLock.Unlock())
 	}
+
 	state.lock = projectLock
 	state.recovered = recovery.Pending
+
 	if resolver, ok := pcx.lockfileResolver.(*lockfile.Resolver); ok && includeLockfile {
 		if err := resolver.Reload(); err != nil {
 			return nil, errors.Join(&OperationError{Operation: "read lockfile", Err: err}, projectLock.Unlock())
@@ -142,6 +152,7 @@ func (pcx *PackageContext) beginDependencyOperationState(ctx context.Context, in
 			}
 		}
 	}
+
 	files := []projectFileSnapshot{state.manifest}
 	if state.lockfile != nil {
 		files = append(files, *state.lockfile)
@@ -154,8 +165,10 @@ func (pcx *PackageContext) beginDependencyOperationState(ctx context.Context, in
 	if err != nil {
 		return nil, errors.Join(err, projectLock.Unlock())
 	}
+
 	pcx.dependencyInstalls = newDependencyInstallState()
 	pcx.dependencyInstalls.journal = state.journal
+
 	return state, nil
 }
 
@@ -164,13 +177,16 @@ func (pcx *PackageContext) snapshotDependencyProject(includeLockfile bool) (*dep
 	if err != nil {
 		return nil, &OperationError{Operation: "read manifest", Err: err}
 	}
+
 	manifest, err := snapshotProjectFile(path)
 	if err != nil {
 		return nil, &OperationError{Operation: "read manifest", Err: err}
 	}
+
 	if pcx.loadedDefinition != nil && !bytes.Equal(manifest.data, pcx.loadedDefinition) {
 		return nil, &OperationError{Operation: "project", Err: errors.New("project configuration changed since loading. Reload the project and retry")}
 	}
+
 	diskPkg, err := pawnpackage.PackageFromDefinition(manifest.data, pcx.Package.Format)
 	if err != nil {
 		return nil, err
@@ -178,6 +194,7 @@ func (pcx *PackageContext) snapshotDependencyProject(includeLockfile bool) (*dep
 	if !slices.Equal(diskPkg.Dependencies, pcx.Package.Dependencies) || !slices.Equal(diskPkg.Development, pcx.Package.Development) {
 		return nil, errors.New("project dependencies changed since loading. Reload the project and retry")
 	}
+
 	state := &dependencyProjectState{manifest: manifest, pkg: pcx.Package, resolved: pcx.PackageResolvedState}
 	if includeLockfile {
 		locked, err := snapshotProjectFile(filepath.Join(pcx.Package.LocalPath, lockfile.Filename))
@@ -188,6 +205,7 @@ func (pcx *PackageContext) snapshotDependencyProject(includeLockfile bool) (*dep
 	}
 	state.pkg.Dependencies = slices.Clone(pcx.Package.Dependencies)
 	state.pkg.Development = slices.Clone(pcx.Package.Development)
+
 	if lf := pcx.GetLockfile(); lf != nil {
 		data, marshalErr := json.Marshal(lf)
 		if marshalErr != nil {
@@ -198,6 +216,7 @@ func (pcx *PackageContext) snapshotDependencyProject(includeLockfile bool) (*dep
 			return nil, err
 		}
 	}
+
 	return state, nil
 }
 
@@ -213,6 +232,7 @@ func (pcx *PackageContext) finishDependencyOperation(state *dependencyProjectSta
 			operationErr = &OperationError{Operation: "manifest", Err: err}
 		}
 	}
+
 	if operationErr == nil {
 		if err := state.journal.validateState(context.Background()); err != nil {
 			operationErr = &OperationError{Operation: "commit", Err: err}
@@ -233,6 +253,7 @@ func (pcx *PackageContext) finishDependencyOperation(state *dependencyProjectSta
 			}
 		}
 	}
+
 	outcome := OutcomeCommitted
 	if operationErr != nil {
 		rollbackErr := installs.rollback()
@@ -264,9 +285,11 @@ func (pcx *PackageContext) finishDependencyOperation(state *dependencyProjectSta
 		}
 		operationErr = commitErr
 	}
+
 	if err := state.lock.Unlock(); err != nil {
 		operationErr = errors.Join(operationErr, &OperationError{Operation: "cleanup", Err: err})
 	}
+
 	if operationErr != nil {
 		name := "dependency operation"
 		var step *OperationError
@@ -275,6 +298,7 @@ func (pcx *PackageContext) finishDependencyOperation(state *dependencyProjectSta
 		}
 		return &OperationError{Operation: name, Outcome: outcome, Err: operationErr}
 	}
+
 	return operationErr
 }
 
@@ -283,12 +307,14 @@ func (pcx *PackageContext) writeDependencyDefinition() error {
 	if err != nil {
 		return err
 	}
+
 	if pcx.dependencyInstalls != nil && pcx.dependencyInstalls.journal != nil {
 		path := filepath.Join(pcx.Package.LocalPath, "pawn."+pcx.Package.Format)
 		if err := pcx.dependencyInstalls.journal.recordWrite(path, data); err != nil {
 			return err
 		}
 	}
+
 	return pcx.Package.WriteDefinition()
 }
 
@@ -296,10 +322,12 @@ func (pcx *PackageContext) recordDependencyLockfileWrite(lf *lockfile.Lockfile) 
 	if lf == nil || pcx.dependencyInstalls == nil || pcx.dependencyInstalls.journal == nil {
 		return nil
 	}
+
 	data, err := json.Marshal(lf)
 	if err != nil {
 		return err
 	}
+
 	return pcx.dependencyInstalls.journal.recordWrite(filepath.Join(pcx.Package.LocalPath, lockfile.Filename), data)
 }
 
@@ -307,6 +335,7 @@ func (pcx *PackageContext) saveDependencyLockfile() error {
 	if err := pcx.recordDependencyLockfileWrite(pcx.GetLockfile()); err != nil {
 		return err
 	}
+
 	return pcx.PackageLockfileState.SaveLockfile()
 }
 
@@ -319,21 +348,26 @@ func (pcx *PackageContext) syncDependencyLockfile(ctx context.Context) error {
 	if !pcx.HasLockfileResolver() {
 		return nil
 	}
+
 	deps, err := pcx.lockfileDependencies(ctx, DependencyUpdateRequest{}, false)
 	if err != nil {
 		return err
 	}
+
 	if err := pcx.recordRootLocalDependencies(); err != nil {
 		return err
 	}
+
 	pcx.pruneLockfileDependencies(lockfileDependencyMetas(deps))
 	pcx.updateLockfileRelationships(deps)
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+
 	if err := pcx.saveDependencyLockfile(); err != nil {
 		return &OperationError{Operation: "lockfile", Err: err}
 	}
+
 	return ctx.Err()
 }
 

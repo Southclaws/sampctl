@@ -29,10 +29,12 @@ func writeCheckResults(w io.Writer, results []diagnostic, opts checkOutputOption
 	if file, ok := w.(*os.File); ok && style.coloured {
 		w = colorable.NewColorable(file)
 	}
+
 	ordered := slices.Clone(results)
 	slices.SortStableFunc(ordered, func(a, b diagnostic) int {
 		return cmp.Compare(checkStatusPriority(a.Status), checkStatusPriority(b.Status))
 	})
+
 	var out bytes.Buffer
 	counts := make(map[checkStatus]int)
 	var canFix, details bool
@@ -42,6 +44,7 @@ func writeCheckResults(w io.Writer, results []diagnostic, opts checkOutputOption
 		canFix = canFix || result.Status == checkFailed && result.CanFix && !result.RepairAttempted
 		details = details || result.Err != nil
 	}
+
 	out.WriteString("\n" + style.summary(counts) + "\n")
 	if canFix {
 		out.WriteString("Run `sampctl check --fix` to repair supported issues.\n")
@@ -49,9 +52,11 @@ func writeCheckResults(w io.Writer, results []diagnostic, opts checkOutputOption
 	if details && !opts.Verbose {
 		out.WriteString("Use --verbose to see the errors and file paths.\n")
 	}
+
 	if _, err := w.Write(out.Bytes()); err != nil {
 		return 2, fmt.Errorf("write diagnostics: %w", err)
 	}
+
 	return boolCount(counts[checkFailed] > 0), nil
 }
 
@@ -59,6 +64,7 @@ func newCheckOutputStyle(w io.Writer, bare bool) checkOutputStyle {
 	if bare || os.Getenv("NO_COLOR") != "" || os.Getenv("TERM") == "dumb" {
 		return checkOutputStyle{}
 	}
+
 	file, ok := w.(*os.File)
 	return checkOutputStyle{coloured: ok && (isatty.IsTerminal(file.Fd()) || isatty.IsCygwinTerminal(file.Fd()))}
 }
@@ -86,9 +92,11 @@ func writeCheckResult(out *bytes.Buffer, result diagnostic, verbose bool, style 
 	if result.Action != "" && result.Status != checkPassed && result.Status != checkRepaired {
 		out.WriteString("    " + style.text("→", color.FgCyan) + " " + indentCheckDetail(redactDiagnosticText(result.Action)) + "\n")
 	}
+
 	if verbose && result.Path != "" {
 		out.WriteString("    Path: " + indentCheckDetail(redactDiagnosticText(result.Path)) + "\n")
 	}
+
 	if verbose && result.Err != nil {
 		out.WriteString("    Details: " + indentCheckDetail(redactDiagnosticText(checkErrorDetail(result.Err))) + "\n")
 	}
@@ -102,6 +110,7 @@ func checkErrorDetail(err error) string {
 			detail += "\nCaused by: " + underlying
 		}
 	}
+
 	if joined, ok := err.(interface{ Unwrap() []error }); ok {
 		for _, cause := range joined.Unwrap() {
 			underlying := checkErrorDetail(cause)
@@ -110,6 +119,7 @@ func checkErrorDetail(err error) string {
 			}
 		}
 	}
+
 	return detail
 }
 
@@ -152,15 +162,18 @@ func (s checkOutputStyle) summary(counts map[checkStatus]int) string {
 		if count == 0 {
 			continue
 		}
+
 		label := item.label
 		if count != 1 {
 			label = item.plural
 		}
 		parts = append(parts, s.text(fmt.Sprintf("%d %s", count, label), item.attribute))
 	}
+
 	if len(parts) == 0 {
 		return "No checks apply."
 	}
+
 	return strings.Join(parts, ", ") + "."
 }
 
@@ -168,6 +181,7 @@ func (s checkOutputStyle) text(text string, attributes ...color.Attribute) strin
 	if !s.coloured {
 		return text
 	}
+
 	style := color.New(attributes...)
 	style.EnableColor()
 	return style.Sprint(text)

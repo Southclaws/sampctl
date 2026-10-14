@@ -47,6 +47,7 @@ func packageInit(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+
 	cfg, err := getCommandConfig(c)
 	if err != nil {
 		return err
@@ -69,7 +70,9 @@ func packageInit(c *cli.Context) error {
 	if err != nil {
 		return reportDependencyCommandError(c, "init", err)
 	}
+
 	print.Info("Project initialised")
+
 	return nil
 }
 
@@ -78,8 +81,10 @@ func validateInitDirectory(dir string) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to inspect package definition")
 	}
+
 	if pkg.Format != "" {
 		return errors.New("directory already contains a Pawn package")
 	}
+
 	return nil
 }

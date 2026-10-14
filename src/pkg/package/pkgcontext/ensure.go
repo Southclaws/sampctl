@@ -28,12 +28,14 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 			return beginErr
 		}
 		defer func() { err = pcx.finishDependencyOperation(state, err) }()
+
 		if state.recovered && pcx.Package.Parent {
 			if err := pcx.refreshDependencyGraphContext(ctx, DependencyUpdateRequest{}); err != nil {
 				return err
 			}
 		}
 	}
+
 	request := DependencyUpdateRequest{}
 	if forceUpdate {
 		request.Enabled = true
@@ -43,11 +45,13 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 	if err := pcx.ensureDependencies(ctx, request); err != nil {
 		return err
 	}
+
 	// Standalone ensures historically save runtime metadata. Full project flows
 	// save their complete dependency graph after this call.
 	if pcx.Package.Parent && pcx.HasLockfileResolver() {
 		return pcx.saveDependencyLockfile()
 	}
+
 	return nil
 }
 
@@ -58,6 +62,7 @@ func (pcx *PackageContext) ensureDependencies(
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+
 	if pcx.Package.LocalPath == "" {
 		return errors.New("package has no local directory")
 	}
@@ -97,9 +102,11 @@ func (pcx *PackageContext) ensureDependencies(
 		}
 		print.Verb(pcx.Package, "installed dependency files for", dependency)
 	}
+
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return stderrors.Join(stderrors.Join(failures...), ctxErr)
 	}
+
 	if err := stderrors.Join(failures...); err != nil {
 		return err
 	}
@@ -121,6 +128,7 @@ func (pcx *PackageContext) validateLocalDependencyPaths(ctx context.Context) []e
 		if err := ctx.Err(); err != nil {
 			return append(failures, err)
 		}
+
 		meta, err := declaration.Explode()
 		if err != nil {
 			failures = append(failures, &DependencyError{Dependency: string(declaration), Operation: "parse", Err: err})
@@ -129,6 +137,7 @@ func (pcx *PackageContext) validateLocalDependencyPaths(ctx context.Context) []e
 		if !meta.IsLocalScheme() {
 			continue
 		}
+
 		if err := validateLocalDependencyPath(pcx.Package.LocalPath, meta); err != nil {
 			failures = append(failures, &DependencyError{Dependency: string(declaration), Operation: "access local path", Err: err})
 		}
@@ -150,6 +159,7 @@ func (pcx *PackageContext) EnsureProject(ctx context.Context, request Dependency
 			updated = false
 		}
 	}()
+
 	updated, err = pcx.UpdateDependencyReferences(ctx, request)
 	if err != nil {
 		return false, err
@@ -172,6 +182,7 @@ func (pcx *PackageContext) EnsureProject(ctx context.Context, request Dependency
 	if err := ctx.Err(); err != nil {
 		return updated, err
 	}
+
 	return updated, pcx.syncDependencyLockfile(ctx)
 }
 
@@ -229,15 +240,7 @@ func (pcx *PackageContext) ensurePluginDependency(ctx context.Context, meta vers
 
 	// Remote plugin: plugin://user/repo or plugin://user/repo:tag
 	// Treat as a regular dependency but mark it as a plugin
-	ensureMeta := versioning.DependencyMeta{
-		Site:   meta.Site,
-		User:   meta.User,
-		Repo:   meta.Repo,
-		Tag:    meta.Tag,
-		Branch: meta.Branch,
-		Commit: meta.Commit,
-		Path:   meta.Path,
-	}
+	ensureMeta := normalizeLockfileDependency(meta)
 	if ensureMeta.Site == "" {
 		ensureMeta.Site = "github.com"
 	}
@@ -278,15 +281,7 @@ func (pcx *PackageContext) ensureComponentDependency(ctx context.Context, meta v
 	}
 
 	// Remote component: component://user/repo or component://user/repo:tag
-	ensureMeta := versioning.DependencyMeta{
-		Site:   meta.Site,
-		User:   meta.User,
-		Repo:   meta.Repo,
-		Tag:    meta.Tag,
-		Branch: meta.Branch,
-		Commit: meta.Commit,
-		Path:   meta.Path,
-	}
+	ensureMeta := normalizeLockfileDependency(meta)
 	if ensureMeta.Site == "" {
 		ensureMeta.Site = "github.com"
 	}
@@ -320,15 +315,7 @@ func (pcx *PackageContext) ensureIncludesDependency(ctx context.Context, meta ve
 
 	// Remote includes: includes://user/repo or includes://user/repo:tag
 	// Ensure the dependency and add its path to includes
-	remoteMeta := versioning.DependencyMeta{
-		Site:   meta.Site,
-		User:   meta.User,
-		Repo:   meta.Repo,
-		Tag:    meta.Tag,
-		Branch: meta.Branch,
-		Commit: meta.Commit,
-		Path:   meta.Path,
-	}
+	remoteMeta := normalizeLockfileDependency(meta)
 
 	err := pcx.ensurePackage(ctx, remoteMeta, false)
 	if err != nil {
@@ -359,15 +346,7 @@ func (pcx *PackageContext) ensureFilterscriptDependency(ctx context.Context, met
 
 	// Remote filterscript: filterscript://user/repo or filterscript://user/repo:tag
 	// Treat as a regular dependency
-	remoteMeta := versioning.DependencyMeta{
-		Site:   meta.Site,
-		User:   meta.User,
-		Repo:   meta.Repo,
-		Tag:    meta.Tag,
-		Branch: meta.Branch,
-		Commit: meta.Commit,
-		Path:   meta.Path,
-	}
+	remoteMeta := normalizeLockfileDependency(meta)
 
 	err := pcx.ensurePackage(ctx, remoteMeta, false)
 	if err != nil {

@@ -30,6 +30,7 @@ func TestPackageInitReportsInitializationFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("getCommandState() = %v, want command state", err)
 	}
+
 	state.cfg = &config.Config{DefaultUser: "tester"}
 	missingDir := filepath.Join(t.TempDir(), "missing")
 	set := flag.NewFlagSet("test", flag.ContinueOnError)
@@ -44,10 +45,12 @@ func TestPackageInitReportsInitializationFailure(t *testing.T) {
 	if err == nil {
 		t.Fatalf("packageInit(dir=%q) = nil, want initialization failure", missingDir)
 	}
+
 	var reported *commandExitError
 	if !errors.As(err, &reported) || !reported.reported || ExitCode(err) != 1 || err.Error() != "" {
 		t.Errorf("packageInit(dir=%q) = %v with exit code %d, want reported failure and no duplicate message", missingDir, err, ExitCode(err))
 	}
+
 	text := output.String()
 	if !strings.Contains(text, "Dependency setup failed") || !strings.Contains(text, "Details: directory does not exist") {
 		t.Errorf("packageInit(dir=%q) output = %q, want setup context and verbose directory cause", missingDir, text)

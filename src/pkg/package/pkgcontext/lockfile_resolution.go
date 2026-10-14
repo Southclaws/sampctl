@@ -40,6 +40,7 @@ func resolveCachedDependencyLock(meta versioning.DependencyMeta, repo *git.Repos
 	if meta.Tag == "" && meta.Commit == "" {
 		return resolveDependencyLock(meta, repo)
 	}
+
 	var ref *plumbing.Reference
 	var err error
 	resolved := meta.Tag
@@ -52,5 +53,6 @@ func resolveCachedDependencyLock(meta versioning.DependencyMeta, repo *git.Repos
 	if err != nil {
 		return lockfile.DependencyResolution{}, err
 	}
+
 	return lockfile.DependencyResolution{Commit: ref.Hash().String(), Resolved: resolved}, nil
 }

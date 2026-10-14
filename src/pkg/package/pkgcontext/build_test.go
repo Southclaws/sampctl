@@ -270,6 +270,7 @@ func TestBuildPrepareKeepsResourceIncludePathsWhenComponentSchemePresent(t *test
 func seedPkgContextBuildCache(t *testing.T, cacheDir string) {
 	t.Helper()
 	require.NoError(t, copyPkgContextFixtureDir(filepath.Join("tests", "cache", "packages"), filepath.Join(cacheDir, "packages")))
+
 	require.NoError(t, stripPkgContextFixtureCacheRemotes(cacheDir))
 }
 
@@ -301,6 +302,7 @@ func copyPkgContextFixtureDir(src, dst string) error {
 		if err != nil {
 			return err
 		}
+
 		return os.WriteFile(target, data, info.Mode())
 	})
 }
@@ -484,6 +486,7 @@ func toJSONArray(values []string) string {
 	if len(values) == 0 {
 		return "[]"
 	}
+
 	var b strings.Builder
 	b.WriteString("[")
 	for i, v := range values {

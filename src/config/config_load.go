@@ -44,7 +44,9 @@ func loadConfigFile(configFile string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	print.Verb("Loaded configuration from", configFile)
+
 	return cfg, nil
 }
 
@@ -58,6 +60,7 @@ func readConfigFile(configFile string) (*Config, error) {
 	if err := unmarshalConfigFile(configFile, contents, cfg); err != nil {
 		return nil, err
 	}
+
 	if err := applyEnvironmentOverrides(cfg); err != nil {
 		return nil, err
 	}
@@ -70,8 +73,13 @@ func readConfigFile(configFile string) (*Config, error) {
 func createDefaultConfig(cacheDir string) (*Config, error) {
 	print.Verb("No configuration file found, using default configuration")
 
-	cfg := defaultConfig(lookupCurrentUsername())
-	if err := writeConfigFile(filepath.Join(cacheDir, "config.json"), cfg); err != nil {
+	defaults := defaultConfig(lookupCurrentUsername())
+	cfg := defaults
+	if err := applyEnvironmentOverrides(&cfg); err != nil {
+		return nil, err
+	}
+
+	if err := writeConfigFile(filepath.Join(cacheDir, "config.json"), defaults); err != nil {
 		return nil, err
 	}
 
@@ -106,6 +114,7 @@ func applyEnvironmentOverrides(cfg *Config) error {
 	if value, ok := os.LookupEnv("SAMPCTL_GIT_PASSWORD"); ok {
 		cfg.GitPassword = value
 	}
+
 	if value, ok := os.LookupEnv("SAMPCTL_HIDE_VERSION_UPDATE_MESSAGE"); ok {
 		parsed, err := parseConfigBool(value)
 		if err != nil {
@@ -113,6 +122,7 @@ func applyEnvironmentOverrides(cfg *Config) error {
 		}
 		cfg.HideVersionUpdateMessage = &parsed
 	}
+
 	if value, ok := os.LookupEnv("CI"); ok {
 		cfg.CI = value
 	}

@@ -23,16 +23,16 @@ func packageConfig(c *cli.Context) error {
 		return err
 	}
 
-	field := c.Args().Get(0) // the name of the config field
-	value := c.Args().Get(1) // the value of the config value
+	field := c.Args().Get(0)
+	value := c.Args().Get(1)
 
 	cnf, err := getCommandConfig(c)
 	if err != nil {
 		return err
 	}
+
 	v := reflect.ValueOf(cnf).Elem()
 
-	// show output of fields
 	if field == "" {
 		displayConfig(v)
 		return nil
@@ -59,28 +59,24 @@ func packageConfig(c *cli.Context) error {
 
 	switch f.Kind() {
 	case reflect.String:
-		{
-			f.SetString(value)
-		}
+		f.SetString(value)
 	case reflect.Pointer:
-		{
-			fieldType := reflect.Indirect(f)
-			switch fieldType.Kind() {
-			case reflect.Bool:
-				{
-					pValue, err := strconv.ParseBool(value)
-					if err != nil {
-						return errors.Errorf("config field %s requires true or false", field)
-					}
-					f.Set(reflect.ValueOf(&pValue))
-				}
+		fieldType := reflect.Indirect(f)
+		switch fieldType.Kind() {
+		case reflect.Bool:
+			pValue, err := strconv.ParseBool(value)
+			if err != nil {
+				return errors.Errorf("config field %s requires true or false", field)
 			}
+
+			f.Set(reflect.ValueOf(&pValue))
 		}
 	}
 
 	if err := config.WriteConfig(env.CacheDir, *cnf); err != nil {
 		return err
 	}
+
 	print.Info("Set", field, "to", value)
 
 	return nil
@@ -97,30 +93,22 @@ func displayConfig(v reflect.Value) {
 
 		switch field.Kind() {
 		case reflect.String:
-			{
-				v := field.String()
-				t.AppendRows([]table.Row{
-					{fieldType.Name, v},
-				})
-			}
+			value := field.String()
+			t.AppendRows([]table.Row{
+				{fieldType.Name, value},
+			})
 		case reflect.Pointer:
-			{
-				pField := reflect.Indirect(field)
-				switch pField.Kind() {
-				case reflect.Bool:
-					{
-						t.AppendRows([]table.Row{
-							{fieldType.Name, pField.Bool()},
-						})
-					}
-				}
+			pField := reflect.Indirect(field)
+			switch pField.Kind() {
+			case reflect.Bool:
+				t.AppendRows([]table.Row{
+					{fieldType.Name, pField.Bool()},
+				})
 			}
 		case reflect.Bool:
-			{
-				t.AppendRows([]table.Row{
-					{fieldType.Name, field.Bool()},
-				})
-			}
+			t.AppendRows([]table.Row{
+				{fieldType.Name, field.Bool()},
+			})
 		}
 	}
 

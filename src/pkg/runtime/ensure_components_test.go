@@ -61,6 +61,7 @@ func TestEnsureComponentsExtractToComponentsDir(t *testing.T) {
 		if entry.IsDir() {
 			continue
 		}
+
 		name := entry.Name()
 		if filepath.Ext(name) == ".so" || filepath.Ext(name) == ".dll" {
 			foundBinary = true

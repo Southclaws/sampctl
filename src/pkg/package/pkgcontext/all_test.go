@@ -6,10 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/google/go-github/github"
+
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 )
 
 var (
@@ -22,9 +23,11 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
+
 	if err := seedPkgContextFixtures(filepath.Clean("./tests/cache")); err != nil {
 		panic(err)
 	}
+
 	if err := stripPkgContextFixtureCacheRemotes(filepath.Clean("./tests/cache")); err != nil {
 		panic(err)
 	}
@@ -39,6 +42,7 @@ func stripPkgContextFixtureCacheRemotes(root string) error {
 		if err != nil {
 			return err
 		}
+
 		if !info.IsDir() || info.Name() != ".git" {
 			return nil
 		}
@@ -47,6 +51,7 @@ func stripPkgContextFixtureCacheRemotes(root string) error {
 		if err != nil {
 			return err
 		}
+
 		if err := repo.DeleteRemote("origin"); err != nil && !strings.Contains(err.Error(), "remote not found") {
 			return err
 		}

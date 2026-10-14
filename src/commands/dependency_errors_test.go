@@ -38,8 +38,10 @@ func TestReportDependencyCommandError(t *testing.T) {
 			state, err := getCommandState(ctx)
 			require.NoError(t, err)
 			state.cfg = &config.Config{GitHubToken: "configured-secret"}
+
 			cause := fmt.Errorf("git remote https://person:password@example.com/user/repo?access_token=query-secret: configured-secret: %w", transport.ErrRepositoryNotFound)
 			failure := &pkgcontext.DependencyError{Dependency: "user/repo", Operation: "install", Err: cause}
+
 			err = reportDependencyCommandError(ctx, "install", failure)
 			require.Error(t, err)
 			assert.ErrorIs(t, err, transport.ErrRepositoryNotFound)
@@ -49,6 +51,7 @@ func TestReportDependencyCommandError(t *testing.T) {
 			assert.Contains(t, output.String(), "user/repo")
 			assert.Contains(t, output.String(), "Check the repository name and permissions. If it needs authentication, check your Git credentials.")
 			assert.Equal(t, verbose, strings.Contains(output.String(), "Details:"))
+
 			for _, secret := range []string{"person", "password", "query-secret", "configured-secret"} {
 				assert.NotContains(t, output.String(), secret)
 			}
@@ -58,6 +61,7 @@ func TestReportDependencyCommandError(t *testing.T) {
 
 func TestReportDependencyFailuresAndRecovery(t *testing.T) {
 	t.Parallel()
+
 	ctx := newTestCLIContext("dev")
 	var output bytes.Buffer
 	ctx.App.Writer = &output
@@ -67,6 +71,7 @@ func TestReportDependencyFailuresAndRecovery(t *testing.T) {
 		&pkgcontext.OperationError{Operation: "rollback", Err: os.ErrPermission},
 		&pkgcontext.OperationError{Operation: "cleanup", Err: os.ErrPermission},
 	)
+
 	err := reportDependencyCommandError(ctx, "ensure", fmt.Errorf("ensure: %w", failure))
 	assert.ErrorIs(t, err, os.ErrPermission)
 	assert.Contains(t, output.String(), "user/first")
@@ -79,9 +84,11 @@ func TestReportDependencyFailuresAndRecovery(t *testing.T) {
 
 func TestReportDependencyCommandCancellation(t *testing.T) {
 	t.Parallel()
+
 	ctx := newTestCLIContext("dev")
 	var output bytes.Buffer
 	ctx.App.Writer = &output
+
 	err := reportDependencyCommandError(ctx, "ensure", &pkgcontext.DependencyError{Dependency: "user/repo", Operation: "install", Err: context.Canceled})
 	assert.ErrorIs(t, err, context.Canceled)
 	assert.Contains(t, output.String(), "cancelled")
@@ -91,9 +98,11 @@ func TestReportDependencyCommandCancellation(t *testing.T) {
 
 func TestReportDependencyCommandOutputFailure(t *testing.T) {
 	t.Parallel()
+
 	ctx := newTestCLIContext("dev")
 	ctx.App.Writer = failingDiagnosticWriter{}
 	cause := &pkgcontext.OperationError{Operation: "lockfile", Err: fmt.Errorf("Authorization: Bearer secret: %w", os.ErrPermission)}
+
 	err := reportDependencyCommandError(ctx, "install", cause)
 	assert.ErrorIs(t, err, os.ErrPermission)
 	assert.ErrorIs(t, err, io.ErrClosedPipe)
@@ -103,6 +112,7 @@ func TestReportDependencyCommandOutputFailure(t *testing.T) {
 
 func TestReportNestedDependencyRecoveryFailure(t *testing.T) {
 	t.Parallel()
+
 	ctx := newTestCLIContext("dev")
 	var output bytes.Buffer
 	ctx.App.Writer = &output
@@ -110,6 +120,7 @@ func TestReportNestedDependencyRecoveryFailure(t *testing.T) {
 		transport.ErrRepositoryNotFound,
 		&pkgcontext.OperationError{Operation: "cleanup", Err: os.ErrPermission},
 	)}
+
 	err := reportDependencyCommandError(ctx, "install", cause)
 	assert.ErrorIs(t, err, os.ErrPermission)
 	assert.Contains(t, output.String(), "user/repo")
@@ -119,6 +130,7 @@ func TestReportNestedDependencyRecoveryFailure(t *testing.T) {
 
 func TestUnjournaledDependencyFailuresDoNotRecommendProjectRecovery(t *testing.T) {
 	t.Parallel()
+
 	for _, cause := range []error{
 		context.Canceled,
 		errors.New("invalid plugin archive"),
@@ -127,10 +139,12 @@ func TestUnjournaledDependencyFailuresDoNotRecommendProjectRecovery(t *testing.T
 		ctx := newTestCLIContext("dev")
 		var output bytes.Buffer
 		ctx.App.Writer = &output
+
 		err := reportDependencyCommandError(ctx, "ensure", cause)
 		if !errors.Is(err, cause) || ExitCode(err) != 1 {
 			t.Errorf("failure %v = %v, want preserved cause and nonzero exit", cause, err)
 		}
+
 		if strings.Contains(output.String(), "sampctl check") {
 			t.Errorf("unjournaled failure recommends unsupported project recovery: %s", output.String())
 		}
@@ -139,9 +153,11 @@ func TestUnjournaledDependencyFailuresDoNotRecommendProjectRecovery(t *testing.T
 
 func TestReportCompletedDependencyOperationWithCleanupFailure(t *testing.T) {
 	t.Parallel()
+
 	ctx := newTestCLIContext("dev")
 	var output bytes.Buffer
 	ctx.App.Writer = &output
+
 	err := reportDependencyCommandError(ctx, "install", &pkgcontext.OperationError{Operation: "cleanup", Outcome: pkgcontext.OutcomeCommitted, Err: os.ErrPermission})
 	assert.Equal(t, 1, ExitCode(err))
 	assert.Contains(t, output.String(), "✓ Dependency changes saved. Cleanup pending")
@@ -150,6 +166,7 @@ func TestReportCompletedDependencyOperationWithCleanupFailure(t *testing.T) {
 
 func TestReportDependencyOperationOutcomes(t *testing.T) {
 	t.Parallel()
+
 	for _, test := range []struct {
 		name    string
 		outcome pkgcontext.DependencyOperationOutcome
@@ -163,6 +180,7 @@ func TestReportDependencyOperationOutcomes(t *testing.T) {
 			ctx := newTestCLIContext("dev")
 			var output bytes.Buffer
 			ctx.App.Writer = &output
+
 			var cause error = &pkgcontext.DependencyError{Dependency: "fixture/dependency", Operation: "install", Err: os.ErrPermission}
 			switch test.outcome {
 			case pkgcontext.OutcomeRollbackIncomplete:
@@ -170,25 +188,30 @@ func TestReportDependencyOperationOutcomes(t *testing.T) {
 			case pkgcontext.OutcomeCommitted:
 				cause = &pkgcontext.OperationError{Operation: "cleanup", Err: os.ErrPermission}
 			}
+
 			operation := "dependency operation"
 			var nested *pkgcontext.OperationError
 			if errors.As(cause, &nested) {
 				operation = nested.Operation
 			}
 			failure := &pkgcontext.OperationError{Operation: operation, Outcome: test.outcome, Err: cause}
+
 			err := reportDependencyCommandError(ctx, "install", fmt.Errorf("install: %w", failure))
 			if !errors.Is(err, os.ErrPermission) || ExitCode(err) != 1 {
 				t.Errorf("outcome %s error = %v, code = %d", test.outcome, err, ExitCode(err))
 			}
+
 			if !strings.Contains(output.String(), test.message) {
 				t.Errorf("outcome %s output = %s, want %q", test.outcome, output.String(), test.message)
 			}
+
 			if test.outcome == pkgcontext.OutcomeCommitted {
 				for _, forbidden := range []string{"✗", "installation incomplete", "state restored"} {
 					if strings.Contains(output.String(), forbidden) {
 						t.Errorf("committed output contains %q: %s", forbidden, output.String())
 					}
 				}
+
 				if !strings.Contains(output.String(), "Your changes were saved") || !strings.Contains(output.String(), "check --fix") {
 					t.Errorf("committed output lacks saved changes and recovery advice: %s", output.String())
 				}
@@ -201,13 +224,16 @@ func TestReportDependencyOperationOutcomes(t *testing.T) {
 
 func TestReportCommittedOutcomeWithOutputFailure(t *testing.T) {
 	t.Parallel()
+
 	ctx := newTestCLIContext("dev")
 	ctx.App.Writer = failingDiagnosticWriter{}
 	failure := &pkgcontext.OperationError{Operation: "dependency operation", Outcome: pkgcontext.OutcomeCommitted, Err: &pkgcontext.OperationError{Operation: "cleanup", Err: os.ErrPermission}}
+
 	err := reportDependencyCommandError(ctx, "install", failure)
 	if !errors.Is(err, os.ErrPermission) || !errors.Is(err, io.ErrClosedPipe) {
 		t.Errorf("committed output failure = %v, want both causes", err)
 	}
+
 	if !strings.Contains(err.Error(), "changes were saved") || strings.Contains(err.Error(), "operation failed") {
 		t.Errorf("committed output failure message = %q", err.Error())
 	}
@@ -215,14 +241,17 @@ func TestReportCommittedOutcomeWithOutputFailure(t *testing.T) {
 
 func TestReportUntrackedRuntimeConflict(t *testing.T) {
 	t.Parallel()
+
 	ctx := newTestCLIContext("dev")
 	var output bytes.Buffer
 	ctx.App.Writer = &output
 	failure := &pkgcontext.DependencyError{Dependency: "runtime 0.3.7", Operation: "ensure binaries", Err: os.ErrExist}
+
 	err := reportDependencyCommandError(ctx, "ensure", failure)
 	if !errors.Is(err, os.ErrExist) || ExitCode(err) != 1 {
 		t.Errorf("runtime conflict = %v, code = %d", err, ExitCode(err))
 	}
+
 	if !strings.Contains(output.String(), "Move those files aside") || strings.Contains(output.String(), "sampctl check") {
 		t.Errorf("runtime conflict advice = %s", output.String())
 	}
@@ -234,6 +263,7 @@ func (failingDiagnosticWriter) Write([]byte) (int, error) { return 0, io.ErrClos
 
 func TestDiagnosticSecretRedaction(t *testing.T) {
 	t.Parallel()
+
 	for _, text := range []string{
 		"git https://username:secret@example.com/repo.git failed",
 		"GET https://example.com/file?access_token=secret&other=value failed",
@@ -264,9 +294,11 @@ func TestDiagnosticSecretRedaction(t *testing.T) {
 
 func TestDependencyConfigurationDiagnostics(t *testing.T) {
 	t.Parallel()
+
 	jsonSyntax := json.Unmarshal([]byte("{broken"), &map[string]string{})
 	jsonType := json.Unmarshal([]byte(`{"value": []}`), &map[string]string{})
 	yamlType := yaml.Unmarshal([]byte("value: []\n"), &map[string]string{})
+
 	for _, test := range []struct {
 		name      string
 		failure   error
@@ -285,6 +317,7 @@ func TestDependencyConfigurationDiagnostics(t *testing.T) {
 			ctx := newTestCLIContext("dev")
 			var output bytes.Buffer
 			ctx.App.Writer = &output
+
 			err := reportDependencyCommandError(ctx, "ensure", test.failure)
 			assert.ErrorIs(t, err, test.failure)
 			assert.Contains(t, output.String(), test.message)
@@ -296,7 +329,9 @@ func TestDependencyConfigurationDiagnostics(t *testing.T) {
 
 func TestRunPackageEnsurePropagatesLockfileSaveFailure(t *testing.T) {
 	t.Parallel()
+
 	target := &fakeEnsureCommandTarget{fakeCommandLockfile: fakeCommandLockfile{hasResolver: true, saveErr: os.ErrPermission}}
+
 	err := runPackageEnsure(context.Background(), target, ensureCommandOptions{useLockfile: true, lockOnly: true})
 	assert.ErrorIs(t, err, os.ErrPermission)
 	assert.Equal(t, 1, ExitCode(err))
@@ -306,8 +341,10 @@ func TestRunPackageEnsurePropagatesLockfileSaveFailure(t *testing.T) {
 
 func TestRunPackageEnsureFailureDoesNotPersistLockfile(t *testing.T) {
 	t.Parallel()
+
 	cause := &pkgcontext.DependencyError{Dependency: "user/repo", Operation: "install", Err: transport.ErrRepositoryNotFound}
 	target := &fakeEnsureCommandTarget{fakeCommandLockfile: fakeCommandLockfile{hasResolver: true}, ensureErr: cause}
+
 	err := runPackageEnsure(context.Background(), target, ensureCommandOptions{useLockfile: true})
 	assert.ErrorIs(t, err, transport.ErrRepositoryNotFound)
 	assert.False(t, target.saved)
@@ -326,10 +363,12 @@ func (f *fakeTransactionalEnsureCommandTarget) UpdateProjectLockfile(context.Con
 
 func TestRunPackageEnsureUsesTransactionalLockfileUpdate(t *testing.T) {
 	t.Parallel()
+
 	target := &fakeTransactionalEnsureCommandTarget{
 		fakeEnsureCommandTarget: fakeEnsureCommandTarget{fakeCommandLockfile: fakeCommandLockfile{hasResolver: true}},
 		updateProjectErr:        os.ErrPermission,
 	}
+
 	err := runPackageEnsure(context.Background(), target, ensureCommandOptions{useLockfile: true, lockOnly: true})
 	assert.ErrorIs(t, err, os.ErrPermission)
 	assert.True(t, target.updateProjectCalled)
@@ -339,8 +378,10 @@ func TestRunPackageEnsureUsesTransactionalLockfileUpdate(t *testing.T) {
 
 func TestCommandExitErrorRedactsUnreportedDetails(t *testing.T) {
 	t.Parallel()
+
 	cause := errors.New("selector https://person:secret@example.com/repo?token=query-secret")
 	err := &commandExitError{code: 1, err: cause}
+
 	assert.ErrorIs(t, err, cause)
 	assert.NotContains(t, err.Error(), "person")
 	assert.NotContains(t, err.Error(), "secret")
@@ -349,16 +390,20 @@ func TestCommandExitErrorRedactsUnreportedDetails(t *testing.T) {
 
 func TestPackageEnsureValidationRemainsReadable(t *testing.T) {
 	t.Parallel()
+
 	if !gitcheck.IsInstalled() {
 		t.Skip("git is unavailable")
 	}
+
 	ctx := newTestCLIContext("dev")
 	set := flag.NewFlagSet("test", flag.ContinueOnError)
 	set.Bool("force", true, "")
 	ctx = cli.NewContext(ctx.App, set, nil)
+
 	err := packageEnsure(ctx)
 	require.EqualError(t, err, "cannot use --force without --update")
 	assert.Equal(t, 1, ExitCode(err))
+
 	var exitErr *commandExitError
 	assert.ErrorAs(t, err, &exitErr)
 }
@@ -366,8 +411,10 @@ func TestPackageEnsureValidationRemainsReadable(t *testing.T) {
 func TestDependencyVerboseDetailsIncludeGitCause(t *testing.T) {
 	cause := errors.New("checkout object missing in /cache/objects; https://user:private@example.com/repo?token=private-query")
 	err := &pkgcontext.DependencyError{Dependency: "fixture/dep", Operation: "clone", Err: pkgcontext.WrapGitError(cause, versioning.DependencyMeta{User: "fixture", Repo: "dep"})}
+
 	details := checkErrorDetail(err)
 	assert.Contains(t, details, "checkout object missing in /cache/objects")
+
 	rendered := redactDiagnosticText(details)
 	assert.NotContains(t, rendered, "private")
 	assert.Contains(t, rendered, "[redacted]")

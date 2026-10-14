@@ -48,7 +48,6 @@ func autoComplete(c *cli.Context) (err error) {
 	}
 
 	completionFile := filepath.Join(env.CacheDir, "autocomplete")
-
 	err = os.WriteFile(completionFile, contents, fs.PermFileExec)
 	if err != nil {
 		return

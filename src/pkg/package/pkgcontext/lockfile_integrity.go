@@ -10,25 +10,22 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/package/lockfile"
 )
 
-func (pcx *PackageContext) verifyDependencyIntegrityWithRecovery(
-	meta versioning.DependencyMeta,
-	dependencyPath string,
-	forceUpdate bool,
-) error {
-	return pcx.verifyDependencyIntegrityWithRecoveryContext(context.Background(), meta, dependencyPath, forceUpdate)
-}
-
 func (pcx *PackageContext) verifyDependencyIntegrityWithRecoveryContext(ctx context.Context, meta versioning.DependencyMeta, dependencyPath string, forceUpdate bool) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+
 	if forceUpdate {
 		return nil
 	}
-	if err := pcx.verifyLockedDependencyIntegrity(meta, dependencyPath); err == nil {
+
+	if err := pcx.verifyLockedDependencyIntegrityContext(ctx, meta, dependencyPath); err == nil {
 		return nil
 	} else {
 		print.Verb(meta, "dependency integrity check failed, re-cloning")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 
 	repo, err := pcx.recloneDependencyContext(ctx, meta, dependencyPath)
@@ -40,14 +37,14 @@ func (pcx *PackageContext) verifyDependencyIntegrityWithRecoveryContext(ctx cont
 		return errors.Wrap(err, "failed to recover dependency after integrity mismatch")
 	}
 
-	if err := pcx.verifyLockedDependencyIntegrity(meta, dependencyPath); err != nil {
+	if err := pcx.verifyLockedDependencyIntegrityContext(ctx, meta, dependencyPath); err != nil {
 		return errors.Wrap(err, "integrity mismatch after recovery")
 	}
 
 	return nil
 }
 
-func (pcx *PackageContext) verifyLockedDependencyIntegrity(meta versioning.DependencyMeta, dependencyPath string) error {
+func (pcx *PackageContext) verifyLockedDependencyIntegrityContext(ctx context.Context, meta versioning.DependencyMeta, dependencyPath string) error {
 	if !pcx.PackageLockfileState.HasLockfileResolver() {
 		return nil
 	}
@@ -62,7 +59,7 @@ func (pcx *PackageContext) verifyLockedDependencyIntegrity(meta versioning.Depen
 		return nil
 	}
 
-	ok, err := lockfile.VerifyIntegrity(dependencyPath, locked.Integrity)
+	ok, err := lockfile.VerifyIntegrityContext(ctx, dependencyPath, locked.Integrity)
 	if err != nil {
 		return errors.Wrap(err, "failed to verify locked dependency integrity")
 	}

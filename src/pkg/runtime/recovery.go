@@ -46,6 +46,7 @@ func runtimeRecoveryFailure(root, version string, err error) *RuntimeInstallErro
 		failure.Committed = journal.Phase == "committed"
 		failure.Restored = journal.Phase == "restored" && journal.Previous != nil && verifyRuntimeManifest(*journal.Previous, root) == nil
 	}
+
 	return failure
 }
 
@@ -87,6 +88,7 @@ func runtimeBeforePlatform(journal *runtimeJournal, entry runtimeJournalEntry) s
 			}
 		}
 	}
+
 	return journal.Current.Platform
 }
 
@@ -115,19 +117,24 @@ func lockRuntimePath(ctx context.Context, root, filename string) (*flock.Flock, 
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+
 	if root == "" {
 		return nil, fmt.Errorf("runtime installation directory is empty: %w", os.ErrInvalid)
 	}
+
 	root, err := filepath.Abs(root)
 	if err != nil {
 		return nil, err
 	}
+
 	if _, err := runtimeFilePath(root, filename); err != nil {
 		return nil, err
 	}
+
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return nil, err
 	}
+
 	lock := flock.New(filepath.Join(root, filename))
 	locked, err := lock.TryLockContext(ctx, 25*time.Millisecond)
 	if err != nil || !locked {
@@ -136,6 +143,7 @@ func lockRuntimePath(ctx context.Context, root, filename string) (*flock.Flock, 
 		}
 		return nil, errors.Join(err, lock.Close())
 	}
+
 	return lock, nil
 }
 
@@ -144,12 +152,14 @@ func InspectRuntimeRecovery(ctx context.Context, root string) (status RuntimeRec
 	if err := ctx.Err(); err != nil {
 		return status, err
 	}
+
 	path := filepath.Join(root, RuntimeRecoveryFilename)
 	if _, err := os.Lstat(path); errors.Is(err, os.ErrNotExist) {
 		return status, nil
 	} else if err != nil {
 		return status, err
 	}
+
 	status = RuntimeRecoveryStatus{Pending: true, Path: path}
 	lockPath, err := runtimeFilePath(root, runtimeLockFilename)
 	if err != nil {
@@ -166,10 +176,12 @@ func InspectRuntimeRecovery(ctx context.Context, root string) (status RuntimeRec
 	} else if !errors.Is(statErr, os.ErrNotExist) {
 		return status, statErr
 	}
+
 	journal, err := readRuntimeJournal(root)
 	if err != nil {
 		return status, err
 	}
+
 	status.Committed = journal.Phase == "committed"
 	status.Restored = journal.Phase == "restored"
 	status.Runtime = journal.Current.Version
@@ -177,6 +189,7 @@ func InspectRuntimeRecovery(ctx context.Context, root string) (status RuntimeRec
 		return status, err
 	}
 	status.CanRecover = true
+
 	return status, nil
 }
 
@@ -185,11 +198,13 @@ func RecoverRuntime(ctx context.Context, root string) (err error) {
 	if _, err := os.Lstat(filepath.Join(root, RuntimeRecoveryFilename)); errors.Is(err, os.ErrNotExist) {
 		return ctx.Err()
 	}
+
 	lock, err := lockRuntime(ctx, root)
 	if err != nil {
 		return err
 	}
 	defer func() { err = errors.Join(err, lock.Close()) }()
+
 	return recoverRuntimeLocked(ctx, root)
 }
 
@@ -199,9 +214,11 @@ func VerifyInstalledRuntime(root string) error {
 	if err != nil {
 		return err
 	}
+
 	if manifest == nil {
 		return fmt.Errorf("runtime is not installed: %w", os.ErrNotExist)
 	}
+
 	return verifyRuntimeManifest(*manifest, root)
 }
 
@@ -210,17 +227,21 @@ func readRuntimeJournal(root string) (*runtimeJournal, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
+
 	var journal runtimeJournal
 	if err := json.Unmarshal(data, &journal); err != nil {
 		return nil, fmt.Errorf("read runtime recovery state: %w", err)
 	}
+
 	if err := validateRuntimeJournal(root, &journal); err != nil {
 		return nil, err
 	}
+
 	return &journal, nil
 }
 
@@ -228,14 +249,17 @@ func validateRuntimeJournal(root string, journal *runtimeJournal) error {
 	if journal.Format != 1 || (journal.Phase != "pending" && journal.Phase != "committed" && journal.Phase != "restored") || !strings.HasPrefix(journal.Stage, runtimeOperationPrefix) || filepath.Base(journal.Stage) != journal.Stage || len(journal.Files) == 0 {
 		return fmt.Errorf("runtime recovery state is invalid: %w", os.ErrInvalid)
 	}
+
 	if err := validateInstalledRuntimeManifest(journal.Current, root); err != nil {
 		return err
 	}
+
 	if journal.Previous != nil {
 		if err := validateInstalledRuntimeManifest(*journal.Previous, root); err != nil {
 			return err
 		}
 	}
+
 	current := make(map[string]runtimeFileInfo, len(journal.Current.Files))
 	previous := make(map[string]runtimeFileInfo)
 	for _, file := range journal.Current.Files {
@@ -246,20 +270,25 @@ func validateRuntimeJournal(root string, journal *runtimeJournal) error {
 			previous[strings.ToLower(file.Path)] = file
 		}
 	}
+
 	seen := make(map[string]bool, len(journal.Files))
 	for _, entry := range journal.Files {
 		if _, err := runtimeFilePath(root, entry.Path); err != nil {
 			return err
 		}
+
 		key := strings.ToLower(entry.Path)
 		if seen[key] || (entry.Before == nil && entry.After == nil) {
 			return fmt.Errorf("invalid runtime recovery file %s: %w", entry.Path, os.ErrInvalid)
 		}
 		seen[key] = true
+
 		for _, file := range []*runtimeFileInfo{entry.Before, entry.After} {
 			if file != nil {
 				candidate := journal.Current
 				candidate.Files = []runtimeFileInfo{*file}
+				// The real path was checked above. This temporary path lets the shared
+				// validator also check fingerprints for the reserved ownership record.
 				candidate.Files[0].Path = "fingerprint"
 				if file.Path != entry.Path {
 					return fmt.Errorf("invalid runtime recovery fingerprint: %w", os.ErrInvalid)
@@ -269,10 +298,12 @@ func validateRuntimeJournal(root string, journal *runtimeJournal) error {
 				}
 			}
 		}
+
 		if entry.Path == installedRuntimeManifestFileName {
 			if entry.After == nil {
 				return fmt.Errorf("runtime recovery ownership is missing: %w", os.ErrInvalid)
 			}
+
 			data, err := json.MarshalIndent(journal.Current, "", "  ")
 			if err != nil {
 				return err
@@ -283,6 +314,7 @@ func validateRuntimeJournal(root string, journal *runtimeJournal) error {
 			}
 			continue
 		}
+
 		if entry.After != nil && current[key] != *entry.After {
 			return fmt.Errorf("runtime recovery replacement is not tracked: %w", os.ErrInvalid)
 		}
@@ -293,14 +325,17 @@ func validateRuntimeJournal(root string, journal *runtimeJournal) error {
 			return fmt.Errorf("runtime recovery backup is not tracked: %w", os.ErrInvalid)
 		}
 	}
+
 	if !seen[installedRuntimeManifestFileName] {
 		return fmt.Errorf("runtime recovery ownership is missing: %w", os.ErrInvalid)
 	}
+
 	for key := range current {
 		if !seen[key] {
 			return fmt.Errorf("runtime recovery file list is incomplete: %w", os.ErrInvalid)
 		}
 	}
+
 	return nil
 }
 
@@ -309,6 +344,7 @@ func runtimeFileMatches(root, relative, platform string, expected *runtimeFileIn
 	if err != nil {
 		return false, err
 	}
+
 	_, err = os.Lstat(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return expected == nil, nil
@@ -316,9 +352,11 @@ func runtimeFileMatches(root, relative, platform string, expected *runtimeFileIn
 	if err != nil {
 		return false, err
 	}
+
 	if expected == nil {
 		return false, nil
 	}
+
 	file := *expected
 	file.Path = relative
 	return verifyRuntimeManifest(runtimeManifest{Platform: platform, Files: []runtimeFileInfo{file}}, root) == nil, nil
@@ -330,6 +368,7 @@ func validateRuntimeRecoveryState(root string, journal *runtimeJournal) error {
 			return err
 		}
 	}
+
 	stage := filepath.Join(root, journal.Stage)
 	info, err := os.Lstat(stage)
 	if err != nil && !(errors.Is(err, os.ErrNotExist) && journal.Phase != "pending") {
@@ -338,6 +377,7 @@ func validateRuntimeRecoveryState(root string, journal *runtimeJournal) error {
 	if err == nil && (!info.IsDir() || info.Mode()&os.ModeSymlink != 0) {
 		return fmt.Errorf("runtime recovery directory is unsafe: %w", os.ErrInvalid)
 	}
+
 	expectedStage := make(map[string]*runtimeFileInfo, len(journal.Files)*2)
 	for index, entry := range journal.Files {
 		for _, kind := range []string{"old", "new"} {
@@ -349,10 +389,12 @@ func validateRuntimeRecoveryState(root string, journal *runtimeJournal) error {
 				expectedStage[fmt.Sprintf("%s-%06d", kind, index)] = file
 			}
 		}
+
 		before, err := runtimeFileMatches(root, entry.Path, runtimeBeforePlatform(journal, entry), entry.Before)
 		if err != nil {
 			return err
 		}
+
 		after, err := runtimeFileMatches(root, entry.Path, journal.Current.Platform, entry.After)
 		if err != nil {
 			return err
@@ -360,12 +402,14 @@ func validateRuntimeRecoveryState(root string, journal *runtimeJournal) error {
 		if (journal.Phase == "pending" && !before && !after) || (journal.Phase == "committed" && !after) || (journal.Phase == "restored" && !before) {
 			return fmt.Errorf("runtime file %s changed during recovery: %w", entry.Path, os.ErrInvalid)
 		}
+
 		if journal.Phase == "pending" && entry.Before != nil {
 			match, err := runtimeFileMatches(stage, fmt.Sprintf("old-%06d", index), runtimeBeforePlatform(journal, entry), entry.Before)
 			if err != nil || !match {
 				return errors.Join(fmt.Errorf("runtime backup for %s is missing or changed: %w", entry.Path, os.ErrInvalid), err)
 			}
 		}
+
 		if entry.Path == installedRuntimeManifestFileName && entry.Before != nil {
 			path := runtimeStageFile(root, journal, index, "old")
 			if _, err := os.Lstat(path); errors.Is(err, os.ErrNotExist) && journal.Phase == "restored" {
@@ -380,6 +424,7 @@ func validateRuntimeRecoveryState(root string, journal *runtimeJournal) error {
 			}
 		}
 	}
+
 	if info != nil {
 		entries, err := os.ReadDir(stage)
 		if err != nil {
@@ -390,12 +435,14 @@ func validateRuntimeRecoveryState(root string, journal *runtimeJournal) error {
 			if expected == nil {
 				return fmt.Errorf("unknown file in runtime recovery directory: %s: %w", entry.Name(), os.ErrInvalid)
 			}
+
 			match, err := runtimeFileMatches(stage, entry.Name(), journal.Current.Platform, expected)
 			if err != nil || !match {
 				return errors.Join(fmt.Errorf("runtime recovery file %s changed: %w", entry.Name(), os.ErrInvalid), err)
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -404,17 +451,21 @@ func recoverRuntimeLocked(ctx context.Context, root string) error {
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
+
 	if err != nil {
 		return err
 	}
+
 	if err := validateRuntimeRecoveryState(root, journal); err != nil {
 		return err
 	}
+
 	if journal.Phase == "pending" {
 		for index := len(journal.Files) - 1; index >= 0; index-- {
 			if err := ctx.Err(); err != nil {
 				return err
 			}
+
 			entry := journal.Files[index]
 			match, err := runtimeFileMatches(root, entry.Path, runtimeBeforePlatform(journal, entry), entry.Before)
 			if err != nil {
@@ -423,14 +474,17 @@ func recoverRuntimeLocked(ctx context.Context, root string) error {
 			if match {
 				continue
 			}
+
 			match, err = runtimeFileMatches(root, entry.Path, journal.Current.Platform, entry.After)
 			if err != nil || !match {
 				return errors.Join(fmt.Errorf("runtime file %s changed during recovery: %w", entry.Path, os.ErrInvalid), err)
 			}
+
 			path, err := runtimeFilePath(root, entry.Path)
 			if err != nil {
 				return err
 			}
+
 			if entry.Before == nil {
 				if err := os.Remove(path); err != nil {
 					return err
@@ -438,18 +492,22 @@ func recoverRuntimeLocked(ctx context.Context, root string) error {
 			} else if err := copyFileWithModeContext(ctx, runtimeStageFile(root, journal, index, "old"), path, os.FileMode(entry.Before.Mode)); err != nil {
 				return err
 			}
+
 			if err := fs.SyncDir(filepath.Dir(path)); err != nil {
 				return err
 			}
 		}
+
 		journal.Phase = "restored"
 		if err := validateRuntimeRecoveryState(root, journal); err != nil {
 			return err
 		}
+
 		if err := writeRuntimeJournal(root, journal); err != nil {
 			return err
 		}
 	}
+
 	return cleanupRuntimeJournal(ctx, root, journal)
 }
 
@@ -465,12 +523,14 @@ func cleanupRuntimeJournalWithHooks(ctx context.Context, root string, journal *r
 	if err := validateRuntimeRecoveryState(root, journal); err != nil {
 		return err
 	}
+
 	stage := filepath.Join(root, journal.Stage)
 	for index, entry := range journal.Files {
 		for _, kind := range []string{"old", "new"} {
 			if err := ctx.Err(); err != nil {
 				return err
 			}
+
 			file := entry.Before
 			if kind == "new" {
 				file = entry.After
@@ -478,33 +538,41 @@ func cleanupRuntimeJournalWithHooks(ctx context.Context, root string, journal *r
 			if file == nil {
 				continue
 			}
+
 			path := runtimeStageFile(root, journal, index, kind)
 			if _, err := os.Lstat(path); errors.Is(err, os.ErrNotExist) {
 				continue
 			}
+
 			match, err := runtimeFileMatches(stage, filepath.Base(path), journal.Current.Platform, file)
 			if err != nil || !match {
 				return errors.Join(fmt.Errorf("runtime recovery file changed before cleanup: %w", os.ErrInvalid), err)
 			}
+
 			if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 				return err
 			}
+
 			if err := hooks.checkpoint("cleanup:" + filepath.Base(path)); err != nil {
 				return err
 			}
 		}
 	}
+
 	if err := os.Remove(stage); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	if err := fs.SyncDir(root); err != nil {
 		return err
 	}
+
 	if err := hooks.checkpoint("cleanup:stage"); err != nil {
 		return err
 	}
+
 	if err := os.Remove(filepath.Join(root, RuntimeRecoveryFilename)); err != nil {
 		return err
 	}
+
 	return fs.SyncDir(root)
 }

@@ -17,8 +17,10 @@ func TestDependencyRecoveryPreservesProjectWhenSnapshotIsCorrupt(t *testing.T) {
 			if err := fixture.pcx.writeDependencyDefinition(); err != nil {
 				t.Fatal(err)
 			}
+
 			manifest := filepath.Join(fixture.pcx.Package.LocalPath, "pawn.json")
 			before := readCrashRecoveryFile(t, manifest)
+
 			snapshot := &fixture.state.journal.Files[0]
 			if field == "data" {
 				snapshot.Data = []byte(`{"user":"corrupt snapshot"}`)
@@ -28,12 +30,15 @@ func TestDependencyRecoveryPreservesProjectWhenSnapshotIsCorrupt(t *testing.T) {
 			if err := fixture.state.journal.save(); err != nil {
 				t.Fatal(err)
 			}
+
 			if err := fixture.state.lock.Unlock(); err != nil {
 				t.Fatal(err)
 			}
+
 			if _, err := RecoverDependencyOperation(context.Background(), fixture.pcx.Package.LocalPath); err == nil {
 				t.Error("corrupt snapshot recovery succeeded")
 			}
+
 			if got := readCrashRecoveryFile(t, manifest); !bytes.Equal(got, before) {
 				t.Error("corrupt snapshot changed the project manifest")
 			}

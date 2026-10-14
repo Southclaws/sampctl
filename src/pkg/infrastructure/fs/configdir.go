@@ -19,6 +19,7 @@ func ConfigDir() (string, error) {
 	if err := EnsureDir(dir, PermDirPrivate); err != nil {
 		return "", fmt.Errorf("failed to create config dir %q: %w", dir, err)
 	}
+
 	return dir, nil
 }
 

@@ -21,15 +21,18 @@ func (pcx *PackageContext) Uninstall(
 		return err
 	}
 	defer func() { err = pcx.finishDependencyOperation(state, err) }()
+
 	for _, target := range targets {
 		err = pcx.uninstall(target, development)
 		if err != nil {
 			return
 		}
 	}
+
 	if slices.Equal(state.pkg.Dependencies, pcx.Package.Dependencies) && slices.Equal(state.pkg.Development, pcx.Package.Development) {
 		return nil
 	}
+
 	lf, err := lockfile.Load(pcx.Package.LocalPath)
 	if err != nil {
 		return &OperationError{Operation: "read lockfile", Err: err}
@@ -39,20 +42,25 @@ func (pcx *PackageContext) Uninstall(
 			return err
 		}
 	}
+
 	if err := pcx.writeDependencyDefinition(); err != nil {
 		return &OperationError{Operation: "manifest", Err: err}
 	}
+
 	if lf != nil {
 		if err := pcx.recordDependencyLockfileWrite(lf); err != nil {
 			return &OperationError{Operation: "lockfile", Err: err}
 		}
+
 		if err := lockfile.Save(pcx.Package.LocalPath, lf); err != nil {
 			return &OperationError{Operation: "lockfile", Err: err}
 		}
+
 		if current := pcx.GetLockfile(); current != nil {
 			*current = *lf
 		}
 	}
+
 	return nil
 }
 
@@ -65,6 +73,7 @@ func (pcx *PackageContext) pruneUninstalledLockfile(lf *lockfile.Lockfile) error
 		}
 		direct[lockfile.DependencyKey(normalizeLockfileDependency(meta))] = true
 	}
+
 	required := make(map[string]bool)
 	for key := range direct {
 		required[key] = true
@@ -76,6 +85,7 @@ func (pcx *PackageContext) pruneUninstalledLockfile(lf *lockfile.Lockfile) error
 			required[key] = true
 		}
 	}
+
 	for changed := true; changed; {
 		changed = false
 		for key, entry := range lf.Dependencies {
@@ -91,6 +101,7 @@ func (pcx *PackageContext) pruneUninstalledLockfile(lf *lockfile.Lockfile) error
 			}
 		}
 	}
+
 	for key, entry := range lf.Dependencies {
 		if !required[key] {
 			delete(lf.Dependencies, key)
@@ -106,6 +117,7 @@ func (pcx *PackageContext) pruneUninstalledLockfile(lf *lockfile.Lockfile) error
 		}
 		lf.Dependencies[key] = entry
 	}
+
 	return nil
 }
 
@@ -171,9 +183,11 @@ func matchesUninstallTarget(target, dependency versioning.DependencyString) bool
 	if err != nil {
 		return false
 	}
+
 	dependencyMeta, err := dependency.Explode()
 	if err != nil {
 		return false
 	}
+
 	return (DependencyUpdateRequest{Target: string(target), TargetMeta: targetMeta}).Matches(dependencyMeta)
 }

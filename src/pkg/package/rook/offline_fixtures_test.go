@@ -36,6 +36,7 @@ func seedOfflineFixtures(cacheDir string) error {
 	if err := os.RemoveAll(cacheDir); err != nil {
 		return err
 	}
+
 	if err := os.MkdirAll(cacheDir, 0o700); err != nil {
 		return err
 	}
@@ -80,7 +81,9 @@ func seedOfflineFixtures(cacheDir string) error {
 	); err != nil {
 		return err
 	}
-	if err := writeTarGz(filepath.Join(cacheDir, "packages", "AmyrAhmady", "samp-plugin-crashdetect", "default", "crashdetect-4.22-linux.tar.gz"), map[string]string{
+
+	crashdetectCache := (versioning.DependencyMeta{User: "AmyrAhmady", Repo: "samp-plugin-crashdetect"}).CachePath(cacheDir)
+	if err := writeTarGz(filepath.Join(crashdetectCache, "crashdetect-4.22-linux.tar.gz"), map[string]string{
 		"crashdetect.so": "fixture plugin binary",
 	}); err != nil {
 		return err
@@ -131,6 +134,7 @@ func seedCachedPackageRepo(
 	if err != nil {
 		return err
 	}
+
 	wt, err := repo.Worktree()
 	if err != nil {
 		return err
@@ -140,9 +144,11 @@ func seedCachedPackageRepo(
 	if err != nil {
 		return err
 	}
+
 	if err := os.WriteFile(filepath.Join(cachePath, "pawn.json"), data, 0o644); err != nil {
 		return err
 	}
+
 	if _, err := wt.Add("pawn.json"); err != nil {
 		return err
 	}
@@ -176,6 +182,7 @@ func seedCachedPackageRepo(
 	if err != nil {
 		return err
 	}
+
 	for _, tag := range tags {
 		if _, err := repo.CreateTag(tag, head.Hash(), nil); err != nil {
 			return err

@@ -17,7 +17,9 @@ import (
 
 func TestReportInstallationOutcomes(t *testing.T) {
 	t.Parallel()
+
 	cause := errors.New("technical installation detail")
+
 	for _, test := range []struct {
 		name   string
 		err    error
@@ -40,14 +42,17 @@ func TestReportInstallationOutcomes(t *testing.T) {
 			if _, compilerFailure := test.err.(*compiler.InstallationError); compilerFailure {
 				failure = nil
 			}
+
 			err := test.err
 			if failure != nil {
 				err = failure
 			}
+
 			err = reportDependencyCommandError(ctx, "build", fmt.Errorf("prepare: %w", err))
 			if !errors.Is(err, cause) || ExitCode(err) != 1 {
 				t.Errorf("reportDependencyCommandError(%s) = %v, want preserved cause and exit 1", test.name, err)
 			}
+
 			if !strings.Contains(output.String(), test.want) || strings.Contains(output.String(), test.absent) || strings.Contains(output.String(), cause.Error()) {
 				t.Errorf("reportDependencyCommandError(%s) output = %q, want %q without %q or raw details", test.name, output.String(), test.want, test.absent)
 			}
@@ -57,6 +62,7 @@ func TestReportInstallationOutcomes(t *testing.T) {
 
 func TestReportCompilerExecutionKeepsDetailsForVerbose(t *testing.T) {
 	t.Parallel()
+
 	for _, kind := range []string{compiler.ExecutionMissing, compiler.ExecutionStart, compiler.ExecutionCrash, compiler.ExecutionOutput, compiler.ExecutionCancelled} {
 		for _, verbose := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/verbose=%t", kind, verbose), func(t *testing.T) {
@@ -66,16 +72,20 @@ func TestReportCompilerExecutionKeepsDetailsForVerbose(t *testing.T) {
 				ctx = cli.NewContext(ctx.App, set, nil)
 				var output bytes.Buffer
 				ctx.App.Writer = &output
+
 				cause := errors.New("technical compiler detail")
 				failure := &compiler.ExecutionError{Kind: kind, Path: "/cache/compiler/pawncc", Output: "internal compiler output\nGITHUB_TOKEN=private-value", Err: cause}
+
 				err := reportDependencyCommandError(ctx, "build", failure)
 				if !errors.Is(err, cause) || ExitCode(err) != 1 {
 					t.Errorf("reportDependencyCommandError(%s) = %v, want preserved cause and exit 1", kind, err)
 				}
+
 				text := output.String()
 				if strings.Contains(text, "technical compiler detail") != verbose || strings.Contains(text, "internal compiler output") != verbose || strings.Contains(text, "private-value") {
 					t.Errorf("reportDependencyCommandError(%s, verbose=%t) output = %q, want verbose-only redacted details", kind, verbose, text)
 				}
+
 				if strings.Contains(text, "Dependency command failed") || strings.Contains(text, ";") {
 					t.Errorf("reportDependencyCommandError(%s) output = %q, want compiler-specific plain text", kind, text)
 				}

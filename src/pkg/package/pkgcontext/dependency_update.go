@@ -43,9 +43,11 @@ func (request DependencyUpdateRequest) ShouldForceDependency(meta versioning.Dep
 	if !request.Enabled {
 		return false
 	}
+
 	if request.Force && !request.HasTarget() {
 		return true
 	}
+
 	if !direct || !request.Matches(meta) {
 		return false
 	}
@@ -106,9 +108,11 @@ func (pcx *PackageContext) UpdateDependencyReferences(
 	if !request.Enabled || !pcx.Package.Parent {
 		return false, nil
 	}
+
 	if pcx.Package.LocalPath == "" {
 		return false, errors.New("package has no local path")
 	}
+
 	standalone := pcx.dependencyInstalls == nil
 	if standalone {
 		state, beginErr := pcx.beginDependencyOperation(ctx, "update references")
@@ -136,6 +140,7 @@ func (pcx *PackageContext) UpdateDependencyReferences(
 	if err != nil {
 		return false, err
 	}
+
 	changedDev, err := pcx.updateDependencyList(ctx, pcx.Package.Development, request)
 	if err != nil {
 		return false, err
@@ -172,6 +177,7 @@ func (pcx *PackageContext) UpdateDependencyReferences(
 		}
 		return false, errors.Wrap(err, "failed to refresh dependencies after update")
 	}
+
 	return true, nil
 }
 
@@ -187,6 +193,7 @@ func (pcx *PackageContext) updateDependencyList(
 		if err := ctx.Err(); err != nil {
 			return dependencyUpdateResult{}, stderrors.Join(append(failures, err)...)
 		}
+
 		meta, err := depStr.Explode()
 		if err != nil {
 			failures = append(failures, &DependencyError{Dependency: string(depStr), Operation: "parse", Err: err})
@@ -230,6 +237,7 @@ func (pcx *PackageContext) updatedDependencyMeta(
 	if meta.IsLocalScheme() {
 		return meta, false, nil
 	}
+
 	if meta.User == "" || meta.Repo == "" {
 		return meta, false, nil
 	}

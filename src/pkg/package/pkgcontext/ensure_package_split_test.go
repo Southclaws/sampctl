@@ -70,8 +70,10 @@ func TestRecordDependencyResolutionTransitive(t *testing.T) {
 
 	wt, err := repo.Worktree()
 	require.NoError(t, err)
+
 	_, err = wt.Add("README.md")
 	require.NoError(t, err)
+
 	_, err = wt.Commit("init", &git.CommitOptions{Author: &object.Signature{Name: "test", Email: "test@example.com"}})
 	require.NoError(t, err)
 

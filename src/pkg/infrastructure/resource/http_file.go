@@ -3,6 +3,7 @@ package resource
 import (
 	"context"
 	"crypto/md5"
+	"crypto/sha256"
 	"fmt"
 	"net/url"
 	"os"
@@ -31,12 +32,15 @@ func NewHTTPFileResource(rawURL, version string, resourceType ResourceType) (*HT
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse URL")
 	}
+
 	filename := filepath.Base(u.Path)
-	if filename == "" || filename == "." || filename == "/" {
+	if filename == "" || filename == "." || filename == ".." || filename == "/" {
 		return nil, errors.New("could not determine filename from URL")
 	}
 
-	identifier := filepath.Join("http", u.Host, filename)
+	u.Fragment = ""
+	sum := sha256.Sum256([]byte(u.String()))
+	identifier := filepath.Join("http", u.Host, fmt.Sprintf("%x", sum), filename)
 	if version == "" {
 		version = "latest"
 	}
@@ -46,6 +50,7 @@ func NewHTTPFileResource(rawURL, version string, resourceType ResourceType) (*HT
 		url:          rawURL,
 		filename:     filename,
 	}
+
 	return hr, nil
 }
 
@@ -104,6 +109,7 @@ func (hr *HTTPFileResource) Cached(version string) (bool, string) {
 		if hr.baseResource.cacheTTL > 0 && time.Since(info.ModTime()) > hr.baseResource.cacheTTL {
 			return false, ""
 		}
+
 		return true, cacheDir
 	}
 
@@ -112,6 +118,7 @@ func (hr *HTTPFileResource) Cached(version string) (bool, string) {
 	if err != nil {
 		return false, ""
 	}
+
 	if hr.baseResource.cacheTTL > 0 && time.Since(fileInfo.ModTime()) > hr.baseResource.cacheTTL {
 		return false, ""
 	}
@@ -128,9 +135,11 @@ func (hr *HTTPFileResource) Ensure(ctx context.Context, version, path string) er
 		if err := hr.baseResource.MarkCached(cachedPath); err != nil {
 			return errors.Wrap(err, "failed to update cache timestamp")
 		}
+
 		if path != "" && path != cachedPath {
 			return util.CopyFile(cachedPath, path)
 		}
+
 		return nil
 	}
 
@@ -143,6 +152,7 @@ func (hr *HTTPFileResource) Ensure(ctx context.Context, version, path string) er
 	if err := ensureCacheDir(cacheDirPath); err != nil {
 		return err
 	}
+
 	destination := filepath.Join(cacheDirPath, hr.filename)
 	if _, err := download.FromNet(ctx, hr.url, destination); err != nil {
 		return errors.Wrap(err, "failed to download resource")
@@ -165,8 +175,7 @@ func (hr *HTTPFileResource) GetFilename() string {
 	return hr.filename
 }
 
-// cacheKey exists only to keep the cache directory stable for a given identifier/version.
-// It matches BaseResource's hashing scheme (identifier+":"+version) but is not exported.
+// cacheKey uses the same identifier and version hash as BaseResource.
 func (hr *HTTPFileResource) cacheKey(version string) string {
 	sum := md5.Sum([]byte(hr.Identifier() + ":" + version))
 	return fmt.Sprintf("%x", sum[:8])
