@@ -327,7 +327,12 @@ func newDocsCommand() cli.Command {
 func platform(c *cli.Context) (platform string) {
 	platform = c.String("platform")
 	if platform == "" {
+		platform = c.GlobalString("platform")
+	}
+
+	if platform == "" {
 		platform = runtime.GOOS
 	}
+
 	return
 }

@@ -13,11 +13,11 @@ func selectConfig[T any](
 	}
 
 	if name == "" {
-		return configs[0], true
+		return configs[0], configs[0] != nil
 	}
 
 	for _, cfg := range configs {
-		if nameFn(cfg) == name {
+		if cfg != nil && nameFn(cfg) == name {
 			return cfg, true
 		}
 	}

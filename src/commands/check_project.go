@@ -56,7 +56,7 @@ func checkProject(dir string) (pawnpackage.Package, diagnostic) {
 		return pawnpackage.Package{}, d
 	}
 
-	if err := validateCheckProject(pkg); err != nil {
+	if err := pkg.Validate(); err != nil {
 		d.Message, d.Err = "Project configuration is invalid: "+filepath.Base(path), err
 		return pawnpackage.Package{}, d
 	}
@@ -99,26 +99,6 @@ func findCheckProject(dir string) (string, string, error) {
 		}
 		dir = parent
 	}
-}
-
-func validateCheckProject(pkg pawnpackage.Package) error {
-	if err := pkg.Validate(); err != nil {
-		return err
-	}
-
-	for _, cfg := range pkg.Builds {
-		if cfg == nil {
-			return errors.New("builds contains a null configuration")
-		}
-	}
-
-	for _, cfg := range pkg.Runtimes {
-		if cfg == nil {
-			return errors.New("runtimes contains a null configuration")
-		}
-	}
-
-	return nil
 }
 
 func jsonErrorLocation(data []byte, err error) string {

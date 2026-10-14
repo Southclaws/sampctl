@@ -305,6 +305,37 @@ func TestPlatformUsesFlagOrRuntimeDefault(t *testing.T) {
 	assert.Equal(t, runtime.GOOS, platform(ctx))
 }
 
+func TestPlatformResolvesGlobalAndCommandFlags(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "global", args: []string{"--platform", "windows", "build"}, want: "windows"},
+		{name: "command", args: []string{"build", "--platform", "darwin"}, want: "darwin"},
+		{name: "command overrides global", args: []string{"--platform", "windows", "build", "--platform", "darwin"}, want: "darwin"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			app := newCLIApp("test", newCommandState("test", t.TempDir()))
+			app.Before, app.After = nil, nil
+			var selected string
+			for i := range app.Commands {
+				if app.Commands[i].Name == "build" {
+					app.Commands[i].Action = func(c *cli.Context) error {
+						selected = platform(c)
+						return nil
+					}
+				}
+			}
+
+			require.NoError(t, app.Run(append([]string{"sampctl"}, tc.args...)))
+			assert.Equal(t, tc.want, selected)
+		})
+	}
+}
+
 func TestNewCommandContextCancel(t *testing.T) {
 	t.Parallel()
 

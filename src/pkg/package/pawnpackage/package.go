@@ -185,6 +185,18 @@ func (pkg Package) Validate() (err error) {
 		return errors.New("package entry and output point to the same file")
 	}
 
+	for _, cfg := range pkg.Builds {
+		if cfg == nil {
+			return errors.New("builds contains a null configuration")
+		}
+	}
+
+	for _, cfg := range pkg.Runtimes {
+		if cfg == nil {
+			return errors.New("runtimes contains a null configuration")
+		}
+	}
+
 	return
 }
 

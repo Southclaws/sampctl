@@ -73,8 +73,13 @@ func readConfigFile(configFile string) (*Config, error) {
 func createDefaultConfig(cacheDir string) (*Config, error) {
 	print.Verb("No configuration file found, using default configuration")
 
-	cfg := defaultConfig(lookupCurrentUsername())
-	if err := writeConfigFile(filepath.Join(cacheDir, "config.json"), cfg); err != nil {
+	defaults := defaultConfig(lookupCurrentUsername())
+	cfg := defaults
+	if err := applyEnvironmentOverrides(&cfg); err != nil {
+		return nil, err
+	}
+
+	if err := writeConfigFile(filepath.Join(cacheDir, "config.json"), defaults); err != nil {
 		return nil, err
 	}
 

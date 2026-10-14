@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -209,17 +210,37 @@ func TestLoadOrCreateConfigAppliesEnvironmentOverrides(t *testing.T) {
 	t.Setenv("SAMPCTL_HIDE_VERSION_UPDATE_MESSAGE", "true")
 	t.Setenv("CI", "1")
 
-	cacheDir := t.TempDir()
-	contents := []byte(`{"default_user":"file-user","hide_version_update_message":false}`)
-	require.NoError(t, os.WriteFile(filepath.Join(cacheDir, "config.json"), contents, 0o600))
+	for _, existing := range []bool{false, true} {
+		t.Run(strconv.FormatBool(existing), func(t *testing.T) {
+			cacheDir := t.TempDir()
+			if existing {
+				contents := []byte(`{"default_user":"file-user","hide_version_update_message":false}`)
+				require.NoError(t, os.WriteFile(filepath.Join(cacheDir, "config.json"), contents, 0o600))
+			}
 
-	cfg, err := LoadOrCreateConfig(cacheDir)
-	require.NoError(t, err)
-	assert.Equal(t, "env-user", cfg.DefaultUser)
-	assert.Equal(t, "env-token", cfg.GitHubToken)
-	assert.Equal(t, "env-git-user", cfg.GitUsername)
-	assert.Equal(t, "env-git-password", cfg.GitPassword)
-	require.NotNil(t, cfg.HideVersionUpdateMessage)
-	assert.True(t, *cfg.HideVersionUpdateMessage)
-	assert.Equal(t, "1", cfg.CI)
+			cfg, err := LoadOrCreateConfig(cacheDir)
+			require.NoError(t, err)
+			assert.Equal(t, "env-user", cfg.DefaultUser)
+			assert.Equal(t, "env-token", cfg.GitHubToken)
+			assert.Equal(t, "env-git-user", cfg.GitUsername)
+			assert.Equal(t, "env-git-password", cfg.GitPassword)
+			require.NotNil(t, cfg.HideVersionUpdateMessage)
+			assert.True(t, *cfg.HideVersionUpdateMessage)
+			assert.Equal(t, "1", cfg.CI)
+
+			contents, err := os.ReadFile(filepath.Join(cacheDir, "config.json"))
+			require.NoError(t, err)
+			assert.NotContains(t, string(contents), "env-token")
+			assert.NotContains(t, string(contents), "env-git-password")
+		})
+	}
+}
+
+func TestLoadOrCreateConfigRejectsInvalidEnvironmentBeforeCreation(t *testing.T) {
+	t.Setenv("SAMPCTL_HIDE_VERSION_UPDATE_MESSAGE", "invalid")
+	cacheDir := t.TempDir()
+
+	_, err := LoadOrCreateConfig(cacheDir)
+	require.ErrorContains(t, err, "SAMPCTL_HIDE_VERSION_UPDATE_MESSAGE")
+	assert.NoFileExists(t, filepath.Join(cacheDir, "config.json"))
 }

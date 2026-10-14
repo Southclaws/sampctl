@@ -103,11 +103,6 @@ func copyCheckCompilerConfig(cfg build.Config) build.Config {
 	return build.Config{Name: cfg.Name, Version: cfg.Version, Compiler: cfg.Compiler}
 }
 
-func inspectCheckCompiler(cfg build.Config, opts checkOptions) diagnostic {
-	result, _ := inspectCheckCompilerContext(context.Background(), cfg, opts)
-	return result
-}
-
 func inspectCheckCompilerContext(ctx context.Context, cfg build.Config, opts checkOptions) (diagnostic, compilerRepairKind) {
 	result := diagnostic{Name: "compiler", Status: checkFailed}
 	label := "Compiler"
