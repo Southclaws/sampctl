@@ -37,6 +37,40 @@ func TestExecuteRuntimeCancelsWhileStreamingOutput(t *testing.T) {
 	require.ErrorIs(t, err, context.Canceled)
 }
 
+func TestRunBinaryDoesNotReportCancellationAsStartupFailure(t *testing.T) {
+	t.Parallel()
+
+	filename := filepath.Join(t.TempDir(), "server.sh")
+	require.NoError(t, os.WriteFile(filename, []byte("#!/bin/sh\nwhile :; do :; done\n"), 0o755))
+
+	// A cancelled context and a writable result channel were previously both
+	// eligible when the runner reported the killed command's exit status.
+	for attempt := 0; attempt < 32; attempt++ {
+		ctx, cancel := context.WithCancel(t.Context())
+		termCh := make(chan termination, 1)
+		starts := 0
+		runBinary(ctx, binaryRunConfig{
+			binary:       filename,
+			runType:      run.Server,
+			outputWriter: io.Discard,
+			termCh:       termCh,
+			onStart: func(*os.Process) {
+				starts++
+				cancel()
+			},
+		})
+		cancel()
+
+		require.Equal(t, 1, starts, "attempt %d must cancel an actual child process", attempt)
+		require.ErrorIs(t, ctx.Err(), context.Canceled)
+		select {
+		case term := <-termCh:
+			t.Fatalf("attempt %d reported cancelled command as runtime termination: %v", attempt, term.err)
+		default:
+		}
+	}
+}
+
 func TestExecuteRuntimePreservesFinalUnterminatedLine(t *testing.T) {
 	t.Parallel()
 

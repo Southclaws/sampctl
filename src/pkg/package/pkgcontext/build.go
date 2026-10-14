@@ -208,6 +208,7 @@ loop:
 		case sig := <-signals:
 			fmt.Println("") // insert newline after the ^C
 			print.Verb("signal received", sig, "stopping build watcher...")
+			err = errors.Wrapf(context.Canceled, "received signal: %v", sig)
 			cancel()
 			break loop
 		case errInner := <-watcher.Errors:
@@ -248,7 +249,8 @@ loop:
 					case <-ctx.Done():
 						err = ctx.Err()
 						break loop
-					case <-signals:
+					case sig := <-signals:
+						err = errors.Wrapf(context.Canceled, "received signal: %v", sig)
 						break loop
 					}
 				}

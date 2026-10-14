@@ -73,7 +73,7 @@ func packageTemplateRun(c *cli.Context) (err error) {
 		Relative: true,
 	})
 	if err != nil {
-		return
+		return reportRunCommandError(c, err)
 	}
 
 	print.Info("Build finished with", len(problems), "compiler diagnostics")
@@ -104,12 +104,7 @@ func packageTemplateRun(c *cli.Context) (err error) {
 
 	pcx.Package.Runtime = templateRunRuntime(pcx.Package.Runtime, version, run.RunMode(mode))
 
-	err = pcx.Run(ctx, os.Stdout, os.Stdin)
-	if err != nil {
-		return
-	}
-
-	return nil
+	return reportRunCommandError(c, pcx.Run(ctx, os.Stdout, os.Stdin))
 }
 
 func templateRunRuntime(base *run.Runtime, version string, mode run.RunMode) *run.Runtime {

@@ -17,8 +17,9 @@ import (
 	"testing"
 	"time"
 
-	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 	"github.com/stretchr/testify/require"
+
+	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 )
 
 const (
@@ -146,6 +147,7 @@ func TestExecuteRuntimeHandlesSIGINTHelper(t *testing.T) {
 	})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "received signal:")
+	require.ErrorIs(t, err, context.Canceled)
 }
 
 func startRuntimeSignalHelper(t *testing.T) (*bufio.Scanner, *safeBuffer, *exec.Cmd) {

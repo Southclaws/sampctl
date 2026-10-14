@@ -2,7 +2,6 @@ package pkgcontext
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -81,8 +80,7 @@ loop:
 			break loop
 
 		case sig := <-signals:
-			fmt.Println("")
-			print.Info("Stopping run watcher after signal", sig)
+			err = errors.Wrapf(context.Canceled, "received signal: %v", sig)
 			break loop
 
 		case err = <-errorCh:
@@ -112,7 +110,7 @@ loop:
 		}
 	}
 
-	print.Info("Run watcher stopped")
+	print.Verb("run watcher stopped")
 
 	return err
 }

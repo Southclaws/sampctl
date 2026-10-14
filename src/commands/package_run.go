@@ -90,9 +90,6 @@ func packageRun(c *cli.Context) error {
 	} else {
 		err = pcx.Run(ctx, os.Stdout, os.Stdin)
 	}
-	if err != nil {
-		return cli.NewExitError(err.Error(), 1)
-	}
 
-	return nil
+	return reportRunCommandError(c, err)
 }

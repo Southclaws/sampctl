@@ -212,7 +212,7 @@ func RunContainer(
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		return errors.New("container stopped after receiving a signal")
+		return fmt.Errorf("container stopped after receiving a signal: %w", context.Canceled)
 	}
 
 	if waitErr := waitForContainerExit(runCtx, cli, cnt.ID); waitErr != nil {

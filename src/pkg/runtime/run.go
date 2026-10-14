@@ -206,10 +206,6 @@ func shouldKillTrackedProcess(term termination) bool {
 		return true
 	}
 
-	if strings.Contains(term.err.Error(), "received signal:") {
-		return true
-	}
-
 	return strings.Contains(term.err.Error(), "failed to write runtime output") ||
 		strings.Contains(term.err.Error(), "failed to read runtime output")
 }
@@ -228,7 +224,7 @@ func waitForRuntimeTermination(request runtimeTerminationRequest) termination {
 			}
 
 		case sig := <-request.SigCh:
-			return termination{err: errors.Errorf("received signal: %v", sig)}
+			return termination{err: errors.Wrapf(context.Canceled, "received signal: %v", sig)}
 
 		case term := <-request.TermCh:
 			return term
@@ -376,6 +372,9 @@ func runBinary(ctx context.Context, cfg binaryRunConfig) {
 		startedAt := time.Now()
 		runErr := platformRun(ctx, cmd, cfg.outputWriter, cfg.input, cfg.onStart)
 		logCommandResult(cmd, runErr)
+		if ctx.Err() != nil {
+			return
+		}
 
 		term, nextBackoff, retry := evaluateRunResult(runResultRequest{
 			RunType: cfg.runType,
