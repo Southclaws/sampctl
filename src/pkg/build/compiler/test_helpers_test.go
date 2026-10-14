@@ -62,6 +62,7 @@ func ensureCompilerSourceFixtures(t *testing.T) {
 				if err != nil {
 					t.Fatalf("read fixture file %s: %v", path, err)
 				}
+
 				if string(data) != body {
 					t.Fatalf("fixture file %s has unexpected contents", path)
 				}
@@ -209,6 +210,7 @@ func fakeCompilerBinaryName() string {
 	if runtime.GOOS == "windows" {
 		return "pawncc.exe"
 	}
+
 	return "pawncc"
 }
 
@@ -259,9 +261,11 @@ func offlineCompilerArchiveName(platform, tag string) string {
 	if strings.TrimSpace(tag) == "" {
 		tag = "latest"
 	}
+
 	if platform == "windows" {
 		return fmt.Sprintf("compiler-%s-%s.zip", platform, tag)
 	}
+
 	return fmt.Sprintf("compiler-%s-%s.tar.gz", platform, tag)
 }
 
@@ -314,6 +318,7 @@ func createCompilerZipArchive(t *testing.T, archivePath string, files map[string
 		_, err = w.Write([]byte(files[name]))
 		require.NoError(t, err)
 	}
+
 	require.NoError(t, zw.Close())
 }
 
@@ -350,6 +355,7 @@ func mustJSON(t *testing.T, value any) []byte {
 	t.Helper()
 	data, err := json.Marshal(value)
 	require.NoError(t, err)
+
 	return data
 }
 
@@ -359,6 +365,7 @@ func sortedKeys(m map[string]string) []string {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
+
 	return keys
 }
 
@@ -401,5 +408,6 @@ func cachedCompilerAssetPath(t *testing.T, cacheDir string, meta versioning.Depe
 	res.SetCacheTTL(0)
 	ok, path := res.Cached(meta.Tag)
 	require.True(t, ok)
+
 	return path
 }

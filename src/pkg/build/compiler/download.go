@@ -35,15 +35,18 @@ func FromCacheContext(ctx context.Context, request CompilerFetchRequest) (pkg do
 	if pkg, hit, err := installedCompilerFromCache(ctx, request); hit || err != nil {
 		return pkg, hit, err
 	}
+
 	unlock, err := lockCompilerInstallation(ctx, request.Dir)
 	if err != nil {
 		return pkg, false, err
 	}
 	defer func() { err = errors.Join(err, unlock()) }()
+
 	fetcher, err := newCompilerPackageFetcherContext(ctx, request.Meta, request.Platform, request.CacheDir)
 	if err != nil {
 		return pkg, false, err
 	}
+
 	return fetcher.fromCache(ctx, request.Dir)
 }
 
@@ -52,15 +55,18 @@ func FromNet(ctx context.Context, request CompilerFetchRequest) (pkg download.Co
 	if pkg, hit, err := installedCompilerFromCache(ctx, request); hit || err != nil {
 		return pkg, err
 	}
+
 	unlock, err := lockCompilerInstallation(ctx, request.Dir)
 	if err != nil {
 		return pkg, err
 	}
 	defer func() { err = errors.Join(err, unlock()) }()
+
 	fetcher, err := newCompilerPackageFetcherContext(ctx, request.Meta, request.Platform, request.CacheDir)
 	if err != nil {
 		return pkg, err
 	}
+
 	return fetcher.fromNetwork(ctx, request.GitHub, request.Dir)
 }
 
@@ -69,15 +75,18 @@ func GetCompilerPackage(ctx context.Context, request CompilerFetchRequest) (pkg 
 	if pkg, hit, err := installedCompilerFromCache(ctx, request); hit || err != nil {
 		return pkg, err
 	}
+
 	unlock, err := lockCompilerInstallation(ctx, request.Dir)
 	if err != nil {
 		return pkg, err
 	}
 	defer func() { err = errors.Join(err, unlock()) }()
+
 	fetcher, err := newCompilerPackageFetcherContext(ctx, request.Meta, request.Platform, request.CacheDir)
 	if err != nil {
 		return pkg, err
 	}
+
 	pkg, hit, err := fetcher.fromCache(ctx, request.Dir)
 	if err != nil {
 		var archiveErr *compilerArchiveError
@@ -86,28 +95,34 @@ func GetCompilerPackage(ctx context.Context, request CompilerFetchRequest) (pkg 
 				if pathErr := compilerSafePath(filepath.Dir(path), false); pathErr != nil {
 					return pkg, errors.Join(err, pathErr)
 				}
+
 				info, statErr := os.Lstat(path)
 				if statErr != nil || !info.Mode().IsRegular() {
 					return pkg, errors.Join(err, statErr)
 				}
+
 				if removeErr := os.Remove(path); removeErr != nil {
 					return pkg, errors.Join(err, removeErr)
 				}
 				if syncErr := fs.SyncDir(filepath.Dir(path)); syncErr != nil {
 					return pkg, errors.Join(err, syncErr)
 				}
+
 				pkg, networkErr := fetcher.fromNetwork(ctx, request.GitHub, request.Dir)
 				if networkErr != nil {
 					return pkg, errors.Join(err, networkErr)
 				}
+
 				return pkg, nil
 			}
 		}
 		return pkg, fmt.Errorf("install cached compiler %s: %w", request.Meta.Tag, err)
 	}
+
 	if hit {
 		return pkg, nil
 	}
+
 	return fetcher.fromNetwork(ctx, request.GitHub, request.Dir)
 }
 
@@ -127,9 +142,11 @@ func newCompilerPackageFetcherContext(ctx context.Context, meta versioning.Depen
 	if err != nil {
 		return nil, err
 	}
+
 	if err := validateCompilerPackage(pkg); err != nil {
 		return nil, err
 	}
+
 	return &compilerPackageFetcher{meta: meta, platform: platform, cacheDir: cacheDir, compiler: pkg}, nil
 }
 
@@ -145,20 +162,25 @@ func (f *compilerPackageFetcher) fromCache(ctx context.Context, dir string) (dow
 	if err := recoverCompilerInstallation(ctx, dir); err != nil {
 		return download.Compiler{}, false, err
 	}
+
 	if f.meta.Tag == "" {
 		return download.Compiler{}, false, nil
 	}
+
 	if err := verifyCompilerInstallation(ctx, dir, f.meta, f.platform, f.compiler); err == nil {
 		print.Verb("Using installed compiler", f.meta.Tag)
 		return f.compiler, true, nil
 	}
+
 	hit, assetPath := f.resource(nil).Cached(f.meta.Tag)
 	if !hit {
 		return download.Compiler{}, false, nil
 	}
+
 	if err := installCompilerArchive(ctx, assetPath, dir, f.meta, f.platform, f.compiler); err != nil {
 		return download.Compiler{}, false, err
 	}
+
 	return f.compiler, true, nil
 }
 
@@ -166,9 +188,11 @@ func (f *compilerPackageFetcher) fromNetwork(ctx context.Context, gh *github.Cli
 	if err := recoverCompilerInstallation(ctx, dir); err != nil {
 		return download.Compiler{}, err
 	}
+
 	if err := verifyCompilerInstallation(ctx, dir, f.meta, f.platform, f.compiler); err == nil {
 		return f.compiler, nil
 	}
+
 	print.Info("Downloading compiler package", f.meta.Tag)
 	res := f.resource(gh)
 	requested := f.meta.Tag
@@ -178,6 +202,7 @@ func (f *compilerPackageFetcher) fromNetwork(ctx context.Context, gh *github.Cli
 	if err := res.Ensure(ctx, requested, ""); err != nil {
 		return download.Compiler{}, err
 	}
+
 	actual := requested
 	if actual == "latest" {
 		actual = res.Version()
@@ -186,9 +211,11 @@ func (f *compilerPackageFetcher) fromNetwork(ctx context.Context, gh *github.Cli
 	if assetPath == "" {
 		return download.Compiler{}, errors.New("downloaded compiler archive is unavailable")
 	}
+
 	if err := installCompilerArchive(ctx, assetPath, dir, f.meta, f.platform, f.compiler); err != nil {
 		return download.Compiler{}, err
 	}
+
 	return f.compiler, nil
 }
 
@@ -207,10 +234,12 @@ func GetCompilerPackageInfoContext(ctx context.Context, cacheDir, platform strin
 	if err != nil {
 		return download.Compiler{}, err
 	}
+
 	pkg, ok := compilers[platform]
 	if !ok {
 		return download.Compiler{}, fmt.Errorf("no compiler for platform %q", platform)
 	}
+
 	return pkg, nil
 }
 

@@ -57,12 +57,14 @@ func TestCompilerConfigHelpers(t *testing.T) {
 	assert.Equal(t, []string{"-d3"}, intOption(&i, "-d", 0, 3))
 	i = -1
 	assert.Equal(t, []string{"-d0"}, intOption(&i, "-d", 0, 3))
+
 	b := false
 	assert.Nil(t, flagOption(&b, "-l"))
 	b = true
 	assert.Equal(t, []string{"-l"}, flagOption(&b, "-l"))
 	b = false
 	assert.Nil(t, boolOption(&b, "-x", ""))
+
 	s := ""
 	assert.Nil(t, stringOption(&s, "-e"))
 }

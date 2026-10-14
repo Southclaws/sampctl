@@ -158,6 +158,7 @@ func prepareIOPaths(config build.Config) (input, output, workingDir string, err 
 	if err != nil {
 		return "", "", "", errors.Wrap(err, "failed to resolve input path")
 	}
+
 	output, err = fs.Abs(config.Output)
 	if err != nil {
 		return "", "", "", errors.Wrap(err, "failed to resolve output path")
@@ -173,6 +174,7 @@ func prepareIOPaths(config build.Config) (input, output, workingDir string, err 
 			return "", "", "", &ExecutionError{Kind: ExecutionOutput, Path: output, Err: err}
 		}
 	}
+
 	if info, statErr := os.Stat(outputDir); statErr != nil || !info.IsDir() {
 		if statErr == nil {
 			statErr = fmt.Errorf("output parent is not a directory")
@@ -205,6 +207,7 @@ func resolveCompilerBinary(
 			}
 		}
 	}
+
 	runtimeDir := compilerRuntimeDir(cacheDir, resolved)
 
 	if request.Config.Compiler.Path == "" {
@@ -223,6 +226,7 @@ func resolveCompilerBinary(
 		if err != nil {
 			return download.Compiler{}, "", errors.Wrap(err, "failed to get compiler package")
 		}
+
 		return pkg, runtimeDir, nil
 	}
 
@@ -230,6 +234,7 @@ func resolveCompilerBinary(
 	if err != nil {
 		return download.Compiler{}, "", err
 	}
+
 	return pkg, request.Config.Compiler.Path, nil
 }
 
@@ -243,6 +248,7 @@ func compilerFromCustomPath(pathRoot string) (download.Compiler, error) {
 	if err != nil {
 		return download.Compiler{}, errors.Wrap(err, "compiler path is not valid")
 	}
+
 	if !pathStat.IsDir() {
 		return download.Compiler{}, errors.New("compiler path is not a valid directory")
 	}
@@ -256,6 +262,7 @@ func compilerFromCustomPath(pathRoot string) (download.Compiler, error) {
 		}
 		return download.Compiler{}, &ExecutionError{Kind: kind, Path: compilerPath, Err: err}
 	}
+
 	if !compilerPathStat.Mode().IsRegular() {
 		return download.Compiler{}, errors.New("compiler path does not contain a Pawn compiler executable")
 	}
@@ -270,6 +277,7 @@ func customCompilerBinary(pathRoot string) string {
 	if runtime.GOOS == "windows" {
 		return path.Join(pathRoot, "pawncc.exe")
 	}
+
 	return path.Join(pathRoot, "pawncc")
 }
 
@@ -285,6 +293,7 @@ func compilerOptionArgs(config build.Config) []string {
 	if config.Options != nil {
 		return append([]string{}, config.Options.ToArgs()...)
 	}
+
 	return append([]string{}, config.Args...)
 }
 
@@ -354,6 +363,7 @@ func buildConstantArgs(constants map[string]string) []string {
 		escapedValue := strings.ReplaceAll(finalValue, `"`, `\\"`)
 		args = append(args, fmt.Sprintf("%s=\"%s\"", name, escapedValue))
 	}
+
 	return args
 }
 
@@ -361,10 +371,12 @@ func resolveConstantValue(value string) string {
 	if !strings.HasPrefix(value, "$") {
 		return value
 	}
+
 	translated := os.Getenv(value[1:])
 	if translated == "" {
 		print.Warn("Build constant", value, "refers to an unset environment variable")
 	}
+
 	return translated
 }
 
@@ -372,9 +384,11 @@ func isNumeric(value string) bool {
 	if _, err := strconv.Atoi(value); err == nil {
 		return true
 	}
+
 	if _, err := strconv.ParseFloat(value, 64); err == nil {
 		return true
 	}
+
 	return false
 }
 
@@ -399,17 +413,21 @@ func CompileWithCommandContext(
 	if err := ctx.Err(); err != nil {
 		return nil, result, &ExecutionError{Kind: ExecutionCancelled, Path: cmd.Path, Err: err}
 	}
+
 	if cmd.WaitDelay == 0 {
 		cmd.WaitDelay = 2 * time.Second
 	}
+
 	unlock, err := lockCompilerExecution(ctx, cmd)
 	if err != nil {
 		return nil, result, err
 	}
 	defer func() { err = stderrors.Join(err, unlock()) }()
+
 	if errorDir == "" {
 		errorDir = workingDir
 	}
+
 	errorDir, err = fs.Abs(errorDir)
 	if err != nil {
 		return nil, build.Result{}, errors.Wrap(err, "failed to resolve error directory")
@@ -419,6 +437,7 @@ func CompileWithCommandContext(
 	if err != nil {
 		return nil, build.Result{}, errors.Wrap(err, "failed to resolve working directory")
 	}
+
 	outputReader, outputWriter := io.Pipe()
 	cmd.Stdout = outputWriter
 	cmd.Stderr = outputWriter
@@ -435,9 +454,11 @@ func CompileWithCommandContext(
 	if err := stderrors.Join(closeErr, parser.err, outputReader.Close()); err != nil {
 		return problems, result, &ExecutionError{Kind: ExecutionOutput, Path: cmd.Path, Output: parser.output.String(), Err: stderrors.Join(err, cmdError)}
 	}
+
 	if ctx.Err() != nil {
 		return problems, result, &ExecutionError{Kind: ExecutionCancelled, Path: cmd.Path, Output: parser.output.String(), Err: stderrors.Join(ctx.Err(), cmdError)}
 	}
+
 	for _, problem := range problems {
 		if problem.Code == "101" && problem.Severity == build.ProblemFatal {
 			if cmdError == nil {
@@ -446,12 +467,15 @@ func CompileWithCommandContext(
 			return problems, result, &ExecutionError{Kind: ExecutionOutput, Path: cmd.Path, Output: parser.output.String(), Err: cmdError}
 		}
 	}
+
 	if cmdError == nil {
 		return problems, result, nil
 	}
+
 	if stderrors.Is(cmdError, exec.ErrWaitDelay) {
 		return problems, result, &ExecutionError{Kind: ExecutionOutput, Path: cmd.Path, Output: parser.output.String(), Err: cmdError}
 	}
+
 	var exitErr *exec.ExitError
 	if stderrors.As(cmdError, &exitErr) {
 		if exitErr.ExitCode() == 1 && (len(problems.Errors()) != 0 || problems.Fatal()) {
@@ -459,10 +483,12 @@ func CompileWithCommandContext(
 		}
 		return problems, result, &ExecutionError{Kind: ExecutionCrash, Path: cmd.Path, Output: parser.output.String(), Err: cmdError}
 	}
+
 	kind := ExecutionStart
 	if _, pathErr := os.Stat(cmd.Path); stderrors.Is(cmdError, exec.ErrNotFound) || (stderrors.Is(cmdError, os.ErrNotExist) && stderrors.Is(pathErr, os.ErrNotExist)) {
 		kind = ExecutionMissing
 	}
+
 	return problems, result, &ExecutionError{Kind: kind, Path: cmd.Path, Output: parser.output.String(), Err: cmdError}
 }
 
@@ -498,11 +524,13 @@ func (p *compilerOutputParser) Run() {
 		}
 		p.handleLine(scanner.Text())
 	}
+
 	if p.err = scanner.Err(); p.err != nil {
 		// Drain the pipe so a compiler with invalid output can still exit.
 		_, drainErr := io.Copy(io.Discard, p.reader)
 		p.err = stderrors.Join(p.err, drainErr)
 	}
+
 	close(p.done)
 }
 
@@ -517,6 +545,7 @@ func (p *compilerOutputParser) handleLine(line string) {
 		p.handleProblem(groups)
 		return
 	}
+
 	p.handleResultLine(line)
 }
 
@@ -579,31 +608,37 @@ func (p *compilerOutputParser) handleResultLine(line string) {
 		}
 		return
 	}
+
 	if g := matchCode.FindStringSubmatch(line); len(g) == 2 {
 		if value, err := strconv.Atoi(g[1]); err == nil {
 			p.result.Code = value
 		}
 		return
 	}
+
 	if g := matchData.FindStringSubmatch(line); len(g) == 2 {
 		if value, err := strconv.Atoi(g[1]); err == nil {
 			p.result.Data = value
 		}
 		return
 	}
+
 	if g := matchStack.FindStringSubmatch(line); len(g) == 3 {
 		stackHeap, err := strconv.Atoi(g[1])
 		if err != nil {
 			return
 		}
+
 		estimate, err := strconv.Atoi(g[2])
 		if err != nil {
 			return
 		}
+
 		p.result.StackHeap = stackHeap
 		p.result.Estimate = estimate
 		return
 	}
+
 	if g := matchTotal.FindStringSubmatch(line); len(g) == 2 {
 		if value, err := strconv.Atoi(g[1]); err == nil {
 			p.result.Total = value
@@ -621,6 +656,7 @@ func RunPostBuildCommands(ctx context.Context, cfg build.Config, output io.Write
 		if len(command) == 0 {
 			return errors.New("post-build command is empty")
 		}
+
 		print.Verb("running post-build commands", command)
 		cmd := exec.CommandContext(ctx, command[0], command[1:]...) //nolint:gosec
 		cmd.Stdout = output
@@ -641,6 +677,7 @@ func RunPreBuildCommands(ctx context.Context, cfg build.Config, output io.Writer
 		if len(command) == 0 {
 			return errors.New("pre-build command is empty")
 		}
+
 		print.Verb("running pre-build commands", command)
 		cmd := exec.CommandContext(ctx, command[0], command[1:]...) //nolint:gosec
 		cmd.Stdout = output

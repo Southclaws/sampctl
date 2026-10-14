@@ -177,6 +177,7 @@ func TestCompilerPackageHelpers(t *testing.T) {
 	t.Run("GetCompilerPackageInfo returns platform error", func(t *testing.T) {
 		cacheDir := t.TempDir()
 		require.NoError(t, download.WriteCompilerCacheFile(cacheDir, mustJSON(t, download.Compilers{"linux": {Binary: "pawncc"}})))
+
 		_, err := GetCompilerPackageInfo(cacheDir, "plan9")
 		require.ErrorContains(t, err, "no compiler for platform")
 	})
