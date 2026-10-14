@@ -254,6 +254,7 @@ func newFakeServerDir(t *testing.T) string {
 		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 			t.Fatalf("create fake server dir %s: %v", path, err)
 		}
+
 		if err := os.WriteFile(path, nil, 0o644); err != nil {
 			t.Fatalf("create fake runtime file %s: %v", path, err)
 		}

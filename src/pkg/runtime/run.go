@@ -194,15 +194,19 @@ func shouldKillTrackedProcess(term termination) bool {
 	if term.exit {
 		return true
 	}
+
 	if term.err == nil {
 		return false
 	}
+
 	if errors.Is(term.err, context.Canceled) || errors.Is(term.err, context.DeadlineExceeded) {
 		return true
 	}
+
 	if strings.Contains(term.err.Error(), "received signal:") {
 		return true
 	}
+
 	return strings.Contains(term.err.Error(), "failed to write runtime output")
 }
 
@@ -214,6 +218,7 @@ func waitForRuntimeTermination(request runtimeTerminationRequest) termination {
 				request.StreamCh = nil
 				continue
 			}
+
 			if _, err := fmt.Fprintln(request.Output, line); err != nil {
 				return termination{err: errors.Wrap(err, "failed to write runtime output")}
 			}
@@ -237,6 +242,7 @@ func flushRuntimeOutput(output io.Writer, streamCh <-chan string) error {
 		if writeErr != nil {
 			continue
 		}
+
 		if _, err := fmt.Fprintln(output, line); err != nil {
 			writeErr = errors.Wrap(err, "failed to write runtime output")
 		}
@@ -249,8 +255,10 @@ func startBinaryRunner(ctx context.Context, cfg binaryRunConfig) <-chan struct{}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
+
 		runBinary(ctx, cfg)
 	}()
+
 	return done
 }
 
@@ -269,10 +277,12 @@ func readBinaryOutput(request outputReaderRequest) <-chan struct{} {
 			if emit && !sendOutputLine(request.Context, request.StreamCh, line) {
 				return
 			}
+
 			if term != nil {
 				sendTermination(request.Context, request.TermCh, *term)
 				return
 			}
+
 			if stop {
 				return
 			}
@@ -282,6 +292,7 @@ func readBinaryOutput(request outputReaderRequest) <-chan struct{} {
 			print.Erro("Server output read error:", err)
 		}
 	}()
+
 	return done
 }
 
@@ -304,10 +315,12 @@ func processMainOnlyLine(state *outputModeState, line string) (string, bool, *te
 	if shouldSkipPreambleLine(state, line) {
 		return "", false, nil, false
 	}
+
 	if matchMainEnd.MatchString(line) {
 		term := termination{exit: true}
 		return "", false, &term, true
 	}
+
 	return line, true, nil, false
 }
 
@@ -315,6 +328,7 @@ func processTestingLine(state *outputModeState, line string) (string, bool, *ter
 	if shouldSkipPreambleLine(state, line) {
 		return "", false, nil, false
 	}
+
 	if !matchTestEnd.MatchString(line) {
 		return line, true, nil, false
 	}
@@ -337,10 +351,12 @@ func shouldSkipPreambleLine(state *outputModeState, line string) bool {
 		state.preambleSpace = true
 		return true
 	}
+
 	if state.preambleSpace {
 		state.preambleSpace = false
 		return true
 	}
+
 	return state.preamble
 }
 
@@ -409,6 +425,7 @@ func logCommandResult(cmd *exec.Cmd, runErr error) {
 		print.Verb("server process exited, pid:", cmd.Process.Pid, "error:", runErr)
 		return
 	}
+
 	print.Verb("server process exited, error:", runErr)
 }
 
@@ -445,12 +462,14 @@ func sendOutputLine(ctx context.Context, streamCh chan<- string, line string) bo
 func (tracker *commandTracker) set(process *os.Process) {
 	tracker.mu.Lock()
 	defer tracker.mu.Unlock()
+
 	tracker.process = process
 }
 
 func (tracker *commandTracker) current() *os.Process {
 	tracker.mu.Lock()
 	defer tracker.mu.Unlock()
+
 	return tracker.process
 }
 
@@ -459,10 +478,12 @@ func killTrackedProcess(process *os.Process) {
 		print.Verb("no server process to stop")
 		return
 	}
+
 	if err := terminateRuntimeProcess(process); err != nil {
 		print.Erro("Failed to stop server:", err)
 		return
 	}
+
 	print.Verb("stopped child process")
 }
 
@@ -476,18 +497,16 @@ func wrapRuntimeError(err error) error {
 	if err == nil {
 		return nil
 	}
+
 	print.Verb("finished run() with", err)
 	return errors.Wrap(err, "received runtime error")
 }
 
 func createSpecialLink(cfg run.Runtime) error {
-	rootLink := cfg.RootLink
 	scriptfilesPath := path.Join(cfg.WorkingDir, "scriptfiles")
 	specialLink := path.Join(scriptfilesPath, "DANGEROUS_SERVER_ROOT")
 
-	if rootLink {
-		print.Verb("creating scriptfiles/DANGEROUS_SERVER_ROOT symlink to", cfg.WorkingDir)
-	} else {
+	if !cfg.RootLink {
 		err := os.Remove(specialLink)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
@@ -498,7 +517,7 @@ func createSpecialLink(cfg run.Runtime) error {
 		return nil
 	}
 
-	// Create a symlink from scriptfiles to the root
+	print.Verb("creating scriptfiles/DANGEROUS_SERVER_ROOT symlink to", cfg.WorkingDir)
 	if _, err := os.Stat(scriptfilesPath); err != nil {
 		print.Verb("creating scriptfiles directory for DANGEROUS_SERVER_ROOT symlink")
 		err = os.MkdirAll(scriptfilesPath, 0o755)
@@ -525,6 +544,7 @@ func createSpecialLink(cfg run.Runtime) error {
 		if err != nil {
 			return err
 		}
+
 		err = os.Symlink(cfg.WorkingDir, specialLink)
 		if err != nil {
 			return err

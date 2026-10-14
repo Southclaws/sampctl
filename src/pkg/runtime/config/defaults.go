@@ -1,8 +1,6 @@
 package run
 
-// RuntimeDefaults holds the default values that the runtime loader applies to Runtime fields.
-// Keeping these values alongside the Runtime type ensures writers can stay in sync
-// with loader behaviour when new fields are introduced.
+// RuntimeDefaults holds loader defaults used when writing runtime settings.
 type RuntimeDefaults struct {
 	Port         int
 	RCONPassword string

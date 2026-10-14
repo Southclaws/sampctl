@@ -59,6 +59,7 @@ func RunContainer(
 	if err != nil {
 		return fmt.Errorf("invalid container port: %w", err)
 	}
+
 	print.Verb("mounting working directory", cfg.WorkingDir, "at /samp in the container")
 	mounts := []mount.Mount{
 		{
@@ -89,9 +90,7 @@ func RunContainer(
 		Privileged:  true,
 	}
 
-	netConfig := &network.NetworkingConfig{
-		//
-	}
+	netConfig := &network.NetworkingConfig{}
 
 	ref := "southclaws/sampctl:" + cfg.AppVersion
 	containerConfig := &container.Config{
@@ -129,6 +128,7 @@ func RunContainer(
 					print.Erro(errDefer)
 				}
 			}()
+
 			_, errInner = io.ReadAll(pullReader)
 			if errInner != nil {
 				return fmt.Errorf("failed to read pull output: %w", errInner)
@@ -147,10 +147,12 @@ func RunContainer(
 		if removeErr == nil {
 			return
 		}
+
 		if err == nil {
 			err = fmt.Errorf("failed to remove container: %w", removeErr)
 			return
 		}
+
 		print.Warn("failed to remove container:", removeErr)
 	}()
 
@@ -279,9 +281,11 @@ func waitForContainerExit(ctx context.Context, cli containerWaiter, containerID 
 		if waitResp.Error != nil && waitResp.Error.Message != "" {
 			return fmt.Errorf("container exited with status code %d: %s", waitResp.StatusCode, waitResp.Error.Message)
 		}
+
 		if waitResp.StatusCode != 0 {
 			return fmt.Errorf("container exited with status code %d", waitResp.StatusCode)
 		}
+
 		return nil
 	case err := <-wait.Error:
 		if err == nil {

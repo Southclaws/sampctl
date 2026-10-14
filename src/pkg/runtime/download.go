@@ -50,6 +50,7 @@ func getServerPackageContext(ctx context.Context, cacheDir, version, dir, platfo
 	if err != nil {
 		return errors.Wrapf(err, "failed to get package %s from cache", version)
 	}
+
 	if hit {
 		return
 	}
@@ -84,6 +85,7 @@ func FromCacheContext(request ServerPackageRequest) (hit bool, err error) {
 	if err != nil {
 		return
 	}
+
 	location, _, method, paths, err := infoForPlatform(pkg, request.Platform)
 	if err != nil {
 		return
@@ -150,6 +152,7 @@ func FromNetContext(request ServerPackageRequest) (err error) {
 	if err != nil {
 		return
 	}
+
 	location, _, method, paths, err := infoForPlatform(pkg, request.Platform)
 	if err != nil {
 		return
@@ -232,6 +235,7 @@ func infoForPlatform(
 		err = errors.Errorf("unsupported OS %s", platform)
 		return
 	}
+
 	u, err := url.Parse(location)
 	if err != nil {
 		err = errors.Wrapf(err, "failed to parse location %s", location)
@@ -258,5 +262,6 @@ func normalizeRuntimePaths(paths map[string]string, runtimeType run.RuntimeType)
 		}
 		out[src] = dst
 	}
+
 	return out
 }

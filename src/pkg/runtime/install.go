@@ -20,6 +20,7 @@ func (hooks runtimeInstallHooks) checkpoint(point string) error {
 	if hooks.after == nil {
 		return nil
 	}
+
 	return hooks.after(point)
 }
 
@@ -38,6 +39,7 @@ func installRuntime(ctx context.Context, root, source string, current runtimeMan
 		if err == nil {
 			return
 		}
+
 		failure := &RuntimeInstallError{Runtime: current.Version, Committed: journal.Phase == "committed", RecoveryPending: true, Err: err}
 		if !failure.Committed {
 			recoveryErr := recoverRuntimeLocked(context.WithoutCancel(ctx), root)
@@ -46,28 +48,35 @@ func installRuntime(ctx context.Context, root, source string, current runtimeMan
 				failure.Restored = verifyRuntimeManifest(*previous, root) == nil
 			}
 		}
+
 		_, pendingErr := os.Lstat(filepath.Join(root, RuntimeRecoveryFilename))
 		failure.RecoveryPending = !errors.Is(pendingErr, os.ErrNotExist)
 		err = failure
 	}()
+
 	if err := hooks.checkpoint("prepared"); err != nil {
 		return err
 	}
+
 	for index, entry := range journal.Files {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
+
 		if err := hooks.checkpoint("before:" + entry.Path); err != nil {
 			return err
 		}
+
 		before, err := runtimeFileMatches(root, entry.Path, runtimeBeforePlatform(journal, entry), entry.Before)
 		if err != nil || !before {
 			return errors.Join(fmt.Errorf("runtime file %s changed before installation: %w", entry.Path, os.ErrInvalid), err)
 		}
+
 		target, err := runtimeFilePath(root, entry.Path)
 		if err != nil {
 			return err
 		}
+
 		if entry.After == nil {
 			if err := os.Remove(target); err != nil {
 				return err
@@ -76,29 +85,36 @@ func installRuntime(ctx context.Context, root, source string, current runtimeMan
 			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 				return err
 			}
+
 			match, err := runtimeFileMatches(filepath.Join(root, journal.Stage), fmt.Sprintf("new-%06d", index), current.Platform, entry.After)
 			if err != nil || !match {
 				return errors.Join(fmt.Errorf("staged runtime file %s changed: %w", entry.Path, os.ErrInvalid), err)
 			}
+
 			if err := os.Rename(runtimeStageFile(root, journal, index, "new"), target); err != nil {
 				return err
 			}
 		}
+
 		if err := errors.Join(syncRuntimeParents(root, filepath.Dir(target)), fs.SyncDir(filepath.Join(root, journal.Stage))); err != nil {
 			return err
 		}
+
 		if err := hooks.checkpoint("published:" + entry.Path); err != nil {
 			return err
 		}
 	}
+
 	if err := verifyRuntimeManifest(current, root); err != nil {
 		return err
 	}
+
 	journal.Phase = "committed"
 	if err := validateRuntimeRecoveryState(root, journal); err != nil {
 		journal.Phase = "pending"
 		return err
 	}
+
 	if err := writeRuntimeJournal(root, journal); err != nil {
 		// The atomic write may have published the commit before directory sync failed.
 		persisted, readErr := readRuntimeJournal(root)
@@ -107,9 +123,11 @@ func installRuntime(ctx context.Context, root, source string, current runtimeMan
 		}
 		return errors.Join(err, readErr)
 	}
+
 	if err := hooks.checkpoint("committed"); err != nil {
 		return err
 	}
+
 	return cleanupRuntimeJournalWithHooks(ctx, root, journal, hooks)
 }
 
@@ -117,9 +135,11 @@ func prepareRuntimeJournal(ctx context.Context, root, source string, current run
 	if err := validateInstalledRuntimeManifest(current, root); err != nil {
 		return nil, err
 	}
+
 	if err := validateRuntimePackage(current, source); err != nil {
 		return nil, err
 	}
+
 	tracked := make(map[string]runtimeFileInfo)
 	if previous != nil {
 		if err := validateInstalledRuntimeManifest(*previous, root); err != nil {
@@ -129,6 +149,7 @@ func prepareRuntimeJournal(ctx context.Context, root, source string, current run
 			tracked[strings.ToLower(file.Path)] = file
 		}
 	}
+
 	journal := &runtimeJournal{Format: 1, Phase: "pending", Previous: previous, Current: current}
 	for _, file := range current.Files {
 		entry := runtimeJournalEntry{Path: file.Path, After: &file}
@@ -136,6 +157,7 @@ func prepareRuntimeJournal(ctx context.Context, root, source string, current run
 		if err != nil {
 			return nil, err
 		}
+
 		if _, err := os.Lstat(path); err == nil {
 			before, owned := tracked[strings.ToLower(file.Path)]
 			if owned {
@@ -156,6 +178,7 @@ func prepareRuntimeJournal(ctx context.Context, root, source string, current run
 		}
 		journal.Files = append(journal.Files, entry)
 	}
+
 	if previous != nil {
 		obsolete, err := obsoleteRuntimeFiles(*previous, current, root)
 		if err != nil {
@@ -165,6 +188,7 @@ func prepareRuntimeJournal(ctx context.Context, root, source string, current run
 			journal.Files = append(journal.Files, runtimeJournalEntry{Path: file.Path, Before: &file})
 		}
 	}
+
 	ownershipPath, err := runtimeFilePath(root, installedRuntimeManifestFileName)
 	if err != nil {
 		return nil, err
@@ -179,7 +203,10 @@ func prepareRuntimeJournal(ctx context.Context, root, source string, current run
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return nil, err
 	}
+	// Ownership describes the complete file set, so publish it last.
+	ownershipIndex := len(journal.Files)
 	journal.Files = append(journal.Files, ownership)
+
 	stage, err := os.MkdirTemp(root, runtimeOperationPrefix)
 	if err != nil {
 		return nil, err
@@ -191,41 +218,49 @@ func prepareRuntimeJournal(ctx context.Context, root, source string, current run
 			err = errors.Join(err, os.RemoveAll(stage))
 		}
 	}()
+
 	for index, entry := range journal.Files {
 		if entry.Before != nil {
 			if err := copyFileWithModeContext(ctx, filepath.Join(root, filepath.FromSlash(entry.Path)), runtimeStageFile(root, journal, index, "old"), os.FileMode(entry.Before.Mode)); err != nil {
 				return nil, err
 			}
 		}
+
 		if entry.After != nil {
 			if err := copyFileWithModeContext(ctx, filepath.Join(source, filepath.FromSlash(entry.Path)), runtimeStageFile(root, journal, index, "new"), os.FileMode(entry.After.Mode)); err != nil {
 				return nil, err
 			}
 		}
 	}
-	index := len(journal.Files) - 1
+
 	data, err := json.MarshalIndent(current, "", "  ")
 	if err != nil {
 		return nil, err
 	}
-	path := runtimeStageFile(root, journal, index, "new")
+
+	path := runtimeStageFile(root, journal, ownershipIndex, "new")
 	if err := fs.WriteFileAtomic(path, data, 0o700, 0o600); err != nil {
 		return nil, err
 	}
+
 	hash, size, err := hashFile(path)
 	if err != nil {
 		return nil, err
 	}
-	journal.Files[index].After = &runtimeFileInfo{Path: installedRuntimeManifestFileName, Hash: hash, Size: size, Mode: 0o600}
+	journal.Files[ownershipIndex].After = &runtimeFileInfo{Path: installedRuntimeManifestFileName, Hash: hash, Size: size, Mode: 0o600}
+
 	if err := validateRuntimeJournal(root, journal); err != nil {
 		return nil, err
 	}
+
 	if err := validateRuntimeRecoveryState(root, journal); err != nil {
 		return nil, err
 	}
+
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+
 	if err := writeRuntimeJournal(root, journal); err != nil {
 		// Preserve backups whenever publication may have succeeded.
 		_, statErr := os.Lstat(filepath.Join(root, RuntimeRecoveryFilename))
@@ -233,5 +268,6 @@ func prepareRuntimeJournal(ctx context.Context, root, source string, current run
 		return nil, err
 	}
 	persisted = true
+
 	return journal, nil
 }

@@ -28,9 +28,11 @@ func platformRun(ctx context.Context, cmd *exec.Cmd, w io.Writer, r io.Reader, o
 		print.Verb("PTY allocation failed, falling back to regular execution:", err)
 		return platformRunFallback(cloneRuntimeCommand(ctx, cmd), w, r, onStart)
 	}
+
 	if ptmx == nil {
 		return errors.New("failed to allocate a terminal for the server")
 	}
+
 	if onStart != nil && cmd.Process != nil {
 		onStart(cmd.Process)
 	}
@@ -64,6 +66,7 @@ func platformRun(ctx context.Context, cmd *exec.Cmd, w io.Writer, r io.Reader, o
 		if r == nil {
 			return
 		}
+
 		_, errInner := io.Copy(ptmx, r)
 		if errInner != nil && !isBenignPtyCopyError(errInner) {
 			print.Verb("failed to forward server input:", errInner)
@@ -82,6 +85,7 @@ func platformRun(ctx context.Context, cmd *exec.Cmd, w io.Writer, r io.Reader, o
 	if errWrite != nil && !isBenignPtyCopyError(errWrite) {
 		print.Verb("failed to forward server output:", errWrite)
 	}
+
 	if errClose := closePty(); errClose != nil && !isBenignPtyCopyError(errClose) {
 		print.Verb("failed to close pty after command exit:", errClose)
 	}
@@ -123,6 +127,7 @@ func platformRunFallback(cmd *exec.Cmd, w io.Writer, r io.Reader, onStart func(*
 	if err != nil {
 		return errors.Wrap(err, "failed to start command")
 	}
+
 	if onStart != nil && cmd.Process != nil {
 		onStart(cmd.Process)
 	}

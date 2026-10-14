@@ -98,8 +98,7 @@ type Runtime struct {
 	Banners map[string]any `ignore:"1" required:"0" json:"banners,omitempty"  yaml:"banners,omitempty"`
 	Artwork map[string]any `ignore:"1" required:"0" json:"artwork,omitempty"  yaml:"artwork,omitempty"`
 
-	// rcon is already used by SA:MP as a boolean. this allows setting open.mp-only
-	// `config.json` rcon fields.
+	// RCONConfig holds open.mp settings because rcon is already a SA-MP boolean.
 	RCONConfig map[string]any `ignore:"1" required:"0" json:"rcon_config,omitempty" yaml:"rcon_config,omitempty"`
 }
 
@@ -255,11 +254,10 @@ func (cfg *Runtime) ResolveRemotePlugins() {
 
 	print.Verb("resolving plugin dependencies:", cfg.Plugins)
 
-	tmpPlugins := cfg.Plugins
+	declaredPlugins := cfg.Plugins
 	cfg.Plugins = []Plugin{}
 
-	// separate depstrings from regular plugins
-	for _, plugin := range tmpPlugins {
+	for _, plugin := range declaredPlugins {
 		dep, err := plugin.AsDep()
 		if err != nil {
 			cfg.Plugins = append(cfg.Plugins, plugin)

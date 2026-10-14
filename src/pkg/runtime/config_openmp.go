@@ -357,6 +357,7 @@ func (o *openMPConfig) generate(cfg *run.Runtime) (err error) {
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal structured config")
 	}
+
 	if err := json.Unmarshal(structuredBytes, &jsonData); err != nil {
 		return errors.Wrap(err, "failed to unmarshal structured config")
 	}
@@ -430,6 +431,7 @@ func (o *openMPConfig) generateLegacyServerCfg(cfg *run.Runtime) (err error) {
 	}
 
 	print.Verb("Generated server.cfg with", len(cfg.Extra), "extra configuration values")
+
 	return nil
 }
 

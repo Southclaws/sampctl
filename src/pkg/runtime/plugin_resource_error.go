@@ -19,5 +19,6 @@ func (e *PluginResourceNotFoundError) Error() string {
 	if e.Meta.Repo != "" {
 		name = e.Meta.String()
 	}
+
 	return fmt.Sprintf("%s has no resource for platform %s and runtime version %s", name, e.Platform, e.Version)
 }

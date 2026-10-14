@@ -11,6 +11,7 @@ import (
 
 func TestPluginArchiveMatchesSkipDirectoryHeaders(t *testing.T) {
 	t.Parallel()
+
 	root := t.TempDir()
 	filename := filepath.Join(t.TempDir(), "resource.zip")
 	file, err := os.Create(filename)
@@ -35,16 +36,19 @@ func TestPluginArchiveMatchesSkipDirectoryHeaders(t *testing.T) {
 	if err := file.Close(); err != nil {
 		t.Fatal(err)
 	}
+
 	request := EnsureVersionedPluginRequest{Context: context.Background(), Dir: root}
 	if _, err := extractPluginArchive(request, filename, ".zip", map[string]string{`^includes/`: ""}); err != nil {
 		t.Fatal(err)
 	}
+
 	checkRuntimeTestFile(t, filepath.Join(root, "first.inc"), "includes/first.inc")
 	checkRuntimeTestFile(t, filepath.Join(root, "second.inc"), "includes/second.inc")
 }
 
 func TestPluginArchiveInstallsEveryMatchingFile(t *testing.T) {
 	t.Parallel()
+
 	for _, archive := range []struct {
 		name   string
 		ext    string
@@ -55,6 +59,7 @@ func TestPluginArchiveInstallsEveryMatchingFile(t *testing.T) {
 	} {
 		t.Run(archive.name, func(t *testing.T) {
 			t.Parallel()
+
 			root := t.TempDir()
 			filename := filepath.Join(t.TempDir(), "resource"+archive.ext)
 			archive.create(t, filename, map[string]string{
@@ -65,6 +70,7 @@ func TestPluginArchiveInstallsEveryMatchingFile(t *testing.T) {
 				"misc/first.cfg":      "first configuration",
 				"misc/second.cfg":     "second configuration",
 			})
+
 			paths := map[string]string{
 				`^includes/.*\.inc$`: "",
 				`^plugins/.*\.so$`:   "plugins/",
@@ -74,6 +80,7 @@ func TestPluginArchiveInstallsEveryMatchingFile(t *testing.T) {
 			if _, err := extractPluginArchive(request, filename, archive.ext, paths); err != nil {
 				t.Fatal(err)
 			}
+
 			for path, want := range map[string]string{
 				"first.inc":          "first include",
 				"second.inc":         "second include",
@@ -83,6 +90,7 @@ func TestPluginArchiveInstallsEveryMatchingFile(t *testing.T) {
 			} {
 				checkRuntimeTestFile(t, filepath.Join(root, path), want)
 			}
+
 			writeRuntimeTestFile(t, filepath.Join(root, "first.inc"), "user include")
 			writeRuntimeTestFile(t, filepath.Join(root, "plugins/first.so"), "user plugin")
 			request.IgnorePatterns = []string{"first.inc", "first.so"}
@@ -91,6 +99,7 @@ func TestPluginArchiveInstallsEveryMatchingFile(t *testing.T) {
 			}
 			checkRuntimeTestFile(t, filepath.Join(root, "first.inc"), "user include")
 			checkRuntimeTestFile(t, filepath.Join(root, "plugins/first.so"), "user plugin")
+
 			request.IgnorePatterns = []string{"second.inc", "second.so"}
 			result, err := extractPluginArchive(request, filename, archive.ext, paths)
 			if err != nil {
@@ -110,6 +119,7 @@ func TestPluginArchiveInstallsEveryMatchingFile(t *testing.T) {
 
 func TestPluginArchiveValidatesEveryMatchingDestination(t *testing.T) {
 	t.Parallel()
+
 	root := t.TempDir()
 	filename := filepath.Join(t.TempDir(), "resource.zip")
 	createRuntimeZipArchive(t, filename, map[string]string{
@@ -122,10 +132,12 @@ func TestPluginArchiveValidatesEveryMatchingDestination(t *testing.T) {
 	if err := os.Symlink(external, filepath.Join(root, "plugins/first.so")); err != nil {
 		t.Skipf("creating symlink: %v", err)
 	}
+
 	request := EnsureVersionedPluginRequest{Context: context.Background(), Dir: root}
 	if _, err := extractPluginArchive(request, filename, ".zip", map[string]string{`.*\.so$`: "plugins/"}); !errors.Is(err, os.ErrInvalid) {
 		t.Errorf("extractPluginArchive(symlink destination) = %v, want os.ErrInvalid", err)
 	}
+
 	checkRuntimeTestFile(t, external, "external first")
 	checkRuntimeTestFile(t, filepath.Join(root, "plugins/second.so"), "previous second")
 }

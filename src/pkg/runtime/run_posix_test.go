@@ -39,12 +39,14 @@ type safeBuffer struct {
 func (buffer *safeBuffer) Write(p []byte) (int, error) {
 	buffer.mu.Lock()
 	defer buffer.mu.Unlock()
+
 	return buffer.b.Write(p)
 }
 
 func (buffer *safeBuffer) String() string {
 	buffer.mu.Lock()
 	defer buffer.mu.Unlock()
+
 	return buffer.b.String()
 }
 
@@ -174,6 +176,7 @@ func waitForRuntimeReady(t *testing.T, stdout *bufio.Scanner, stderr *safeBuffer
 				return
 			}
 		}
+
 		readyCh <- stdout.Err()
 	}()
 
@@ -196,6 +199,7 @@ func waitForHelperExit(cmd *exec.Cmd, stderr *safeBuffer) error {
 		if err == nil {
 			return nil
 		}
+
 		return fmt.Errorf("helper process failed: %w: %s", err, stderr.String())
 	case <-time.After(5 * time.Second):
 		return fmt.Errorf("timed out waiting for helper exit: %s", stderr.String())

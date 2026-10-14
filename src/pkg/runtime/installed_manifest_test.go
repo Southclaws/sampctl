@@ -14,6 +14,7 @@ import (
 
 func TestEnsureBinariesKeepsExternalOwnershipWithoutLockfile(t *testing.T) {
 	t.Parallel()
+
 	project, external, cache := t.TempDir(), t.TempDir(), t.TempDir()
 	writeRuntimeTestFile(t, filepath.Join(project, "pawn.json"), "{}")
 	writeRuntimeTestFile(t, filepath.Join(external, "server.cfg"), "user configuration")
@@ -22,9 +23,11 @@ func TestEnsureBinariesKeepsExternalOwnershipWithoutLockfile(t *testing.T) {
 	if _, err := EnsureBinariesContext(context.Background(), cache, cfg); err != nil {
 		t.Fatal(err)
 	}
+
 	if manifest, err := loadInstalledRuntimeManifest(external); err != nil || manifest == nil || manifest.Version != "first" {
 		t.Fatalf("initial installed manifest = %+v, error = %v", manifest, err)
 	}
+
 	cfg.Version = "second"
 	seedValidatedRuntimeStage(t, cache, cfg, map[string]string{"samp03svr": "second binary", "runtime-library": "new library"})
 	if _, err := EnsureBinariesContext(context.Background(), cache, cfg); err != nil {
@@ -35,24 +38,29 @@ func TestEnsureBinariesKeepsExternalOwnershipWithoutLockfile(t *testing.T) {
 	if _, err := os.Lstat(filepath.Join(external, "obsolete")); !errors.Is(err, os.ErrNotExist) {
 		t.Errorf("runtime upgrade retained obsolete file: %v", err)
 	}
+
 	manifestPath := filepath.Join(external, installedRuntimeManifestFileName)
 	manifestInfo, err := os.Stat(manifestPath)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	binaryInfo, err := os.Stat(filepath.Join(external, "samp03svr"))
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	for range 2 {
 		if _, err := EnsureBinariesContext(context.Background(), cache, cfg); err != nil {
 			t.Fatal(err)
 		}
 	}
+
 	manifestAfter, err := os.Stat(manifestPath)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	binaryAfter, err := os.Stat(filepath.Join(external, "samp03svr"))
 	if err != nil {
 		t.Fatal(err)
@@ -60,10 +68,12 @@ func TestEnsureBinariesKeepsExternalOwnershipWithoutLockfile(t *testing.T) {
 	if !manifestInfo.ModTime().Equal(manifestAfter.ModTime()) || !binaryInfo.ModTime().Equal(binaryAfter.ModTime()) {
 		t.Error("repeated ensure rewrote a verified runtime or its ownership manifest")
 	}
+
 	info, err := GetRuntimeManifestInfo(external)
 	if err != nil || info == nil || info.Version != "second" {
 		t.Errorf("external runtime info = %+v, error = %v", info, err)
 	}
+
 	for _, root := range []string{project, external} {
 		if _, err := os.Lstat(filepath.Join(root, lockfile.Filename)); !errors.Is(err, os.ErrNotExist) {
 			t.Errorf("runtime provisioning created a lockfile at %s: %v", root, err)
@@ -73,25 +83,30 @@ func TestEnsureBinariesKeepsExternalOwnershipWithoutLockfile(t *testing.T) {
 
 func TestEnsureBinariesRetainsOwnershipDuringInterruptedUpgrade(t *testing.T) {
 	t.Parallel()
+
 	external, cache := t.TempDir(), t.TempDir()
 	cfg := run.Runtime{Version: "first", Platform: "linux", WorkingDir: external}
 	seedValidatedRuntimeStage(t, cache, cfg, map[string]string{"samp03svr": "first binary", "z-library": "first library"})
 	if _, err := EnsureBinariesContext(context.Background(), cache, cfg); err != nil {
 		t.Fatal(err)
 	}
+
 	manifestPath := filepath.Join(external, installedRuntimeManifestFileName)
 	before, err := os.ReadFile(manifestPath)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	cfg.Version = "second"
 	seedValidatedRuntimeStage(t, cache, cfg, map[string]string{"samp03svr": "second binary", "z-library": "second library"})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	interrupted := &runtimeUpgradeCancellationContext{Context: ctx, cancel: cancel, binary: filepath.Join(external, "samp03svr")}
 	if _, err := EnsureBinariesContext(interrupted, cache, cfg); !errors.Is(err, context.Canceled) {
 		t.Fatalf("interrupted upgrade = %v, want context.Canceled", err)
 	}
+
 	checkRuntimeTestFile(t, filepath.Join(external, "samp03svr"), "first binary")
 	checkRuntimeTestFile(t, filepath.Join(external, "z-library"), "first library")
 	after, err := os.ReadFile(manifestPath)
@@ -101,6 +116,7 @@ func TestEnsureBinariesRetainsOwnershipDuringInterruptedUpgrade(t *testing.T) {
 	if !bytes.Equal(before, after) {
 		t.Error("interrupted upgrade replaced the previous ownership manifest")
 	}
+
 	if _, err := EnsureBinariesContext(context.Background(), cache, cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -113,21 +129,25 @@ func TestEnsureBinariesRetainsOwnershipDuringInterruptedUpgrade(t *testing.T) {
 
 func TestEnsureBinariesValidatesAllStagedFilesForSameVersion(t *testing.T) {
 	t.Parallel()
+
 	root, cache := t.TempDir(), t.TempDir()
 	cfg := run.Runtime{Version: "first", Platform: "linux", WorkingDir: root}
 	seedValidatedRuntimeStage(t, cache, cfg, map[string]string{"samp03svr": "binary"})
 	if _, err := EnsureBinariesContext(context.Background(), cache, cfg); err != nil {
 		t.Fatal(err)
 	}
+
 	seedValidatedRuntimeStage(t, cache, cfg, map[string]string{"samp03svr": "binary", "library": "required library"})
 	if _, err := EnsureBinariesContext(context.Background(), cache, cfg); err != nil {
 		t.Fatal(err)
 	}
+
 	checkRuntimeTestFile(t, filepath.Join(root, "library"), "required library")
 }
 
 func TestEnsureBinariesMigratesLegacyInstalledOwnership(t *testing.T) {
 	t.Parallel()
+
 	root, cache := t.TempDir(), t.TempDir()
 	cfg := run.Runtime{Version: "first", Platform: "linux", WorkingDir: root}
 	writeRuntimeTestFile(t, filepath.Join(root, "samp03svr"), "first binary")
@@ -135,6 +155,7 @@ func TestEnsureBinariesMigratesLegacyInstalledOwnership(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	saveRuntimeTestLockfile(t, root, manifest)
 	seedValidatedRuntimeStage(t, cache, cfg, map[string]string{"samp03svr": "first binary"})
 	if _, err := EnsureBinariesContext(context.Background(), cache, cfg); err != nil {
@@ -143,6 +164,7 @@ func TestEnsureBinariesMigratesLegacyInstalledOwnership(t *testing.T) {
 	if err := os.Remove(filepath.Join(root, lockfile.Filename)); err != nil {
 		t.Fatal(err)
 	}
+
 	cfg.Version = "second"
 	seedValidatedRuntimeStage(t, cache, cfg, map[string]string{"samp03svr": "second binary"})
 	if _, err := EnsureBinariesContext(context.Background(), cache, cfg); err != nil {
@@ -153,6 +175,7 @@ func TestEnsureBinariesMigratesLegacyInstalledOwnership(t *testing.T) {
 
 func TestEnsureBinariesPreservesUnsafeOwnershipMetadata(t *testing.T) {
 	t.Parallel()
+
 	for _, scenario := range []string{"malformed", "directory", "symlink"} {
 		t.Run(scenario, func(t *testing.T) {
 			root, cache := t.TempDir(), t.TempDir()
@@ -174,9 +197,11 @@ func TestEnsureBinariesPreservesUnsafeOwnershipMetadata(t *testing.T) {
 					t.Skipf("symlinks unavailable: %v", err)
 				}
 			}
+
 			if _, err := EnsureBinariesContext(context.Background(), cache, cfg); err == nil {
 				t.Error("unsafe ownership metadata allowed runtime replacement")
 			}
+
 			checkRuntimeTestFile(t, filepath.Join(root, "samp03svr"), "user binary")
 			if scenario == "malformed" {
 				checkRuntimeTestFile(t, metadata, "{broken")
@@ -189,12 +214,14 @@ func TestEnsureBinariesPreservesUnsafeOwnershipMetadata(t *testing.T) {
 
 func TestInstalledRuntimeManifestRejectsUnsafeEntries(t *testing.T) {
 	t.Parallel()
+
 	root := t.TempDir()
 	writeRuntimeTestFile(t, filepath.Join(root, "samp03svr"), "runtime")
 	manifest, err := buildRuntimeManifest(root, run.Runtime{Version: "first", Platform: "linux"})
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	file := manifest.Files[0]
 	for _, test := range []struct {
 		name, path, hash string
@@ -209,9 +236,11 @@ func TestInstalledRuntimeManifestRejectsUnsafeEntries(t *testing.T) {
 			if err := writeRuntimeManifest(filepath.Join(root, installedRuntimeManifestFileName), current); err != nil {
 				t.Fatal(err)
 			}
+
 			if _, err := loadInstalledRuntimeManifest(root); !errors.Is(err, os.ErrInvalid) {
 				t.Errorf("installed manifest with %s = %v, want os.ErrInvalid", test.name, err)
 			}
+
 			checkRuntimeTestFile(t, filepath.Join(root, "samp03svr"), "runtime")
 		})
 	}
@@ -228,5 +257,6 @@ func (c *runtimeUpgradeCancellationContext) Err() error {
 	if err == nil && string(data) == "second binary" {
 		c.cancel()
 	}
+
 	return c.Context.Err()
 }

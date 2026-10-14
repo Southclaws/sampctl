@@ -61,6 +61,7 @@ func buildRuntimeManifest(root string, cfg run.Runtime) (runtimeManifest, error)
 		if walkErr != nil {
 			return walkErr
 		}
+
 		relPath, err := filepath.Rel(root, path)
 		if err != nil {
 			return err
@@ -72,16 +73,20 @@ func buildRuntimeManifest(root string, cfg run.Runtime) (runtimeManifest, error)
 		if d.IsDir() {
 			return nil
 		}
+
 		if strings.EqualFold(relPath, manifestRel) || isRuntimeStatePath(relPath) {
 			return nil
 		}
+
 		if !d.Type().IsRegular() {
 			return errors.Wrapf(os.ErrInvalid, "runtime file %s must be a regular file", relPath)
 		}
+
 		hash, size, err := hashFile(path)
 		if err != nil {
 			return err
 		}
+
 		info, err := d.Info()
 		if err != nil {
 			return err
@@ -92,6 +97,7 @@ func buildRuntimeManifest(root string, cfg run.Runtime) (runtimeManifest, error)
 			Hash: hash,
 			Mode: uint32(info.Mode()),
 		})
+
 		return nil
 	})
 	if err != nil {
@@ -130,9 +136,11 @@ func writeRuntimeManifest(path string, manifest runtimeManifest) error {
 	if err != nil {
 		return err
 	}
+
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
+
 	return fs.WriteFileAtomic(path, data, 0o755, 0o600)
 }
 
@@ -141,10 +149,12 @@ func readRuntimeManifest(path string) (runtimeManifest, error) {
 	if err != nil {
 		return runtimeManifest{}, err
 	}
+
 	var manifest runtimeManifest
 	if err := json.Unmarshal(contents, &manifest); err != nil {
 		return runtimeManifest{}, err
 	}
+
 	return manifest, nil
 }
 
@@ -152,17 +162,20 @@ func verifyRuntimeManifest(manifest runtimeManifest, root string) error {
 	if len(manifest.Files) == 0 {
 		return errors.Wrap(os.ErrInvalid, "runtime manifest contains no files")
 	}
+
 	seen := make(map[string]struct{}, len(manifest.Files))
 	for _, file := range manifest.Files {
 		fullPath, err := runtimeFilePath(root, file.Path)
 		if err != nil {
 			return err
 		}
+
 		key := strings.ToLower(filepath.Clean(fullPath))
 		if _, exists := seen[key]; exists {
 			return errors.Wrapf(os.ErrInvalid, "duplicate runtime file %s", file.Path)
 		}
 		seen[key] = struct{}{}
+
 		info, err := os.Lstat(fullPath)
 		if err != nil {
 			return errors.Wrapf(err, "missing runtime file %s", file.Path)
@@ -176,6 +189,7 @@ func verifyRuntimeManifest(manifest runtimeManifest, root string) error {
 		if fs.IsPosixPlatform(manifest.Platform) && os.FileMode(file.Mode).Perm() != info.Mode().Perm() {
 			return errors.Errorf("runtime file %s permissions mismatch", file.Path)
 		}
+
 		hash, _, err := hashFile(fullPath)
 		if err != nil {
 			return errors.Wrapf(err, "failed to hash runtime file %s", file.Path)
@@ -184,6 +198,7 @@ func verifyRuntimeManifest(manifest runtimeManifest, root string) error {
 			return errors.Errorf("runtime file %s checksum mismatch", file.Path)
 		}
 	}
+
 	return nil
 }
 
@@ -191,19 +206,23 @@ func copyRuntimeFilesContext(ctx context.Context, manifest runtimeManifest, srcR
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+
 	if err := verifyRuntimeManifest(manifest, srcRoot); err != nil {
 		return err
 	}
+
 	// Validate every destination before replacing any existing runtime file.
 	for _, file := range manifest.Files {
 		if _, err := runtimeFilePath(destRoot, file.Path); err != nil {
 			return err
 		}
 	}
+
 	for _, file := range manifest.Files {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
+
 		src := filepath.Join(srcRoot, filepath.FromSlash(file.Path))
 		dest, err := runtimeFilePath(destRoot, file.Path)
 		if err != nil {
@@ -218,6 +237,7 @@ func copyRuntimeFilesContext(ctx context.Context, manifest runtimeManifest, srcR
 			return errors.Wrapf(err, "failed to copy runtime file %s", file.Path)
 		}
 	}
+
 	return nil
 }
 
@@ -225,11 +245,13 @@ func copyFileWithModeContext(ctx context.Context, src, dest string, mode os.File
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+
 	in, err := os.Open(src)
 	if err != nil {
 		return err
 	}
 	defer func() { err = stderrors.Join(err, in.Close()) }()
+
 	return fs.WriteFromReaderAtomic(dest, runtimeCopyReader{ctx: ctx, reader: in}, 0o755, mode.Perm())
 }
 
@@ -242,10 +264,12 @@ func (r runtimeCopyReader) Read(p []byte) (int, error) {
 	if err := r.ctx.Err(); err != nil {
 		return 0, err
 	}
+
 	n, err := r.reader.Read(p)
 	if ctxErr := r.ctx.Err(); ctxErr != nil {
 		return n, stderrors.Join(err, ctxErr)
 	}
+
 	return n, err
 }
 
@@ -253,10 +277,12 @@ func runtimeFilePath(root, relative string) (string, error) {
 	if root == "" {
 		return "", errors.Wrap(os.ErrInvalid, "runtime installation directory is empty")
 	}
+
 	local := filepath.FromSlash(relative)
 	if !filepath.IsLocal(local) || local == "." {
 		return "", errors.Wrapf(os.ErrInvalid, "runtime path %q must stay inside its installation", relative)
 	}
+
 	root = filepath.Clean(root)
 	full := filepath.Join(root, local)
 	for path := full; ; path = filepath.Dir(path) {
@@ -276,6 +302,7 @@ func runtimeFilePath(root, relative string) (string, error) {
 			break
 		}
 	}
+
 	return full, nil
 }
 
@@ -285,6 +312,7 @@ func removeRuntimeFiles(manifest runtimeManifest, root string) error {
 			return err
 		}
 	}
+
 	dirSet := map[string]struct{}{}
 	for _, file := range manifest.Files {
 		target, err := runtimeFilePath(root, file.Path)
@@ -323,14 +351,17 @@ func manifestsEqual(a, b runtimeManifest) bool {
 	if a.Version != b.Version || a.Platform != b.Platform || a.RuntimeType != b.RuntimeType {
 		return false
 	}
+
 	if len(a.Files) != len(b.Files) {
 		return false
 	}
+
 	for i := range a.Files {
 		if a.Files[i] != b.Files[i] {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -344,9 +375,11 @@ func removeEmptyRuntimeDir(dir string) error {
 	if readErr == nil && len(entries) > 0 {
 		return nil
 	}
+
 	if os.IsNotExist(readErr) {
 		return nil
 	}
+
 	if readErr != nil {
 		return errors.Wrapf(readErr, "failed to inspect runtime directory %s", dir)
 	}
@@ -365,6 +398,7 @@ func loadInstalledRuntimeManifest(root string) (*runtimeManifest, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	manifest, err := readRuntimeManifest(path)
 	if err == nil {
 		if err := validateInstalledRuntimeManifest(manifest, root); err != nil {
@@ -372,12 +406,15 @@ func loadInstalledRuntimeManifest(root string) (*runtimeManifest, error) {
 		}
 		return &manifest, nil
 	}
+
 	if !os.IsNotExist(err) {
 		return nil, errors.Wrap(err, "failed to read installed runtime manifest")
 	}
+
 	if _, err := runtimeFilePath(root, lockfile.Filename); err != nil {
 		return nil, err
 	}
+
 	lf, err := lockfile.Load(root)
 	if err != nil {
 		return nil, err
@@ -394,25 +431,30 @@ func validateInstalledRuntimeManifest(manifest runtimeManifest, root string) err
 	if len(manifest.Files) == 0 || manifest.Version == "" || manifest.Platform == "" {
 		return errors.Wrap(os.ErrInvalid, "installed runtime manifest is incomplete")
 	}
+
 	seen := make(map[string]struct{}, len(manifest.Files))
 	for _, file := range manifest.Files {
 		if file.Path != filepath.ToSlash(filepath.Clean(filepath.FromSlash(file.Path))) {
 			return errors.Wrapf(os.ErrInvalid, "runtime path %q is not normalized", file.Path)
 		}
+
 		path, err := runtimeFilePath(root, file.Path)
 		if err != nil {
 			return err
 		}
+
 		key := strings.ToLower(filepath.Clean(path))
 		if _, exists := seen[key]; exists || isRuntimeStatePath(file.Path) {
 			return errors.Wrapf(os.ErrInvalid, "invalid installed runtime entry %s", file.Path)
 		}
 		seen[key] = struct{}{}
+
 		hash, err := hex.DecodeString(file.Hash)
 		if err != nil || len(hash) != sha256.Size || file.Size < 0 || file.Mode > 0o777 {
 			return errors.Wrapf(os.ErrInvalid, "invalid installed runtime fingerprint for %s", file.Path)
 		}
 	}
+
 	return nil
 }
 
@@ -425,10 +467,12 @@ func writeInstalledRuntimeManifest(ctx context.Context, root string, manifest ru
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+
 	path, err := runtimeFilePath(root, installedRuntimeManifestFileName)
 	if err != nil {
 		return err
 	}
+
 	previous, err := readRuntimeManifest(path)
 	if err == nil && manifestsEqual(previous, manifest) {
 		return nil
@@ -436,6 +480,7 @@ func writeInstalledRuntimeManifest(ctx context.Context, root string, manifest ru
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
+
 	return writeRuntimeManifest(path, manifest)
 }
 
@@ -458,9 +503,11 @@ func GetRuntimeManifestInfo(workingDir string) (*RuntimeManifestInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	if manifest == nil {
 		return nil, nil
 	}
+
 	return runtimeManifestToInfo(*manifest), nil
 }
 
@@ -489,5 +536,6 @@ func runtimeManifestFromLockedRuntime(runtimeInfo *lockfile.LockedRuntime) runti
 	for i, f := range runtimeInfo.Files {
 		manifest.Files[i] = runtimeFileInfo(f)
 	}
+
 	return manifest
 }

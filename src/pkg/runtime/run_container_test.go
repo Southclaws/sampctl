@@ -33,6 +33,7 @@ func (f *fakeContainerRemover) ContainerRemove(_ context.Context, containerID st
 	f.called = true
 	f.containerID = containerID
 	f.options = options
+
 	return client.ContainerRemoveResult{}, nil
 }
 
@@ -108,6 +109,7 @@ type fakeContainerStopper struct {
 func (f *fakeContainerStopper) ContainerKill(_ context.Context, _ string, options client.ContainerKillOptions) (client.ContainerKillResult, error) {
 	f.killCalled = true
 	f.killSignal = options.Signal
+
 	return client.ContainerKillResult{}, f.killErr
 }
 
@@ -168,6 +170,7 @@ func TestRunContainerNegotiatesDocker25AndPullsMissingImage(t *testing.T) {
 	daemon := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		defer mu.Unlock()
+
 		requests = append(requests, r.Method+" "+r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 
@@ -181,11 +184,13 @@ func TestRunContainerNegotiatesDocker25AndPullsMissingImage(t *testing.T) {
 				http.Error(w, "invalid request", http.StatusBadRequest)
 				return
 			}
+
 			if request.Config == nil || request.HostConfig == nil {
 				t.Error("ContainerCreate request must include config and host config")
 				http.Error(w, "missing config", http.StatusBadRequest)
 				return
 			}
+
 			if request.Image != image {
 				t.Errorf("ContainerCreate image = %q, want %q", request.Image, image)
 			}
@@ -198,6 +203,7 @@ func TestRunContainerNegotiatesDocker25AndPullsMissingImage(t *testing.T) {
 			if !strings.HasPrefix(r.URL.Query().Get("name"), "sampctl-") {
 				t.Errorf("ContainerCreate name = %q, want sampctl- prefix", r.URL.Query().Get("name"))
 			}
+
 			wantMounts := []mount.Mount{
 				{Type: mount.TypeBind, Source: workingDir, Target: "/samp"},
 				{Type: mount.TypeBind, Source: cacheDir, Target: "/root/.samp", ReadOnly: true},
@@ -205,16 +211,19 @@ func TestRunContainerNegotiatesDocker25AndPullsMissingImage(t *testing.T) {
 			if !reflect.DeepEqual(request.HostConfig.Mounts, wantMounts) {
 				t.Errorf("ContainerCreate mounts = %+v, want %+v", request.HostConfig.Mounts, wantMounts)
 			}
+
 			bindings := request.HostConfig.PortBindings[network.MustParsePort("8192/tcp")]
 			if len(bindings) != 1 || bindings[0].HostIP.String() != "0.0.0.0" || bindings[0].HostPort != "8192" {
 				t.Errorf("ContainerCreate port bindings = %+v, want 0.0.0.0:8192 for 8192/tcp", request.HostConfig.PortBindings)
 			}
+
 			createCalls++
 			if createCalls == 1 {
 				w.WriteHeader(http.StatusNotFound)
 				_, _ = fmt.Fprintln(w, `{"message":"No such image"}`)
 				return
 			}
+
 			w.WriteHeader(http.StatusCreated)
 			_, _ = fmt.Fprintln(w, `{"Id":"container-id"}`)
 		case "POST /v1.44/images/create":
@@ -250,6 +259,7 @@ func TestRunContainerNegotiatesDocker25AndPullsMissingImage(t *testing.T) {
 		}
 	}))
 	defer daemon.Close()
+
 	t.Setenv("DOCKER_HOST", "tcp://"+strings.TrimPrefix(daemon.URL, "http://"))
 	t.Setenv("DOCKER_API_VERSION", "")
 	t.Setenv("DOCKER_CERT_PATH", "")
@@ -257,6 +267,7 @@ func TestRunContainerNegotiatesDocker25AndPullsMissingImage(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
 	var output bytes.Buffer
 	err := RunContainer(ctx, run.Runtime{
 		WorkingDir: workingDir,
@@ -270,8 +281,10 @@ func TestRunContainerNegotiatesDocker25AndPullsMissingImage(t *testing.T) {
 	if got := output.String(); got != "container output\n" {
 		t.Errorf("RunContainer output = %q, want container output followed by newline", got)
 	}
+
 	mu.Lock()
 	defer mu.Unlock()
+
 	wantRequests := []string{
 		"HEAD /_ping",
 		"POST /v1.44/containers/create",

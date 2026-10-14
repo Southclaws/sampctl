@@ -81,9 +81,11 @@ func EnsurePlugins(request EnsurePluginsRequest) (err error) {
 	if err := request.Context.Err(); err != nil {
 		return err
 	}
+
 	if _, err := runtimeFilePath(request.Config.WorkingDir, ".sampctl-layout-check"); err != nil {
 		return err
 	}
+
 	if err := fs.EnsurePackageLayout(request.Config.WorkingDir, request.Config.IsOpenMP()); err != nil {
 		return err
 	}
@@ -99,8 +101,8 @@ func EnsurePlugins(request EnsurePluginsRequest) (err error) {
 		if err := request.Context.Err(); err != nil {
 			return err
 		}
-		// Local scheme dependencies (plugin://local/... / component://local/...) are already present
-		// in the workspace; they should not be downloaded from the network.
+
+		// Local plugins and components already exist in the workspace.
 		if plugin.IsLocalScheme() {
 			name := run.Plugin(plugin.Repo)
 			if plugin.Scheme == "component" {
@@ -174,6 +176,7 @@ func EnsureVersionedPlugin(request EnsureVersionedPluginRequest) (files []run.Pl
 	if err := request.Context.Err(); err != nil {
 		return nil, err
 	}
+
 	filename, resource, err := EnsureVersionedPluginCached(EnsureVersionedPluginCachedRequest{
 		Context:  request.Context,
 		Meta:     request.Meta,
@@ -246,6 +249,7 @@ func EnsureVersionedPlugin(request EnsureVersionedPluginRequest) (files []run.Pl
 			err = errors.Errorf("plugin %s archive produced no files. Check its resource paths and ignore patterns", request.Meta)
 			return
 		}
+
 		print.Verb(request.Meta, "extracted", len(extractedFiles), "plugin files to", request.Dir)
 
 		for source, target := range extractedFiles {
@@ -262,6 +266,7 @@ func EnsureVersionedPlugin(request EnsureVersionedPluginRequest) (files []run.Pl
 		if request.PluginDestDir == "" {
 			return nil, errors.New("plugin destination directory is required")
 		}
+
 		finalDir := filepath.Join(request.Dir, request.PluginDestDir)
 		destination, pathErr := runtimeFilePath(request.Dir, filepath.Join(request.PluginDestDir, base))
 		if pathErr != nil {
@@ -281,6 +286,7 @@ func EnsureVersionedPlugin(request EnsureVersionedPluginRequest) (files []run.Pl
 		if !info.Mode().IsRegular() {
 			return nil, errors.Wrap(os.ErrInvalid, "plugin asset must be a regular file")
 		}
+
 		err = copyFileWithModeContext(request.Context, filename, destination, info.Mode())
 		if err != nil {
 			err = errors.Wrapf(err, "failed to copy non-archive file %s to %s", filename, destination)
@@ -300,14 +306,17 @@ func extractPluginArchive(
 	if _, err := runtimeFilePath(request.Dir, ".sampctl-plugin-stage"); err != nil {
 		return nil, err
 	}
+
 	if err := os.MkdirAll(request.Dir, 0o755); err != nil {
 		return nil, err
 	}
+
 	stage, err := os.MkdirTemp(request.Dir, ".sampctl-plugin-")
 	if err != nil {
 		return nil, err
 	}
 	defer func() { err = stderrors.Join(err, os.RemoveAll(stage)) }()
+
 	stagedPaths := make(map[string]string, len(paths))
 	keys := make([]string, 0, len(paths))
 	for source := range paths {
@@ -317,6 +326,7 @@ func extractPluginArchive(
 	for index, source := range keys {
 		stagedPaths[source] = fmt.Sprintf("%d/", index)
 	}
+
 	var extracted map[string]string
 	switch ext {
 	case ".zip":
@@ -329,9 +339,11 @@ func extractPluginArchive(
 	if err != nil {
 		return nil, err
 	}
+
 	if err := request.Context.Err(); err != nil {
 		return nil, err
 	}
+
 	targets := make(map[string]string, len(extracted))
 	type stagedFile struct {
 		path   string
@@ -355,6 +367,7 @@ func extractPluginArchive(
 				matches = append(matches, filepath.Join(filepath.Dir(staged), entry.Name()))
 			}
 		}
+
 		for _, path := range matches {
 			relative, err := filepath.Rel(stage, path)
 			if err != nil {
@@ -363,12 +376,14 @@ func extractPluginArchive(
 			if _, err := runtimeFilePath(stage, relative); err != nil {
 				return nil, err
 			}
+
 			target := paths[source]
 			if target == "" {
 				target = filepath.Base(path)
 			} else if strings.HasSuffix(target, "/") {
 				target = filepath.Join(target, filepath.Base(path))
 			}
+
 			root := request.Dir
 			if !filepath.IsLocal(target) {
 				if request.RestrictFilesToDir {
@@ -380,6 +395,7 @@ func extractPluginArchive(
 				}
 				root, target = filepath.Dir(target), filepath.Base(target)
 			}
+
 			final, err := runtimeFilePath(root, target)
 			if err != nil {
 				return nil, err
@@ -387,21 +403,25 @@ func extractPluginArchive(
 			if ignoredRuntimePlugin(final, request.IgnorePatterns) {
 				continue
 			}
+
 			stagedFiles = append(stagedFiles, stagedFile{path: path, target: final})
 			if _, recorded := targets[source]; !recorded || path == staged {
 				targets[source] = final
 			}
 		}
 	}
+
 	for _, file := range stagedFiles {
 		info, err := os.Lstat(file.path)
 		if err != nil {
 			return nil, err
 		}
+
 		if err := copyFileWithModeContext(request.Context, file.path, file.target, info.Mode()); err != nil {
 			return nil, err
 		}
 	}
+
 	return targets, nil
 }
 
@@ -409,6 +429,7 @@ func ignoredRuntimePlugin(path string, patterns []string) bool {
 	if _, err := os.Lstat(path); err != nil {
 		return false
 	}
+
 	for _, pattern := range patterns {
 		if matched, err := filepath.Match(pattern, filepath.Base(path)); err == nil && matched {
 			return true
@@ -417,6 +438,7 @@ func ignoredRuntimePlugin(path string, patterns []string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -457,6 +479,7 @@ func EnsureVersionedPluginCached(request EnsureVersionedPluginCachedRequest) (
 			return
 		}
 	}
+
 	if !hit {
 		if !hasExplicitDependencyReference(request.Meta) {
 			//nolint:lll
@@ -500,6 +523,7 @@ func PluginFromCache(
 		hit = false
 		return
 	}
+
 	if pkg.Format == "" {
 		return
 	}
@@ -549,16 +573,19 @@ func cachedPackageResourceAsset(cachePath string, matcher *regexp.Regexp) (strin
 		if err != nil {
 			return err
 		}
+
 		if d.IsDir() {
 			if d.Name() == ".git" {
 				return filepath.SkipDir
 			}
 			return nil
 		}
+
 		if matcher.MatchString(filepath.Base(path)) {
 			matched = path
 			return iofs.SkipAll
 		}
+
 		return nil
 	})
 	if err != nil || matched == "" {
@@ -631,38 +658,35 @@ func GetResource(resources []pkgresource.Resource, platform string, version stri
 		version = "0.3.7"
 	}
 
-	found := false
-	var tmp *pkgresource.Resource
+	var selected *pkgresource.Resource
 	for _, resource := range resources {
 		res := resource
-		if res.Platform == platform {
-			if res.Version == version {
-				tmp = &res
-				found = true
-				break
-			}
+		if res.Platform == platform && res.Version == version {
+			selected = &res
+			break
 		}
 	}
-	if !found {
+
+	if selected == nil {
 		for _, resource := range resources {
 			res := resource
 			if res.Platform == platform && res.Version == "" {
 				print.Verb("using the default resource for", platform, "because none matches version", version)
-				tmp = &res
-				found = true
+				selected = &res
 				break
 			}
 		}
 	}
-	if !found {
+
+	if selected == nil {
 		return nil, &PluginResourceNotFoundError{Platform: platform, Version: version}
 	}
 
-	if err := tmp.Validate(); err != nil {
+	if err := selected.Validate(); err != nil {
 		return nil, errors.Wrap(err, "plugin resource is invalid")
 	}
 
-	return tmp, nil
+	return selected, nil
 }
 
 // GetResourcePath returns a path where a resource should be stored given the metadata
@@ -671,5 +695,6 @@ func GetResourcePath(meta versioning.DependencyMeta) (path string) {
 	if tag == "" {
 		tag = "latest"
 	}
+
 	return filepath.Join("plugins", meta.Repo, tag)
 }

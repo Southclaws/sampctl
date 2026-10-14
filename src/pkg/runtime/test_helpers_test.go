@@ -60,6 +60,7 @@ func seedRuntimeRemoteFixture(t *testing.T, cacheDir, requestedVersion, platform
 			http.NotFound(w, r)
 			return
 		}
+
 		w.Header().Set("Content-Type", "application/octet-stream")
 		_, _ = w.Write(assetBody)
 	}))
@@ -142,6 +143,7 @@ func offlineRuntimeArchiveName(platform, version string) string {
 	if platform == "windows" {
 		return fmt.Sprintf("samp-server-%s.zip", version)
 	}
+
 	return fmt.Sprintf("samp-server-%s.tar.gz", version)
 }
 
@@ -156,6 +158,7 @@ func createRuntimeArchive(t *testing.T, archivePath, platform string, files map[
 
 	data, err := os.ReadFile(archivePath)
 	require.NoError(t, err)
+
 	return data
 }
 
@@ -163,9 +166,11 @@ func expectedRuntimeBinary(platform string) string {
 	if run.DetectRuntimeType("0.3.7") == run.RuntimeTypeOpenMP {
 		return "omp-server"
 	}
+
 	if platform == "windows" {
 		return "samp-server.exe"
 	}
+
 	return "samp03svr"
 }
 
@@ -183,6 +188,7 @@ func createRuntimeZipArchive(t *testing.T, archivePath string, files map[string]
 		_, err = w.Write([]byte(files[name]))
 		require.NoError(t, err)
 	}
+
 	require.NoError(t, zw.Close())
 }
 
@@ -213,6 +219,7 @@ func sortedRuntimeKeys(m map[string]string) []string {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
+
 	return keys
 }
 
@@ -220,5 +227,6 @@ func currentTestPlatform() string {
 	if runtime.GOOS == "darwin" {
 		return "linux"
 	}
+
 	return runtime.GOOS
 }

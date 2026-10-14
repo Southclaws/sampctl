@@ -18,11 +18,9 @@ func TestSAMPConfigGeneration(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
 
-	// Create necessary directories for SA-MP
 	err = os.MkdirAll(filepath.Join(tmpDir, "plugins"), 0o755)
 	require.NoError(t, err)
 
-	// Create a SA-MP runtime config
 	cfg := &run.Runtime{
 		WorkingDir: tmpDir,
 		Platform:   "linux",
@@ -30,7 +28,6 @@ func TestSAMPConfigGeneration(t *testing.T) {
 		Mode:       run.Server,
 	}
 
-	// Set some basic config values
 	hostname := "My SA-MP Test Server"
 	port := 7777
 	maxPlayers := 100
@@ -44,17 +41,14 @@ func TestSAMPConfigGeneration(t *testing.T) {
 	cfg.Filterscripts = []string{"admin"}
 	cfg.Plugins = []run.Plugin{"mysql", "streamer"}
 
-	// Test that it's detected as SA-MP
 	assert.False(t, cfg.IsOpenMP())
 
 	err = GenerateConfig(cfg)
 	require.NoError(t, err)
 
-	// Check that server.cfg was created
 	serverCfgPath := filepath.Join(tmpDir, "server.cfg")
 	assert.FileExists(t, serverCfgPath)
 
-	// Read the file and check some basic content
 	content, err := os.ReadFile(serverCfgPath)
 	require.NoError(t, err)
 
@@ -72,11 +66,9 @@ func TestOpenMPConfigGeneration(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
 
-	// Create necessary directories for open.mp
 	err = os.MkdirAll(filepath.Join(tmpDir, "components"), 0o755)
 	require.NoError(t, err)
 
-	// Create an open.mp runtime config
 	cfg := &run.Runtime{
 		WorkingDir: tmpDir,
 		Platform:   "linux",
@@ -84,7 +76,6 @@ func TestOpenMPConfigGeneration(t *testing.T) {
 		Mode:       run.Server,
 	}
 
-	// Set some basic config values
 	hostname := "My open.mp Test Server"
 	port := 7777
 	maxPlayers := 100
@@ -102,18 +93,14 @@ func TestOpenMPConfigGeneration(t *testing.T) {
 	announce := true
 	cfg.Announce = &announce
 
-	// Test that it's detected as open.mp
 	assert.True(t, cfg.IsOpenMP())
 
-	// Generate config
 	err = GenerateConfig(cfg)
 	require.NoError(t, err)
 
-	// Check that config.json was created
 	configJSONPath := filepath.Join(tmpDir, "config.json")
 	assert.FileExists(t, configJSONPath)
 
-	// Read the file and check the JSON structure
 	content, err := os.ReadFile(configJSONPath)
 	require.NoError(t, err)
 
@@ -156,6 +143,7 @@ func TestOpenMPConfigGeneration(t *testing.T) {
 	components, ok := pawn["components"].([]any)
 	require.True(t, ok)
 	assert.Contains(t, components, "pawnraknet")
+
 	announceValue, ok := config["announce"].(bool)
 	require.True(t, ok)
 	assert.Equal(t, true, announceValue)
@@ -182,7 +170,6 @@ func TestExtraFieldsSupport(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
 
-	// Create an open.mp runtime config with extra fields
 	cfg := &run.Runtime{
 		WorkingDir: tmpDir,
 		Platform:   "linux",
@@ -197,11 +184,9 @@ func TestExtraFieldsSupport(t *testing.T) {
 	hostname := "Test Server"
 	cfg.Hostname = &hostname
 
-	// Generate config
 	err = GenerateConfig(cfg)
 	require.NoError(t, err)
 
-	// Check that config.json was created
 	configJSONPath := filepath.Join(tmpDir, "config.json")
 	content, err := os.ReadFile(configJSONPath)
 	require.NoError(t, err)
@@ -306,26 +291,21 @@ func TestOpenMPConfigGenerateWithExtraServerCfg(t *testing.T) {
 		},
 	}
 
-	// Generate the config
 	generator := newOpenMPConfig(tmpDir)
 	err = generator.generate(cfg)
 	require.NoError(t, err)
 
-	// Check that config.json was created
 	configJSONPath := filepath.Join(tmpDir, "config.json")
 	assert.FileExists(t, configJSONPath)
 
-	// Check that server.cfg was created
 	serverCfgPath := filepath.Join(tmpDir, "server.cfg")
 	assert.FileExists(t, serverCfgPath)
 
-	// Read and verify server.cfg contents
 	content, err := os.ReadFile(serverCfgPath)
 	require.NoError(t, err)
 
 	contentStr := string(content)
 
-	// Check for extra configuration values
 	assert.Contains(t, contentStr, "legacy_setting legacy_value")
 	assert.Contains(t, contentStr, "custom_config 123")
 }
@@ -341,16 +321,13 @@ func TestOpenMPConfigGenerateWithoutExtraServerCfg(t *testing.T) {
 		Extra:       map[string]string{},
 	}
 
-	// Generate the config
 	generator := newOpenMPConfig(tmpDir)
 	err = generator.generate(cfg)
 	require.NoError(t, err)
 
-	// Check that config.json was created
 	configJSONPath := filepath.Join(tmpDir, "config.json")
 	assert.FileExists(t, configJSONPath)
 
-	// Check that server.cfg was NOT created
 	serverCfgPath := filepath.Join(tmpDir, "server.cfg")
 	assert.NoFileExists(t, serverCfgPath)
 }
