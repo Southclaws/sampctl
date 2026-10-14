@@ -4,6 +4,7 @@ go 1.26.9
 
 require (
 	dario.cat/mergo v1.0.2
+	github.com/AlecAivazis/survey/v2 v2.3.6
 	github.com/Masterminds/semver v1.5.0
 	github.com/UserExistsError/conpty v0.1.4
 	github.com/containerd/errdefs v1.0.0
@@ -28,7 +29,6 @@ require (
 	golang.org/x/oauth2 v0.35.0
 	golang.org/x/sys v0.47.0
 	golang.org/x/text v0.41.0
-	gopkg.in/AlecAivazis/survey.v1 v1.8.8
 	gopkg.in/urfave/cli.v1 v1.20.0
 )
 
@@ -51,7 +51,6 @@ require (
 	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/MirrexOne/unqueryvet v1.5.4 // indirect
-	github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2 // indirect
 	github.com/OpenPeeDeeP/depguard/v2 v2.2.1 // indirect
 	github.com/ProtonMail/go-crypto v1.3.0 // indirect
 	github.com/alecthomas/chroma/v2 v2.23.1 // indirect
@@ -261,6 +260,7 @@ require (
 	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/telemetry v0.0.0-20260708182218-49f421fb7959 // indirect
+	golang.org/x/term v0.45.0 // indirect
 	golang.org/x/tools v0.48.0 // indirect
 	golang.org/x/vuln v1.1.4 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect

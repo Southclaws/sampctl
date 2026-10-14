@@ -15,12 +15,12 @@ import (
 	"sync"
 	"text/template"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/fatih/color"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
-	"gopkg.in/AlecAivazis/survey.v1"
 
 	"github.com/Southclaws/sampctl/src/config"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
@@ -182,7 +182,7 @@ func Init(options InitOptions) (err error) {
 		Message: "How do you want to start this package?",
 		Options: initModes,
 		Default: initModes[0],
-	}, &answers.InitMode, survey.Required)
+	}, &answers.InitMode, survey.WithValidator(requiredSelection))
 	if err != nil {
 		return
 	}
@@ -192,7 +192,7 @@ func Init(options InitOptions) (err error) {
 		Message: "Which runtime should this package target?",
 		Options: []string{runtimeOptionOpenMP, runtimeOptionSAMP},
 		Default: runtimeChoice,
-	}, &runtimeChoice, survey.Required)
+	}, &runtimeChoice, survey.WithValidator(requiredSelection))
 	if err != nil {
 		return
 	}
@@ -202,7 +202,7 @@ func Init(options InitOptions) (err error) {
 		Message: "Which starter setup do you want?",
 		Options: []string{starterStandard, starterVSCode, starterSublime, starterMinimal},
 		Default: starterStandard,
-	}, &answers.Starter, survey.Required)
+	}, &answers.Starter, survey.WithValidator(requiredSelection))
 	if err != nil {
 		return
 	}
@@ -212,7 +212,7 @@ func Init(options InitOptions) (err error) {
 		Message: "Which package file format do you want?",
 		Options: []string{formatOptionJSON, formatOptionYAML},
 		Default: formatChoice,
-	}, &formatChoice, survey.Required)
+	}, &formatChoice, survey.WithValidator(requiredSelection))
 	if err != nil {
 		return
 	}
@@ -223,7 +223,7 @@ func Init(options InitOptions) (err error) {
 		Message: "Do you plan to release this as a package on GitHub?",
 		Options: []string{publishLocal, publishGitHub},
 		Default: publishChoice,
-	}, &publishChoice, survey.Required)
+	}, &publishChoice, survey.WithValidator(requiredSelection))
 	if err != nil {
 		return
 	}
@@ -233,7 +233,7 @@ func Init(options InitOptions) (err error) {
 		err = survey.AskOne(&survey.Input{
 			Message: "GitHub repository to publish from (owner/repo)",
 			Default: defaultRepositorySpec(cfg.DefaultUser, dirName),
-		}, &answers.Repository, validateRepositorySpec)
+		}, &answers.Repository, survey.WithValidator(validateRepositorySpec))
 		if err != nil {
 			return
 		}
@@ -247,7 +247,7 @@ func Init(options InitOptions) (err error) {
 				Message: "Which existing .pwn file should sampctl build?",
 				Options: pwnFiles,
 				Default: pwnFiles[0],
-			}, &answers.Entry, survey.Required)
+			}, &answers.Entry, survey.WithValidator(requiredSelection))
 			if err != nil {
 				return
 			}

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/Masterminds/semver"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
@@ -21,7 +22,6 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
-	"gopkg.in/AlecAivazis/survey.v1"
 
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
@@ -78,7 +78,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 						"x.y.z: Enter a custom initial version",
 					},
 				},
-				Validate: survey.Required,
+				Validate: requiredSelection,
 			},
 		}
 	} else {
@@ -101,7 +101,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 						fmt.Sprintf("%s: Breaking API changes", bumpMajor.String()),
 					},
 				},
-				Validate: survey.Required,
+				Validate: requiredSelection,
 			},
 		}
 	}
