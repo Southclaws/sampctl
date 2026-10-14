@@ -75,10 +75,6 @@ func (pcx *PackageContext) resolveLockfileDependencyMeta(
 	return resolvedMeta, nil
 }
 
-func (pcx *PackageContext) currentLockfileDependencies() ([]lockfileDependencyState, error) {
-	return pcx.lockfileDependencies(context.Background(), DependencyUpdateRequest{}, false)
-}
-
 func (pcx *PackageContext) lockfileDependencies(ctx context.Context, request DependencyUpdateRequest, refresh bool) ([]lockfileDependencyState, error) {
 	states := make(map[string]*lockfileDependencyState)
 	visited := make(map[string]bool)
@@ -225,10 +221,6 @@ func (pcx *PackageContext) refreshLockfileDependency(ctx context.Context, meta v
 
 	resolved.Tag, resolved.Branch, resolved.Commit = "", "", resolution.Commit
 	return pcx.packageFromCachedRevisionContext(ctx, resolved, path)
-}
-
-func (pcx *PackageContext) lockfileDependencyPackage(meta versioning.DependencyMeta) (pawnpackage.Package, error) {
-	return pcx.lockfileDependencyPackageContext(context.Background(), meta)
 }
 
 func (pcx *PackageContext) lockfileDependencyPackageContext(ctx context.Context, meta versioning.DependencyMeta) (pawnpackage.Package, error) {

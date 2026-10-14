@@ -240,15 +240,7 @@ func (pcx *PackageContext) ensurePluginDependency(ctx context.Context, meta vers
 
 	// Remote plugin: plugin://user/repo or plugin://user/repo:tag
 	// Treat as a regular dependency but mark it as a plugin
-	ensureMeta := versioning.DependencyMeta{
-		Site:   meta.Site,
-		User:   meta.User,
-		Repo:   meta.Repo,
-		Tag:    meta.Tag,
-		Branch: meta.Branch,
-		Commit: meta.Commit,
-		Path:   meta.Path,
-	}
+	ensureMeta := normalizeLockfileDependency(meta)
 	if ensureMeta.Site == "" {
 		ensureMeta.Site = "github.com"
 	}
@@ -289,15 +281,7 @@ func (pcx *PackageContext) ensureComponentDependency(ctx context.Context, meta v
 	}
 
 	// Remote component: component://user/repo or component://user/repo:tag
-	ensureMeta := versioning.DependencyMeta{
-		Site:   meta.Site,
-		User:   meta.User,
-		Repo:   meta.Repo,
-		Tag:    meta.Tag,
-		Branch: meta.Branch,
-		Commit: meta.Commit,
-		Path:   meta.Path,
-	}
+	ensureMeta := normalizeLockfileDependency(meta)
 	if ensureMeta.Site == "" {
 		ensureMeta.Site = "github.com"
 	}
@@ -331,15 +315,7 @@ func (pcx *PackageContext) ensureIncludesDependency(ctx context.Context, meta ve
 
 	// Remote includes: includes://user/repo or includes://user/repo:tag
 	// Ensure the dependency and add its path to includes
-	remoteMeta := versioning.DependencyMeta{
-		Site:   meta.Site,
-		User:   meta.User,
-		Repo:   meta.Repo,
-		Tag:    meta.Tag,
-		Branch: meta.Branch,
-		Commit: meta.Commit,
-		Path:   meta.Path,
-	}
+	remoteMeta := normalizeLockfileDependency(meta)
 
 	err := pcx.ensurePackage(ctx, remoteMeta, false)
 	if err != nil {
@@ -370,15 +346,7 @@ func (pcx *PackageContext) ensureFilterscriptDependency(ctx context.Context, met
 
 	// Remote filterscript: filterscript://user/repo or filterscript://user/repo:tag
 	// Treat as a regular dependency
-	remoteMeta := versioning.DependencyMeta{
-		Site:   meta.Site,
-		User:   meta.User,
-		Repo:   meta.Repo,
-		Tag:    meta.Tag,
-		Branch: meta.Branch,
-		Commit: meta.Commit,
-		Path:   meta.Path,
-	}
+	remoteMeta := normalizeLockfileDependency(meta)
 
 	err := pcx.ensurePackage(ctx, remoteMeta, false)
 	if err != nil {

@@ -10,6 +10,10 @@ local app configuration directory.
 ## What’s inside?
 
 The cache holds global settings, downloaded archives, and managed installations.
+Dependency repositories live under `packages/<host>/<user>/<repo>/<branch>`.
+Older repositories move into the host directory only when their configured origin
+matches the requested dependency; other legacy copies are preserved.
+
 Compiler versions live under `pawn/<user>/<repo>/<version>`. Installations are
 staged and verified before replacement, including supporting files. Builds and
 repairs share a lock for that compiler version.

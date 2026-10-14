@@ -66,6 +66,11 @@ func formatPinnedDependency(meta versioning.DependencyMeta) string {
 	if meta.Path != "" {
 		base += "/" + strings.TrimPrefix(meta.Path, "/")
 	}
+	if meta.SSH != "" {
+		base = meta.SSH + "@" + normalizeDependencySite(meta.Site) + ":" + base
+	} else if site := normalizeDependencySite(meta.Site); !strings.EqualFold(site, "github.com") {
+		base = "https://" + site + "/" + base
+	}
 
 	if meta.Tag != "" {
 		return base + ":" + meta.Tag
@@ -228,6 +233,9 @@ func (pcx *PackageContext) cachedRepoHasNoOriginContext(ctx context.Context, met
 		}
 		return false, nil
 	}
+	if err := validateCachedRepositoryOrigin(repo, meta); err != nil {
+		return false, err
+	}
 
 	remote, err := repo.Remote("origin")
 	if errors.Is(err, git.ErrRemoteNotFound) {
@@ -308,6 +316,9 @@ func (pcx *PackageContext) latestTagFromCacheContext(ctx context.Context, meta v
 	repo, err := git.PlainOpen(cachePath)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to open cached repository")
+	}
+	if err := validateCachedRepositoryOrigin(repo, meta); err != nil {
+		return "", err
 	}
 
 	versionedTags, err := versioning.GetRepoSemverTags(repo)

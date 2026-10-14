@@ -93,7 +93,8 @@ func seedPkgContextFixtures(cacheDir string) error {
 		return err
 	}
 
-	if err := writePkgContextTarGz(filepath.Join(cacheDir, "packages", "Southclaws", "pawn-requests", "default", "requests-1.0.0-linux.tar.gz"), map[string]string{
+	requestsCache := (versioning.DependencyMeta{User: "Southclaws", Repo: "pawn-requests"}).CachePath(cacheDir)
+	if err := writePkgContextTarGz(filepath.Join(requestsCache, "requests-1.0.0-linux.tar.gz"), map[string]string{
 		"requests-1.0.0-linux/pawno/include/requests.inc": "// fixture\n",
 		"requests-1.0.0-linux/plugins/requests.so":        "fixture plugin",
 	}); err != nil {
@@ -126,7 +127,8 @@ func seedPkgContextFixtures(cacheDir string) error {
 		return err
 	}
 
-	return writePkgContextTarGz(filepath.Join(cacheDir, "packages", "sampctl", "package-resource-test", "default", "test-1.0.0-linux.tar.gz"), map[string]string{
+	resourceCache := (versioning.DependencyMeta{User: "sampctl", Repo: "package-resource-test"}).CachePath(cacheDir)
+	return writePkgContextTarGz(filepath.Join(resourceCache, "test-1.0.0-linux.tar.gz"), map[string]string{
 		"test-1.0.0-linux/pawno/include/include.inc": "// fixture\n",
 		"test-1.0.0-linux/plugins/test.so":           "fixture plugin",
 		"test-1.0.0-linux/dependency.so":             "fixture dependency",

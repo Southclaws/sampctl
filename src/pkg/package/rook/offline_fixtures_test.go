@@ -82,7 +82,8 @@ func seedOfflineFixtures(cacheDir string) error {
 		return err
 	}
 
-	if err := writeTarGz(filepath.Join(cacheDir, "packages", "AmyrAhmady", "samp-plugin-crashdetect", "default", "crashdetect-4.22-linux.tar.gz"), map[string]string{
+	crashdetectCache := (versioning.DependencyMeta{User: "AmyrAhmady", Repo: "samp-plugin-crashdetect"}).CachePath(cacheDir)
+	if err := writeTarGz(filepath.Join(crashdetectCache, "crashdetect-4.22-linux.tar.gz"), map[string]string{
 		"crashdetect.so": "fixture plugin binary",
 	}); err != nil {
 		return err

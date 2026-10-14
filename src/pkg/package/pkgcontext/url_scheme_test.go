@@ -57,7 +57,7 @@ func TestHandleURLSchemeCaching(t *testing.T) {
 			},
 			expectedPlugins:  1,
 			expectedIncludes: 0,
-			expectedDeps:     1,
+			expectedDeps:     0,
 			wantErr:          false,
 		},
 		{
@@ -94,7 +94,7 @@ func TestHandleURLSchemeCaching(t *testing.T) {
 			},
 			expectedPlugins:  1,
 			expectedIncludes: 0,
-			expectedDeps:     1,
+			expectedDeps:     0,
 			wantErr:          false,
 		},
 		{
@@ -131,7 +131,7 @@ func TestHandleURLSchemeCaching(t *testing.T) {
 			},
 			expectedPlugins:  0,
 			expectedIncludes: 1,
-			expectedDeps:     1,
+			expectedDeps:     0,
 			wantErr:          false,
 		},
 		{
@@ -167,7 +167,7 @@ func TestHandleURLSchemeCaching(t *testing.T) {
 			},
 			expectedPlugins:  0,
 			expectedIncludes: 0,
-			expectedDeps:     1,
+			expectedDeps:     0,
 			wantErr:          false,
 		},
 		{

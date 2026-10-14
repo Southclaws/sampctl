@@ -48,6 +48,9 @@ func (dm DependencyMeta) String() string {
 		// Remote scheme: scheme://user/repo[:tag]
 		if dm.User != "" && dm.Repo != "" {
 			result := fmt.Sprintf("%s://%s/%s", dm.Scheme, dm.User, dm.Repo)
+			if dm.Path != "" {
+				result += "/" + strings.TrimPrefix(dm.Path, "/")
+			}
 			if dm.Tag != "" {
 				result += ":" + dm.Tag
 			} else if dm.Branch != "" {
@@ -78,6 +81,15 @@ func (dm DependencyMeta) String() string {
 
 // CachePath returns the path from the cache to a cached package
 func (dm DependencyMeta) CachePath(cacheDir string) (path string) {
+	site := strings.ToLower(dm.Site)
+	if site == "" {
+		site = "github.com"
+	}
+	site = url.QueryEscape(site)
+	if site == "." || site == ".." {
+		site = strings.ReplaceAll(site, ".", "%2E")
+	}
+
 	var branch string
 	if dm.Branch == "" {
 		branch = "default"
@@ -85,7 +97,7 @@ func (dm DependencyMeta) CachePath(cacheDir string) (path string) {
 		branch = dm.Branch
 	}
 
-	return filepath.Join(cacheDir, "packages", dm.User, dm.Repo, branch)
+	return filepath.Join(cacheDir, "packages", site, dm.User, dm.Repo, branch)
 }
 
 // Validate checks for errors in a DependencyMeta object

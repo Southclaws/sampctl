@@ -28,6 +28,7 @@ type repoEnsureRequest struct {
 	SSH         bool
 	FullClone   bool
 	ForceUpdate bool
+	CacheMeta   *versioning.DependencyMeta
 }
 
 type repoEnsureWithMetaRequest struct {
@@ -44,10 +45,6 @@ func (pcx *PackageContext) EnsureDependenciesCached() error {
 // EnsureDependenciesCachedContext visits dependencies in the shared cache and respects cancellation.
 func (pcx *PackageContext) EnsureDependenciesCachedContext(ctx context.Context) error {
 	return pcx.refreshDependencyGraphContext(ctx, DependencyUpdateRequest{})
-}
-
-func (pcx *PackageContext) refreshDependencyGraph(request DependencyUpdateRequest) error {
-	return pcx.refreshDependencyGraphContext(context.Background(), request)
 }
 
 func (pcx *PackageContext) refreshDependencyGraphContext(ctx context.Context, request DependencyUpdateRequest) error {
@@ -90,8 +87,8 @@ func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Cont
 	}
 
 	destinations := make(map[string]versioning.DependencyMeta)
-	var recurse func(versioning.DependencyMeta, bool, int) error
-	recurse = func(meta versioning.DependencyMeta, direct bool, depth int) error {
+	var recurse func(versioning.DependencyMeta, bool, int, bool) error
+	recurse = func(meta versioning.DependencyMeta, direct bool, depth int, inferPlugins bool) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -127,7 +124,7 @@ func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Cont
 				return &DependencyError{Dependency: meta.String(), Operation: "read package metadata", Err: err}
 			}
 			pcx.AllDependencies = append(pcx.AllDependencies, meta)
-			pcx.recordCachedPackageResources(currentPackage, meta, prefix)
+			pcx.recordCachedPackageResources(currentPackage, meta, prefix, inferPlugins)
 		}
 
 		dependencies := currentPackage.Dependencies
@@ -153,11 +150,21 @@ func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Cont
 				}
 			}
 
+			inferPlugins := !subMeta.IsURLScheme()
 			if subMeta.IsURLScheme() {
 				err = pcx.handleURLSchemeCaching(subMeta, prefix)
-			} else if identity := managedDependencyIdentity(subMeta); !visited[identity] {
+				if err != nil {
+					failures = append(failures, &DependencyError{Dependency: subMeta.String(), Operation: "cache", Err: err})
+					continue
+				}
+				if subMeta.IsLocalScheme() {
+					continue
+				}
+				subMeta = normalizeLockfileDependency(subMeta)
+			}
+			if identity := managedDependencyIdentity(subMeta); !visited[identity] {
 				visited[identity] = true
-				err = recurse(subMeta, depth == 0, depth+1)
+				err = recurse(subMeta, depth == 0, depth+1, inferPlugins)
 			}
 			if err != nil {
 				var dependencyErr *DependencyError
@@ -174,10 +181,10 @@ func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Cont
 		return stderrors.Join(failures...)
 	}
 
-	return recurse(pcx.Package.Dependency(), false, 0)
+	return recurse(pcx.Package.Dependency(), false, 0, true)
 }
 
-func (pcx *PackageContext) recordCachedPackageResources(pkg pawnpackage.Package, meta versioning.DependencyMeta, prefix string) {
+func (pcx *PackageContext) recordCachedPackageResources(pkg pawnpackage.Package, meta versioning.DependencyMeta, prefix string, inferPlugins bool) {
 	isPlugin := false
 	for _, resource := range pkg.Resources {
 		if resource.Platform == pcx.Platform && len(resource.Includes) > 0 {
@@ -191,16 +198,9 @@ func (pcx *PackageContext) recordCachedPackageResources(pkg pawnpackage.Package,
 			isPlugin = isPlugin || strings.Contains(resource.Name, "dll") || strings.Contains(resource.Name, "so")
 		}
 	}
-	if isPlugin {
+	if isPlugin && inferPlugins {
 		pcx.AllPlugins = append(pcx.AllPlugins, meta)
 	}
-}
-
-func (pcx PackageContext) packageFromCachedRevision(
-	meta versioning.DependencyMeta,
-	path string,
-) (pawnpackage.Package, error) {
-	return pcx.packageFromCachedRevisionContext(context.Background(), meta, path)
 }
 
 func (pcx PackageContext) readPackageFromCachedRevision(meta versioning.DependencyMeta, path string) (pawnpackage.Package, error) {
@@ -289,17 +289,7 @@ func (pcx *PackageContext) handleURLSchemeCaching(meta versioning.DependencyMeta
 			pcx.AllPlugins = append(pcx.AllPlugins, pluginMeta)
 			print.Verb(prefix, "added local plugin:", meta.Local)
 		} else {
-			ensureMeta := versioning.DependencyMeta{
-				Site:   meta.Site,
-				User:   meta.User,
-				Repo:   meta.Repo,
-				Tag:    meta.Tag,
-				Branch: meta.Branch,
-				Commit: meta.Commit,
-				Path:   meta.Path,
-			}
-			pcx.AllDependencies = append(pcx.AllDependencies, ensureMeta)
-
+			ensureMeta := normalizeLockfileDependency(meta)
 			pluginMeta := ensureMeta
 			pluginMeta.Scheme = "plugin"
 			pcx.AllPlugins = append(pcx.AllPlugins, pluginMeta)
@@ -317,17 +307,7 @@ func (pcx *PackageContext) handleURLSchemeCaching(meta versioning.DependencyMeta
 			pcx.AllPlugins = append(pcx.AllPlugins, componentMeta)
 			print.Verb(prefix, "added local component:", meta.Local)
 		} else {
-			ensureMeta := versioning.DependencyMeta{
-				Site:   meta.Site,
-				User:   meta.User,
-				Repo:   meta.Repo,
-				Tag:    meta.Tag,
-				Branch: meta.Branch,
-				Commit: meta.Commit,
-				Path:   meta.Path,
-			}
-			pcx.AllDependencies = append(pcx.AllDependencies, ensureMeta)
-
+			ensureMeta := normalizeLockfileDependency(meta)
 			componentMeta := ensureMeta
 			componentMeta.Scheme = "component"
 			pcx.AllPlugins = append(pcx.AllPlugins, componentMeta)
@@ -340,17 +320,7 @@ func (pcx *PackageContext) handleURLSchemeCaching(meta versioning.DependencyMeta
 			pcx.AllIncludePaths = append(pcx.AllIncludePaths, includesPath)
 			print.Verb(prefix, "added local includes path:", includesPath)
 		} else {
-			remoteMeta := versioning.DependencyMeta{
-				Site:   meta.Site,
-				User:   meta.User,
-				Repo:   meta.Repo,
-				Tag:    meta.Tag,
-				Branch: meta.Branch,
-				Commit: meta.Commit,
-				Path:   meta.Path,
-			}
-			pcx.AllDependencies = append(pcx.AllDependencies, remoteMeta)
-
+			remoteMeta := normalizeLockfileDependency(meta)
 			includesPath := filepath.Join(pcx.Package.Vendor, remoteMeta.Repo)
 			if remoteMeta.Path != "" {
 				includesPath = filepath.Join(includesPath, remoteMeta.Path)
@@ -363,16 +333,7 @@ func (pcx *PackageContext) handleURLSchemeCaching(meta versioning.DependencyMeta
 		if meta.IsLocalScheme() {
 			print.Verb(prefix, "added local filterscript:", meta.Local)
 		} else {
-			remoteMeta := versioning.DependencyMeta{
-				Site:   meta.Site,
-				User:   meta.User,
-				Repo:   meta.Repo,
-				Tag:    meta.Tag,
-				Branch: meta.Branch,
-				Commit: meta.Commit,
-				Path:   meta.Path,
-			}
-			pcx.AllDependencies = append(pcx.AllDependencies, remoteMeta)
+			remoteMeta := normalizeLockfileDependency(meta)
 			print.Verb(prefix, "added remote filterscript dependency:", remoteMeta)
 		}
 
@@ -437,6 +398,13 @@ func (pcx PackageContext) EnsureDependencyFromCacheContext(ctx context.Context, 
 	if err := validateRepositoryDestination(from); err != nil {
 		return nil, err
 	}
+	cacheRepo, err := pcx.repositoryStore().Open(from)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateCachedRepositoryOrigin(cacheRepo, meta); err != nil {
+		return nil, err
+	}
 
 	if destination, absErr := filepath.Abs(path); absErr != nil {
 		return nil, absErr
@@ -470,8 +438,16 @@ func (pcx PackageContext) EnsureDependencyCached(
 
 // EnsureDependencyCachedContext retrieves a cached repository while respecting cancellation.
 func (pcx PackageContext) EnsureDependencyCachedContext(ctx context.Context, meta versioning.DependencyMeta, forceUpdate bool) (*git.Repository, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	to, err := pcx.cacheRepositoryPath(meta)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := pcx.migrateLegacyRepositoryCache(ctx, meta, to); err != nil {
 		return nil, err
 	}
 
@@ -485,6 +461,7 @@ func (pcx PackageContext) EnsureDependencyCachedContext(ctx context.Context, met
 			SSH:         meta.SSH != "",
 			FullClone:   meta.Tag != "" || meta.Commit != "",
 			ForceUpdate: forceUpdate,
+			CacheMeta:   &meta,
 		},
 	})
 }
@@ -528,6 +505,12 @@ func (pcx PackageContext) ensureRepoExists(request repoEnsureRequest) (repo *git
 			return nil, errors.Wrap(err, "failed to open repository")
 		}
 		return pcx.cloneRepositoryContext(request)
+	}
+
+	if request.CacheMeta != nil {
+		if err := validateCachedRepositoryOrigin(repo, *request.CacheMeta); err != nil {
+			return nil, err
+		}
 	}
 
 	if request.ForceUpdate {
@@ -597,6 +580,7 @@ func (pcx PackageContext) ensureRepoExistsWithMeta(request repoEnsureWithMetaReq
 			SSH:         true,
 			FullClone:   request.FullClone,
 			ForceUpdate: request.ForceUpdate,
+			CacheMeta:   request.CacheMeta,
 		})
 	}
 

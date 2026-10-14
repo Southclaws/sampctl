@@ -41,10 +41,6 @@ func (pcx *PackageContext) ensureDependencyRepositoryContext(ctx context.Context
 	return pcx.cloneDependencyFromCacheContext(ctx, meta, dependencyPath)
 }
 
-func (pcx *PackageContext) cloneDependencyFromCache(meta versioning.DependencyMeta, dependencyPath string) (*git.Repository, error) {
-	return pcx.cloneDependencyFromCacheContext(context.Background(), meta, dependencyPath)
-}
-
 func (pcx *PackageContext) cloneDependencyFromCacheContext(ctx context.Context, meta versioning.DependencyMeta, dependencyPath string) (*git.Repository, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -65,10 +61,6 @@ func (pcx *PackageContext) cloneDependencyFromCacheContext(ctx context.Context, 
 	}
 
 	return repo, nil
-}
-
-func (pcx *PackageContext) recloneDependency(meta versioning.DependencyMeta, dependencyPath string) (*git.Repository, error) {
-	return pcx.recloneDependencyContext(context.Background(), meta, dependencyPath)
 }
 
 func (pcx *PackageContext) recloneDependencyContext(ctx context.Context, meta versioning.DependencyMeta, dependencyPath string) (_ *git.Repository, err error) {
@@ -102,10 +94,6 @@ func (pcx *PackageContext) recloneDependencyContext(ctx context.Context, meta ve
 	}
 
 	return pcx.cloneRepositoryContext(repoEnsureRequest{Context: ctx, From: from, To: dependencyPath, Branch: meta.Branch, FullClone: true})
-}
-
-func (pcx *PackageContext) updateRepoStateWithRecovery(repo *git.Repository, meta versioning.DependencyMeta, dependencyPath string, forceUpdate bool) error {
-	return pcx.updateRepoStateWithRecoveryContext(context.Background(), repo, meta, dependencyPath, forceUpdate)
 }
 
 func (pcx *PackageContext) updateRepoStateWithRecoveryContext(ctx context.Context, repo *git.Repository, meta versioning.DependencyMeta, dependencyPath string, forceUpdate bool) error {
@@ -145,14 +133,6 @@ func (pcx *PackageContext) updateRepoStateWithRecoveryContext(ctx context.Contex
 	}
 
 	return pcx.updateRepoStateContext(ctx, repo, meta, forceUpdate)
-}
-
-func (pcx *PackageContext) updateRepoState(
-	repo *git.Repository,
-	meta versioning.DependencyMeta,
-	forcePull bool,
-) error {
-	return pcx.updateRepoStateContext(context.Background(), repo, meta, forcePull)
 }
 
 func (pcx *PackageContext) updateRepoStateContext(ctx context.Context, repo *git.Repository, meta versioning.DependencyMeta, forcePull bool) error {

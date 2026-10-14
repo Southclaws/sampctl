@@ -46,20 +46,28 @@ func (pcx PackageContext) cacheRepositoryPath(meta versioning.DependencyMeta) (s
 		return "", err
 	}
 	path := meta.CachePath(root)
-	for current := path; current != root; current = filepath.Dir(current) {
-		if current == filepath.Dir(current) {
-			return "", fmt.Errorf("repository cache path escapes cache directory: %s", path)
-		}
-		info, err := os.Lstat(current)
-		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			return "", err
-		}
-		if err == nil && info.Mode()&os.ModeSymlink != 0 {
-			return "", fmt.Errorf("repository cache path contains a symbolic link %s: %w", current, os.ErrInvalid)
-		}
+	if err := validateCacheRepositoryPath(root, path); err != nil {
+		return "", err
 	}
 
 	return path, nil
+}
+
+func validateCacheRepositoryPath(root, path string) error {
+	for current := path; current != root; current = filepath.Dir(current) {
+		if current == filepath.Dir(current) {
+			return fmt.Errorf("repository cache path escapes cache directory: %s", path)
+		}
+		info, err := os.Lstat(current)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		if err == nil && info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("repository cache path contains a symbolic link %s: %w", current, os.ErrInvalid)
+		}
+	}
+
+	return nil
 }
 
 func validateRepositoryDestination(path string) error {
@@ -140,6 +148,17 @@ func (pcx PackageContext) packageFromCachedRevisionContext(ctx context.Context, 
 	defer func() { err = errors.Join(err, unlock()) }()
 
 	if err := validateRepositoryDestination(path); err != nil {
+		return pkg, err
+	}
+
+	repo, err := pcx.repositoryStore().Open(path)
+	if errors.Is(err, git.ErrRepositoryNotExists) && (meta.Tag == "" || meta.Tag == "latest") && meta.Commit == "" {
+		return pawnpackage.PackageFromDir(path)
+	}
+	if err != nil {
+		return pkg, err
+	}
+	if err := validateCachedRepositoryOrigin(repo, meta); err != nil {
 		return pkg, err
 	}
 
@@ -285,6 +304,13 @@ func (pcx PackageContext) cloneStagedRepository(request repoEnsureRequest, path 
 	}
 	if !valid {
 		return errors.New("cloned repository failed validation")
+	}
+	if request.CacheMeta != nil {
+		repo, err := pcx.repositoryStore().Open(path)
+		if err != nil {
+			return err
+		}
+		return validateCachedRepositoryOrigin(repo, *request.CacheMeta)
 	}
 
 	return nil
