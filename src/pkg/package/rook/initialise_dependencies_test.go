@@ -66,9 +66,11 @@ func TestOpenMPStarterDependenciesResolveAndInstallOffline(t *testing.T) {
 	if err := pkg.WriteDefinition(); err != nil {
 		t.Fatalf("WriteDefinition(open.mp starter) error = %v", err)
 	}
+
 	if err := writeGeneratedEntryFile(filepath.Join(projectDir, pkg.Entry), generatedGamemodeContents("openmp")); err != nil {
 		t.Fatalf("writeGeneratedEntryFile(open.mp starter) error = %v", err)
 	}
+
 	client := github.NewClient(&http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("unexpected network request: %s", req.URL)
 	})})
@@ -80,28 +82,36 @@ func TestOpenMPStarterDependenciesResolveAndInstallOffline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewPackageContext(open.mp starter) error = %v, want nil", err)
 	}
+
 	if err := pcx.InitLockfileResolver("test"); err != nil {
 		t.Fatalf("InitLockfileResolver(open.mp starter) error = %v", err)
 	}
+
 	if _, err := pcx.EnsureProject(context.Background(), pkgcontext.DependencyUpdateRequest{Enabled: true, Force: true}); err != nil {
 		t.Fatalf("EnsureProject(open.mp starter, force update) error = %v, want nil", err)
 	}
+
 	originalLock, err := lockfile.Load(projectDir)
 	if err != nil || originalLock == nil {
 		t.Fatalf("Load(initial open.mp starter lockfile) = %v, %v, want lockfile and nil", originalLock, err)
 	}
+
 	for _, declaration := range dependencies {
 		advanceCachedStarterBranch(t, cacheDir, declaration)
 	}
+
 	if _, err := pcx.EnsureProject(context.Background(), pkgcontext.DependencyUpdateRequest{}); err != nil {
 		t.Fatalf("EnsureProject(open.mp starter, locked) error = %v, want nil", err)
 	}
+
 	if got := len(pcx.AllDependencies); got != len(dependencies) {
 		t.Errorf("EnsureProject(open.mp starter, locked) resolved %d dependencies, want %d", got, len(dependencies))
 	}
+
 	if got := provisioner.binariesCalls; got != 2 {
 		t.Errorf("EnsureProject(open.mp starter) ensured runtime binaries %d times, want 2", got)
 	}
+
 	lf, err := lockfile.Load(projectDir)
 	if err != nil || lf == nil {
 		t.Fatalf("Load(open.mp starter lockfile) = %v, %v, want lockfile and nil", lf, err)
@@ -109,6 +119,7 @@ func TestOpenMPStarterDependenciesResolveAndInstallOffline(t *testing.T) {
 	if got := lf.DependencyCount(); got != len(dependencies) {
 		t.Errorf("Load(open.mp starter lockfile) dependency count = %d, want %d", got, len(dependencies))
 	}
+
 	for _, declaration := range dependencies {
 		meta, err := declaration.Explode()
 		if err != nil {
@@ -138,15 +149,18 @@ func advanceCachedStarterBranch(t *testing.T, cacheDir string, declaration versi
 	if err != nil {
 		t.Fatalf("Explode(%q) error = %v", declaration, err)
 	}
+
 	dir := meta.CachePath(cacheDir)
 	repo, err := git.PlainOpen(dir)
 	if err != nil {
 		t.Fatalf("PlainOpen(%q) error = %v", declaration, err)
 	}
+
 	wt, err := repo.Worktree()
 	if err != nil {
 		t.Fatalf("Worktree(%q) error = %v", declaration, err)
 	}
+
 	for name, contents := range map[string]string{"selected.inc": "new " + meta.Branch, "pawn.json": "{invalid"} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(contents), 0o644); err != nil {
 			t.Fatalf("WriteFile(%q, %q) error = %v", declaration, name, err)
@@ -155,6 +169,7 @@ func advanceCachedStarterBranch(t *testing.T, cacheDir string, declaration versi
 			t.Fatalf("Add(%q, %q) error = %v", declaration, name, err)
 		}
 	}
+
 	if _, err := wt.Commit("advance cached branch", &git.CommitOptions{
 		Author: &object.Signature{Name: "test", Email: "test@example.com", When: time.Unix(200, 0)},
 	}); err != nil {

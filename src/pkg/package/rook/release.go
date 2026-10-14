@@ -134,6 +134,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 	if err != nil {
 		return errors.Wrap(err, "failed to open wizard")
 	}
+
 	versionText := strings.Split(answers.Version, ":")[0]
 
 	if versionText == "x.y.z" {
@@ -205,6 +206,7 @@ func Release(ctx context.Context, gh *github.Client, auth transport.AuthMethod, 
 	if err != nil {
 		return errors.Wrap(err, "failed to create new commit for release")
 	}
+
 	refName := plumbing.ReferenceName("refs/tags/" + newVersion.String())
 	ref := plumbing.NewHashReference(refName, hash)
 	err = repo.Storer.SetReference(ref)
@@ -475,6 +477,7 @@ func createReleaseArchive(pkg pawnpackage.Package, version *semver.Version) (str
 		}
 		return "", errors.Wrap(err, "failed to create archive contents")
 	}
+
 	if err := zipWriter.Close(); err != nil {
 		if closeErr := archiveFile.Close(); closeErr != nil {
 			print.Warn("failed to close archive file after writer error:", closeErr)
@@ -484,6 +487,7 @@ func createReleaseArchive(pkg pawnpackage.Package, version *semver.Version) (str
 		}
 		return "", errors.Wrap(err, "failed to finalize archive")
 	}
+
 	if err := archiveFile.Close(); err != nil {
 		if removeErr := os.Remove(archivePath); removeErr != nil && !os.IsNotExist(removeErr) {
 			print.Warn("failed to remove incomplete release archive:", removeErr)
@@ -547,10 +551,12 @@ func formatBytes(bytes int64) string {
 	if bytes < unit {
 		return fmt.Sprintf("%d B", bytes)
 	}
+
 	div, exp := int64(unit), 0
 	for n := bytes / unit; n >= unit; n /= unit {
 		div *= unit
 		exp++
 	}
+
 	return fmt.Sprintf("%.1f %ciB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }

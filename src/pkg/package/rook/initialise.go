@@ -356,6 +356,7 @@ func Init(options InitOptions) (err error) {
 	if err != nil {
 		return
 	}
+
 	err = pcx.InitLockfileResolver(version)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize lockfile resolver")
@@ -591,6 +592,7 @@ func splitRepositorySpec(spec string) (user, repo string, err error) {
 	if err = validateUser(parts[0]); err != nil {
 		return "", "", errors.Wrap(err, "invalid user")
 	}
+
 	if err = validateRepo(parts[1]); err != nil {
 		return "", "", errors.Wrap(err, "invalid repo")
 	}
@@ -603,6 +605,7 @@ func validateRepositorySpec(ans any) error {
 	if !ok {
 		return errors.New("repository must be a string")
 	}
+
 	_, _, err := splitRepositorySpec(value)
 	return err
 }

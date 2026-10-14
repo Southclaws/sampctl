@@ -18,12 +18,16 @@ func TestFindIncludes(t *testing.T) {
 		args         args
 		wantIncludes []versioning.DependencyString
 	}{
-		{"one-file", args{[]string{"./tests/detect/test1.pwn"}},
+		{
+			"one-file",
+			args{[]string{"./tests/detect/test1.pwn"}},
 			[]versioning.DependencyString{
 				"pawn-lang/YSI-Includes",
 				"samp-incognito/samp-streamer-plugin",
-			}},
+			},
+		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			gotIncludes := FindIncludes(tt.args.files)
