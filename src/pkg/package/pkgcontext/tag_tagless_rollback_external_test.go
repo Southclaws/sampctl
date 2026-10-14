@@ -55,6 +55,9 @@ func TestTagTaglessDependencies_RollsBackOnCacheRefreshFailure(t *testing.T) {
 	_, err = repo.CreateTag("1.2.3", head.Hash(), nil)
 	require.NoError(t, err)
 
+	cacheInfo, err := os.Stat(cacheDir)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, os.Chmod(cacheDir, cacheInfo.Mode().Perm())) })
 	require.NoError(t, os.Chmod(cacheDir, 0o555))
 
 	cfg := map[string]any{
