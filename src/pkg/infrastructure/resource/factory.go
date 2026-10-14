@@ -49,25 +49,35 @@ func (f *DefaultResourceFactory) FromURL(urlStr string, resourceType ResourceTyp
 		return nil, errors.Wrap(err, "failed to parse URL")
 	}
 
-	if strings.Contains(parsedURL.Host, "github.com") && strings.Contains(parsedURL.Path, "/releases/") {
-		pathParts := strings.Split(strings.Trim(parsedURL.Path, "/"), "/")
-		if len(pathParts) >= 4 && pathParts[2] == "releases" {
-			user := pathParts[0]
-			repo := pathParts[1]
-
-			meta := versioning.DependencyMeta{
-				Site: "github.com",
-				User: user,
-				Repo: repo,
+	if strings.EqualFold(parsedURL.Hostname(), "github.com") {
+		parts := strings.Split(strings.Trim(parsedURL.EscapedPath(), "/"), "/")
+		if len(parts) >= 6 && parts[2] == "releases" && parts[3] == "download" {
+			tag, err := url.PathUnescape(strings.Join(parts[4:len(parts)-1], "/"))
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse release tag")
 			}
 
-			pattern := regexp.MustCompile(".*")
+			return f.releaseFromURL(parts, tag, resourceType)
+		}
 
-			return NewGitHubReleaseResource(meta, pattern, resourceType, f.ghClient), nil
+		if len(parts) == 6 && parts[2] == "releases" && parts[3] == "latest" && parts[4] == "download" {
+			return f.releaseFromURL(parts, "", resourceType)
 		}
 	}
 
 	return NewHTTPResource(urlStr, "", "", resourceType), nil
+}
+
+func (f *DefaultResourceFactory) releaseFromURL(parts []string, tag string, resourceType ResourceType) (Resource, error) {
+	filename, err := url.PathUnescape(parts[len(parts)-1])
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse release asset name")
+	}
+
+	meta := versioning.DependencyMeta{Site: "github.com", User: parts[0], Repo: parts[1], Tag: tag}
+	pattern := regexp.MustCompile("^" + regexp.QuoteMeta(filename) + "$")
+
+	return NewGitHubReleaseResource(meta, pattern, resourceType, f.ghClient), nil
 }
 
 // FromLocal creates a resource from a local path

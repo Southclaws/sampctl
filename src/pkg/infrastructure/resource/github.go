@@ -54,7 +54,7 @@ func (ghr *GitHubReleaseResource) cachedExact(version string) (bool, string) {
 		return false, ""
 	}
 
-	info, err := os.Stat(cacheDir)
+	info, err := os.Lstat(cacheDir)
 	if err != nil {
 		return false, ""
 	}
@@ -62,6 +62,10 @@ func (ghr *GitHubReleaseResource) cachedExact(version string) (bool, string) {
 	// Backward compatibility: older cache layout stored the downloaded asset directly
 	// at the hash path
 	if !info.IsDir() {
+		if !info.Mode().IsRegular() {
+			return false, ""
+		}
+
 		if ghr.baseResource.cacheTTL > 0 && time.Since(info.ModTime()) > ghr.baseResource.cacheTTL {
 			return false, ""
 		}
@@ -74,29 +78,40 @@ func (ghr *GitHubReleaseResource) cachedExact(version string) (bool, string) {
 		return false, ""
 	}
 
-	var cachedFile string
 	for _, entry := range entries {
-		if entry.IsDir() {
+		if isTemporaryAsset(entry.Name()) || ghr.assetPattern == nil || !ghr.assetPattern.MatchString(entry.Name()) {
 			continue
 		}
-		cachedFile = filepath.Join(cacheDir, entry.Name())
-		break
+
+		fileInfo, err := entry.Info()
+		if err != nil || !fileInfo.Mode().IsRegular() {
+			continue
+		}
+
+		if ghr.baseResource.cacheTTL > 0 && time.Since(fileInfo.ModTime()) > ghr.baseResource.cacheTTL {
+			continue
+		}
+
+		return true, filepath.Join(cacheDir, entry.Name())
 	}
 
-	if cachedFile == "" {
-		return false, ""
+	return false, ""
+}
+
+func isTemporaryAsset(name string) bool {
+	// Atomic writers stage downloads as .<asset name>.<random decimal suffix>.
+	separator := strings.LastIndexByte(name, '.')
+	if !strings.HasPrefix(name, ".") || separator < 2 || separator == len(name)-1 {
+		return false
 	}
 
-	fileInfo, err := os.Stat(cachedFile)
-	if err != nil {
-		return false, ""
+	for _, digit := range name[separator+1:] {
+		if digit < '0' || digit > '9' {
+			return false
+		}
 	}
 
-	if ghr.baseResource.cacheTTL > 0 && time.Since(fileInfo.ModTime()) > ghr.baseResource.cacheTTL {
-		return false, ""
-	}
-
-	return true, cachedFile
+	return true
 }
 
 func (ghr *GitHubReleaseResource) cachedResolvedLatest() (bool, string) {

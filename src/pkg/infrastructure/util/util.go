@@ -1,13 +1,16 @@
 package util
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 )
 
-// CopyFile copies src to dst, trying a hard link before copying the contents.
+// CopyFile copies src to an independent file at dst.
 // If both paths refer to the same file, it returns success.
 func CopyFile(src, dst string) (err error) {
 	sourceInfo, err := os.Stat(src)
@@ -34,10 +37,6 @@ func CopyFile(src, dst string) (err error) {
 		}
 	}
 
-	if err = os.Link(src, dst); err == nil {
-		return
-	}
-
 	return copyFileContents(src, dst)
 }
 
@@ -47,24 +46,26 @@ func copyFileContents(src, dst string) (err error) {
 	if err != nil {
 		return
 	}
-	defer in.Close() // nolint
+	defer func() { err = errors.Join(err, in.Close()) }()
 
-	out, err := os.Create(dst)
+	info, err := in.Stat()
 	if err != nil {
 		return
 	}
-	defer func() {
-		closeErr := out.Close()
-		if err == nil {
-			err = closeErr
-		}
-	}()
 
-	if _, err = io.Copy(out, in); err != nil {
-		return
+	mode := info.Mode().Perm()
+	if destinationInfo, statErr := os.Stat(dst); statErr == nil {
+		mode = destinationInfo.Mode().Perm()
+	} else if !os.IsNotExist(statErr) {
+		return statErr
 	}
 
-	return out.Sync()
+	// Preserve the existing requirement that the destination directory exists.
+	if _, err := os.Stat(filepath.Dir(dst)); err != nil {
+		return err
+	}
+
+	return fs.WriteFromReaderAtomic(dst, in, fs.PermDirPrivate, mode)
 }
 
 // FullPath returns an absolute path when possible, otherwise it falls back to the input path.

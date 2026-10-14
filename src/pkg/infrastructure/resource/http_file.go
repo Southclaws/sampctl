@@ -3,6 +3,7 @@ package resource
 import (
 	"context"
 	"crypto/md5"
+	"crypto/sha256"
 	"fmt"
 	"net/url"
 	"os"
@@ -33,11 +34,13 @@ func NewHTTPFileResource(rawURL, version string, resourceType ResourceType) (*HT
 	}
 
 	filename := filepath.Base(u.Path)
-	if filename == "" || filename == "." || filename == "/" {
+	if filename == "" || filename == "." || filename == ".." || filename == "/" {
 		return nil, errors.New("could not determine filename from URL")
 	}
 
-	identifier := filepath.Join("http", u.Host, filename)
+	u.Fragment = ""
+	sum := sha256.Sum256([]byte(u.String()))
+	identifier := filepath.Join("http", u.Host, fmt.Sprintf("%x", sum), filename)
 	if version == "" {
 		version = "latest"
 	}
