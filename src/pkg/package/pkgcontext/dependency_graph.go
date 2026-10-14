@@ -74,32 +74,12 @@ func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Cont
 		currentPackage := pcx.Package
 		if depth != 0 {
 			forceUpdate := request.ShouldForceDependency(meta, direct || directDependencies[managedDependencyIdentity(meta)])
-			effectiveMeta := pcx.LockedVersion(meta, forceUpdate)
-			if resolveLatest {
-				resolvedMeta, err := pcx.resolveDynamicDependencyReference(ctx, effectiveMeta, meta, forceUpdate)
-				if err != nil {
-					return &DependencyError{Dependency: meta.String(), Operation: "resolve", Err: err}
-				}
-				effectiveMeta = resolvedMeta
-			}
-
-			refreshCache := forceUpdate
-			if refreshCache {
-				noOrigin, err := pcx.cachedRepoHasNoOriginContext(ctx, effectiveMeta)
-				if err != nil {
-					return &DependencyError{Dependency: meta.String(), Operation: "cache", Err: err}
-				}
-				refreshCache = !noOrigin
-			}
-			if _, err := pcx.EnsureDependencyCachedContext(ctx, effectiveMeta, refreshCache); err != nil {
-				return &DependencyError{Dependency: meta.String(), Operation: "cache", Err: err}
-			}
-
 			var err error
-			currentPackage, err = pcx.packageFromCachedRevisionContext(ctx, effectiveMeta, effectiveMeta.CachePath(pcx.CacheDir))
+			currentPackage, err = pcx.loadDependencyPackage(ctx, meta, forceUpdate, resolveLatest)
 			if err != nil {
-				return &DependencyError{Dependency: meta.String(), Operation: "read package metadata", Err: err}
+				return err
 			}
+
 			pcx.AllDependencies = append(pcx.AllDependencies, meta)
 			pcx.recordCachedPackageResources(currentPackage, meta, prefix, inferPlugins)
 		}
@@ -159,6 +139,36 @@ func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Cont
 	}
 
 	return recurse(pcx.Package.Dependency(), false, 0, true)
+}
+
+func (pcx *PackageContext) loadDependencyPackage(ctx context.Context, meta versioning.DependencyMeta, forceUpdate, resolveLatest bool) (pawnpackage.Package, error) {
+	effectiveMeta := pcx.LockedVersion(meta, forceUpdate)
+	if resolveLatest {
+		resolvedMeta, err := pcx.resolveDynamicDependencyReference(ctx, effectiveMeta, meta, forceUpdate)
+		if err != nil {
+			return pawnpackage.Package{}, &DependencyError{Dependency: meta.String(), Operation: "resolve", Err: err}
+		}
+		effectiveMeta = resolvedMeta
+	}
+
+	refreshCache := forceUpdate
+	if refreshCache {
+		noOrigin, err := pcx.cachedRepoHasNoOriginContext(ctx, effectiveMeta)
+		if err != nil {
+			return pawnpackage.Package{}, &DependencyError{Dependency: meta.String(), Operation: "cache", Err: err}
+		}
+		refreshCache = !noOrigin
+	}
+	if _, err := pcx.EnsureDependencyCachedContext(ctx, effectiveMeta, refreshCache); err != nil {
+		return pawnpackage.Package{}, &DependencyError{Dependency: meta.String(), Operation: "cache", Err: err}
+	}
+
+	pkg, err := pcx.packageFromCachedRevisionContext(ctx, effectiveMeta, effectiveMeta.CachePath(pcx.CacheDir))
+	if err != nil {
+		return pawnpackage.Package{}, &DependencyError{Dependency: meta.String(), Operation: "read package metadata", Err: err}
+	}
+
+	return pkg, nil
 }
 
 func (pcx *PackageContext) recordCachedPackageResources(pkg pawnpackage.Package, meta versioning.DependencyMeta, prefix string, inferPlugins bool) {
