@@ -165,6 +165,31 @@ func (o *openMPConfig) generate(cfg *run.Runtime) (err error) {
 		}
 	}
 
+	jsonData, err := assembleOpenMPConfig(cfg)
+	if err != nil {
+		return err
+	}
+
+	file, err := os.Create(filepath.Join(o.workingDir, o.configFilename()))
+	if err != nil {
+		return err
+	}
+	defer closeConfigResource(&err, file, "failed to close config.json")
+
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(jsonData); err != nil {
+		return errors.Wrap(err, "failed to write config.json")
+	}
+
+	if err := o.generateLegacyServerCfg(cfg); err != nil {
+		return errors.Wrap(err, "failed to generate legacy server.cfg")
+	}
+
+	return nil
+}
+
+func assembleOpenMPConfig(cfg *run.Runtime) (map[string]any, error) {
 	config := &openMPConfigData{
 		UseDynTicks: true,
 		Extra:       make(map[string]any),
@@ -355,11 +380,11 @@ func (o *openMPConfig) generate(cfg *run.Runtime) (err error) {
 
 	structuredBytes, err := json.Marshal(config)
 	if err != nil {
-		return errors.Wrap(err, "failed to marshal structured config")
+		return nil, errors.Wrap(err, "failed to marshal structured config")
 	}
 
 	if err := json.Unmarshal(structuredBytes, &jsonData); err != nil {
-		return errors.Wrap(err, "failed to unmarshal structured config")
+		return nil, errors.Wrap(err, "failed to unmarshal structured config")
 	}
 
 	for key, value := range config.Extra {
@@ -375,23 +400,7 @@ func (o *openMPConfig) generate(cfg *run.Runtime) (err error) {
 	deepMergeJSONIntoKey(jsonData, "artwork", cfg.Artwork)
 	deepMergeJSONIntoKey(jsonData, "rcon", cfg.RCONConfig)
 
-	file, err := os.Create(filepath.Join(o.workingDir, o.configFilename()))
-	if err != nil {
-		return err
-	}
-	defer closeConfigResource(&err, file, "failed to close config.json")
-
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(jsonData); err != nil {
-		return errors.Wrap(err, "failed to write config.json")
-	}
-
-	if err := o.generateLegacyServerCfg(cfg); err != nil {
-		return errors.Wrap(err, "failed to generate legacy server.cfg")
-	}
-
-	return nil
+	return jsonData, nil
 }
 
 func (o *openMPConfig) generateLegacyServerCfg(cfg *run.Runtime) (err error) {
