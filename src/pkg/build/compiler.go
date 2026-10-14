@@ -329,5 +329,5 @@ func (bps Problems) Fatal() (fatal bool) {
 
 // IsValid returns true if the Problems only contains warnings, if there are errors it's false
 func (bps Problems) IsValid() bool {
-	return len(bps.Errors()) == 0
+	return !bps.Fatal() && len(bps.Errors()) == 0
 }

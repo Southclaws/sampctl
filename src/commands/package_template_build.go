@@ -60,6 +60,10 @@ func packageTemplateBuild(c *cli.Context) (err error) {
 		return
 	}
 
+	if !problems.IsValid() {
+		return errors.New("template build failed with compiler diagnostics")
+	}
+
 	print.Info("Build finished with", len(problems), "compiler diagnostics")
 	print.Info(fmt.Sprintf(
 		"Size in bytes: header %d, code %d, data %d, stack/heap %d, estimated usage %d, total %d\n",

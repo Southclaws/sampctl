@@ -86,4 +86,5 @@ func TestProblemHelpers(t *testing.T) {
 	assert.True(t, problems.Fatal())
 	assert.False(t, problems.IsValid())
 	assert.True(t, Problems{{Severity: ProblemWarning}}.IsValid())
+	assert.False(t, Problems{{Severity: ProblemFatal}}.IsValid())
 }
