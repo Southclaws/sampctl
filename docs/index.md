@@ -23,6 +23,7 @@ This documentation is for people using `sampctl` to manage SA:MP servers and Paw
 - [Testing (watch mode, runtime modes)](testing.md)
 - [Containers (Docker)](containers.md)
 - [Continuous integration (CI)](ci.md)
+- [Contributing to sampctl](contributing.md)
 
 ## Reference
 
