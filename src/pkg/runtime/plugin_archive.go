@@ -13,6 +13,11 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
 )
 
+type stagedFile struct {
+	path   string
+	target string
+}
+
 func extractPluginArchive(
 	request EnsureVersionedPluginRequest,
 	filename, ext string,
@@ -59,74 +64,9 @@ func extractPluginArchive(
 		return nil, err
 	}
 
-	targets := make(map[string][]string, len(extracted))
-	type stagedFile struct {
-		path   string
-		target string
-	}
-	var stagedFiles []stagedFile
-	for _, source := range keys {
-		staged, ok := extracted[source]
-		if !ok {
-			continue
-		}
-
-		matches := []string{staged}
-		if paths[source] == "" || strings.HasSuffix(paths[source], "/") {
-			// The extractor returns only the last match for each pattern, but
-			// directory mappings must install every file in its staging directory.
-			entries, err := os.ReadDir(filepath.Dir(staged))
-			if err != nil {
-				return nil, err
-			}
-			matches = nil
-			for _, entry := range entries {
-				if entry.IsDir() {
-					continue
-				}
-				matches = append(matches, filepath.Join(filepath.Dir(staged), entry.Name()))
-			}
-		}
-
-		for _, path := range matches {
-			relative, err := filepath.Rel(stage, path)
-			if err != nil {
-				return nil, err
-			}
-			if _, err := runtimeFilePath(stage, relative); err != nil {
-				return nil, err
-			}
-
-			target := paths[source]
-			if target == "" {
-				target = filepath.Base(path)
-			} else if strings.HasSuffix(target, "/") {
-				target = filepath.Join(target, filepath.Base(path))
-			}
-
-			root := request.Dir
-			if !filepath.IsLocal(target) {
-				if request.RestrictFilesToDir {
-					return nil, errors.Wrapf(os.ErrInvalid, "plugin destination %q must stay inside its installation", target)
-				}
-				// Explicit resource mappings may target files outside the runtime directory.
-				if !filepath.IsAbs(target) {
-					target = filepath.Join(root, target)
-				}
-				root, target = filepath.Dir(target), filepath.Base(target)
-			}
-
-			final, err := runtimeFilePath(root, target)
-			if err != nil {
-				return nil, err
-			}
-			if ignoredRuntimePlugin(final, request.IgnorePatterns) {
-				continue
-			}
-
-			stagedFiles = append(stagedFiles, stagedFile{path: path, target: final})
-			targets[source] = append(targets[source], final)
-		}
+	targets, stagedFiles, err := planPluginArchiveFiles(request, stage, keys, paths, extracted)
+	if err != nil {
+		return nil, err
 	}
 
 	for _, file := range stagedFiles {
@@ -141,6 +81,81 @@ func extractPluginArchive(
 	}
 
 	return targets, nil
+}
+
+func planPluginArchiveFiles(
+	request EnsureVersionedPluginRequest,
+	stage string,
+	keys []string,
+	paths, extracted map[string]string,
+) (map[string][]string, []stagedFile, error) {
+	targets := make(map[string][]string, len(extracted))
+	var stagedFiles []stagedFile
+	for _, source := range keys {
+		staged, ok := extracted[source]
+		if !ok {
+			continue
+		}
+
+		matches := []string{staged}
+		if paths[source] == "" || strings.HasSuffix(paths[source], "/") {
+			// The extractor returns only the last match for each pattern, but
+			// directory mappings must install every file in its staging directory.
+			entries, err := os.ReadDir(filepath.Dir(staged))
+			if err != nil {
+				return nil, nil, err
+			}
+			matches = nil
+			for _, entry := range entries {
+				if entry.IsDir() {
+					continue
+				}
+				matches = append(matches, filepath.Join(filepath.Dir(staged), entry.Name()))
+			}
+		}
+
+		for _, path := range matches {
+			relative, err := filepath.Rel(stage, path)
+			if err != nil {
+				return nil, nil, err
+			}
+			if _, err := runtimeFilePath(stage, relative); err != nil {
+				return nil, nil, err
+			}
+
+			target := paths[source]
+			if target == "" {
+				target = filepath.Base(path)
+			} else if strings.HasSuffix(target, "/") {
+				target = filepath.Join(target, filepath.Base(path))
+			}
+
+			root := request.Dir
+			if !filepath.IsLocal(target) {
+				if request.RestrictFilesToDir {
+					return nil, nil, errors.Wrapf(os.ErrInvalid, "plugin destination %q must stay inside its installation", target)
+				}
+				// Explicit resource mappings may target files outside the runtime directory.
+				if !filepath.IsAbs(target) {
+					target = filepath.Join(root, target)
+				}
+				root, target = filepath.Dir(target), filepath.Base(target)
+			}
+
+			final, err := runtimeFilePath(root, target)
+			if err != nil {
+				return nil, nil, err
+			}
+			if ignoredRuntimePlugin(final, request.IgnorePatterns) {
+				continue
+			}
+
+			stagedFiles = append(stagedFiles, stagedFile{path: path, target: final})
+			targets[source] = append(targets[source], final)
+		}
+	}
+
+	return targets, stagedFiles, nil
 }
 
 func ignoredRuntimePlugin(path string, patterns []string) bool {

@@ -126,10 +126,10 @@ func TestPluginArchiveValidatesEveryMatchingDestination(t *testing.T) {
 		"first.so":  "replacement first",
 		"second.so": "replacement second",
 	})
-	external := filepath.Join(t.TempDir(), "first.so")
-	writeRuntimeTestFile(t, external, "external first")
-	writeRuntimeTestFile(t, filepath.Join(root, "plugins/second.so"), "previous second")
-	if err := os.Symlink(external, filepath.Join(root, "plugins/first.so")); err != nil {
+	external := filepath.Join(t.TempDir(), "second.so")
+	writeRuntimeTestFile(t, external, "external second")
+	writeRuntimeTestFile(t, filepath.Join(root, "plugins/first.so"), "previous first")
+	if err := os.Symlink(external, filepath.Join(root, "plugins/second.so")); err != nil {
 		t.Skipf("creating symlink: %v", err)
 	}
 
@@ -138,6 +138,44 @@ func TestPluginArchiveValidatesEveryMatchingDestination(t *testing.T) {
 		t.Errorf("extractPluginArchive(symlink destination) = %v, want os.ErrInvalid", err)
 	}
 
-	checkRuntimeTestFile(t, external, "external first")
-	checkRuntimeTestFile(t, filepath.Join(root, "plugins/second.so"), "previous second")
+	checkRuntimeTestFile(t, external, "external second")
+	checkRuntimeTestFile(t, filepath.Join(root, "plugins/first.so"), "previous first")
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "plugins" {
+		t.Errorf("files after validation failure = %v, want only plugins directory", entries)
+	}
+}
+
+func TestPluginArchivePublicationFailureKeepsEarlierFiles(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	filename := filepath.Join(t.TempDir(), "resource.zip")
+	createRuntimeZipArchive(t, filename, map[string]string{
+		"first.so":  "published first",
+		"second.so": "unpublished second",
+	})
+	request := EnsureVersionedPluginRequest{Context: context.Background(), Dir: root}
+	result, err := extractPluginArchive(request, filename, ".zip", map[string]string{
+		`^first[.]so$`:  "nested",
+		`^second[.]so$`: "nested/second.so",
+	})
+	var pathError *os.PathError
+	if !errors.As(err, &pathError) {
+		t.Fatalf("publication error = %v, want filesystem error", err)
+	}
+	if result != nil {
+		t.Errorf("failed installation result = %v, want nil", result)
+	}
+	checkRuntimeTestFile(t, filepath.Join(root, "nested"), "published first")
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "nested" {
+		t.Errorf("files after publication failure = %v, want only published first file", entries)
+	}
 }
