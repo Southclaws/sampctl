@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -43,6 +44,14 @@ func TestContainerRunOptionsPreserveSelectedConfiguration(t *testing.T) {
 		"--dir", "/samp", "--build", "release", "--forceBuild", "--forceEnsure", "--noCache", "--relativePaths",
 		"--buildFile", "/samp/build-number", "development",
 	}, options.Args)
+
+	env := &fakeRuntimeEnvironment{}
+	pcx.RuntimeEnv = env
+	var running atomic.Bool
+	require.NoError(t, <-pcx.startWatchedRuntime(t.Context(), &running))
+	require.Equal(t, options.Args, env.lastRunOptions.Args)
+	require.Equal(t, options.ProjectDir, env.lastRunOptions.ProjectDir)
+	require.False(t, running.Load())
 }
 
 func TestBuildWatchReturnsAfterCancellation(t *testing.T) {

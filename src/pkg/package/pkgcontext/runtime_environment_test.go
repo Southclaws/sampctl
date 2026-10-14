@@ -24,12 +24,14 @@ type fakeRuntimeEnvironment struct {
 	lastWorkingDir string
 	lastCacheDir   string
 	lastBinaryPath string
+	lastRunOptions runtimepkg.RunOptions
 }
 
 var _ RuntimeEnvironment = (*fakeRuntimeEnvironment)(nil)
 
-func (f *fakeRuntimeEnvironment) Run(context.Context, runtimecfg.Runtime, runtimepkg.RunOptions) error {
+func (f *fakeRuntimeEnvironment) Run(_ context.Context, _ runtimecfg.Runtime, options runtimepkg.RunOptions) error {
 	f.runCalled = true
+	f.lastRunOptions = options
 	return nil
 }
 

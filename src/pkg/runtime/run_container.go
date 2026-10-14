@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/netip"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -43,7 +44,17 @@ func RunContainer(
 	}()
 
 	options = options.withDefaults()
-	args := append([]string{"sampctl", "run"}, options.Args...)
+	args := []string{"sampctl", "run"}
+	if options.Args != nil {
+		args = append(args, options.Args...)
+	} else if options.PassArgs {
+		for i, arg := range os.Args {
+			if i < 3 || arg == "--container" || arg == "--mountCache" {
+				continue
+			}
+			args = append(args, arg)
+		}
+	}
 
 	port := fmt.Sprint(*cfg.Port)
 	containerPort, err := network.ParsePort(port + "/udp")

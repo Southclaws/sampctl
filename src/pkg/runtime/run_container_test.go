@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -159,17 +160,57 @@ func TestStopContainerReturnsWaitError(t *testing.T) {
 }
 
 func TestRunContainerNegotiatesDocker25AndPullsMissingImage(t *testing.T) {
-	testRunContainer(t, RunOptions{})
+	testRunContainer(t, RunOptions{}, nil)
 }
 
 func TestRunContainerUsesExplicitArgumentsAndProjectDirectory(t *testing.T) {
 	testRunContainer(t, RunOptions{
 		ProjectDir: t.TempDir(),
 		Args:       []string{"--dir", "/samp", "--build", "release", "--forceBuild", "development"},
-	})
+	}, []string{"--dir", "/samp", "--build", "release", "--forceBuild", "development"})
 }
 
-func testRunContainer(t *testing.T, options RunOptions) {
+func TestRunContainerArgumentCompatibility(t *testing.T) {
+	originalArgs := os.Args
+	t.Cleanup(func() { os.Args = originalArgs })
+	os.Args = []string{"embedding-program", "server", "run", "--container", "--mountCache", "--build", "legacy build", "", "$literal", `"quoted"`, "semi;colon", "development"}
+	legacy := []string{"--build", "legacy build", "", "$literal", `"quoted"`, "semi;colon", "development"}
+	explicit := []string{"--build", "explicit build", "", "$explicit", `"quoted"`, "semi;colon"}
+
+	for _, test := range []struct {
+		name     string
+		passArgs bool
+		args     []string
+		want     []string
+	}{
+		{name: "disabled nil"},
+		{name: "legacy nil", passArgs: true, want: legacy},
+		{name: "explicit", args: explicit, want: explicit},
+		{name: "explicit overrides legacy", passArgs: true, args: explicit, want: explicit},
+		{name: "explicit empty", args: []string{}},
+		{name: "explicit empty overrides legacy", passArgs: true, args: []string{}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			argsBefore := append([]string(nil), os.Args...)
+			var storage []string
+			if test.args != nil {
+				storage = append(append([]string{}, test.args...), "unused capacity")
+				test.args = storage[:len(test.args)]
+			}
+			storageBefore := append([]string(nil), storage...)
+
+			testRunContainer(t, RunOptions{PassArgs: test.passArgs, Args: test.args}, test.want)
+
+			require.Equal(t, argsBefore, os.Args)
+			require.Equal(t, storageBefore, storage)
+		})
+	}
+
+	os.Args = []string{"embedding-program"}
+	testRunContainer(t, RunOptions{PassArgs: true}, nil)
+}
+
+func testRunContainer(t *testing.T, options RunOptions, wantArgs []string) {
 	t.Helper()
 
 	workingDir := t.TempDir()
@@ -211,7 +252,7 @@ func testRunContainer(t *testing.T, options RunOptions) {
 			if request.Image != image {
 				t.Errorf("ContainerCreate image = %q, want %q", request.Image, image)
 			}
-			if want := append([]string{"sampctl", "run"}, options.Args...); !reflect.DeepEqual(request.Entrypoint, want) {
+			if want := append([]string{"sampctl", "run"}, wantArgs...); !reflect.DeepEqual(request.Entrypoint, want) {
 				t.Errorf("ContainerCreate entrypoint = %v, want %v", request.Entrypoint, want)
 			}
 			if !request.Tty || !request.AttachStdout || !request.AttachStderr || !request.AttachStdin {

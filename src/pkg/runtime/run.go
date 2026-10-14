@@ -36,6 +36,12 @@ type RunOptions struct {
 	Recover    bool
 	Output     io.Writer
 
+	// PassArgs forwards os.Args[3:] to the container, excluding exact
+	// --container and --mountCache tokens, only when Args is nil.
+	//
+	// Deprecated: use Args. A non-nil empty slice disables legacy forwarding.
+	PassArgs bool
+
 	// Input remains caller-owned and must not be read concurrently with Run.
 	// POSIX PTY forwarding of *os.File input stops before Run returns. Other
 	// readers can retain a blocked Read after return; their owner must release
