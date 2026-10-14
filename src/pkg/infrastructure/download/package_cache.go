@@ -45,31 +45,8 @@ func GetPackageListWithClientContext(ctx context.Context, cacheDir string, clien
 		TTL:      time.Hour * 24 * 7,
 		DirPerm:  fs.PermDirPrivate,
 		FilePerm: fs.PermFileShared,
-		Fetch: func(ctx context.Context) (out []pawnpackage.Package, err error) {
-			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://list.packages.sampctl.com", nil)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to create request")
-			}
-
-			resp, err := client.Do(req)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to download package list")
-			}
-			defer func() {
-				if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
-					err = errors.Wrap(closeErr, "failed to close package list response body")
-				}
-			}()
-
-			if resp.StatusCode != 200 {
-				return nil, errors.Errorf("package list download returned HTTP %s", resp.Status)
-			}
-
-			if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-				return nil, errors.Wrap(err, "failed to decode package list")
-			}
-
-			return out, nil
+		Fetch: func(ctx context.Context) ([]pawnpackage.Package, error) {
+			return fetchPackageList(ctx, client)
 		},
 	})
 	if err != nil {
@@ -112,35 +89,39 @@ func UpdatePackageListWithClientContext(ctx context.Context, cacheDir string, cl
 		TTL:      -1,
 		DirPerm:  fs.PermDirPrivate,
 		FilePerm: fs.PermFileShared,
-		Fetch: func(ctx context.Context) (out []pawnpackage.Package, err error) {
-			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://list.packages.sampctl.com", nil)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to create request")
-			}
-
-			resp, err := client.Do(req)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to download package list")
-			}
-			defer func() {
-				if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
-					err = errors.Wrap(closeErr, "failed to close package list response body")
-				}
-			}()
-
-			if resp.StatusCode != 200 {
-				return nil, errors.Errorf("package list download returned HTTP %s", resp.Status)
-			}
-
-			if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-				return nil, errors.Wrap(err, "failed to decode package list")
-			}
-
-			return out, nil
+		Fetch: func(ctx context.Context) ([]pawnpackage.Package, error) {
+			return fetchPackageList(ctx, client)
 		},
 	})
 
 	return err
+}
+
+func fetchPackageList(ctx context.Context, client HTTPDoer) (out []pawnpackage.Package, err error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://list.packages.sampctl.com", nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create request")
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to download package list")
+	}
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+			err = errors.Wrap(closeErr, "failed to close package list response body")
+		}
+	}()
+
+	if resp.StatusCode != 200 {
+		return nil, errors.Errorf("package list download returned HTTP %s", resp.Status)
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, errors.Wrap(err, "failed to decode package list")
+	}
+
+	return out, nil
 }
 
 func WritePackageCacheFile(cacheDir string, data []byte) error {
