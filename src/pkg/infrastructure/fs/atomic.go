@@ -10,45 +10,20 @@ import (
 )
 
 func WriteFileAtomic(path string, data []byte, dirPerm, filePerm os.FileMode) error {
-	if err := EnsureDirForFile(path, dirPerm); err != nil {
+	return writeAtomic(path, dirPerm, filePerm, func(f *os.File) error {
+		_, err := f.Write(data)
 		return err
-	}
-
-	dir := filepath.Dir(path)
-	base := filepath.Base(path)
-	f, err := os.CreateTemp(dir, "."+base+".*")
-	if err != nil {
-		return err
-	}
-	tmp := f.Name()
-	if err := f.Chmod(PermFileTemp); err != nil {
-		return stderrors.Join(err, cleanupTempFile(f, tmp))
-	}
-
-	if _, err := f.Write(data); err != nil {
-		return stderrors.Join(err, cleanupTempFile(f, tmp))
-	}
-
-	if err := f.Chmod(filePerm); err != nil {
-		return stderrors.Join(err, cleanupTempFile(f, tmp))
-	}
-
-	if err := f.Sync(); err != nil {
-		return stderrors.Join(err, cleanupTempFile(f, tmp))
-	}
-
-	if err := f.Close(); err != nil {
-		return stderrors.Join(err, removeFileIfExists(tmp))
-	}
-
-	if err := os.Rename(tmp, path); err != nil {
-		return stderrors.Join(err, removeFileIfExists(tmp))
-	}
-
-	return SyncDir(dir)
+	})
 }
 
 func WriteFromReaderAtomic(path string, r io.Reader, dirPerm, filePerm os.FileMode) error {
+	return writeAtomic(path, dirPerm, filePerm, func(f *os.File) error {
+		_, err := io.Copy(f, r)
+		return err
+	})
+}
+
+func writeAtomic(path string, dirPerm, filePerm os.FileMode, write func(*os.File) error) error {
 	if err := EnsureDirForFile(path, dirPerm); err != nil {
 		return err
 	}
@@ -64,7 +39,7 @@ func WriteFromReaderAtomic(path string, r io.Reader, dirPerm, filePerm os.FileMo
 		return stderrors.Join(err, cleanupTempFile(f, tmp))
 	}
 
-	if _, err := io.Copy(f, r); err != nil {
+	if err := write(f); err != nil {
 		return stderrors.Join(err, cleanupTempFile(f, tmp))
 	}
 
