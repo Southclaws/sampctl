@@ -145,7 +145,7 @@ func readInt(file string) (n uint32, err error) {
 			return
 		}
 		if result < 0 {
-			err = errors.Wrap(err, "build number is not a positive integer")
+			err = errors.New("build number is not a positive integer")
 			return
 		}
 		n = uint32(result)
