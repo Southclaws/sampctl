@@ -89,12 +89,12 @@ tasks:
   # https://github.com/goreleaser/goreleaser/issues/409
   release:
     cmds:
-      - <<
-        PATH="/usr/local/opt/gnu-tar/libexec/gnubin:{{.PATH}}"
+      - >
+        PATH="/usr/local/opt/gnu-tar/libexec/gnubin:$PATH"
         GITHUB_TOKEN={{.GITHUB_TOKEN}}
         goreleaser
         --snapshot
-        --rm-dist
+        --clean
 
   # Generating documentation via docgen
   docs:
