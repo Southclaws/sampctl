@@ -13,9 +13,11 @@ func (e *commandExitError) Error() string {
 	if e.err == nil || e.reported {
 		return ""
 	}
+
 	if e.message != "" {
 		return e.message
 	}
+
 	return redactDiagnosticText(e.err.Error())
 }
 
@@ -28,9 +30,11 @@ func ExitCode(err error) int {
 	if err == nil {
 		return 0
 	}
+
 	var exitErr *commandExitError
 	if errors.As(err, &exitErr) {
 		return exitErr.code
 	}
+
 	return 1
 }

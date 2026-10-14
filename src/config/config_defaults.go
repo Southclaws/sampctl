@@ -24,6 +24,7 @@ func normalizeConfig(cfg *Config) {
 	if cfg == nil {
 		return
 	}
+
 	if cfg.HideVersionUpdateMessage == nil {
 		hideVersionUpdateMessage := false
 		cfg.HideVersionUpdateMessage = &hideVersionUpdateMessage

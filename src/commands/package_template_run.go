@@ -43,6 +43,7 @@ func packageTemplateRun(c *cli.Context) (err error) {
 	if err != nil {
 		return err
 	}
+
 	template := c.Args().Get(0)
 	filename := c.Args().Get(1)
 
@@ -89,6 +90,7 @@ func packageTemplateRun(c *cli.Context) (err error) {
 	if !problems.IsValid() {
 		return errors.New("cannot run with build errors")
 	}
+
 	pcx.Runtime = ""
 	pcx.Container = false
 	pcx.AppVersion = c.App.Version

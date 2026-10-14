@@ -11,13 +11,16 @@ func checkDependencyRecovery(ctx context.Context, root string, fix bool) ([]diag
 	if ctx.Err() != nil {
 		return nil, state, ctx.Err()
 	}
+
 	if !state.Pending && !state.Active && err == nil {
 		return nil, state, nil
 	}
+
 	result := dependencyRecoveryDiagnostic(state, err)
 	if !fix || !result.CanFix {
 		return []diagnostic{result}, state, nil
 	}
+
 	result, err = repairDiagnostic(ctx, result, func(ctx context.Context) error {
 		_, recoveryErr := pkgcontext.RecoverDependencyOperation(ctx, root)
 		return recoveryErr
@@ -26,6 +29,7 @@ func checkDependencyRecovery(ctx context.Context, root string, fix bool) ([]diag
 		state, inspectErr = pkgcontext.InspectDependencyRecovery(ctx, root)
 		return dependencyRecoveryDiagnostic(state, inspectErr)
 	})
+
 	return []diagnostic{result}, state, err
 }
 
@@ -51,9 +55,11 @@ func dependencyRecoveryDiagnostic(state pkgcontext.DependencyRecoveryStatus, err
 		result.Message = "A dependency command was interrupted"
 		result.Action = "Run `sampctl check --fix` or retry the dependency command to restore the previous dependency state."
 	}
+
 	result.CanFix = state.Pending && state.CanRecover && !state.Active && err == nil
 	if state.Pending && !result.CanFix && err == nil && !state.Active {
 		result.Action = "Use --verbose to see the recovery files. Keep them and the backups until recovery finishes."
 	}
+
 	return result
 }

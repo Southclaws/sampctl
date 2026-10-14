@@ -34,6 +34,7 @@ func GenerateDocs(app *cli.App) (result string) {
 		}
 		buffer.WriteString("\n\n")
 	}
+
 	return buffer.String()
 }
 
@@ -43,9 +44,11 @@ func generateCommandDocs(prefix string, command cli.Command, buffer *bytes.Buffe
 	if command.Usage != "" {
 		buffer.WriteString(fmt.Sprintf("Usage: `%s`\n\n", command.Usage))
 	}
+
 	if command.Description != "" {
 		buffer.WriteString(fmt.Sprintf("%s\n\n", command.Description))
 	}
+
 	if len(command.Flags) > 0 {
 		buffer.WriteString("#### Flags\n\n")
 		for _, flag := range command.Flags {
@@ -54,6 +57,7 @@ func generateCommandDocs(prefix string, command cli.Command, buffer *bytes.Buffe
 		}
 		buffer.WriteString("\n")
 	}
+
 	if len(command.Subcommands) > 0 {
 		buffer.WriteString(fmt.Sprintf("#### Subcommands (%d)\n\n", len(command.Subcommands)))
 		for _, subcommand := range command.Subcommands {

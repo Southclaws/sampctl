@@ -27,10 +27,12 @@ func reportDependencyCommandError(c *cli.Context, operation string, err error) e
 	if err == nil {
 		return nil
 	}
+
 	var reported *commandExitError
 	if errors.As(err, &reported) && reported.reported {
 		return err
 	}
+
 	verbose := c.Bool("verbose") || c.GlobalBool("verbose")
 	style := newCheckOutputStyle(c.App.Writer, c.Bool("bare") || c.GlobalBool("bare"))
 	var output bytes.Buffer
@@ -40,25 +42,30 @@ func reportDependencyCommandError(c *cli.Context, operation string, err error) e
 	if outcome == pkgcontext.OutcomeCommitted && !recoveryFailed {
 		status = checkPassed
 	}
+
 	writeCheckResult(&output, diagnostic{Status: status, Message: dependencyFailureHeading(operation, err)}, false, style)
 	for _, result := range dependencyFailureDiagnostics(err) {
 		if outcome == pkgcontext.OutcomeCommitted && recoveryFailed && result.Name == "recovery" {
 			result.Action = "Run `sampctl check --verbose`. Keep the backups and recovery files until recovery finishes."
 		}
+
 		if outcome == pkgcontext.OutcomeRollbackIncomplete && result.Name == "rollback" {
 			result.Action = "Run `sampctl check`. Keep the backups until your dependencies are restored."
 		}
+
 		if status == checkPassed {
 			result.Status = checkWarning
 			if result.Name == "cleanup" {
 				result.Action = "Your changes were saved. Run `sampctl check` and use `sampctl check --fix` if it offers cleanup."
 			}
 		}
+
 		writeCheckResult(&output, result, verbose, style)
 	}
 	if !verbose {
 		output.WriteString("Use --verbose for details.\n")
 	}
+
 	text := output.String()
 	if state, stateErr := getCommandState(c); stateErr == nil && state.cfg != nil {
 		for _, secret := range []string{state.cfg.GitHubToken, state.cfg.GitPassword} {
@@ -67,6 +74,7 @@ func reportDependencyCommandError(c *cli.Context, operation string, err error) e
 			}
 		}
 	}
+
 	if _, writeErr := c.App.Writer.Write([]byte(text)); writeErr != nil {
 		message := "Cannot print dependency errors."
 		if status == checkPassed {
@@ -74,6 +82,7 @@ func reportDependencyCommandError(c *cli.Context, operation string, err error) e
 		}
 		return &commandExitError{code: 1, err: errors.Join(err, fmt.Errorf("write dependency diagnostics: %w", writeErr)), message: message}
 	}
+
 	return &commandExitError{code: 1, err: err, reported: true}
 }
 
@@ -85,6 +94,7 @@ func dependencyFailureHeading(operation string, err error) string {
 		}
 		return "Dependency changes saved. Cleanup pending"
 	}
+
 	var message string
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		message = "Dependency command cancelled"
@@ -103,6 +113,7 @@ func dependencyFailureHeading(operation string, err error) string {
 			message = "Dependency setup failed"
 		}
 	}
+
 	switch outcome {
 	case pkgcontext.OutcomeRolledBack:
 		return message + ". Previous dependency state restored"
@@ -123,6 +134,7 @@ func dependencyOperationRecoveryFailed(err error) bool {
 				return true
 			}
 		}
+
 		return false
 	case interface{ Unwrap() error }:
 		return dependencyOperationRecoveryFailed(failure.Unwrap())
@@ -137,6 +149,7 @@ func dependencyOperationOutcome(err error) pkgcontext.DependencyOperationOutcome
 		if failure.Outcome != "" {
 			return failure.Outcome
 		}
+
 		return dependencyOperationOutcome(failure.Err)
 	case interface{ Unwrap() []error }:
 		var outcome pkgcontext.DependencyOperationOutcome
@@ -149,6 +162,7 @@ func dependencyOperationOutcome(err error) pkgcontext.DependencyOperationOutcome
 				outcome = current
 			}
 		}
+
 		return outcome
 	case interface{ Unwrap() error }:
 		return dependencyOperationOutcome(failure.Unwrap())
@@ -159,6 +173,7 @@ func dependencyOperationOutcome(err error) pkgcontext.DependencyOperationOutcome
 
 func dependencyFailureDiagnostics(err error) []diagnostic {
 	results := collectDependencyFailureDiagnostics(err, err)
+
 	seen := make(map[dependencyDiagnosticKey]struct{}, len(results))
 	unique := results[:0]
 	for _, result := range results {
@@ -170,9 +185,11 @@ func dependencyFailureDiagnostics(err error) []diagnostic {
 		if _, exists := seen[key]; exists {
 			continue
 		}
+
 		seen[key] = struct{}{}
 		unique = append(unique, result)
 	}
+
 	return unique
 }
 
@@ -186,6 +203,7 @@ func dependencyDiagnosticCause(err error) string {
 	if err == nil {
 		return ""
 	}
+
 	key := fmt.Sprintf("%T(%q)", err, err.Error())
 	switch failure := err.(type) {
 	case interface{ Unwrap() []error }:
@@ -195,6 +213,7 @@ func dependencyDiagnosticCause(err error) string {
 	case interface{ Unwrap() error }:
 		key += "[" + dependencyDiagnosticCause(failure.Unwrap()) + "]"
 	}
+
 	return key
 }
 
@@ -205,24 +224,29 @@ func collectDependencyFailureDiagnostics(err, details error) []diagnostic {
 		if errors.As(failure.Err, &runtimeFailure) {
 			return []diagnostic{runtimeInstallFailureDiagnostic(runtimeFailure, details)}
 		}
+
 		message, action := dependencyFailureAdvice(failure.Err)
 		if failure.Operation == "select" {
 			message = "Dependency is not declared in this project"
 			action = "Check the dependency name in pawn.json or pawn.yaml, then retry."
 		}
 		result := diagnostic{Name: "dependencies", Status: checkFailed, Message: failure.Dependency + ": " + message, Action: action, Err: details}
+
 		var missingAsset *download.ReleaseAssetNotFoundError
 		if errors.As(failure.Err, &missingAsset) {
 			result = releaseAssetFailureDiagnostic(missingAsset, details)
 		}
+
 		var conflict *pkgcontext.DependencyDestinationConflictError
 		if errors.As(failure.Err, &conflict) {
 			result = dependencyDestinationConflictDiagnostic(conflict, details)
 		}
+
 		var missingResource *runtime.PluginResourceNotFoundError
 		if errors.As(failure.Err, &missingResource) {
 			result = pluginResourceFailureDiagnostic(missingResource, details)
 		}
+
 		results := []diagnostic{result}
 		return append(results, dependencyRecoveryDiagnostics(failure.Err)...)
 	case *download.ReleaseAssetNotFoundError:
@@ -244,12 +268,14 @@ func collectDependencyFailureDiagnostics(err, details error) []diagnostic {
 				return collectDependencyFailureDiagnostics(failure.Err, failure.Err)
 			}
 		}
+
 		return []diagnostic{dependencyOperationDiagnostic(failure)}
 	case interface{ Unwrap() []error }:
 		var results []diagnostic
 		for _, cause := range failure.Unwrap() {
 			results = append(results, collectDependencyFailureDiagnostics(cause, cause)...)
 		}
+
 		return results
 	case interface{ Unwrap() error }:
 		return collectDependencyFailureDiagnostics(failure.Unwrap(), details)
@@ -261,6 +287,7 @@ func collectDependencyFailureDiagnostics(err, details error) []diagnostic {
 			result.Message += ": " + filepath.Base(pathErr.Path)
 			result.Path = pathErr.Path
 		}
+
 		return []diagnostic{result}
 	}
 }
@@ -280,12 +307,14 @@ func releaseAssetFailureDiagnostic(failure *download.ReleaseAssetNotFoundError, 
 	meta.Tag = failure.Tag
 	meta.Branch = ""
 	meta.Commit = ""
+
 	message := fmt.Sprintf("%s: No release asset matches %q", meta, failure.Pattern)
 	if len(failure.AvailableAssets) == 0 {
 		message += ". This release has no assets"
 	} else {
 		message += ". Available: " + strings.Join(failure.AvailableAssets, ", ")
 	}
+
 	return diagnostic{
 		Name:    "dependencies",
 		Status:  checkFailed,
@@ -300,6 +329,7 @@ func pluginResourceFailureDiagnostic(failure *runtime.PluginResourceNotFoundErro
 	if failure.Meta.Repo != "" {
 		message = failure.Meta.String() + ": " + message
 	}
+
 	return diagnostic{
 		Name:    "dependencies",
 		Status:  checkFailed,
@@ -318,6 +348,7 @@ func dependencyRecoveryDiagnostics(err error) []diagnostic {
 		for _, cause := range failure.Unwrap() {
 			results = append(results, dependencyRecoveryDiagnostics(cause)...)
 		}
+
 		return results
 	case interface{ Unwrap() error }:
 		return dependencyRecoveryDiagnostics(failure.Unwrap())
@@ -332,6 +363,7 @@ func dependencyOperationDiagnostic(failure *pkgcontext.OperationError) diagnosti
 	if errors.As(failure.Err, &pathErr) {
 		result.Path = pathErr.Path
 	}
+
 	switch failure.Operation {
 	case "read manifest":
 		result.Message = "Cannot read project configuration"
@@ -366,6 +398,7 @@ func dependencyOperationDiagnostic(failure *pkgcontext.OperationError) diagnosti
 	default:
 		result.Message, result.Action = dependencyFailureAdvice(failure.Err)
 	}
+
 	return result
 }
 
@@ -386,17 +419,21 @@ func dependencyFailureAdvice(err error) (string, string) {
 	case isConfigurationParseError(err):
 		return "Package configuration is invalid", "Fix pawn.json or pawn.yaml, then run `sampctl check`."
 	}
+
 	var rateLimit *github.RateLimitError
 	if errors.As(err, &rateLimit) {
 		action := "Wait for GitHub's rate limit to reset, then retry."
 		if !rateLimit.Rate.Reset.IsZero() {
 			action = "Retry after " + rateLimit.Rate.Reset.UTC().Format("2006-01-02 15:04:05 UTC") + "."
 		}
+
 		if rateLimit.Rate.Limit > 0 && rateLimit.Rate.Limit <= 60 {
 			action += " Set SAMPCTL_GITHUB_TOKEN for a higher limit."
 		}
+
 		return "GitHub API rate limit reached", action
 	}
+
 	var remote *github.ErrorResponse
 	if errors.As(err, &remote) && remote.Response != nil {
 		switch remote.Response.StatusCode {
@@ -406,10 +443,12 @@ func dependencyFailureAdvice(err error) (string, string) {
 			return "Remote request failed", "Check your connection or wait for the service to recover, then retry."
 		}
 	}
+
 	var network net.Error
 	if errors.As(err, &network) {
 		return "Network request failed", "Check your connection, then retry."
 	}
+
 	return "Dependency command failed", "Run the command with --verbose to see the error."
 }
 
@@ -438,7 +477,9 @@ func redactDiagnosticText(text string) string {
 		} else if i == len(diagnosticSecretPatterns)-1 {
 			replacement = "[redacted]"
 		}
+
 		text = pattern.ReplaceAllString(text, replacement)
 	}
+
 	return text
 }

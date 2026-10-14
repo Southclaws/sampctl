@@ -15,6 +15,7 @@ func (s *commandState) configure(c *cli.Context) error {
 	if isCheckCommand(c.Args()) {
 		return nil
 	}
+
 	loadDotEnv()
 
 	if c.GlobalBool("bare") {
@@ -58,6 +59,7 @@ func configureLogging(c *cli.Context) {
 		print.SetVerbose()
 		print.Verb("Verbose logging enabled")
 	}
+
 	if runtime.GOOS != "windows" {
 		print.SetColoured()
 	}

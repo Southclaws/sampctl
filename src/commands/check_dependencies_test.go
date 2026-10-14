@@ -73,6 +73,7 @@ func TestCheckDependencies(t *testing.T) {
 			require.NoError(t, os.WriteFile(filepath.Join(path, "pawn.json"), []byte(`{"include_path":"missing"}`), 0o644))
 		}, want: checkFailed},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			pkg := newCheckDependenciesPackage(t)
@@ -80,6 +81,7 @@ func TestCheckDependencies(t *testing.T) {
 			if tt.setup != nil {
 				tt.setup(t, pkg)
 			}
+
 			results, err := checkDependencies(context.Background(), pkg, nil, nil)
 			require.NoError(t, err)
 			require.NotEmpty(t, results)
@@ -88,6 +90,7 @@ func TestCheckDependencies(t *testing.T) {
 				statuses = append(statuses, result.Status)
 				assert.False(t, result.CanFix)
 			}
+
 			assert.Contains(t, statuses, tt.want)
 			if tt.want == checkPassed {
 				assert.NotContains(t, statuses, checkFailed)
@@ -105,10 +108,12 @@ func TestCheckDependenciesExternalPaths(t *testing.T) {
 	if err := os.Symlink(external, filepath.Join(pkg.Vendor, "repo")); err != nil {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
+
 	results, err := checkDependencies(context.Background(), pkg, nil, nil)
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	assert.Equal(t, checkPassed, results[0].Status)
+
 	content, err := os.ReadFile(filepath.Join(external, "library.inc"))
 	require.NoError(t, err)
 	assert.Equal(t, "user source", string(content))
@@ -127,11 +132,14 @@ func TestCheckDependenciesIntegrityAndRevision(t *testing.T) {
 	results, err := checkDependencies(context.Background(), pkg, lf, nil)
 	require.NoError(t, err)
 	assert.Equal(t, checkPassed, results[0].Status)
+
 	require.NoError(t, os.WriteFile(filepath.Join(path, "library.inc"), []byte("local change"), 0o644))
+
 	results, err = checkDependencies(context.Background(), pkg, lf, nil)
 	require.NoError(t, err)
 	assert.Equal(t, checkFailed, results[0].Status)
 	assert.Contains(t, results[0].Message, "integrity")
+
 	content, err := os.ReadFile(filepath.Join(path, "library.inc"))
 	require.NoError(t, err)
 	assert.Equal(t, "local change", string(content))
@@ -140,6 +148,7 @@ func TestCheckDependenciesIntegrityAndRevision(t *testing.T) {
 	locked.Commit = "1111111111111111111111111111111111111111"
 	locked.Integrity = ""
 	lf.Dependencies["github.com/owner/repo"] = locked
+
 	results, err = checkDependencies(context.Background(), pkg, lf, nil)
 	require.NoError(t, err)
 	assert.Equal(t, checkFailed, results[0].Status)
@@ -150,12 +159,15 @@ func TestCheckDependenciesCyclesOverridesAndCancellation(t *testing.T) {
 	pkg := newCheckDependenciesPackage(t)
 	pkg.Dependencies = []versioning.DependencyString{"old/repo"}
 	newCheckDependencyRepo(t, filepath.Join(pkg.Vendor, "repo"), `{"dependencies":["old/repo"]}`)
+
 	results, err := checkDependencies(context.Background(), pkg, nil, map[string]string{"old/repo": "new/repo"})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	assert.Equal(t, checkPassed, results[0].Status)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
+
 	_, err = checkDependencies(ctx, pkg, nil, nil)
 	assert.ErrorIs(t, err, context.Canceled)
 }
@@ -163,6 +175,7 @@ func TestCheckDependenciesCyclesOverridesAndCancellation(t *testing.T) {
 func TestCheckDependenciesMultipleFailures(t *testing.T) {
 	pkg := newCheckDependenciesPackage(t)
 	pkg.Dependencies = []versioning.DependencyString{"owner/first", "owner/second"}
+
 	results, err := checkDependencies(context.Background(), pkg, nil, nil)
 	require.NoError(t, err)
 	require.Len(t, results, 2)
@@ -176,13 +189,18 @@ func TestCheckDependenciesDoesNotInitializeMissingSubmodules(t *testing.T) {
 	path := filepath.Join(pkg.Vendor, "repo")
 	newCheckDependencyRepo(t, path, "")
 	require.NoError(t, os.WriteFile(filepath.Join(path, ".gitmodules"), []byte("[submodule \"child\"]\n\tpath = child\n\turl = https://example.com/child.git\n"), 0o600))
+
 	repo, err := git.PlainOpen(path)
 	require.NoError(t, err)
+
 	cfg, err := repo.Config()
 	require.NoError(t, err)
+
 	cfg.Submodules["child"] = &config.Submodule{Name: "child", Path: "child", URL: "https://example.com/child.git"}
 	require.NoError(t, repo.SetConfig(cfg))
+
 	before := snapshotCheckDependency(t, path)
+
 	results, err := checkDependencies(t.Context(), pkg, nil, nil)
 	require.NoError(t, err)
 	require.Len(t, results, 1)
@@ -198,6 +216,7 @@ func TestCheckDependenciesSupportsLinkedWorktree(t *testing.T) {
 	commit := newCheckDependencyRepo(t, parent, "")
 	path := filepath.Join(pkg.Vendor, "repo")
 	require.NoError(t, os.MkdirAll(path, 0o755))
+
 	metadata := filepath.Join(parent, ".git", "worktrees", "linked")
 	require.NoError(t, os.MkdirAll(metadata, 0o755))
 	indexContents, err := os.ReadFile(filepath.Join(parent, ".git", "index"))
@@ -210,12 +229,15 @@ func TestCheckDependenciesSupportsLinkedWorktree(t *testing.T) {
 	}
 	require.NoError(t, os.WriteFile(filepath.Join(path, ".git"), []byte("gitdir: "+metadata+"\n"), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(path, "library.inc"), []byte("stock Library() {}"), 0o644))
+
 	lf := lockfile.New("test")
 	lf.AddDependency("github.com/owner/repo", lockfile.LockedDependency{
 		User: "owner", Repo: "repo", Commit: commit, Integrity: lockfile.CalculateCommitIntegrity(commit),
 	})
+
 	parentBefore := snapshotCheckDependency(t, parent)
 	before := snapshotCheckDependency(t, path)
+
 	results, err := checkDependencies(t.Context(), pkg, lf, nil)
 	require.NoError(t, err)
 	require.Len(t, results, 1)
@@ -231,17 +253,21 @@ func snapshotCheckDependency(t *testing.T, dir string) map[string]string {
 		if err != nil {
 			return err
 		}
+
 		var hash [32]byte
 		if info.Mode().IsRegular() {
 			contents, err := os.ReadFile(path)
 			if err != nil {
 				return err
 			}
+
 			hash = sha256.Sum256(contents)
 		}
+
 		files[path] = fmt.Sprintf("%o:%d:%x", info.Mode(), info.ModTime().UnixNano(), hash)
 		return nil
 	}))
+
 	return files
 }
 
@@ -249,6 +275,7 @@ func newCheckDependenciesPackage(t *testing.T) pawnpackage.Package {
 	t.Helper()
 	root := filepath.Join(t.TempDir(), "project")
 	require.NoError(t, os.Mkdir(root, 0o755))
+
 	return pawnpackage.Package{Parent: true, LocalPath: root, Vendor: filepath.Join(root, "dependencies")}
 }
 
@@ -256,9 +283,12 @@ func newCheckDependencyRepo(t *testing.T, path, definition string) string {
 	t.Helper()
 	repo, err := git.PlainInit(path, false)
 	require.NoError(t, err)
+
 	require.NoError(t, os.WriteFile(filepath.Join(path, "library.inc"), []byte("stock Library() {}"), 0o644))
+
 	wt, err := repo.Worktree()
 	require.NoError(t, err)
+
 	_, err = wt.Add("library.inc")
 	require.NoError(t, err)
 	if definition != "" {
@@ -266,7 +296,9 @@ func newCheckDependencyRepo(t *testing.T, path, definition string) string {
 		_, err = wt.Add("pawn.json")
 		require.NoError(t, err)
 	}
+
 	commit, err := wt.Commit("fixture", &git.CommitOptions{Author: &object.Signature{Name: "Fixture", Email: "fixture@example.com", When: time.Unix(0, 0)}})
 	require.NoError(t, err)
+
 	return commit.String()
 }

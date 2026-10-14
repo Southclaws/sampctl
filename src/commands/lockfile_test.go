@@ -107,6 +107,7 @@ func TestLockfileDependencyCount(t *testing.T) {
 	lf := lockfile.New("dev")
 	lf.AddDependency("github.com/user/repo", lockfile.LockedDependency{Repo: "repo", User: "user"})
 	lf.AddDependency("github.com/user/repo2", lockfile.LockedDependency{Repo: "repo2", User: "user"})
+
 	assert.Equal(t, 2, lockfileDependencyCount(&fakeCommandLockfile{lockfile: lf}))
 }
 

@@ -27,6 +27,7 @@ func TestCheckLockfile(t *testing.T) {
 		{name: "unsupported version", content: `{"version":2,"dependencies":{}}`, want: checkFailed},
 		{name: "valid empty lockfile", content: `{"version":1,"dependencies":{}}`, want: checkPassed},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			pkg := newCheckDependenciesPackage(t)
@@ -34,6 +35,7 @@ func TestCheckLockfile(t *testing.T) {
 			if tt.content != "" {
 				require.NoError(t, os.WriteFile(path, []byte(tt.content), 0o644))
 			}
+
 			lf, results := checkLockfile(pkg, map[string]string{})
 			require.Len(t, results, 1)
 			assert.Equal(t, tt.want, results[0].Status)
@@ -43,6 +45,7 @@ func TestCheckLockfile(t *testing.T) {
 			} else {
 				assert.Nil(t, lf)
 			}
+
 			if tt.content != "" {
 				content, err := os.ReadFile(path)
 				require.NoError(t, err)
@@ -68,6 +71,7 @@ func TestCheckLockfileDependencyData(t *testing.T) {
 		{name: "mismatched key", key: "github.com/other/repo", locked: lockfile.LockedDependency{User: "owner", Repo: "repo", Commit: strings.Repeat("a", 40)}, want: checkFailed},
 		{name: "local revision is optional", key: "includes://local/includes", locked: lockfile.LockedDependency{Scheme: "includes", Local: "includes", User: "local", Repo: "includes"}, want: checkPassed},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			pkg := newCheckDependenciesPackage(t)
@@ -79,11 +83,13 @@ func TestCheckLockfileDependencyData(t *testing.T) {
 				pkg.Dependencies = []versioning.DependencyString{"owner/repo"}
 			}
 			writeCheckLockfile(t, pkg.LocalPath, lf)
+
 			_, results := checkLockfile(pkg, map[string]string{})
 			statuses := make([]checkStatus, 0, len(results))
 			for _, result := range results {
 				statuses = append(statuses, result.Status)
 			}
+
 			assert.Contains(t, statuses, tt.want)
 		})
 	}
@@ -103,25 +109,30 @@ func TestCheckLockfileConsistency(t *testing.T) {
 		{name: "removed direct dependency", want: checkFailed},
 		{name: "transitive entries may remain", locked: lockfile.LockedDependency{Transitive: true}, want: checkPassed},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			pkg := newCheckDependenciesPackage(t)
 			if tt.declaration != "" {
 				pkg.Dependencies = []versioning.DependencyString{tt.declaration}
 			}
+
 			lf := lockfile.New("test")
 			tt.locked.User, tt.locked.Repo, tt.locked.Commit = "owner", "repo", strings.Repeat("a", 40)
 			lf.AddDependency("github.com/owner/repo", tt.locked)
 			writeCheckLockfile(t, pkg.LocalPath, lf)
+
 			_, results := checkLockfile(pkg, map[string]string{})
 			require.Len(t, results, 1)
 			assert.Equal(t, tt.want, results[0].Status)
 		})
 	}
+
 	t.Run("missing locked dependency", func(t *testing.T) {
 		pkg := newCheckDependenciesPackage(t)
 		pkg.Dependencies = []versioning.DependencyString{"owner/missing"}
 		writeCheckLockfile(t, pkg.LocalPath, lockfile.New("test"))
+
 		_, results := checkLockfile(pkg, map[string]string{})
 		require.Len(t, results, 1)
 		assert.Equal(t, checkFailed, results[0].Status)
@@ -132,6 +143,7 @@ func writeCheckLockfile(t *testing.T, root string, lf *lockfile.Lockfile) {
 	t.Helper()
 	data, err := json.Marshal(lf)
 	require.NoError(t, err)
+
 	require.NoError(t, os.WriteFile(filepath.Join(root, lockfile.Filename), data, 0o644))
 }
 
@@ -139,6 +151,7 @@ func TestCheckLockfileMissingOverridesSkipsComparison(t *testing.T) {
 	pkg := newCheckDependenciesPackage(t)
 	pkg.Dependencies = []versioning.DependencyString{"owner/missing"}
 	writeCheckLockfile(t, pkg.LocalPath, lockfile.New("test"))
+
 	lf, results := checkLockfile(pkg, nil)
 	require.NotNil(t, lf)
 	require.Len(t, results, 1)
@@ -153,6 +166,7 @@ func TestCheckLockfileInconsistencyPreservesIntegrityChecks(t *testing.T) {
 		User: "owner", Repo: "repo", Commit: strings.Repeat("a", 40), Integrity: "commit:" + strings.Repeat("a", 40),
 	})
 	writeCheckLockfile(t, pkg.LocalPath, lf)
+
 	loaded, results := checkLockfile(pkg, map[string]string{})
 	require.NotNil(t, loaded)
 	require.Len(t, results, 1)
@@ -165,6 +179,7 @@ func TestCheckLockfileBrokenSymlink(t *testing.T) {
 	if err := os.Symlink("missing.lock", filepath.Join(pkg.LocalPath, lockfile.Filename)); err != nil {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
+
 	lf, results := checkLockfile(pkg, map[string]string{})
 	assert.Nil(t, lf)
 	require.Len(t, results, 1)

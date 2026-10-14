@@ -39,6 +39,7 @@ func packageTemplateMake(c *cli.Context) (err error) {
 	if err != nil {
 		return err
 	}
+
 	name := c.Args().First()
 
 	templatePath := filepath.Join(env.CacheDir, "templates", name)

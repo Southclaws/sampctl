@@ -18,13 +18,16 @@ func checkDependencies(ctx context.Context, pkg pawnpackage.Package, lf *lockfil
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+
 	pending := pkg.GetAllDependencies()
 	visited := make(map[string]bool)
 	results := checkDependencyStaging(pkg.Vendor, recoveryStages...)
+
 	for len(pending) > 0 {
 		if err := ctx.Err(); err != nil {
 			return results, err
 		}
+
 		declaration := pending[0]
 		pending = pending[1:]
 		meta, err := declaration.ExplodeWithOverrides(overrides)
@@ -35,26 +38,32 @@ func checkDependencies(ctx context.Context, pkg pawnpackage.Package, lf *lockfil
 			})
 			continue
 		}
+
 		identity := meta.String() + "\x00" + meta.Path
 		if visited[identity] {
 			continue
 		}
+
 		visited[identity] = true
 		result, subpackage := checkInstalledDependency(ctx, pkg, meta, lf)
 		if err := ctx.Err(); err != nil {
 			return results, err
 		}
+
 		results = append(results, result)
 		if subpackage != nil {
 			pending = append(pending, subpackage.Dependencies...)
 		}
 	}
+
 	if err := ctx.Err(); err != nil {
 		return results, err
 	}
+
 	if len(results) == 0 {
 		results = append(results, diagnostic{Name: "dependencies", Status: checkPassed, Message: "No dependencies are declared"})
 	}
+
 	return results, nil
 }
 
@@ -63,6 +72,7 @@ func checkDependencyStaging(vendor string, recoveryStages ...string) []diagnosti
 	if errors.Is(err, os.ErrNotExist) || err == nil && (!info.IsDir() || info.Mode()&os.ModeSymlink != 0) {
 		return nil
 	}
+
 	var entries []os.DirEntry
 	if err == nil {
 		entries, err = os.ReadDir(vendor)
@@ -70,21 +80,25 @@ func checkDependencyStaging(vendor string, recoveryStages ...string) []diagnosti
 	if err != nil {
 		return []diagnostic{{Name: "dependency staging", Status: checkWarning, Message: "Cannot inspect temporary dependency directories", Path: vendor, Err: err, Action: "Check read access to the dependencies directory."}}
 	}
+
 	var results []diagnostic
 	for _, entry := range entries {
 		if !entry.IsDir() || !strings.HasPrefix(entry.Name(), ".sampctl-stage-") {
 			continue
 		}
+
 		path := filepath.Join(vendor, entry.Name())
 		if slices.Contains(recoveryStages, path) {
 			continue
 		}
+
 		results = append(results, diagnostic{
 			Name: "dependency staging", Status: checkWarning,
 			Message: "Temporary dependency directory remains: " + entry.Name(), Path: path,
 			Action: "Wait for dependency commands to finish. If the directory remains, use --verbose to find it. Keep any backups before deleting it.",
 		})
 	}
+
 	return results
 }
 
@@ -93,16 +107,20 @@ func checkInstalledDependency(ctx context.Context, pkg pawnpackage.Package, meta
 	if meta.IsLocalScheme() {
 		return checkLocalDependency(pkg, meta), nil
 	}
+
 	result.Path = filepath.Join(pkg.Vendor, meta.Repo)
 	if result = checkRemoteDependencyPath(result, meta); result.Status == checkFailed {
 		return result, nil
 	}
+
 	if result = checkDependencyRepository(ctx, result, meta); result.Status == checkFailed {
 		return result, nil
 	}
+
 	if result = checkDependencyRevision(ctx, result, meta, lf); result.Status == checkFailed {
 		return result, nil
 	}
+
 	subpackage, err := readCheckDependencyDefinition(result.Path)
 	if err == nil {
 		err = subpackage.Validate()
@@ -113,6 +131,7 @@ func checkInstalledDependency(ctx context.Context, pkg pawnpackage.Package, meta
 		result.Err = err
 		return result, nil
 	}
+
 	includePaths := []string{meta.Path}
 	if !dependencyHasIncludeResources(subpackage) {
 		includePaths = append(includePaths, subpackage.IncludePath)
@@ -122,6 +141,7 @@ func checkInstalledDependency(ctx context.Context, pkg pawnpackage.Package, meta
 			return result, nil
 		}
 	}
+
 	result.Message = fmt.Sprintf("Dependency %s is installed", meta)
 	result.Action = ""
 	return result, &subpackage
@@ -133,6 +153,7 @@ func dependencyHasIncludeResources(pkg pawnpackage.Package) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -142,21 +163,25 @@ func checkRemoteDependencyPath(result diagnostic, meta versioning.DependencyMeta
 		result.Action = "Correct the dependency repository name in pawn.json or pawn.yaml."
 		return result
 	}
+
 	info, err := os.Stat(result.Path)
 	if err != nil {
 		result.Message = fmt.Sprintf("Dependency %s is missing or inaccessible", meta)
 		result.Err = err
 		return result
 	}
+
 	if !info.IsDir() {
 		result.Message = fmt.Sprintf("Dependency %s is not installed in a directory", meta)
 		return result
 	}
+
 	if _, err := os.ReadDir(result.Path); err != nil {
 		result.Message = fmt.Sprintf("Dependency %s installation cannot be read", meta)
 		result.Err = err
 		return result
 	}
+
 	result.Status = checkPassed
 	return result
 }
@@ -165,6 +190,7 @@ func checkDependencyIncludePath(result diagnostic, meta versioning.DependencyMet
 	if includePath == "" {
 		return result
 	}
+
 	path := filepath.Join(result.Path, includePath)
 	info, err := os.Stat(path)
 	if err == nil && !info.IsDir() {
@@ -178,6 +204,7 @@ func checkDependencyIncludePath(result diagnostic, meta versioning.DependencyMet
 		result.Message = fmt.Sprintf("Dependency %s include path is missing or invalid", meta)
 		result.Err = err
 	}
+
 	return result
 }
 
@@ -202,14 +229,17 @@ func checkLocalDependency(pkg pawnpackage.Package, meta versioning.DependencyMet
 		result.Err = err
 		return result
 	}
+
 	if meta.IsIncludes() && !info.IsDir() {
 		result.Status = checkFailed
 		result.Message = fmt.Sprintf("Local include dependency %s is not a directory", meta)
 		result.Action = "Set the dependency path to an include directory."
 	}
+
 	if info.IsDir() && (meta.IsPlugin() || meta.Scheme == "component") {
 		result = checkLocalDependencyDefinition(result, meta)
 	}
+
 	return result
 }
 
@@ -225,9 +255,11 @@ func checkLocalDependencyDefinition(result diagnostic, meta versioning.Dependenc
 	} else {
 		result = checkDependencyIncludePath(result, meta, subpackage.IncludePath)
 	}
+
 	if result.Status == checkFailed {
 		result.Action = "Correct the local dependency path or its package configuration."
 	}
+
 	return result
 }
 
@@ -241,14 +273,17 @@ func readCheckDependencyDefinition(path string) (pawnpackage.Package, error) {
 		if err != nil {
 			return pawnpackage.Package{}, fmt.Errorf("inspect %s: %w", definition, err)
 		}
+
 		info, err := os.Stat(definition)
 		if err != nil {
 			return pawnpackage.Package{}, fmt.Errorf("inspect %s: %w", definition, err)
 		}
+
 		if !info.Mode().IsRegular() {
 			return pawnpackage.Package{}, fmt.Errorf("package definition %s is not a regular file", definition)
 		}
 	}
+
 	return pawnpackage.PackageFromDir(path)
 }
 
@@ -260,12 +295,14 @@ func checkDependencyRepository(ctx context.Context, result diagnostic, meta vers
 		result.Err = err
 		return result
 	}
+
 	gitInfo, gitErr := os.Stat(filepath.Join(result.Path, ".git"))
 	if gitErr == nil && !gitInfo.IsDir() && !gitInfo.Mode().IsRegular() {
 		result.Status = checkFailed
 		result.Message = fmt.Sprintf("Dependency %s has an invalid repository path", meta)
 		return result
 	}
+
 	if info.Mode()&os.ModeSymlink != 0 && os.IsNotExist(gitErr) {
 		err = lockfile.ValidateWorktreeFilesContext(ctx, result.Path)
 	} else {
@@ -277,6 +314,7 @@ func checkDependencyRepository(ctx context.Context, result diagnostic, meta vers
 		result.Err = err
 		return result
 	}
+
 	result.Status = checkPassed
 	return result
 }
@@ -286,20 +324,25 @@ func validateCheckDependencyRepository(ctx context.Context, path string) error {
 	if err != nil {
 		return err
 	}
+
 	head, err := repo.Head()
 	if err != nil {
 		return fmt.Errorf("read repository HEAD: %w", err)
 	}
+
 	if _, err := repo.CommitObject(head.Hash()); err != nil {
 		return fmt.Errorf("read HEAD commit: %w", err)
 	}
+
 	wt, err := repo.Worktree()
 	if err != nil {
 		return err
 	}
+
 	if _, err := wt.Status(); err != nil {
 		return fmt.Errorf("read repository status: %w", err)
 	}
+
 	return ctx.Err()
 }
 
@@ -309,6 +352,7 @@ func checkDependencyRevision(ctx context.Context, result diagnostic, meta versio
 	if lf != nil && !lf.IsOutdated(lockedMeta) {
 		locked, _ = lf.GetDependency(lockfile.DependencyKey(lockedMeta))
 	}
+
 	expectedCommit := meta.Commit
 	if locked.Commit != "" {
 		expectedCommit = locked.Commit
@@ -329,6 +373,7 @@ func checkDependencyRevision(ctx context.Context, result diagnostic, meta versio
 			return result
 		}
 	}
+
 	if locked.Integrity != "" {
 		matches, err := lockfile.VerifyIntegrityContext(ctx, result.Path, locked.Integrity)
 		if err != nil || !matches {
@@ -337,6 +382,7 @@ func checkDependencyRevision(ctx context.Context, result diagnostic, meta versio
 			result.Err = err
 		}
 	}
+
 	return result
 }
 

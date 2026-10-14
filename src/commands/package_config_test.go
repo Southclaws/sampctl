@@ -40,6 +40,7 @@ func TestPackageConfigSetsStringFieldAndWritesConfig(t *testing.T) {
 
 	cacheDir, err := fs.ConfigDir()
 	require.NoError(t, err)
+
 	contents, err := os.ReadFile(filepath.Join(cacheDir, "config.json"))
 	require.NoError(t, err)
 	assert.Contains(t, string(contents), `"default_user": "bob"`)
@@ -90,6 +91,7 @@ func newPackageConfigTestContext(t *testing.T, args []string) (*cli.Context, *co
 	t.Setenv("XDG_CONFIG_HOME", configHome)
 	t.Setenv("APPDATA", configHome)
 	configdir.Refresh()
+
 	cacheDir := fs.ConfigDirPath()
 	if rel, err := filepath.Rel(configHome, cacheDir); err != nil || !filepath.IsLocal(rel) {
 		t.Fatalf("ConfigDirPath() = %q, want path inside temporary home %q (relative path %q, error %v)", cacheDir, configHome, rel, err)
@@ -131,5 +133,6 @@ func captureStdout(t *testing.T, fn func()) string {
 
 	contents, err := io.ReadAll(reader)
 	require.NoError(t, err)
+
 	return string(contents)
 }

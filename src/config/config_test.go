@@ -41,9 +41,11 @@ func TestLoadConfigPreservesExistingFiles(t *testing.T) {
 			cfg, err := LoadConfig(cacheDir)
 			require.NoError(t, err)
 			assert.Equal(t, "fixture-user", cfg.DefaultUser)
+
 			got, err := os.ReadFile(path)
 			require.NoError(t, err)
 			assert.Equal(t, contents, got)
+
 			after, err := os.Stat(path)
 			require.NoError(t, err)
 			assert.Equal(t, before.ModTime(), after.ModTime())
@@ -56,12 +58,14 @@ func TestLoadConfigPreservesParseAndAccessErrors(t *testing.T) {
 
 	cacheDir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(cacheDir, "config.json"), []byte("{broken"), 0o600))
+
 	_, err := LoadConfig(cacheDir)
 	var syntaxErr *json.SyntaxError
 	assert.True(t, errors.As(err, &syntaxErr), "LoadConfig must preserve malformed JSON error")
 
 	cacheFile := filepath.Join(t.TempDir(), "cache-file")
 	require.NoError(t, os.WriteFile(cacheFile, []byte("file"), 0o600))
+
 	_, err = LoadConfig(cacheFile)
 	var pathErr *os.PathError
 	assert.True(t, errors.As(err, &pathErr), "LoadConfig must preserve inaccessible cache error")
@@ -73,6 +77,7 @@ func TestLoadConfigRejectsNonRegularFiles(t *testing.T) {
 	cacheDir := t.TempDir()
 	path := filepath.Join(cacheDir, "config.json")
 	require.NoError(t, os.Mkdir(path, 0o700))
+
 	_, err := LoadConfig(cacheDir)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not a regular file")
@@ -87,9 +92,11 @@ func TestLoadConfigRejectsDanglingSymlink(t *testing.T) {
 	if err := os.Symlink(filepath.Join(cacheDir, "missing.json"), path); err != nil {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
+
 	_, err := LoadConfig(cacheDir)
 	require.ErrorIs(t, err, os.ErrNotExist)
 	assert.Contains(t, err.Error(), path)
+
 	_, err = os.Lstat(path)
 	require.NoError(t, err)
 }

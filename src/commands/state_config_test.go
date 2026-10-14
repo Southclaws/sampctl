@@ -36,14 +36,17 @@ func TestCommandStateConfigureCheckSkipsConfigLoad(t *testing.T) {
 	cacheDir := t.TempDir()
 	configPath := filepath.Join(cacheDir, "config.json")
 	require.NoError(t, os.WriteFile(configPath, []byte("{broken"), 0o600))
+
 	state := newCommandState("1.2.3", cacheDir)
 
 	for _, args := range [][]string{{"check"}, {"help", "check"}} {
 		require.NoError(t, state.configure(newGlobalCommandContext(t, args)))
 	}
+
 	assert.Nil(t, state.cfg)
 	assert.Nil(t, state.gh)
 	assert.Nil(t, state.gitAuth)
+
 	contents, err := os.ReadFile(configPath)
 	require.NoError(t, err)
 	assert.Equal(t, "{broken", string(contents))
@@ -69,6 +72,7 @@ func TestCommandStateConfigureLoadsConfigAndBuildsClients(t *testing.T) {
 
 	httpAuth := extractHTTPAuth(t, state.gitAuth)
 	assert.Equal(t, &transporthttp.BasicAuth{Username: "x-access-token", Password: "token"}, httpAuth)
+
 	require.NotNil(t, state.cfg.HideVersionUpdateMessage)
 	assert.False(t, *state.cfg.HideVersionUpdateMessage)
 }

@@ -21,32 +21,41 @@ func checkLockfile(pkg pawnpackage.Package, overrides map[string]string) (*lockf
 	if err != nil {
 		return nil, []diagnostic{lockfileIssue(path, "pawn.lock cannot be accessed", err)}
 	}
+
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil, []diagnostic{lockfileIssue(path, "pawn.lock cannot be accessed", err)}
 	}
+
 	if !info.Mode().IsRegular() {
 		return nil, []diagnostic{lockfileIssue(path, "pawn.lock is not a regular file", nil)}
 	}
+
 	lf, err := lockfile.Load(pkg.LocalPath)
 	if err != nil {
 		return nil, []diagnostic{lockfileIssue(path, "pawn.lock is malformed or unsupported", err)}
 	}
+
 	if lf == nil {
 		return nil, []diagnostic{lockfileIssue(path, "pawn.lock could not be loaded", nil)}
 	}
+
 	if lf.Version < 1 {
 		return nil, []diagnostic{lockfileIssue(path, "pawn.lock has an invalid version", fmt.Errorf("unsupported lockfile version %d", lf.Version))}
 	}
+
 	results := checkLockedDependencyData(lf, path)
 	invalidData := len(results) > 0
 	results = append(results, checkLockfileDeclarations(pkg, lf, path, overrides)...)
+
 	if invalidData {
 		return nil, results
 	}
+
 	if len(results) == 0 {
 		results = append(results, diagnostic{Name: "lockfile", Status: checkPassed, Message: "Lockfile is valid", Path: path})
 	}
+
 	return lf, results
 }
 
@@ -63,6 +72,7 @@ func checkLockedDependencyData(lf *lockfile.Lockfile, path string) []diagnostic 
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
+
 	var results []diagnostic
 	for _, key := range keys {
 		locked := lf.Dependencies[key]
@@ -71,18 +81,22 @@ func checkLockedDependencyData(lf *lockfile.Lockfile, path string) []diagnostic 
 			results = append(results, lockfileIssue(path, fmt.Sprintf("Locked dependency %s has invalid metadata", key), err))
 			continue
 		}
+
 		if key != lockfile.DependencyKey(meta) {
 			results = append(results, lockfileIssue(path, fmt.Sprintf("Locked dependency %s does not match its metadata", key), nil))
 			continue
 		}
+
 		if !meta.IsLocalScheme() && !validCheckHex(locked.Commit, 40) {
 			results = append(results, lockfileIssue(path, fmt.Sprintf("Locked dependency %s has a missing or invalid revision", key), nil))
 			continue
 		}
+
 		if err := checkLockedIntegrity(locked); err != nil {
 			results = append(results, lockfileIssue(path, fmt.Sprintf("Locked dependency %s has invalid integrity data", key), err))
 		}
 	}
+
 	return results
 }
 
@@ -90,16 +104,20 @@ func checkLockedIntegrity(locked lockfile.LockedDependency) error {
 	if !lockfile.IsValidIntegrity(locked.Integrity) {
 		return fmt.Errorf("unsupported or malformed integrity %q", locked.Integrity)
 	}
+
 	if locked.Integrity == "" {
 		return nil
 	}
+
 	kind, value := lockfile.ParseIntegrity(locked.Integrity)
 	if _, err := hex.DecodeString(value); err != nil {
 		return fmt.Errorf("integrity is not hexadecimal: %w", err)
 	}
+
 	if kind == "commit" && value != locked.Commit {
 		return fmt.Errorf("integrity commit differs from locked revision")
 	}
+
 	return nil
 }
 
@@ -107,6 +125,7 @@ func validCheckHex(value string, size int) bool {
 	if len(value) != size {
 		return false
 	}
+
 	_, err := hex.DecodeString(value)
 	return err == nil
 }
@@ -115,6 +134,7 @@ func checkLockfileDeclarations(pkg pawnpackage.Package, lf *lockfile.Lockfile, p
 	if overrides == nil {
 		return []diagnostic{{Name: "lockfile", Status: checkSkipped, Path: path, Message: "Cannot compare the lockfile until the dependency overrides are fixed"}}
 	}
+
 	declared := make(map[string]bool)
 	var results []diagnostic
 	validDeclarations := true
@@ -128,6 +148,7 @@ func checkLockfileDeclarations(pkg pawnpackage.Package, lf *lockfile.Lockfile, p
 			})
 			continue
 		}
+
 		meta = normalizeCheckDependency(meta)
 		key := lockfile.DependencyKey(meta)
 		declared[key] = true
@@ -141,9 +162,11 @@ func checkLockfileDeclarations(pkg pawnpackage.Package, lf *lockfile.Lockfile, p
 			results = append(results, lockfileIssue(path, fmt.Sprintf("Dependency %s include path differs from pawn.lock", meta), nil))
 		}
 	}
+
 	if validDeclarations {
 		results = append(results, checkRemovedLockedDependencies(lf, declared, path)...)
 	}
+
 	return results
 }
 
@@ -154,10 +177,12 @@ func checkRemovedLockedDependencies(lf *lockfile.Lockfile, declared map[string]b
 			removed = append(removed, key)
 		}
 	}
+
 	sort.Strings(removed)
 	var results []diagnostic
 	for _, key := range removed {
 		results = append(results, lockfileIssue(path, fmt.Sprintf("Locked direct dependency %s is no longer declared", key), nil))
 	}
+
 	return results
 }

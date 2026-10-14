@@ -12,6 +12,7 @@ import (
 
 func TestCheckDependencyStagingPreservesRecoveryFiles(t *testing.T) {
 	t.Parallel()
+
 	pkg := newCheckDependenciesPackage(t)
 	require.NoError(t, os.WriteFile(filepath.Join(pkg.LocalPath, "pawn.json"), []byte("{}"), 0o600))
 	stage := filepath.Join(pkg.Vendor, ".sampctl-stage-interrupted")
@@ -19,6 +20,7 @@ func TestCheckDependencyStagingPreservesRecoveryFiles(t *testing.T) {
 	require.NoError(t, os.MkdirAll(backup, 0o700))
 	require.NoError(t, os.WriteFile(filepath.Join(backup, "keep.inc"), []byte("previous installation"), 0o600))
 	before := snapshotCheckDependency(t, stage)
+
 	for _, fix := range []bool{false, true} {
 		results, err := runChecks(context.Background(), checkOptions{Dir: pkg.LocalPath, CacheDir: t.TempDir(), Platform: "linux", Fix: fix})
 		require.NoError(t, err)
@@ -27,6 +29,7 @@ func TestCheckDependencyStagingPreservesRecoveryFiles(t *testing.T) {
 			if result.Name != "dependency staging" {
 				continue
 			}
+
 			found = true
 			assert.Equal(t, checkWarning, result.Status)
 			assert.Equal(t, stage, result.Path)
@@ -34,6 +37,7 @@ func TestCheckDependencyStagingPreservesRecoveryFiles(t *testing.T) {
 			assert.False(t, result.RepairAttempted)
 			assert.Contains(t, result.Action, "backup")
 		}
+
 		assert.True(t, found)
 		assert.Equal(t, before, snapshotCheckDependency(t, stage))
 	}
@@ -41,6 +45,7 @@ func TestCheckDependencyStagingPreservesRecoveryFiles(t *testing.T) {
 
 func TestCheckDependencyStagingIgnoresExternalSymlinks(t *testing.T) {
 	t.Parallel()
+
 	pkg := newCheckDependenciesPackage(t)
 	require.NoError(t, os.Mkdir(pkg.Vendor, 0o700))
 	external := t.TempDir()
@@ -48,6 +53,7 @@ func TestCheckDependencyStagingIgnoresExternalSymlinks(t *testing.T) {
 	if err := os.Symlink(external, filepath.Join(pkg.Vendor, ".sampctl-stage-external")); err != nil {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
+
 	results, err := checkDependencies(context.Background(), pkg, nil, nil)
 	require.NoError(t, err)
 	require.Len(t, results, 1)
