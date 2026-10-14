@@ -14,5 +14,7 @@ URL=$(curl -s https://api.github.com/repos/Southclaws/sampctl/releases/latest |
 	tr -d \")
 
 curl -Ls $URL -o tmp.rpm
+
 rpm -Uvh tmp.rpm
+
 rm tmp.rpm

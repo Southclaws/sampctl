@@ -13,5 +13,7 @@ curl -s https://api.github.com/repos/Southclaws/sampctl/releases/latest |
 	cut -d : -f 2,3 |
 	tr -d \" |
 	wget -qi - -O tmp.deb
+
 sudo dpkg -i tmp.deb
+
 rm tmp.deb

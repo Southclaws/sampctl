@@ -14,5 +14,7 @@ URL=$(curl -s https://api.github.com/repos/Southclaws/sampctl/releases/latest |
 	tr -d \")
 
 curl -Ls $URL -o tmp.tar.gz
+
 tar xzf tmp.tar.gz
+
 rm tmp.tar.gz
