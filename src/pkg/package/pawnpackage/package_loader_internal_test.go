@@ -24,6 +24,7 @@ func TestGetRemotePackage_FromRepo_Offline(t *testing.T) {
 			http.NotFound(w, r)
 			return
 		}
+
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"type":"file","encoding":"base64","content":"` + content + `"}`))
 	}))

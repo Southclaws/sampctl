@@ -32,19 +32,23 @@ func CalculateDirectoryIntegrityContext(ctx context.Context, dir string) (string
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
+
 	root, err := resolveIntegrityDirectory(dir)
 	if err != nil {
 		return "", err
 	}
+
 	files, err := integritySourceFiles(ctx, root)
 	if err != nil {
 		return "", fmt.Errorf("walk integrity sources: %w", err)
 	}
+
 	hasher := sha256.New()
 	for _, relPath := range files {
 		if err := ctx.Err(); err != nil {
 			return "", err
 		}
+
 		if _, err := hasher.Write([]byte(relPath)); err != nil {
 			return "", errors.Wrap(err, "failed to hash file path")
 		}
@@ -52,9 +56,11 @@ func CalculateDirectoryIntegrityContext(ctx context.Context, dir string) (string
 			return "", errors.Wrapf(err, "failed to hash file: %s", relPath)
 		}
 	}
+
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
+
 	hash := hex.EncodeToString(hasher.Sum(nil))
 	return IntegrityPrefix + hash, nil
 }
@@ -65,21 +71,25 @@ func integritySourceFiles(ctx context.Context, dir string) ([]string, error) {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
+
 		if walkErr != nil {
 			return walkErr
 		}
+
 		if info.IsDir() {
 			if strings.HasPrefix(info.Name(), ".") {
 				return filepath.SkipDir
 			}
 			return nil
 		}
+
 		if strings.HasPrefix(info.Name(), ".") || !isRelevantExtension(strings.ToLower(filepath.Ext(path))) {
 			return nil
 		}
 		if _, err := integrityRegularFile(path); err != nil {
 			return err
 		}
+
 		relPath, err := filepath.Rel(dir, path)
 		if err != nil {
 			return err
@@ -90,6 +100,7 @@ func integritySourceFiles(ctx context.Context, dir string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	sort.Strings(files)
 	return files, nil
 }
@@ -98,10 +109,12 @@ func hashFileContentContext(ctx context.Context, hasher io.Writer, path string) 
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+
 	original, err := integrityRegularFile(path)
 	if err != nil {
 		return err
 	}
+
 	flags := os.O_RDONLY
 	if runtime.GOOS != "windows" {
 		// A file replaced by a FIFO must not block before its mode is checked.
@@ -112,6 +125,7 @@ func hashFileContentContext(ctx context.Context, hasher io.Writer, path string) 
 		return err
 	}
 	defer func() { err = stderrors.Join(err, file.Close()) }()
+
 	opened, err := file.Stat()
 	if err != nil {
 		return err
@@ -119,6 +133,7 @@ func hashFileContentContext(ctx context.Context, hasher io.Writer, path string) 
 	if !opened.Mode().IsRegular() || !os.SameFile(original, opened) {
 		return fmt.Errorf("integrity source %q changed during hashing", path)
 	}
+
 	return copyIntegrityContent(ctx, hasher, file)
 }
 
@@ -128,6 +143,7 @@ func copyIntegrityContent(ctx context.Context, destination io.Writer, source io.
 		if err := ctx.Err(); err != nil {
 			return err
 		}
+
 		n, readErr := source.Read(buffer)
 		if err := ctx.Err(); err != nil {
 			return err
@@ -141,6 +157,7 @@ func copyIntegrityContent(ctx context.Context, destination io.Writer, source io.
 				return io.ErrShortWrite
 			}
 		}
+
 		if readErr != nil {
 			if stderrors.Is(readErr, io.EOF) {
 				return ctx.Err()
@@ -158,6 +175,7 @@ func integrityRegularFile(path string) (os.FileInfo, error) {
 	if !info.Mode().IsRegular() {
 		return nil, fmt.Errorf("integrity source %q is not a regular file", path)
 	}
+
 	return info, nil
 }
 
@@ -169,6 +187,7 @@ func resolveIntegrityDirectory(dir string) (string, error) {
 	if !info.IsDir() {
 		return "", fmt.Errorf("integrity path %q is not a directory", dir)
 	}
+
 	return filepath.EvalSymlinks(dir)
 }
 
@@ -193,6 +212,7 @@ func VerifyIntegrityContext(ctx context.Context, dir, expectedHash string) (bool
 	if err := ctx.Err(); err != nil {
 		return false, err
 	}
+
 	if expectedHash == "" {
 		return true, nil
 	}
@@ -262,29 +282,36 @@ func ValidateWorktreeFilesContext(ctx context.Context, dir string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+
 	root, err := resolveIntegrityDirectory(dir)
 	if err != nil {
 		return err
 	}
+
 	if err := validateGitMetadataFilesContext(ctx, dir); err != nil {
 		return fmt.Errorf("inspect git metadata: %w", err)
 	}
+
 	return filepath.Walk(root, func(path string, info os.FileInfo, walkErr error) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
+
 		if walkErr != nil {
 			return walkErr
 		}
+
 		if path != root && info.Name() == ".git" {
 			if info.IsDir() {
 				return filepath.SkipDir
 			}
 			return nil
 		}
+
 		if info.IsDir() || info.Mode().IsRegular() {
 			return nil
 		}
+
 		if info.Mode()&os.ModeSymlink != 0 {
 			resolved, err := os.Stat(path)
 			if os.IsNotExist(err) {
@@ -297,6 +324,7 @@ func ValidateWorktreeFilesContext(ctx context.Context, dir string) error {
 				return nil
 			}
 		}
+
 		return fmt.Errorf("repository worktree file %q is not a regular file or directory", path)
 	})
 }

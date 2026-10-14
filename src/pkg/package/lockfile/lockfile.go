@@ -135,6 +135,7 @@ func (l *Lockfile) IsOutdated(meta versioning.DependencyMeta) bool {
 	if !ok {
 		return true
 	}
+
 	constraint := getConstraint(meta)
 	return locked.Constraint != constraint
 }
@@ -160,9 +161,11 @@ func (l *Lockfile) Validate() error {
 	if l.Version == 0 {
 		return fmt.Errorf("lockfile version is not set")
 	}
+
 	if l.Version > Version {
 		return fmt.Errorf("lockfile version %d is newer than supported version %d", l.Version, Version)
 	}
+
 	return nil
 }
 

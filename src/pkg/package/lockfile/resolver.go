@@ -98,6 +98,7 @@ func (r *Resolver) RecordResolution(meta versioning.DependencyMeta, resolution D
 	if commitSHA == "" {
 		return errors.New("resolved dependency commit is empty")
 	}
+
 	resolvedVersion := resolution.Resolved
 	if resolvedVersion == "" {
 		resolvedVersion = defaultResolvedVersion(meta, commitSHA)
@@ -127,6 +128,7 @@ func (r *Resolver) RecordResolution(meta versioning.DependencyMeta, resolution D
 				r.modified = true
 			}
 		}
+
 		return nil
 	}
 
@@ -193,17 +195,21 @@ func (r *Resolver) Save() error {
 	if err != nil {
 		return err
 	}
+
 	if existing != nil && sameLockfileState(existing, r.lockfile) {
 		r.modified = false
 		r.previous = nil
 		print.Verb("lockfile unchanged, skipping save")
 		return nil
 	}
+
 	if err := Save(r.dir, r.lockfile); err != nil {
 		return err
 	}
+
 	r.modified = false
 	r.previous = nil
+
 	return nil
 }
 
@@ -218,10 +224,12 @@ func (r *Resolver) Reload() error {
 	if !r.useLockfile {
 		return nil
 	}
+
 	current, err := Load(r.dir)
 	if err != nil {
 		return err
 	}
+
 	if r.previous != nil {
 		r.previous = current
 		r.lockfile = New(r.sampctlVersion)
@@ -230,6 +238,7 @@ func (r *Resolver) Reload() error {
 	} else {
 		r.lockfile = New(r.sampctlVersion)
 	}
+
 	return nil
 }
 

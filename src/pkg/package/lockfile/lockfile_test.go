@@ -457,8 +457,8 @@ func TestLockfileRuntimeAndBuild(t *testing.T) {
 	assert.Nil(t, lf.GetBuild())
 
 	files := []LockedFileInfo{
-		{Path: "samp-server", Size: 1024, Hash: "sha256:abc123", Mode: 0755},
-		{Path: "server.cfg", Size: 256, Hash: "sha256:def456", Mode: 0644},
+		{Path: "samp-server", Size: 1024, Hash: "sha256:abc123", Mode: 0o755},
+		{Path: "server.cfg", Size: 256, Hash: "sha256:def456", Mode: 0o644},
 	}
 	lf.SetRuntime("0.3.7", "linux", "samp", files)
 
@@ -493,10 +493,13 @@ func TestSaveFailurePreservesExistingDestination(t *testing.T) {
 	path := filepath.Join(dir, Filename)
 	require.NoError(t, os.Mkdir(path, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(path, "keep"), []byte("old"), 0o644))
+
 	require.Error(t, Save(dir, New("test")))
+
 	contents, err := os.ReadFile(filepath.Join(path, "keep"))
 	require.NoError(t, err)
 	assert.Equal(t, "old", string(contents))
+
 	entries, err := os.ReadDir(dir)
 	require.NoError(t, err)
 	assert.Len(t, entries, 1)
@@ -505,11 +508,14 @@ func TestSaveFailurePreservesExistingDestination(t *testing.T) {
 func TestRecordResolutionUpdatesConstraintAtSameCommit(t *testing.T) {
 	resolver, err := NewResolver(t.TempDir(), "test", true)
 	require.NoError(t, err)
+
 	meta := versioning.DependencyMeta{User: "fixture", Repo: "dep"}
 	commit := "0123456789012345678901234567890123456789"
 	require.NoError(t, resolver.RecordResolution(meta, DependencyResolution{Commit: commit, Resolved: "1.0.0"}, true, "github.com/fixture/parent"))
+
 	meta.Tag = "latest"
 	require.NoError(t, resolver.RecordResolution(meta, DependencyResolution{Commit: commit, Resolved: "1.0.0"}, false, ""))
+
 	entry, _ := resolver.GetLockfile().GetDependency(DependencyKey(meta))
 	assert.Equal(t, ":latest", entry.Constraint)
 	assert.False(t, entry.Transitive)

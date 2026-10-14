@@ -25,9 +25,11 @@ func (res Resource) Validate() (err error) {
 	if res.Name == "" {
 		return errors.New("missing name field in resource")
 	}
+
 	if res.Platform == "" {
 		return errors.New("missing platform field in resource")
 	}
+
 	return
 }
 
