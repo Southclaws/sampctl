@@ -21,4 +21,4 @@ ENV PATH "/root/.gobrew/current/bin:/root/.gobrew/bin:$PATH"
 ENV GOROOT "/root/.gobrew/current/go"
 
 # Install Golang
-RUN gobrew use latest
+RUN gobrew use 1.26.9

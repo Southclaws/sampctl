@@ -1,6 +1,6 @@
 module github.com/Southclaws/sampctl
 
-go 1.25.0
+go 1.26.9
 
 require (
 	dario.cat/mergo v1.0.2
@@ -30,7 +30,6 @@ require (
 	golang.org/x/text v0.41.0
 	gopkg.in/AlecAivazis/survey.v1 v1.8.8
 	gopkg.in/urfave/cli.v1 v1.20.0
-	rs3.io/go/mserr v0.0.0-20210411213048-aeb5e66a187f
 )
 
 require (
@@ -256,7 +255,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.42.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/crypto v0.54.0 // indirect
+	golang.org/x/crypto v0.56.0 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20260209203927-2842357ff358 // indirect
 	golang.org/x/mod v0.38.0 // indirect
 	golang.org/x/net v0.57.0 // indirect
