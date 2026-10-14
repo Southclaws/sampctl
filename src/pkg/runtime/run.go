@@ -35,7 +35,12 @@ type RunOptions struct {
 	Args       []string
 	Recover    bool
 	Output     io.Writer
-	Input      io.Reader
+
+	// Input remains caller-owned and must not be read concurrently with Run.
+	// POSIX PTY forwarding of *os.File input stops before Run returns. Other
+	// readers can retain a blocked Read after return; their owner must release
+	// it before reusing the reader for another execution.
+	Input io.Reader
 }
 
 type testResults struct {

@@ -59,19 +59,35 @@ func platformRun(ctx context.Context, cmd *exec.Cmd, w io.Writer, r io.Reader, o
 		}
 	}()
 
+	var stopInput func()
+	if input, ok := r.(*os.File); ok {
+		terminal, errPty := pollableRuntimePty(ptmx)
+		if errPty != nil {
+			errKill := terminateRuntimeProcess(cmd.Process)
+			errWait := cmd.Wait()
+			return errors.Wrap(stderrors.Join(errPty, errKill, errWait), "failed to prepare pty input forwarding")
+		}
+		ptmx = terminal
+
+		var errInput error
+		stopInput, errInput = startRuntimeFileInput(ptmx, input)
+		if errInput != nil {
+			print.Verb("failed to forward server input:", errInput)
+		}
+	} else if r != nil {
+		// An arbitrary reader cannot be interrupted without its cooperation.
+		// Its owner must release blocked reads; process exit must not wait for it.
+		go func() {
+			_, errInner := io.Copy(ptmx, r)
+			if errInner != nil && !isBenignPtyCopyError(errInner) {
+				print.Verb("failed to forward server input:", errInner)
+			}
+		}()
+	}
+
 	cmdErrCh := make(chan error, 1)
 	wrErrCh := make(chan error, 1)
 
-	go func() {
-		if r == nil {
-			return
-		}
-
-		_, errInner := io.Copy(ptmx, r)
-		if errInner != nil && !isBenignPtyCopyError(errInner) {
-			print.Verb("failed to forward server input:", errInner)
-		}
-	}()
 	go func() {
 		_, errInner := io.Copy(w, ptmx)
 		wrErrCh <- errInner
@@ -81,6 +97,9 @@ func platformRun(ctx context.Context, cmd *exec.Cmd, w io.Writer, r io.Reader, o
 	}()
 
 	cmdErr := <-cmdErrCh
+	if stopInput != nil {
+		stopInput()
+	}
 	errWrite := <-wrErrCh
 	if errWrite != nil && !isBenignPtyCopyError(errWrite) {
 		print.Verb("failed to forward server output:", errWrite)
