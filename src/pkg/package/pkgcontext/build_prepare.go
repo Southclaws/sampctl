@@ -29,6 +29,14 @@ func (pcx *PackageContext) buildPrepare(
 		return
 	}
 
+	selected := *config
+	if selected.Input == "" {
+		selected.Input = pcx.Package.Entry
+	}
+	if selected.Output == "" {
+		selected.Output = pcx.Package.Output
+	}
+
 	if err = pcx.resolveBuildPaths(config); err != nil {
 		return nil, err
 	}
@@ -51,6 +59,7 @@ func (pcx *PackageContext) buildPrepare(
 		return
 	}
 
+	pcx.ActualBuild = selected
 	return config, err
 }
 

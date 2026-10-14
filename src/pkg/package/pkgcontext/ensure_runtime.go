@@ -147,8 +147,9 @@ func (pcx *PackageContext) RecordBuildToLockfile(compilerVersion, compilerPreset
 	}
 
 	outputHash := ""
-	if output != "" && fs.Exists(output) {
-		hash, err := hashOutputFile(output)
+	outputPath := packagePath(pcx.Package.LocalPath, output)
+	if output != "" && fs.Exists(outputPath) {
+		hash, err := hashOutputFile(outputPath)
 		if err != nil {
 			print.Warn("failed to hash output file:", err)
 		} else {

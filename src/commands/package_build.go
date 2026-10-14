@@ -113,17 +113,15 @@ func packageBuild(c *cli.Context) error {
 		))
 
 		if useLockfile && !problems.Fatal() && len(problems.Errors()) == 0 {
-			config := pcx.Package.GetBuildConfig(build)
-			if config != nil {
-				if saveErr := persistBuildLockfile(
-					pcx,
-					config.Compiler.Version,
-					config.Compiler.Preset,
-					pcx.Package.Entry,
-					pcx.Package.Output,
-				); saveErr != nil {
-					print.Warn("failed to save lockfile:", saveErr)
-				}
+			config := pcx.ActualBuild
+			if saveErr := persistBuildLockfile(
+				pcx,
+				config.Compiler.Version,
+				config.Compiler.Preset,
+				config.Input,
+				config.Output,
+			); saveErr != nil {
+				print.Warn("failed to save lockfile:", saveErr)
 			}
 		}
 	}
