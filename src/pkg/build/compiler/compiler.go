@@ -70,42 +70,29 @@ func CompileSource(
 
 // RunPostBuildCommands executes commands after a build is ran for a certain build config
 func RunPostBuildCommands(ctx context.Context, cfg build.Config, output io.Writer) (err error) {
-	for _, command := range cfg.PostBuildCommands {
-		if len(command) == 0 {
-			return errors.New("post-build command is empty")
-		}
-
-		print.Verb("running post-build commands", command)
-		cmd := exec.CommandContext(ctx, command[0], command[1:]...) //nolint:gosec
-		cmd.Stdout = output
-		cmd.Stderr = output
-
-		err = cmd.Run()
-		if err != nil {
-			return
-		}
-	}
-
-	return
+	return runBuildCommands(ctx, cfg.PostBuildCommands, output, "post-build")
 }
 
 // RunPreBuildCommands executes commands before a build is ran for a certain build config
 func RunPreBuildCommands(ctx context.Context, cfg build.Config, output io.Writer) (err error) {
-	for _, command := range cfg.PreBuildCommands {
+	return runBuildCommands(ctx, cfg.PreBuildCommands, output, "pre-build")
+}
+
+func runBuildCommands(ctx context.Context, commands [][]string, output io.Writer, stage string) error {
+	for _, command := range commands {
 		if len(command) == 0 {
-			return errors.New("pre-build command is empty")
+			return errors.New(stage + " command is empty")
 		}
 
-		print.Verb("running pre-build commands", command)
+		print.Verb("running "+stage+" commands", command)
 		cmd := exec.CommandContext(ctx, command[0], command[1:]...) //nolint:gosec
 		cmd.Stdout = output
 		cmd.Stderr = output
 
-		err = cmd.Run()
-		if err != nil {
-			return
+		if err := cmd.Run(); err != nil {
+			return err
 		}
 	}
 
-	return
+	return nil
 }
