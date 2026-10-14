@@ -58,15 +58,9 @@ func packageBuild(c *cli.Context) error {
 
 	build := c.Args().Get(0)
 
-	pcx, _, err := loadPackageContext(c, dir, false)
+	pcx, _, err := loadPackageContextWithCache(c, dir, false, true, useLockfile)
 	if err != nil {
 		return errors.Wrap(err, "failed to load the Pawn package")
-	}
-
-	if useLockfile {
-		if err = initLockfileResolver(c, pcx); err != nil {
-			print.Warn("Failed to load the lockfile:", err)
-		}
 	}
 
 	ctx, cancel := newCommandContext()

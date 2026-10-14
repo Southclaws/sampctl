@@ -219,7 +219,7 @@ func (pcx *PackageContext) ensureCachedDependencies() error {
 
 // NewPackageContextWithLockfile creates a PackageContext with lockfile support enabled.
 func NewPackageContextWithLockfile(options NewPackageContextOptions) (pcx *PackageContext, err error) {
-	pcx, err = NewPackageContext(options)
+	pcx, err = LoadPackageContext(options)
 	if err != nil {
 		return nil, err
 	}
@@ -235,6 +235,11 @@ func NewPackageContextWithLockfile(options NewPackageContextOptions) (pcx *Packa
 		pcx.PackageLockfileState.SetLockfileResolver(resolver)
 	}
 
+	if err = pcx.ensureCachedDependencies(); err != nil {
+		return nil, err
+	}
+
+	print.Verb(pcx.Package, "flattened dependencies to", len(pcx.AllDependencies), "leaves")
 	return pcx, nil
 }
 
