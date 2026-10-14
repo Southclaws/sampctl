@@ -729,7 +729,7 @@ func getTemplateFile(ctx context.Context, dir, filename string, answers Answers)
 
 	outputContents, errInner := doTemplate(contents, answers)
 	if errInner != nil {
-		return
+		return errInner
 	}
 
 	outputFile, err := doTemplate(filepath.Join(dir, filename), answers)
