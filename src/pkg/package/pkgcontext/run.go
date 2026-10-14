@@ -28,7 +28,7 @@ func (pcx *PackageContext) Run(ctx context.Context, output io.Writer, input io.R
 	err := pcx.PackageServices.runtimeEnvironment().Run(
 		ctx,
 		pcx.ActualRuntime,
-		pcx.runtimeRunOptions(output, input, true, false),
+		pcx.runtimeRunOptions(output, input, false),
 	)
 	if err != nil {
 		return errors.Wrap(err, "failed to run package")
@@ -43,17 +43,26 @@ func (pcx *PackageContext) RunWatch(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to prepare package for run watcher")
 	}
 
+	watchCtx, cancel := context.WithCancel(ctx)
+
 	var (
 		errorCh              = make(chan error, 1)
 		signals, stopSignals = newTerminationSignals()
 		trigger              = make(chan build.Problems)
 		runtime              watchedRuntime
+		buildDone            = make(chan struct{})
 	)
 	defer stopSignals()
-	defer runtime.Stop()
+	defer func() {
+		cancel()
+		runtime.Stop()
+		<-buildDone
+	}()
 
 	go func() {
-		errorCh <- pcx.BuildWatch(ctx, BuildOptions{
+		defer close(buildDone)
+
+		errorCh <- pcx.BuildWatch(watchCtx, BuildOptions{
 			Name:      pcx.BuildName,
 			Ensure:    pcx.ForceEnsure,
 			BuildFile: pcx.BuildFile,
@@ -67,6 +76,10 @@ func (pcx *PackageContext) RunWatch(ctx context.Context) (err error) {
 loop:
 	for {
 		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+			break loop
+
 		case sig := <-signals:
 			fmt.Println("")
 			print.Info("Stopping run watcher after signal", sig)
@@ -95,7 +108,7 @@ loop:
 			}
 
 			print.Verb("watch-run: executing package code")
-			runtime.Restart(ctx, pcx.startWatchedRuntime)
+			runtime.Restart(watchCtx, pcx.startWatchedRuntime)
 		}
 	}
 
@@ -107,11 +120,10 @@ loop:
 // RunPrepare prepares the context directory for executing the server.
 func (pcx *PackageContext) RunPrepare(ctx context.Context) (err error) {
 	var (
-		filename = packagePath(pcx.Package.LocalPath, pcx.Package.Output)
 		problems build.Problems
 		canRun   = true
 	)
-	filename, err = fs.Abs(filename)
+	filename, err := pcx.runtimeOutputPath()
 	if err != nil {
 		return errors.Wrap(err, "failed to resolve package output path")
 	}
@@ -146,7 +158,7 @@ func (pcx *PackageContext) RunPrepare(ctx context.Context) (err error) {
 		return
 	}
 
-	pcx.ActualRuntime.Gamemodes = []string{strings.TrimSuffix(filepath.Base(pcx.Package.Output), ".amx")}
+	pcx.ActualRuntime.Gamemodes = []string{strings.TrimSuffix(filepath.Base(filename), ".amx")}
 	pcx.ActualRuntime.AppVersion = pcx.AppVersion
 	pcx.ActualRuntime.Format = pcx.Package.Format
 	if pcx.Container {
@@ -198,18 +210,59 @@ func (pcx *PackageContext) RunPrepare(ctx context.Context) (err error) {
 	return nil
 }
 
-func (pcx *PackageContext) runtimeRunOptions(output io.Writer, input io.Reader, passArgs, recover bool) runtimepkg.RunOptions {
+func (pcx *PackageContext) runtimeRunOptions(output io.Writer, input io.Reader, recover bool) runtimepkg.RunOptions {
 	return runtimepkg.RunOptions{
-		CacheDir: pcx.CacheDir,
-		PassArgs: passArgs,
-		Recover:  recover,
-		Output:   output,
-		Input:    input,
+		CacheDir:   pcx.CacheDir,
+		ProjectDir: pcx.Package.LocalPath,
+		Args:       pcx.containerRunArgs(),
+		Recover:    recover,
+		Output:     output,
+		Input:      input,
 	}
 }
 
+func (pcx *PackageContext) containerRunArgs() []string {
+	args := []string{"--dir", "/samp"}
+	if pcx.BuildName != "" {
+		args = append(args, "--build", pcx.BuildName)
+	}
+	for _, flag := range []struct {
+		name    string
+		enabled bool
+	}{
+		{"--forceBuild", pcx.ForceBuild},
+		{"--forceEnsure", pcx.ForceEnsure},
+		{"--noCache", pcx.NoCache},
+		{"--relativePaths", pcx.Relative},
+	} {
+		if flag.enabled {
+			args = append(args, flag.name)
+		}
+	}
+	if pcx.BuildFile != "" {
+		buildFile := pcx.BuildFile
+		if filepath.IsAbs(buildFile) {
+			if relative, err := filepath.Rel(pcx.Package.LocalPath, buildFile); err == nil && filepath.IsLocal(relative) {
+				buildFile = filepath.ToSlash(filepath.Join("/samp", relative))
+			}
+		}
+		args = append(args, "--buildFile", buildFile)
+	}
+	if pcx.Runtime != "" {
+		args = append(args, pcx.Runtime)
+	}
+
+	return args
+}
+
 func (pcx *PackageContext) runtimeOutputPath() (string, error) {
-	outputPath, err := fs.Abs(packagePath(pcx.Package.LocalPath, pcx.Package.Output))
+	config := pcx.Package.GetBuildConfig(pcx.BuildName)
+	output := pcx.Package.Output
+	if config != nil && config.Output != "" {
+		output = config.Output
+	}
+
+	outputPath, err := fs.Abs(packagePath(pcx.Package.LocalPath, output))
 	if err != nil {
 		return "", errors.Wrap(err, "failed to resolve package output path")
 	}
@@ -277,7 +330,7 @@ func (pcx *PackageContext) startWatchedRuntime(ctx context.Context, running *ato
 		err := pcx.PackageServices.runtimeEnvironment().Run(
 			ctx,
 			pcx.ActualRuntime,
-			pcx.runtimeRunOptions(os.Stdout, os.Stdin, true, false),
+			pcx.runtimeRunOptions(os.Stdout, os.Stdin, false),
 		)
 		if err != nil && !errors.Is(err, context.Canceled) {
 			print.Erro(err)

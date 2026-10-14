@@ -48,6 +48,7 @@ dockers_v2:
     dockerfile: Dockerfile
     tags:
       - "{{ .Tag }}"
+      - "{{ if ne .Tag .Version }}{{ .Version }}{{ end }}"
       - "v{{ .Major }}"
       - "v{{ .Major }}.{{ .Minor }}"
       - "latest"

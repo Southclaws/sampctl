@@ -21,3 +21,8 @@ sampctl run --container
 ```
 
 In container mode, `sampctl` runs the runtime as Linux.
+
+The project is mounted at `/samp`, and the selected game port is published over
+UDP. Images come from `ghcr.io/southclaws/sampctl` using the installed version.
+The local sampctl cache is mounted with write access at `/root/.config/sampctl`
+so dependency downloads, installation locks, and settings work inside the container.

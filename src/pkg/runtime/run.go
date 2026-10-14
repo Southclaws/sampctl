@@ -30,11 +30,12 @@ var (
 )
 
 type RunOptions struct {
-	CacheDir string
-	PassArgs bool
-	Recover  bool
-	Output   io.Writer
-	Input    io.Reader
+	CacheDir   string
+	ProjectDir string
+	Args       []string
+	Recover    bool
+	Output     io.Writer
+	Input      io.Reader
 }
 
 type testResults struct {
@@ -176,7 +177,9 @@ func executeRuntime(ctx context.Context, execCfg runtimeExecution) error {
 	print.Verb("finished server execution with:", term)
 
 	if shouldKillTrackedProcess(term) {
+		cancel()
 		killTrackedProcess(tracker.current())
+		closeOutputPipe(outputReader)
 	}
 
 	<-runnerDone
@@ -207,7 +210,8 @@ func shouldKillTrackedProcess(term termination) bool {
 		return true
 	}
 
-	return strings.Contains(term.err.Error(), "failed to write runtime output")
+	return strings.Contains(term.err.Error(), "failed to write runtime output") ||
+		strings.Contains(term.err.Error(), "failed to read runtime output")
 }
 
 func waitForRuntimeTermination(request runtimeTerminationRequest) termination {
@@ -267,6 +271,7 @@ func readBinaryOutput(request outputReaderRequest) <-chan struct{} {
 	go func() {
 		defer close(done)
 		defer close(request.StreamCh)
+		defer closeOutputPipe(request.OutputReader)
 
 		state := outputModeState{
 			preamble: request.RunType == run.MainOnly || request.RunType == run.YTesting,
@@ -289,7 +294,9 @@ func readBinaryOutput(request outputReaderRequest) <-chan struct{} {
 		}
 
 		if err := scanner.Err(); err != nil && request.Context.Err() == nil {
-			print.Erro("Server output read error:", err)
+			sendTermination(request.Context, request.TermCh, termination{
+				err: errors.Wrap(err, "failed to read runtime output"),
+			})
 		}
 	}()
 
@@ -487,8 +494,8 @@ func killTrackedProcess(process *os.Process) {
 	print.Verb("stopped child process")
 }
 
-func closeOutputPipe(writer *io.PipeWriter) {
-	if err := writer.Close(); err != nil {
+func closeOutputPipe(pipe io.Closer) {
+	if err := pipe.Close(); err != nil {
 		print.Erro("Failed to close server output:", err)
 	}
 }

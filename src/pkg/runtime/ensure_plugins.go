@@ -252,11 +252,13 @@ func EnsureVersionedPlugin(request EnsureVersionedPluginRequest) (files []run.Pl
 
 		print.Verb(request.Meta, "extracted", len(extractedFiles), "plugin files to", request.Dir)
 
-		for source, target := range extractedFiles {
-			for _, plugin := range resource.Plugins {
-				print.Verb(request.Meta, "checking resource source", source, "against plugin", plugin)
-				if source == plugin {
-					files = append(files, run.Plugin(filepath.Base(target)))
+		seen := make(map[run.Plugin]bool)
+		for _, source := range resource.Plugins {
+			for _, target := range extractedFiles[source] {
+				plugin := run.Plugin(filepath.Base(target))
+				if !seen[plugin] {
+					files = append(files, plugin)
+					seen[plugin] = true
 				}
 			}
 		}
@@ -302,7 +304,7 @@ func extractPluginArchive(
 	request EnsureVersionedPluginRequest,
 	filename, ext string,
 	paths map[string]string,
-) (_ map[string]string, err error) {
+) (_ map[string][]string, err error) {
 	if _, err := runtimeFilePath(request.Dir, ".sampctl-plugin-stage"); err != nil {
 		return nil, err
 	}
@@ -344,13 +346,18 @@ func extractPluginArchive(
 		return nil, err
 	}
 
-	targets := make(map[string]string, len(extracted))
+	targets := make(map[string][]string, len(extracted))
 	type stagedFile struct {
 		path   string
 		target string
 	}
 	var stagedFiles []stagedFile
-	for source, staged := range extracted {
+	for _, source := range keys {
+		staged, ok := extracted[source]
+		if !ok {
+			continue
+		}
+
 		matches := []string{staged}
 		if paths[source] == "" || strings.HasSuffix(paths[source], "/") {
 			// The extractor returns only the last match for each pattern, but
@@ -405,9 +412,7 @@ func extractPluginArchive(
 			}
 
 			stagedFiles = append(stagedFiles, stagedFile{path: path, target: final})
-			if _, recorded := targets[source]; !recorded || path == staged {
-				targets[source] = final
-			}
+			targets[source] = append(targets[source], final)
 		}
 	}
 

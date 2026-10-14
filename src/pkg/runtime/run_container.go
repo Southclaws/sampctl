@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/netip"
-	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -43,39 +42,35 @@ func RunContainer(
 		}
 	}()
 
-	args := []string{"sampctl", "server", "run"}
-	if options.PassArgs {
-		for i, arg := range os.Args {
-			// trim first 3 args and container specific flags
-			if arg == "--container" || arg == "--mountCache" || i < 3 {
-				continue
-			}
-			args = append(args, arg)
-		}
-	}
+	options = options.withDefaults()
+	args := append([]string{"sampctl", "run"}, options.Args...)
 
 	port := fmt.Sprint(*cfg.Port)
-	containerPort, err := network.ParsePort(port)
+	containerPort, err := network.ParsePort(port + "/udp")
 	if err != nil {
 		return fmt.Errorf("invalid container port: %w", err)
 	}
 
-	print.Verb("mounting working directory", cfg.WorkingDir, "at /samp in the container")
+	projectDir := options.ProjectDir
+	if projectDir == "" {
+		projectDir = cfg.WorkingDir
+	}
+
+	print.Verb("mounting project directory", projectDir, "at /samp in the container")
 	mounts := []mount.Mount{
 		{
 			Type:   mount.TypeBind,
-			Source: cfg.WorkingDir,
+			Source: projectDir,
 			Target: "/samp",
 		},
 	}
 
 	if cfg.Container.MountCache {
-		print.Verb("mounting cache at", options.CacheDir, "into container at /root/.samp")
+		print.Verb("mounting cache at", options.CacheDir, "into container at /root/.config/sampctl")
 		mounts = append(mounts, mount.Mount{
-			Type:     mount.TypeBind,
-			Source:   options.CacheDir,
-			Target:   "/root/.samp",
-			ReadOnly: true,
+			Type:   mount.TypeBind,
+			Source: options.CacheDir,
+			Target: "/root/.config/sampctl",
 		})
 	}
 
@@ -92,10 +87,11 @@ func RunContainer(
 
 	netConfig := &network.NetworkingConfig{}
 
-	ref := "southclaws/sampctl:" + cfg.AppVersion
+	ref := "ghcr.io/southclaws/sampctl:" + cfg.AppVersion
 	containerConfig := &container.Config{
 		Image:        ref,
 		Entrypoint:   args,
+		Env:          []string{"XDG_CONFIG_HOME=/root/.config"},
 		Tty:          true,
 		AttachStdout: true,
 		AttachStderr: true,

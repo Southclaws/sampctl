@@ -109,7 +109,7 @@ func TestPluginArchiveInstallsEveryMatchingFile(t *testing.T) {
 				`^includes/.*\.inc$`: "first.inc",
 				`^plugins/.*\.so$`:   "plugins/first.so",
 			} {
-				if got := result[source]; got != filepath.Join(root, target) {
+				if got := result[source]; len(got) != 1 || got[0] != filepath.Join(root, target) {
 					t.Errorf("extracted %s = %q, want %q", source, got, filepath.Join(root, target))
 				}
 			}

@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -80,6 +81,10 @@ func (pcx *PackageContext) Build(
 
 // BuildWatch runs the Build code on file changes
 func (pcx *PackageContext) BuildWatch(ctx context.Context, options BuildOptions) (err error) {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	config, err := pcx.buildPrepare(ctx, options.Name, options.Ensure, true)
 	if err != nil {
 		return
@@ -141,11 +146,13 @@ func (pcx *PackageContext) BuildWatch(ctx context.Context, options BuildOptions)
 		ctxInner, cancel = context.WithCancel(ctx)
 		buildRunning     bool
 		debouncer        watchDebouncer
+		builds           sync.WaitGroup
 	)
 
 	defer func() {
 		debouncer.Stop()
 		cancel()
+		builds.Wait()
 	}()
 
 	watcherColour := color.New(color.FgBlack, color.BgGreen).SprintFunc()
@@ -159,7 +166,10 @@ func (pcx *PackageContext) BuildWatch(ctx context.Context, options BuildOptions)
 		fmt.Printf("%s found modified file: %s\n", watcherColour("WATCHER:"), eventName)
 		fmt.Printf("%s compiling %s with compiler version %s [%d]\n", watcherColour("WATCHER:"), config.Input, config.Compiler.Version, buildRun)
 
+		builds.Add(1)
 		go func(run uint32, changedFile string, buildCtx context.Context) {
+			defer builds.Done()
+
 			problems, _, buildErr := compiler.CompileSource(buildCtx, compiler.CompileRequest{
 				GitHub:   pcx.GitHub,
 				ExecDir:  pcx.Package.LocalPath,
@@ -169,11 +179,15 @@ func (pcx *PackageContext) BuildWatch(ctx context.Context, options BuildOptions)
 				Config:   *config,
 				Relative: options.Relative,
 			})
-			resultCh <- buildWatchResult{
+			result := buildWatchResult{
 				problems:    problems,
 				err:         buildErr,
 				eventName:   changedFile,
 				buildNumber: run,
+			}
+			select {
+			case resultCh <- result:
+			case <-buildCtx.Done():
 			}
 		}(buildRun, eventName, ctxInner)
 	}
@@ -187,6 +201,10 @@ func (pcx *PackageContext) BuildWatch(ctx context.Context, options BuildOptions)
 loop:
 	for {
 		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+			break loop
+
 		case sig := <-signals:
 			fmt.Println("") // insert newline after the ^C
 			print.Verb("signal received", sig, "stopping build watcher...")
@@ -225,7 +243,14 @@ loop:
 				fmt.Printf("%s finished building: %s [%d]\n", watcherColour("WATCHER:"), result.eventName, result.buildNumber)
 
 				if options.Trigger != nil {
-					options.Trigger <- result.problems
+					select {
+					case options.Trigger <- result.problems:
+					case <-ctx.Done():
+						err = ctx.Err()
+						break loop
+					case <-signals:
+						break loop
+					}
 				}
 
 				if options.BuildFile != "" {
@@ -487,112 +512,37 @@ func (pcx *PackageContext) ensureBuildFile(config *build.Config) (err error) {
 	builder.WriteString("#endif\n")
 	builder.WriteString("#define _sampctl_build_file_included\n\n")
 
-	writeDefine := func(name, value string, quoted bool) {
-		name = strings.TrimSpace(name)
-		if name == "" {
-			return
-		}
-
-		if quoted {
-			escaped := strings.ReplaceAll(value, "\\", "\\\\")
-			escaped = strings.ReplaceAll(escaped, "\"", "\\\"")
-			escaped = strings.ReplaceAll(escaped, "\n", "\\n")
-			escaped = strings.ReplaceAll(escaped, "\r", "\\r")
-			escaped = strings.ReplaceAll(escaped, "\t", "\\t")
-			builder.WriteString("#define " + name + " \"" + escaped + "\"\n")
-			return
-		}
-
-		builder.WriteString("#define " + name + " " + value + "\n")
-	}
-
-	isNumericLiteral := func(value string) bool {
-		v := strings.TrimSpace(value)
-		if v == "" {
-			return false
-		}
-
-		if v[0] == '-' {
-			v = v[1:]
-			if v == "" {
-				return false
-			}
-		}
-
-		dotSeen := false
-		for _, r := range v {
-			if r == '.' {
-				if dotSeen {
-					return false
-				}
-				dotSeen = true
-				continue
-			}
-			if r < '0' || r > '9' {
-				return false
-			}
-		}
-
-		return true
-	}
-
-	readGitInfo := func(repoPath string) (commit, branch string) {
-		headPath := filepath.Join(repoPath, ".git", "HEAD")
-		headBytes, err := os.ReadFile(headPath)
-		if err != nil {
-			return "", ""
-		}
-
-		head := strings.TrimSpace(string(headBytes))
-		if strings.HasPrefix(head, "ref: ") {
-			ref := strings.TrimSpace(strings.TrimPrefix(head, "ref: "))
-			refPath := filepath.Join(repoPath, ".git", filepath.FromSlash(ref))
-			refBytes, refErr := os.ReadFile(refPath)
-			if refErr == nil {
-				commit = strings.TrimSpace(string(refBytes))
-			}
-			branch = filepath.Base(ref)
-			return commit, branch
-		}
-
-		if head != "" {
-			commit = head
-		}
-
-		return commit, branch
-	}
-
 	if _, exists := config.Constants["SAMPCTL_BUILD_FILE"]; !exists {
-		writeDefine("SAMPCTL_BUILD_FILE", "1", false)
+		writePawnDefine(&builder, "SAMPCTL_BUILD_FILE", "1", false)
 	}
 	if _, exists := config.Constants["SAMPCTL_VERSION"]; !exists {
 		version := strings.TrimSpace(pcx.AppVersion)
 		if version == "" {
 			version = "unknown"
 		}
-		writeDefine("SAMPCTL_VERSION", version, true)
+		writePawnDefine(&builder, "SAMPCTL_VERSION", version, true)
 	}
 	if pcx.Platform != "" {
 		if _, exists := config.Constants["SAMPCTL_PLATFORM"]; !exists {
-			writeDefine("SAMPCTL_PLATFORM", pcx.Platform, true)
+			writePawnDefine(&builder, "SAMPCTL_PLATFORM", pcx.Platform, true)
 		}
 	}
 	builder.WriteString("\n")
 
-	if commit, branch := readGitInfo(pcx.Package.LocalPath); commit != "" {
+	if commit, branch := readBuildGitInfo(pcx.Package.LocalPath); commit != "" {
 		if _, exists := config.Constants["SAMPCTL_BUILD_COMMIT"]; !exists {
-			writeDefine("SAMPCTL_BUILD_COMMIT", commit, true)
+			writePawnDefine(&builder, "SAMPCTL_BUILD_COMMIT", commit, true)
 		}
 		if _, exists := config.Constants["SAMPCTL_BUILD_COMMIT_SHORT"]; !exists {
 			commitShort := commit
 			if len(commitShort) > 7 {
 				commitShort = commitShort[:7]
 			}
-			writeDefine("SAMPCTL_BUILD_COMMIT_SHORT", commitShort, true)
+			writePawnDefine(&builder, "SAMPCTL_BUILD_COMMIT_SHORT", commitShort, true)
 		}
 		if branch != "" {
 			if _, exists := config.Constants["SAMPCTL_BUILD_BRANCH"]; !exists {
-				writeDefine("SAMPCTL_BUILD_BRANCH", branch, true)
+				writePawnDefine(&builder, "SAMPCTL_BUILD_BRANCH", branch, true)
 			}
 		}
 		builder.WriteString("\n")
@@ -613,13 +563,13 @@ func (pcx *PackageContext) ensureBuildFile(config *build.Config) (err error) {
 	for _, name := range keys {
 		value := strings.TrimSpace(resolveConstantValue(config.Constants[name]))
 		if len(value) >= 2 && value[0] == '"' && value[len(value)-1] == '"' {
-			writeDefine(name, value, false)
+			writePawnDefine(&builder, name, value, false)
 			continue
 		}
-		if isNumericLiteral(value) {
-			writeDefine(name, value, false)
+		if isPawnNumericLiteral(value) {
+			writePawnDefine(&builder, name, value, false)
 		} else {
-			writeDefine(name, value, true)
+			writePawnDefine(&builder, name, value, true)
 		}
 	}
 	builder.WriteString("\n")
@@ -629,6 +579,72 @@ func (pcx *PackageContext) ensureBuildFile(config *build.Config) (err error) {
 	}
 
 	return nil
+}
+
+func writePawnDefine(builder *strings.Builder, name, value string, quoted bool) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return
+	}
+
+	if quoted {
+		value = strings.NewReplacer(
+			"\\", "\\\\", "\"", "\\\"", "\n", "\\n", "\r", "\\r", "\t", "\\t",
+		).Replace(value)
+		value = "\"" + value + "\""
+	}
+
+	builder.WriteString("#define " + name + " " + value + "\n")
+}
+
+func isPawnNumericLiteral(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+
+	if value[0] == '-' {
+		value = value[1:]
+		if value == "" {
+			return false
+		}
+	}
+
+	dotSeen := false
+	for _, r := range value {
+		if r == '.' {
+			if dotSeen {
+				return false
+			}
+			dotSeen = true
+			continue
+		}
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+
+	return true
+}
+
+func readBuildGitInfo(repoPath string) (commit, branch string) {
+	headBytes, err := os.ReadFile(filepath.Join(repoPath, ".git", "HEAD"))
+	if err != nil {
+		return "", ""
+	}
+
+	head := strings.TrimSpace(string(headBytes))
+	if !strings.HasPrefix(head, "ref: ") {
+		return head, ""
+	}
+
+	ref := strings.TrimSpace(strings.TrimPrefix(head, "ref: "))
+	refBytes, err := os.ReadFile(filepath.Join(repoPath, ".git", filepath.FromSlash(ref)))
+	if err == nil {
+		commit = strings.TrimSpace(string(refBytes))
+	}
+
+	return commit, filepath.Base(ref)
 }
 
 func readInt(file string) (n uint32, err error) {

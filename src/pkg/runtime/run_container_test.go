@@ -159,10 +159,27 @@ func TestStopContainerReturnsWaitError(t *testing.T) {
 }
 
 func TestRunContainerNegotiatesDocker25AndPullsMissingImage(t *testing.T) {
+	testRunContainer(t, RunOptions{})
+}
+
+func TestRunContainerUsesExplicitArgumentsAndProjectDirectory(t *testing.T) {
+	testRunContainer(t, RunOptions{
+		ProjectDir: t.TempDir(),
+		Args:       []string{"--dir", "/samp", "--build", "release", "--forceBuild", "development"},
+	})
+}
+
+func testRunContainer(t *testing.T, options RunOptions) {
+	t.Helper()
+
 	workingDir := t.TempDir()
 	cacheDir := t.TempDir()
+	projectDir := options.ProjectDir
+	if projectDir == "" {
+		projectDir = workingDir
+	}
 	port := 8192
-	image := "southclaws/sampctl:test-version"
+	image := "ghcr.io/southclaws/sampctl:test-version"
 	var mu sync.Mutex
 	var requests []string
 	createCalls := 0
@@ -194,27 +211,30 @@ func TestRunContainerNegotiatesDocker25AndPullsMissingImage(t *testing.T) {
 			if request.Image != image {
 				t.Errorf("ContainerCreate image = %q, want %q", request.Image, image)
 			}
-			if want := []string{"sampctl", "server", "run"}; !reflect.DeepEqual(request.Entrypoint, want) {
+			if want := append([]string{"sampctl", "run"}, options.Args...); !reflect.DeepEqual(request.Entrypoint, want) {
 				t.Errorf("ContainerCreate entrypoint = %v, want %v", request.Entrypoint, want)
 			}
 			if !request.Tty || !request.AttachStdout || !request.AttachStderr || !request.AttachStdin {
 				t.Errorf("ContainerCreate stream configuration = %+v, want tty and all streams attached", request.Config)
+			}
+			if !reflect.DeepEqual(request.Env, []string{"XDG_CONFIG_HOME=/root/.config"}) {
+				t.Errorf("ContainerCreate environment = %v, want fixed Linux config home", request.Env)
 			}
 			if !strings.HasPrefix(r.URL.Query().Get("name"), "sampctl-") {
 				t.Errorf("ContainerCreate name = %q, want sampctl- prefix", r.URL.Query().Get("name"))
 			}
 
 			wantMounts := []mount.Mount{
-				{Type: mount.TypeBind, Source: workingDir, Target: "/samp"},
-				{Type: mount.TypeBind, Source: cacheDir, Target: "/root/.samp", ReadOnly: true},
+				{Type: mount.TypeBind, Source: projectDir, Target: "/samp"},
+				{Type: mount.TypeBind, Source: cacheDir, Target: "/root/.config/sampctl"},
 			}
 			if !reflect.DeepEqual(request.HostConfig.Mounts, wantMounts) {
 				t.Errorf("ContainerCreate mounts = %+v, want %+v", request.HostConfig.Mounts, wantMounts)
 			}
 
-			bindings := request.HostConfig.PortBindings[network.MustParsePort("8192/tcp")]
+			bindings := request.HostConfig.PortBindings[network.MustParsePort("8192/udp")]
 			if len(bindings) != 1 || bindings[0].HostIP.String() != "0.0.0.0" || bindings[0].HostPort != "8192" {
-				t.Errorf("ContainerCreate port bindings = %+v, want 0.0.0.0:8192 for 8192/tcp", request.HostConfig.PortBindings)
+				t.Errorf("ContainerCreate port bindings = %+v, want 0.0.0.0:8192 for 8192/udp", request.HostConfig.PortBindings)
 			}
 
 			createCalls++
@@ -227,8 +247,8 @@ func TestRunContainerNegotiatesDocker25AndPullsMissingImage(t *testing.T) {
 			w.WriteHeader(http.StatusCreated)
 			_, _ = fmt.Fprintln(w, `{"Id":"container-id"}`)
 		case "POST /v1.44/images/create":
-			if got := r.URL.Query().Get("fromImage"); got != "docker.io/southclaws/sampctl" {
-				t.Errorf("ImagePull repository = %q, want docker.io/southclaws/sampctl", got)
+			if got := r.URL.Query().Get("fromImage"); got != "ghcr.io/southclaws/sampctl" {
+				t.Errorf("ImagePull repository = %q, want ghcr.io/southclaws/sampctl", got)
 			}
 			if got := r.URL.Query().Get("tag"); got != "test-version" {
 				t.Errorf("ImagePull tag = %q, want test-version", got)
@@ -269,12 +289,14 @@ func TestRunContainerNegotiatesDocker25AndPullsMissingImage(t *testing.T) {
 	defer cancel()
 
 	var output bytes.Buffer
+	options.CacheDir = cacheDir
+	options.Output = &output
 	err := RunContainer(ctx, run.Runtime{
 		WorkingDir: workingDir,
 		AppVersion: "test-version",
 		Port:       &port,
 		Container:  &run.ContainerConfig{MountCache: true},
-	}, RunOptions{CacheDir: cacheDir, Output: &output})
+	}, options)
 	if err != nil {
 		t.Fatalf("RunContainer(Docker 25) = %v, want nil", err)
 	}
