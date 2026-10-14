@@ -43,7 +43,7 @@ func pollableRuntimePty(terminal *os.File) (*os.File, error) {
 		return nil, stderrors.Join(err, unix.Close(fd))
 	}
 	pollable := os.NewFile(uintptr(fd), terminal.Name())
-	if err = pollable.SetWriteDeadline(time.Time{}); err != nil {
+	if err = pollable.SetDeadline(time.Time{}); err != nil {
 		return nil, stderrors.Join(err, pollable.Close())
 	}
 	if err = terminal.Close(); err != nil {

@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/creack/pty"
 	"github.com/pkg/errors"
@@ -18,7 +19,13 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 )
 
+const runtimeOutputDrainTimeout = 2 * time.Second
+
 func platformRun(ctx context.Context, cmd *exec.Cmd, w io.Writer, r io.Reader, onStart func(*os.Process)) (err error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	cmd.SysProcAttr = getRuntimePtySysProcAttr()
 	ptmx, err := pty.Start(cmd)
 	if err != nil {
@@ -59,16 +66,16 @@ func platformRun(ctx context.Context, cmd *exec.Cmd, w io.Writer, r io.Reader, o
 		}
 	}()
 
+	terminal, errPty := pollableRuntimePty(ptmx)
+	if errPty != nil {
+		errKill := terminateRuntimeProcess(cmd.Process)
+		errWait := cmd.Wait()
+		return errors.Wrap(stderrors.Join(errPty, errKill, errWait), "failed to prepare pty forwarding")
+	}
+	ptmx = terminal
+
 	var stopInput func()
 	if input, ok := r.(*os.File); ok {
-		terminal, errPty := pollableRuntimePty(ptmx)
-		if errPty != nil {
-			errKill := terminateRuntimeProcess(cmd.Process)
-			errWait := cmd.Wait()
-			return errors.Wrap(stderrors.Join(errPty, errKill, errWait), "failed to prepare pty input forwarding")
-		}
-		ptmx = terminal
-
 		var errInput error
 		stopInput, errInput = startRuntimeFileInput(ptmx, input)
 		if errInput != nil {
@@ -100,7 +107,20 @@ func platformRun(ctx context.Context, cmd *exec.Cmd, w io.Writer, r io.Reader, o
 	if stopInput != nil {
 		stopInput()
 	}
-	errWrite := <-wrErrCh
+
+	// Bound output draining when descendants retain the slave after command exit.
+	drainCtx, cancelDrain := context.WithTimeout(ctx, runtimeOutputDrainTimeout)
+	defer cancelDrain()
+	var errWrite error
+	select {
+	case errWrite = <-wrErrCh:
+	case <-drainCtx.Done():
+		print.Verb("stopping server output drain:", drainCtx.Err())
+		if errClose := closePty(); errClose != nil && !isBenignPtyCopyError(errClose) {
+			print.Verb("failed to close pty while stopping output:", errClose)
+		}
+		errWrite = <-wrErrCh
+	}
 	if errWrite != nil && !isBenignPtyCopyError(errWrite) {
 		print.Verb("failed to forward server output:", errWrite)
 	}
