@@ -25,7 +25,22 @@ Runtime type is determined by:
 - `name`: runtime name (used with `sampctl run <name>`).
 - `version`: runtime version string.
 - `runtime_type`: `samp` or `openmp` (auto-detected from `version` if not set).
-- `mode`: run mode: `server`, `main`, `y_testing`.
+- `mode`: run mode: `server`, `main`, `y_testing`, or `timeout:<duration>`.
+
+### Output timeout mode
+
+Use `timeout:<duration>` when a test needs to continue running after `main()` finishes but should stop if the server becomes silent:
+
+```json
+{
+  "runtime": {
+    "mode": "timeout:5s"
+  }
+}
+```
+
+The duration uses Go duration syntax, such as `500ms`, `5s`, or `2m`. The timer starts when the runtime begins and resets after every line of server output. When the duration expires without new output, sampctl stops the server and returns an error. The duration must be greater than zero.
+
 - `rootLink`: (sampctl internal) whether to create a symlink to the package root in the runtime directory.
 - `echo`: (sampctl internal) an optional string written to the start of the generated config.
 
