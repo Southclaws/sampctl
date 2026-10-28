@@ -158,6 +158,14 @@ func (o *openMPConfig) configFilename() string {
 	return "config.json"
 }
 
+// open.mp expects bare names, so binaries and exclude entries match either way
+func trimBinaryExt(name string) string {
+	if strings.HasSuffix(name, ".so") || strings.HasSuffix(name, ".dll") {
+		return strings.TrimSuffix(name, filepath.Ext(name))
+	}
+	return name
+}
+
 func (o *openMPConfig) generate(cfg *run.Runtime) (err error) {
 	jsonData, err := assembleOpenMPConfig(cfg)
 	if err != nil {
@@ -262,7 +270,9 @@ func assembleOpenMPConfig(cfg *run.Runtime) (map[string]any, error) {
 	if cfg.Query != nil {
 		config.EnableQuery = *cfg.Query
 	}
-	if cfg.Weburl != nil && *cfg.Weburl != "open.mp" {
+	if cfg.Website != nil && *cfg.Website != "" {
+		config.Website = *cfg.Website
+	} else if cfg.Weburl != nil && *cfg.Weburl != "open.mp" {
 		config.Website = *cfg.Weburl
 	}
 	if cfg.Sleep != nil {
@@ -381,23 +391,23 @@ func assembleOpenMPConfig(cfg *run.Runtime) (map[string]any, error) {
 	if len(cfg.Plugins) > 0 {
 		plugins := make([]string, len(cfg.Plugins))
 		for i, plugin := range cfg.Plugins {
-			pluginStr := string(plugin)
-			if strings.HasSuffix(pluginStr, ".so") || strings.HasSuffix(pluginStr, ".dll") {
-				pluginStr = strings.TrimSuffix(pluginStr, filepath.Ext(pluginStr))
-			}
-			plugins[i] = pluginStr
+			plugins[i] = trimBinaryExt(string(plugin))
 		}
 		config.Pawn.LegacyPlugins = plugins
 	}
 
 	if len(cfg.Components) > 0 {
-		components := make([]string, len(cfg.Components))
-		for i, component := range cfg.Components {
-			componentStr := string(component)
-			if strings.HasSuffix(componentStr, ".so") || strings.HasSuffix(componentStr, ".dll") {
-				componentStr = strings.TrimSuffix(componentStr, filepath.Ext(componentStr))
+		excluded := make(map[string]bool, len(cfg.Exclude))
+		for _, exc := range cfg.Exclude {
+			excluded[trimBinaryExt(string(exc))] = true
+		}
+
+		components := make([]string, 0, len(cfg.Components))
+		for _, component := range cfg.Components {
+			componentStr := trimBinaryExt(string(component))
+			if !excluded[componentStr] {
+				components = append(components, componentStr)
 			}
-			components[i] = componentStr
 		}
 		config.Pawn.Components = components
 	}
