@@ -27,7 +27,30 @@ Instead, `sampctl` generates:
 }
 ```
 
-Note: when you use `sampctl run`, it automatically runs your built output as the gamemode (you don’t need to set `gamemodes`).
+By default, `sampctl run` runs your built output as the gamemode (you don’t need to set `gamemodes`). If `runtime.gamemodes` is explicitly configured and non-empty, that list is preserved instead.
+
+## Building a filterscript with an existing gamemode
+
+For a local server with a precompiled gamemode, configure the main script separately from the build output:
+
+```json
+{
+  "entry": "module.pwn",
+  "output": "filterscripts/module.amx",
+  "preset": "openmp",
+  "local": true,
+  "runtime": {
+    "gamemodes": ["test"],
+    "filterscripts": ["module"]
+  }
+}
+```
+
+Place the existing gamemode at `gamemodes/test.amx`, then use `sampctl run`. The output is built when missing (or with `--forceBuild`) without replacing the configured gamemode. Use `--watch` to rebuild and restart after source changes.
+
+Keep `runtime` at the top level, alongside `build`, not inside it. If `runtime.gamemodes` is omitted or empty, the output still becomes the gamemode. This changes the previous behavior for explicit lists, which were always overwritten.
+
+Custom outputs such as `module/module.amx` can also be built while running an explicit gamemode; loading them is the responsibility of your configured scripts or module loader. This local-server example does not change how scripts are copied to temporary runtimes or a separate `runtime_dir`.
 
 ## Plugins and components
 
