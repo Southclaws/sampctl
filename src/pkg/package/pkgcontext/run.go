@@ -17,8 +17,8 @@ import (
 	run "github.com/Southclaws/sampctl/src/pkg/runtime/config"
 )
 
-// Run will create a temporary server runtime and run the package output AMX as a gamemode using the
-// runtime configuration in the package info.
+// Run prepares and runs the package runtime. The package output is used as the
+// gamemode only when no gamemodes are explicitly configured.
 func (pcx *PackageContext) Run(ctx context.Context, output io.Writer, input io.Reader) error {
 	if err := pcx.RunPrepare(ctx); err != nil {
 		return errors.Wrap(err, "failed to prepare package for running")
@@ -156,7 +156,9 @@ func (pcx *PackageContext) RunPrepare(ctx context.Context) (err error) {
 		return
 	}
 
-	pcx.ActualRuntime.Gamemodes = []string{strings.TrimSuffix(filepath.Base(filename), ".amx")}
+	if len(pcx.ActualRuntime.Gamemodes) == 0 {
+		pcx.ActualRuntime.Gamemodes = []string{strings.TrimSuffix(filepath.Base(filename), ".amx")}
+	}
 	pcx.ActualRuntime.AppVersion = pcx.AppVersion
 	pcx.ActualRuntime.Format = pcx.Package.Format
 	if pcx.Container {
