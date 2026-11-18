@@ -105,7 +105,7 @@ When the runtime is open.mp, `sampctl` generates `config.json` and maps these `r
 - `password` → `password`
 - `announce` → `announce`
 - `query` → `enable_query`
-- `weburl` → `website`
+- `weburl` → `website` (or `website` directly, which wins if both are set)
 - `sleep` → `sleep`
 
 Nested `game`:
@@ -150,13 +150,14 @@ Nested `rcon`:
 Nested `pawn`:
 
 - `plugins` → `pawn.legacy_plugins`
-- `components` → `pawn.components`
+- `components` → `pawn.components` (minus anything listed in `exclude`)
 - `gamemodes` → `pawn.main_scripts`
 - `filterscripts` → `pawn.side_scripts`
 
 ## Plugins and components
 
 - To download plugins/components automatically, prefer dependency URL schemes like `plugin://user/repo` and `component://user/repo`.
+- `components` is filled in from `component://` dependencies, so use `exclude` to keep one of them out of the generated `pawn.components` list. Names match with or without the `.so`/`.dll` suffix.
 
 See: [Runtime configuration guide](configuration.md)
 
@@ -190,6 +191,8 @@ Supported open.mp-only keys:
 - `max_bots` (int)
 - `use_dyn_ticks` (bool)
 - `logo` (string)
+- `website` (string)
+- `exclude` (string[])
 - `game` (object)
 - `network` (object)
 - `logging` (object)
@@ -206,6 +209,9 @@ runtime:
   hostname: My Server
   max_bots: 100
   use_dyn_ticks: false
+  website: example.com
+  exclude:
+    - pawn-memory
   discord:
     invite: https://discord.gg/example
   network:
