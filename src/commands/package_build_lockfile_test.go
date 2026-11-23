@@ -11,7 +11,6 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/kirsle/configdir"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/urfave/cli.v1"
@@ -25,12 +24,7 @@ import (
 func TestPackageBuildResolvesLockfileBeforePreparingIncludes(t *testing.T) {
 	for _, name := range []string{"locked", "no-lock", "invalid lockfile"} {
 		t.Run(name, func(t *testing.T) {
-			t.Cleanup(configdir.Refresh)
-			configHome := t.TempDir()
-			t.Setenv("HOME", configHome)
-			t.Setenv("XDG_CONFIG_HOME", configHome)
-			t.Setenv("APPDATA", configHome)
-			configdir.Refresh()
+			useTestConfigHome(t)
 			cache, err := fs.ConfigDir()
 			require.NoError(t, err)
 

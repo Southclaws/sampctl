@@ -26,7 +26,10 @@ func TestValidateRejectsNullConfigurations(t *testing.T) {
 		t.Run(tc.format+"/"+tc.field, func(t *testing.T) {
 			pkg, err := PackageFromDefinition([]byte(tc.contents), tc.format)
 			require.NoError(t, err)
-			require.ErrorContains(t, pkg.Validate(), tc.field+" contains a null configuration")
+
+			err = pkg.Validate()
+
+			require.ErrorContains(t, err, tc.field+" contains a null configuration")
 		})
 	}
 }
@@ -39,14 +42,15 @@ func TestConfigSelectionHandlesUnvalidatedNullEntries(t *testing.T) {
 		Runtimes: []*run.Runtime{nil, {Name: "release", Version: "openmp"}},
 	}
 
-	assert.NotPanics(t, func() {
-		assert.NotNil(t, pkg.GetBuildConfig(""))
-		_, err := pkg.GetRuntimeConfig("")
-		require.NoError(t, err)
-	})
+	defaultBuild := pkg.GetBuildConfig("")
+	_, defaultErr := pkg.GetRuntimeConfig("")
+	namedBuild := pkg.GetBuildConfig("release")
+	namedRuntime, namedErr := pkg.GetRuntimeConfig("release")
 
-	assert.Equal(t, "release.amx", pkg.GetBuildConfig("release").Output)
-	cfg, err := pkg.GetRuntimeConfig("release")
-	require.NoError(t, err)
-	assert.Equal(t, "openmp", cfg.Version)
+	assert.NotNil(t, defaultBuild)
+	require.NoError(t, defaultErr)
+	require.NotNil(t, namedBuild)
+	assert.Equal(t, "release.amx", namedBuild.Output)
+	require.NoError(t, namedErr)
+	assert.Equal(t, "openmp", namedRuntime.Version)
 }

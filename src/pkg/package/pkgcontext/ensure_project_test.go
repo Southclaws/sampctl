@@ -11,7 +11,6 @@ import (
 	"time"
 
 	git "github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,42 +26,7 @@ func TestEnsureProjectInitialisesLockfileAndPinsDependencies(t *testing.T) {
 	projectDir := t.TempDir()
 
 	depMeta := versioning.DependencyMeta{User: "testuser", Repo: "testrepo"}
-	cachePath := depMeta.CachePath(cacheDir)
-	require.NoError(t, os.MkdirAll(cachePath, 0o755))
-
-	repo, err := git.PlainInit(cachePath, false)
-	require.NoError(t, err)
-
-	wt, err := repo.Worktree()
-	require.NoError(t, err)
-
-	writeDep := func(name, contents string) {
-		t.Helper()
-		fullPath := filepath.Join(cachePath, name)
-		require.NoError(t, os.MkdirAll(filepath.Dir(fullPath), 0o755))
-		require.NoError(t, os.WriteFile(fullPath, []byte(contents), 0o644))
-
-		_, err = wt.Add(name)
-		require.NoError(t, err)
-	}
-
-	commitDep := func(msg string, when time.Time) plumbing.Hash {
-		t.Helper()
-		hash, err := wt.Commit(msg, &git.CommitOptions{
-			Author:    &object.Signature{Name: "test", Email: "test@example.com", When: when},
-			Committer: &object.Signature{Name: "test", Email: "test@example.com", When: when},
-		})
-		require.NoError(t, err)
-
-		return hash
-	}
-
-	writeDep("pawn.json", `{"entry":"dep.pwn","output":"gamemodes/dep.amx"}`)
-	writeDep("dep.pwn", `main() {}`)
-	_ = commitDep("initial", time.Unix(100, 0))
-
-	_, err = repo.CreateTag("1.0.0", headHashForEnsureProject(repo, t), nil)
-	require.NoError(t, err)
+	seedEnsureProjectDependencyRepo(t, cacheDir, depMeta, []string{"1.0.0"})
 
 	rootConfig := map[string]any{
 		"entry":        "main.pwn",
@@ -107,16 +71,10 @@ func TestEnsureProjectInitialisesLockfileAndPinsDependencies(t *testing.T) {
 	assert.Contains(t, lf.Dependencies, lockfile.DependencyKey(depMeta))
 	assert.FileExists(t, filepath.Join(projectDir, lockfile.Filename))
 	assert.DirExists(t, filepath.Join(projectDir, "server"))
-	assert.DirExists(t, filepath.Join(projectDir, "server", "gamemodes"))
-	assert.DirExists(t, filepath.Join(projectDir, "server", "filterscripts"))
-	assert.DirExists(t, filepath.Join(projectDir, "server", "plugins"))
-	assert.DirExists(t, filepath.Join(projectDir, "server", "scriptfiles"))
-	assert.DirExists(t, filepath.Join(projectDir, "server", "npcmodes"))
-	assert.NoDirExists(t, filepath.Join(projectDir, "gamemodes"))
-	assert.NoDirExists(t, filepath.Join(projectDir, "filterscripts"))
-	assert.NoDirExists(t, filepath.Join(projectDir, "plugins"))
-	assert.NoDirExists(t, filepath.Join(projectDir, "scriptfiles"))
-	assert.NoDirExists(t, filepath.Join(projectDir, "npcmodes"))
+	for _, dir := range []string{"gamemodes", "filterscripts", "plugins", "scriptfiles", "npcmodes"} {
+		assert.DirExists(t, filepath.Join(projectDir, "server", dir))
+		assert.NoDirExists(t, filepath.Join(projectDir, dir))
+	}
 }
 
 func TestEnsureProjectRecordsLocalDependenciesAndPrunesRemovedEntries(t *testing.T) {
@@ -129,31 +87,7 @@ func TestEnsureProjectRecordsLocalDependenciesAndPrunesRemovedEntries(t *testing
 	require.NoError(t, os.WriteFile(filepath.Join(includeDir, "local.inc"), []byte("#define LOCAL 1\n"), 0o644))
 
 	depMeta := versioning.DependencyMeta{User: "testuser", Repo: "testrepo", Tag: "1.0.0"}
-	cachePath := depMeta.CachePath(cacheDir)
-	require.NoError(t, os.MkdirAll(cachePath, 0o755))
-
-	repo, err := git.PlainInit(cachePath, false)
-	require.NoError(t, err)
-
-	wt, err := repo.Worktree()
-	require.NoError(t, err)
-
-	require.NoError(t, os.WriteFile(filepath.Join(cachePath, "pawn.json"), []byte(`{"entry":"dep.pwn","output":"gamemodes/dep.amx"}`), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(cachePath, "dep.pwn"), []byte("main() {}"), 0o644))
-
-	_, err = wt.Add("pawn.json")
-	require.NoError(t, err)
-	_, err = wt.Add("dep.pwn")
-	require.NoError(t, err)
-
-	_, err = wt.Commit("initial", &git.CommitOptions{
-		Author:    &object.Signature{Name: "test", Email: "test@example.com", When: time.Unix(100, 0)},
-		Committer: &object.Signature{Name: "test", Email: "test@example.com", When: time.Unix(100, 0)},
-	})
-	require.NoError(t, err)
-
-	_, err = repo.CreateTag("1.0.0", headHashForEnsureProject(repo, t), nil)
-	require.NoError(t, err)
+	seedEnsureProjectDependencyRepo(t, cacheDir, depMeta, []string{"1.0.0"})
 
 	rootConfig := map[string]any{
 		"entry":  "main.pwn",
@@ -331,14 +265,6 @@ func seedStagedRuntime(t *testing.T, cacheDir string, cfg run.Runtime) {
 	require.NoError(t, err)
 
 	require.NoError(t, os.WriteFile(filepath.Join(stageDir, "sampctl-runtime-manifest.json"), manifestBytes, 0o600))
-}
-
-func headHashForEnsureProject(repo *git.Repository, t *testing.T) plumbing.Hash {
-	t.Helper()
-	head, err := repo.Head()
-	require.NoError(t, err)
-
-	return head.Hash()
 }
 
 func seedEnsureProjectDependencyRepo(

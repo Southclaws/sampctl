@@ -24,14 +24,6 @@ var (
 )
 
 func seedPkgContextFixtures(cacheDir string) error {
-	if err := os.RemoveAll(cacheDir); err != nil {
-		return err
-	}
-
-	if err := os.MkdirAll(cacheDir, 0o700); err != nil {
-		return err
-	}
-
 	commit, err := seedPkgContextRepo(cacheDir,
 		versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib"},
 		pawnpackage.Package{

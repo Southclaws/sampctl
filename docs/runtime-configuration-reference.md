@@ -1,6 +1,7 @@
 # Runtime configuration reference (`runtime` / `runtimes`)
 
-Runtime configuration lives in your `pawn.json` / `pawn.yaml` under `runtime` (single) or `runtimes` (multiple).
+Use `runtime` for one runtime configuration or `runtimes` for several named
+configurations in `pawn.json` or `pawn.yaml`.
 
 Select a named runtime:
 
@@ -27,7 +28,6 @@ Runtime type is determined by:
 - `runtime_type`: `samp` or `openmp` (auto-detected from `version` if not set).
 - `mode`: run mode: `server`, `main`, `y_testing`.
 - `rootLink`: (sampctl internal) whether to create a symlink to the package root in the runtime directory.
-- `echo`: (sampctl internal) an optional string written to the start of the generated config.
 
 ## Scripts and load lists
 
@@ -35,11 +35,6 @@ Runtime type is determined by:
 - `filterscripts` (string[]): side scripts to run.
 - `plugins` (string[]): plugin names to load.
 - `components` (string[]): open.mp components to load.
-
-Notes:
-
-- For open.mp, `plugins` are written to `config.json` as `pawn.legacy_plugins` (extensions stripped).
-- For open.mp, `components` are written to `config.json` as `pawn.components` (extensions stripped).
 
 ## Server settings
 
@@ -95,7 +90,7 @@ All of the following keys are accepted in `runtime`.
 - `cookielogging` (bool)
 - `output` (bool)
 
-## open.mp `config.json` mapping (what is actually written)
+## open.mp `config.json` mapping
 
 When the runtime is open.mp, `sampctl` generates `config.json` and maps these `runtime` fields:
 
@@ -149,8 +144,8 @@ Nested `rcon`:
 
 Nested `pawn`:
 
-- `plugins` → `pawn.legacy_plugins`
-- `components` → `pawn.components`
+- `plugins` → `pawn.legacy_plugins` (strips `.so` and `.dll`)
+- `components` → `pawn.components` (strips `.so` and `.dll`)
 - `gamemodes` → `pawn.main_scripts`
 - `filterscripts` → `pawn.side_scripts`
 
@@ -175,6 +170,15 @@ If you need extra SA:MP `server.cfg` keys (or simple top-level open.mp keys), us
     }
   }
 }
+```
+
+```yaml
+runtime:
+  port: 7777
+  hostname: 'My Server'
+  extra:
+    my_plugin_setting: '1'
+    another_setting: foo
 ```
 
 For SA:MP, `extra` is written to `server.cfg`.

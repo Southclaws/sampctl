@@ -26,37 +26,7 @@ import (
 func TestOpenMPStarterDependenciesResolveAndInstallOffline(t *testing.T) {
 	projectDir, cacheDir := t.TempDir(), t.TempDir()
 	dependencies := stdDependenciesForPreset("openmp")
-	for _, declaration := range dependencies {
-		meta, err := declaration.Explode()
-		if err != nil {
-			t.Fatalf("Explode(%q) error = %v", declaration, err)
-		}
-		pkg := pawnpackage.Package{Site: meta.Site, User: meta.User, Repo: meta.Repo}
-		switch meta.Repo {
-		case "samp-stdlib", "pawn-stdlib":
-			pkg.Dependencies = []versioning.DependencyString{"openmultiplayer/omp-stdlib"}
-		}
-		if err := seedCachedPackageRepo(cacheDir, meta, pkg, nil, map[string]string{
-			"selected.inc": meta.Branch,
-		}); err != nil {
-			t.Fatalf("seedCachedPackageRepo(%q) error = %v", declaration, err)
-		}
-		repo, err := git.PlainOpen(meta.CachePath(cacheDir))
-		if err != nil {
-			t.Fatalf("PlainOpen(%q) error = %v", declaration, err)
-		}
-		head, err := repo.Head()
-		if err != nil {
-			t.Fatalf("Head(%q) error = %v", declaration, err)
-		}
-		branch := plumbing.NewBranchReferenceName(meta.Branch)
-		if err := repo.Storer.SetReference(plumbing.NewHashReference(branch, head.Hash())); err != nil {
-			t.Fatalf("SetReference(%q) error = %v", declaration, err)
-		}
-		if err := repo.Storer.SetReference(plumbing.NewSymbolicReference(plumbing.HEAD, branch)); err != nil {
-			t.Fatalf("SetReference(HEAD, %q) error = %v", declaration, err)
-		}
-	}
+	seedCachedStarterDependencies(t, cacheDir, dependencies)
 
 	pkg := pawnpackage.Package{
 		Parent: true, LocalPath: projectDir, Format: "json", User: "local-user", Repo: "starter",
@@ -87,7 +57,7 @@ func TestOpenMPStarterDependenciesResolveAndInstallOffline(t *testing.T) {
 		t.Fatalf("InitLockfileResolver(open.mp starter) error = %v", err)
 	}
 
-	if _, err := pcx.EnsureProject(context.Background(), pkgcontext.DependencyUpdateRequest{Enabled: true, Force: true}); err != nil {
+	if _, err := pcx.EnsureProject(t.Context(), pkgcontext.DependencyUpdateRequest{Enabled: true, Force: true}); err != nil {
 		t.Fatalf("EnsureProject(open.mp starter, force update) error = %v, want nil", err)
 	}
 
@@ -100,7 +70,7 @@ func TestOpenMPStarterDependenciesResolveAndInstallOffline(t *testing.T) {
 		advanceCachedStarterBranch(t, cacheDir, declaration)
 	}
 
-	if _, err := pcx.EnsureProject(context.Background(), pkgcontext.DependencyUpdateRequest{}); err != nil {
+	if _, err := pcx.EnsureProject(t.Context(), pkgcontext.DependencyUpdateRequest{}); err != nil {
 		t.Fatalf("EnsureProject(open.mp starter, locked) error = %v, want nil", err)
 	}
 
@@ -139,6 +109,42 @@ func TestOpenMPStarterDependenciesResolveAndInstallOffline(t *testing.T) {
 		originalEntry, originallyLocked := originalLock.GetDependency(lockfile.DependencyKey(meta))
 		if !originallyLocked || entry.Commit != originalEntry.Commit {
 			t.Errorf("GetDependency(%q) commit = %q, want original lock commit %q", declaration, entry.Commit, originalEntry.Commit)
+		}
+	}
+}
+
+func seedCachedStarterDependencies(t *testing.T, cacheDir string, dependencies []versioning.DependencyString) {
+	t.Helper()
+
+	for _, declaration := range dependencies {
+		meta, err := declaration.Explode()
+		if err != nil {
+			t.Fatalf("Explode(%q) error = %v", declaration, err)
+		}
+		pkg := pawnpackage.Package{Site: meta.Site, User: meta.User, Repo: meta.Repo}
+		switch meta.Repo {
+		case "samp-stdlib", "pawn-stdlib":
+			pkg.Dependencies = []versioning.DependencyString{"openmultiplayer/omp-stdlib"}
+		}
+		if err := seedCachedPackageRepo(cacheDir, meta, pkg, nil, map[string]string{
+			"selected.inc": meta.Branch,
+		}); err != nil {
+			t.Fatalf("seedCachedPackageRepo(%q) error = %v", declaration, err)
+		}
+		repo, err := git.PlainOpen(meta.CachePath(cacheDir))
+		if err != nil {
+			t.Fatalf("PlainOpen(%q) error = %v", declaration, err)
+		}
+		head, err := repo.Head()
+		if err != nil {
+			t.Fatalf("Head(%q) error = %v", declaration, err)
+		}
+		branch := plumbing.NewBranchReferenceName(meta.Branch)
+		if err := repo.Storer.SetReference(plumbing.NewHashReference(branch, head.Hash())); err != nil {
+			t.Fatalf("SetReference(%q) error = %v", declaration, err)
+		}
+		if err := repo.Storer.SetReference(plumbing.NewSymbolicReference(plumbing.HEAD, branch)); err != nil {
+			t.Fatalf("SetReference(HEAD, %q) error = %v", declaration, err)
 		}
 	}
 }

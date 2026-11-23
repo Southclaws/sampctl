@@ -100,33 +100,49 @@ func TestPathHelpers(t *testing.T) {
 	assert.False(t, Exists(filepath.Join(t.TempDir(), "missing.txt")))
 }
 
-func TestChmodHelpers(t *testing.T) {
+func TestChmodAllSetsPermissionsOnEachFile(t *testing.T) {
 	t.Parallel()
 
-	pathA := filepath.Join(t.TempDir(), "a.txt")
-	pathB := filepath.Join(t.TempDir(), "b.txt")
-	require.NoError(t, os.WriteFile(pathA, []byte("a"), 0o644))
-	require.NoError(t, os.WriteFile(pathB, []byte("b"), 0o644))
+	directory := t.TempDir()
+	files := map[string]string{
+		"a": filepath.Join(directory, "a.txt"),
+		"b": filepath.Join(directory, "b.txt"),
+	}
+	for name, path := range files {
+		require.NoError(t, os.WriteFile(path, []byte(name), 0o644))
+	}
 
-	files := map[string]string{"a": pathA, "b": pathB}
-	require.NoError(t, ChmodAll(files, PermFileExec))
+	err := ChmodAll(files, PermFileExec)
 
-	infoA, err := os.Stat(pathA)
 	require.NoError(t, err)
-	assert.Equal(t, PermFileExec, infoA.Mode().Perm())
+	for _, path := range files {
+		info, err := os.Stat(path)
+		require.NoError(t, err)
+		assert.Equal(t, PermFileExec, info.Mode().Perm(), path)
+	}
+}
 
-	infoB, err := os.Stat(pathB)
-	require.NoError(t, err)
-	assert.Equal(t, PermFileExec, infoB.Mode().Perm())
+func TestIsPosixPlatform(t *testing.T) {
+	t.Parallel()
 
 	assert.True(t, IsPosixPlatform("linux"))
 	assert.True(t, IsPosixPlatform("darwin"))
 	assert.False(t, IsPosixPlatform("windows"))
+}
 
-	require.NoError(t, ChmodAllIfPosix("windows", files, PermFilePrivate))
-	infoA, err = os.Stat(pathA)
+func TestChmodAllIfPosixKeepsWindowsPermissions(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "existing.txt")
+	require.NoError(t, os.WriteFile(path, []byte("a"), PermFileExec))
+	require.NoError(t, os.Chmod(path, PermFileExec))
+
+	err := ChmodAllIfPosix("windows", map[string]string{"a": path}, PermFilePrivate)
+
 	require.NoError(t, err)
-	assert.Equal(t, PermFileExec, infoA.Mode().Perm())
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	assert.Equal(t, PermFileExec, info.Mode().Perm())
 }
 
 func TestConfigDirHelpers(t *testing.T) {

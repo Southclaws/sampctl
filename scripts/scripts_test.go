@@ -234,8 +234,15 @@ func TestDocgenPreservesReadmeAndPublishesReferenceAtomically(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, failure := range []bool{false, true} {
-		t.Run(fmt.Sprintf("generator failure=%t", failure), func(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		exitCommand   string
+		wantReference string
+	}{
+		{name: "publishes generated reference", wantReference: "generated reference\n"},
+		{name: "keeps reference when generation fails", exitCommand: "exit 1\n", wantReference: "previous reference\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			root := t.TempDir()
 			for _, directory := range []string{"scripts", "docs", "elsewhere"} {
 				if err := os.Mkdir(filepath.Join(root, directory), 0o700); err != nil {
@@ -247,30 +254,25 @@ func TestDocgenPreservesReadmeAndPublishesReferenceAtomically(t *testing.T) {
 			writeFixtureFile(t, readme, "handwritten introduction\n", 0o600)
 			writeFixtureFile(t, reference, "previous reference\n", 0o600)
 			writeFixtureFile(t, filepath.Join(root, "scripts", "docgen.sh"), string(script), 0o700)
-			generator := "#!/bin/sh\nprintf 'generated reference\\n'\n"
-			if failure {
-				generator += "exit 1\n"
-			}
+			generator := "#!/bin/sh\nprintf 'generated reference\\n'\n" + tc.exitCommand
 			writeFixtureFile(t, filepath.Join(root, "sampctl"), generator, 0o700)
 
 			command := exec.CommandContext(t.Context(), shell, filepath.Join(root, "scripts", "docgen.sh"))
 			command.Dir = filepath.Join(root, "elsewhere")
+
 			output, runErr := command.CombinedOutput()
-			if (runErr != nil) != failure {
-				t.Fatalf("docgen failure=%t returned %v: %s", failure, runErr, output)
+
+			if wantFailure := tc.exitCommand != ""; (runErr != nil) != wantFailure {
+				t.Fatalf("docgen returned %v: %s", runErr, output)
 			}
 
 			contents, err := os.ReadFile(readme)
 			if err != nil || string(contents) != "handwritten introduction\n" {
 				t.Errorf("readme changed: %q, %v", contents, err)
 			}
-			wantReference := "generated reference\n"
-			if failure {
-				wantReference = "previous reference\n"
-			}
 			contents, err = os.ReadFile(reference)
-			if err != nil || string(contents) != wantReference {
-				t.Errorf("reference = %q, %v; want %q", contents, err, wantReference)
+			if err != nil || string(contents) != tc.wantReference {
+				t.Errorf("reference = %q, %v; want %q", contents, err, tc.wantReference)
 			}
 			entries, err := os.ReadDir(filepath.Dir(reference))
 			if err != nil || len(entries) != 1 || entries[0].Name() != "cli-reference.md" {

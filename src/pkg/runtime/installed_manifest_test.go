@@ -173,43 +173,67 @@ func TestEnsureBinariesMigratesLegacyInstalledOwnership(t *testing.T) {
 	checkRuntimeTestFile(t, filepath.Join(root, "samp03svr"), "second binary")
 }
 
-func TestEnsureBinariesPreservesUnsafeOwnershipMetadata(t *testing.T) {
+func TestEnsureBinariesPreservesMalformedOwnershipMetadata(t *testing.T) {
 	t.Parallel()
 
-	for _, scenario := range []string{"malformed", "directory", "symlink"} {
-		t.Run(scenario, func(t *testing.T) {
-			root, cache := t.TempDir(), t.TempDir()
-			cfg := run.Runtime{Version: "first", Platform: "linux", WorkingDir: root}
-			seedValidatedRuntimeStage(t, cache, cfg, map[string]string{"samp03svr": "new binary"})
-			writeRuntimeTestFile(t, filepath.Join(root, "samp03svr"), "user binary")
-			metadata := filepath.Join(root, installedRuntimeManifestFileName)
-			switch scenario {
-			case "malformed":
-				writeRuntimeTestFile(t, metadata, "{broken")
-			case "directory":
-				if err := os.Mkdir(metadata, 0o700); err != nil {
-					t.Fatal(err)
-				}
-			case "symlink":
-				outside := filepath.Join(t.TempDir(), "keep.json")
-				writeRuntimeTestFile(t, outside, "user metadata")
-				if err := os.Symlink(outside, metadata); err != nil {
-					t.Skipf("symlinks unavailable: %v", err)
-				}
-			}
+	cfg, cache := runtimeWithUserBinary(t)
+	metadata := filepath.Join(cfg.WorkingDir, installedRuntimeManifestFileName)
+	writeRuntimeTestFile(t, metadata, "{broken")
 
-			if _, err := EnsureBinariesContext(context.Background(), cache, cfg); err == nil {
-				t.Error("unsafe ownership metadata allowed runtime replacement")
-			}
+	_, err := EnsureBinariesContext(t.Context(), cache, cfg)
 
-			checkRuntimeTestFile(t, filepath.Join(root, "samp03svr"), "user binary")
-			if scenario == "malformed" {
-				checkRuntimeTestFile(t, metadata, "{broken")
-			} else if scenario == "symlink" {
-				checkRuntimeTestFile(t, metadata, "user metadata")
-			}
-		})
+	if err == nil {
+		t.Error("malformed ownership metadata allowed runtime replacement")
 	}
+	checkRuntimeTestFile(t, filepath.Join(cfg.WorkingDir, "samp03svr"), "user binary")
+	checkRuntimeTestFile(t, metadata, "{broken")
+}
+
+func TestEnsureBinariesRejectsOwnershipMetadataDirectory(t *testing.T) {
+	t.Parallel()
+
+	cfg, cache := runtimeWithUserBinary(t)
+	metadata := filepath.Join(cfg.WorkingDir, installedRuntimeManifestFileName)
+	if err := os.Mkdir(metadata, 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := EnsureBinariesContext(t.Context(), cache, cfg)
+
+	if err == nil {
+		t.Error("ownership metadata directory allowed runtime replacement")
+	}
+	checkRuntimeTestFile(t, filepath.Join(cfg.WorkingDir, "samp03svr"), "user binary")
+}
+
+func TestEnsureBinariesPreservesSymlinkedOwnershipMetadata(t *testing.T) {
+	t.Parallel()
+
+	cfg, cache := runtimeWithUserBinary(t)
+	metadata := filepath.Join(cfg.WorkingDir, installedRuntimeManifestFileName)
+	outside := filepath.Join(t.TempDir(), "keep.json")
+	writeRuntimeTestFile(t, outside, "user metadata")
+	if err := os.Symlink(outside, metadata); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	_, err := EnsureBinariesContext(t.Context(), cache, cfg)
+
+	if err == nil {
+		t.Error("symlinked ownership metadata allowed runtime replacement")
+	}
+	checkRuntimeTestFile(t, filepath.Join(cfg.WorkingDir, "samp03svr"), "user binary")
+	checkRuntimeTestFile(t, metadata, "user metadata")
+}
+
+func runtimeWithUserBinary(t *testing.T) (run.Runtime, string) {
+	t.Helper()
+
+	cache := t.TempDir()
+	cfg := run.Runtime{Version: "first", Platform: "linux", WorkingDir: t.TempDir()}
+	seedValidatedRuntimeStage(t, cache, cfg, map[string]string{"samp03svr": "new binary"})
+	writeRuntimeTestFile(t, filepath.Join(cfg.WorkingDir, "samp03svr"), "user binary")
+	return cfg, cache
 }
 
 func TestInstalledRuntimeManifestRejectsUnsafeEntries(t *testing.T) {

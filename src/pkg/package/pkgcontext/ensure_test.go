@@ -2,16 +2,14 @@ package pkgcontext
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 
 	git "github.com/go-git/go-git/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
@@ -29,8 +27,7 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 			"basic",
 			PackageContext{
 				Package: pawnpackage.Package{
-					LocalPath: fs.MustAbs("./tests/deps-basic"),
-					User:      "local", Repo: "local",
+					User: "local", Repo: "local",
 				},
 				PackageResolvedState: PackageResolvedState{AllDependencies: []versioning.DependencyMeta{
 					{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
@@ -49,8 +46,7 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 			"canceled context",
 			PackageContext{
 				Package: pawnpackage.Package{
-					LocalPath: fs.MustAbs("./tests/deps-basic"),
-					User:      "local", Repo: "local",
+					User: "local", Repo: "local",
 				},
 				PackageResolvedState: PackageResolvedState{AllDependencies: []versioning.DependencyMeta{
 					{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
@@ -70,14 +66,13 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		os.RemoveAll(tt.pcx.Package.LocalPath)
-		os.MkdirAll(tt.pcx.Package.LocalPath, 0o700) //nolint
-
 		tt.pcx.GitHub = gh
 		tt.pcx.Platform = runtime.GOOS
-		tt.pcx.CacheDir = "./tests/cache"
+		tt.pcx.CacheDir = fixtureCacheDir
 
 		t.Run(tt.name, func(t *testing.T) {
+			tt.pcx.Package.LocalPath = t.TempDir()
+
 			err := tt.pcx.EnsureDependencies(tt.ctx(), true)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -94,95 +89,57 @@ func TestPackage_EnsureDependencies(t *testing.T) {
 	}
 }
 
-func TestPackageContext_EnsurePackage(t *testing.T) {
-	commitMeta := versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib", Commit: fixturePawnStdlibCommit}
-	tagMeta := versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib", Tag: "0.3z-R4"}
-	branchMeta := versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-errors", Branch: "v2"}
-	resourceMeta := versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "package-resource-test"}
-
-	type args struct {
-		meta        versioning.DependencyMeta
-		forceUpdate bool
-	}
-	tests := []struct {
+func TestEnsurePackageInstallsSelectedRevisionOrResources(t *testing.T) {
+	for _, tc := range []struct {
 		name          string
-		args          args
-		wantSha       string
+		meta          versioning.DependencyMeta
+		wantCommit    string
 		wantResources []string
-		wantErr       bool
 	}{
 		{
-			"commit",
-			args{commitMeta, false},
-			fixturePawnStdlibCommit, nil, false,
+			name: "commit", wantCommit: fixturePawnStdlibCommit,
+			meta: versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib", Commit: fixturePawnStdlibCommit},
 		},
 		{
-			"tag",
-			args{tagMeta, false},
-			fixtureSampStdlibCommit, nil, false,
+			name: "tag", wantCommit: fixtureSampStdlibCommit,
+			meta: versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib", Tag: "0.3z-R4"},
 		},
 		{
-			"branch",
-			args{branchMeta, false},
-			"", nil, false,
+			name: "branch",
+			meta: versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-errors", Branch: "v2"},
 		},
 		{
-			"resource",
-			args{resourceMeta, false},
-			"",
-			[]string{"package-resource-test-07ad0b/include.inc"},
-			false,
+			name: "resource", wantResources: []string{"package-resource-test-07ad0b/include.inc"},
+			meta: versioning.DependencyMeta{Site: "github.com", User: "sampctl", Repo: "package-resource-test"},
 		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			pcxWorkspace := t.TempDir()
-			pcxVendor := filepath.Join(pcxWorkspace, "dependencies")
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			vendor := filepath.Join(root, "dependencies")
 			pcx := PackageContext{
-				Package: pawnpackage.Package{
-					LocalPath: pcxWorkspace,
-					Vendor:    pcxVendor,
-					User:      "local", Repo: "local",
-				},
+				Package: pawnpackage.Package{LocalPath: root, Vendor: vendor, User: "local", Repo: "local"},
 				PackageServices: PackageServices{
-					CacheDir: "./tests/cache",
+					CacheDir: fixtureCacheDir,
 					GitHub:   gh,
 					GitAuth:  gitAuth,
 					Platform: "linux",
 				},
 			}
 
-			err := pcx.EnsurePackage(tt.args.meta, tt.args.forceUpdate)
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
+			err := pcx.EnsurePackage(tc.meta, false)
 
-			// don't check empty shas
-			// some dependency modes aren't static (such as branches)
-			if tt.wantSha != "" {
-				path := filepath.Join(pcxWorkspace, "dependencies", tt.args.meta.Repo)
-				assert.True(t, fs.Exists(path))
+			require.NoError(t, err)
+			if tc.wantCommit != "" {
+				path := filepath.Join(vendor, tc.meta.Repo)
+				assert.DirExists(t, path)
 				repo, err := git.PlainOpen(path)
-				if err != nil {
-					t.Error(err)
-					t.FailNow()
-				}
-				ref, err := repo.Head()
-				if err != nil {
-					t.Error(err)
-					t.FailNow()
-				}
-				assert.Equal(t, tt.wantSha, ref.Hash().String())
+				require.NoError(t, err)
+				head, err := repo.Head()
+				require.NoError(t, err)
+				assert.Equal(t, tc.wantCommit, head.Hash().String())
 			}
-
-			if len(tt.wantResources) > 0 {
-				for _, resPath := range tt.wantResources {
-					fmt.Println("checking:", filepath.Join(pcxVendor, ".resources", resPath))
-					assert.True(t, fs.Exists(filepath.Join(pcxVendor, ".resources", resPath)))
-				}
+			for _, path := range tc.wantResources {
+				assert.FileExists(t, filepath.Join(vendor, ".resources", path))
 			}
 		})
 	}

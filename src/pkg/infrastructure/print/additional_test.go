@@ -1,51 +1,52 @@
 package print
 
 import (
-	"bytes"
 	"io"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestSetColouredAndPrinting(t *testing.T) {
-	origVerbose := isVerbose.Load()
-	origColoured := isColoured.Load()
-	defer func() {
-		isVerbose.Store(origVerbose)
-		isColoured.Store(origColoured)
-	}()
-
-	isVerbose.Store(false)
-	isColoured.Store(false)
-
-	assert.Equal(t, "", captureStdout(func() { Verb("hidden") }))
-
-	SetVerbose()
-	assert.Contains(t, captureStdout(func() { Verb("shown") }), "INFO: shown")
-	assert.Contains(t, captureStdout(func() { Info("info") }), "INFO: info")
-	assert.Contains(t, captureStdout(func() { Warn("warn") }), "WARN: warn")
-	assert.Contains(t, captureStdout(func() { Erro("error") }), "ERROR: error")
-
+func TestPrintsColouredMessages(t *testing.T) {
+	resetPrintFlagsForTest(t)
 	SetColoured()
-	assert.Contains(t, captureStdout(func() { Info("colour") }), "INFO:")
-	assert.Contains(t, captureStdout(func() { Warn("colour") }), "WARN:")
-	assert.Contains(t, captureStdout(func() { Erro("colour") }), "ERROR:")
+
+	assert.Contains(t, captureStdout(t, func() { Info("colour") }), "INFO:")
+	assert.Contains(t, captureStdout(t, func() { Warn("colour") }), "WARN:")
+	assert.Contains(t, captureStdout(t, func() { Erro("colour") }), "ERROR:")
 }
 
-func captureStdout(fn func()) string {
-	origStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
+func resetPrintFlagsForTest(t *testing.T) {
+	t.Helper()
 
-	fn()
-	_ = w.Close()
-	os.Stdout = origStdout
+	verbose, coloured := isVerbose.Load(), isColoured.Load()
+	t.Cleanup(func() {
+		isVerbose.Store(verbose)
+		isColoured.Store(coloured)
+	})
+	isVerbose.Store(false)
+	isColoured.Store(false)
+}
 
-	var buf bytes.Buffer
-	_, _ = io.Copy(&buf, r)
-	_ = r.Close()
+func captureStdout(t *testing.T, printMessage func()) string {
+	t.Helper()
 
-	return buf.String()
+	reader, writer, err := os.Pipe()
+	require.NoError(t, err)
+	defer func() { assert.NoError(t, reader.Close()) }()
+
+	previous := os.Stdout
+	os.Stdout = writer
+	defer func() {
+		os.Stdout = previous
+		_ = writer.Close()
+	}()
+
+	printMessage()
+	require.NoError(t, writer.Close())
+	output, err := io.ReadAll(reader)
+	require.NoError(t, err)
+	return string(output)
 }

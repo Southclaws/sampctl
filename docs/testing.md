@@ -1,6 +1,6 @@
 # Testing Pawn code
 
-`sampctl` is designed to make it easy to build and run small test gamemodes for libraries.
+Use a small test gamemode to exercise your Pawn code in the server runtime.
 
 ## Watch mode
 
@@ -10,15 +10,15 @@ Rebuild on file changes:
 sampctl build --watch
 ```
 
-Rebuild + restart the runtime on changes:
+Rebuild and restart the runtime on changes:
 
 ```bash
 sampctl run --watch
 ```
 
-## Forcing a clean run
+## Install, rebuild, and run
 
-If you want a “do everything” command (useful for demos and CI):
+Run this to install dependencies and rebuild before starting the server:
 
 ```bash
 sampctl run --forceEnsure --forceBuild
@@ -26,15 +26,15 @@ sampctl run --forceEnsure --forceBuild
 
 ## Runtime modes
 
-Runtime modes change how `sampctl` decides when to stop the server process.
+Set `runtime.mode` in `pawn.json` or `pawn.yaml` to control when sampctl
+stops the server:
 
-Set it in `pawn.json` / `pawn.yaml` under `runtime.mode`:
+- `server` keeps the server running by default.
+- `main` stops the server at the end of startup, after `main()` runs.
+- `y_testing` stops the server when y_testing prints its results and returns a
+  nonzero exit status if any tests fail.
 
-- `server`: normal server behavior (default)
-- `main`: exit after `main()` finishes (good for quick checks)
-- `y_testing`: exit with success/failure based on y_testing results (good for CI)
-
-Example:
+For a y_testing gamemode, set:
 
 ```json
 {
@@ -42,4 +42,9 @@ Example:
     "mode": "y_testing"
   }
 }
+```
+
+```yaml
+runtime:
+  mode: y_testing
 ```

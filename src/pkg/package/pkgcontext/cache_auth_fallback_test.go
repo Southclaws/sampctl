@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/stretchr/testify/assert"
@@ -11,54 +12,43 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
 
-func TestPackageContext_shouldRetryWithSSH(t *testing.T) {
+func TestShouldRetryWithSSH(t *testing.T) {
 	t.Parallel()
 
 	meta := versioning.DependencyMeta{Site: "github.com", User: "owner", Repo: "private-repo"}
+	const remote = "https://github.com/owner/private-repo"
 	authErr := errors.New("authentication required: Repository not found")
+	sshAuth := &ssh.PublicKeys{User: "git"}
+	httpAuth := &http.BasicAuth{Username: "u", Password: "p"}
 
-	t.Run("retries when HTTPS auth fails and SSH auth exists", func(t *testing.T) {
-		t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		auth     transport.AuthMethod
+		usingSSH bool
+		err      error
+		want     bool
+	}{
+		{name: "HTTPS authentication fails with SSH available", auth: sshAuth, err: authErr, want: true},
+		{name: "already using SSH", auth: sshAuth, usingSSH: true, err: authErr},
+		{name: "network timeout", auth: sshAuth, err: errors.New("network timeout")},
+		{name: "HTTP credentials only", auth: httpAuth, err: authErr},
+		{
+			name: "SSH credentials in auth bundle",
+			auth: &GitMultiAuth{HTTP: httpAuth, SSH: sshAuth},
+			err:  authErr,
+			want: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-		pcx := PackageContext{PackageServices: PackageServices{GitAuth: &ssh.PublicKeys{User: "git"}}}
-		shouldRetry := pcx.shouldRetryWithSSH(meta, "https://github.com/owner/private-repo", false, authErr)
-		assert.True(t, shouldRetry)
-	})
+			pcx := PackageContext{PackageServices: PackageServices{GitAuth: tc.auth}}
 
-	t.Run("does not retry when already using SSH", func(t *testing.T) {
-		t.Parallel()
+			got := pcx.shouldRetryWithSSH(meta, remote, tc.usingSSH, tc.err)
 
-		pcx := PackageContext{PackageServices: PackageServices{GitAuth: &ssh.PublicKeys{User: "git"}}}
-		shouldRetry := pcx.shouldRetryWithSSH(meta, "https://github.com/owner/private-repo", true, authErr)
-		assert.False(t, shouldRetry)
-	})
-
-	t.Run("does not retry for non-auth error", func(t *testing.T) {
-		t.Parallel()
-
-		pcx := PackageContext{PackageServices: PackageServices{GitAuth: &ssh.PublicKeys{User: "git"}}}
-		shouldRetry := pcx.shouldRetryWithSSH(meta, "https://github.com/owner/private-repo", false, errors.New("network timeout"))
-		assert.False(t, shouldRetry)
-	})
-
-	t.Run("does not retry without SSH auth method", func(t *testing.T) {
-		t.Parallel()
-
-		pcx := PackageContext{PackageServices: PackageServices{GitAuth: &http.BasicAuth{Username: "u", Password: "p"}}}
-		shouldRetry := pcx.shouldRetryWithSSH(meta, "https://github.com/owner/private-repo", false, authErr)
-		assert.False(t, shouldRetry)
-	})
-
-	t.Run("retries when auth bundle has SSH auth", func(t *testing.T) {
-		t.Parallel()
-
-		pcx := PackageContext{PackageServices: PackageServices{GitAuth: &GitMultiAuth{
-			HTTP: &http.BasicAuth{Username: "u", Password: "p"},
-			SSH:  &ssh.PublicKeys{User: "git"},
-		}}}
-		shouldRetry := pcx.shouldRetryWithSSH(meta, "https://github.com/owner/private-repo", false, authErr)
-		assert.True(t, shouldRetry)
-	})
+			assert.Equal(t, tc.want, got)
+		})
+	}
 }
 
 func TestToGitSSHURL(t *testing.T) {
@@ -79,56 +69,37 @@ func TestToGitSSHURL(t *testing.T) {
 	})
 }
 
-func TestPackageContext_authForRemote(t *testing.T) {
+func TestAuthForRemoteMatchesTransport(t *testing.T) {
 	t.Parallel()
 
-	t.Run("uses HTTP auth for HTTPS remotes", func(t *testing.T) {
-		t.Parallel()
+	const httpsRemote = "https://github.com/owner/private-repo"
+	const sshRemote = "git@github.com:owner/private-repo"
+	httpAuth := &http.BasicAuth{Username: "u", Password: "p"}
+	sshAuth := &ssh.PublicKeys{User: "git"}
+	bundle := &GitMultiAuth{HTTP: httpAuth, SSH: sshAuth}
 
-		httpAuth := &http.BasicAuth{Username: "u", Password: "p"}
-		pcx := PackageContext{PackageServices: PackageServices{GitAuth: httpAuth}}
-		got := pcx.authForRemote("https://github.com/owner/private-repo", false)
-		assert.Equal(t, httpAuth, got)
-	})
+	for _, tc := range []struct {
+		name     string
+		auth     transport.AuthMethod
+		remote   string
+		usingSSH bool
+		want     transport.AuthMethod
+	}{
+		{name: "HTTP credentials for HTTPS", auth: httpAuth, remote: httpsRemote, want: httpAuth},
+		{name: "HTTP credentials ignored for SSH", auth: httpAuth, remote: sshRemote, usingSSH: true},
+		{name: "SSH credentials for SSH", auth: sshAuth, remote: sshRemote, usingSSH: true, want: sshAuth},
+		{name: "SSH credentials ignored for HTTPS", auth: sshAuth, remote: httpsRemote},
+		{name: "bundle supplies HTTP credentials", auth: bundle, remote: httpsRemote, want: httpAuth},
+		{name: "bundle supplies SSH credentials", auth: bundle, remote: sshRemote, usingSSH: true, want: sshAuth},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	t.Run("does not use HTTP auth for SSH remotes", func(t *testing.T) {
-		t.Parallel()
+			pcx := PackageContext{PackageServices: PackageServices{GitAuth: tc.auth}}
 
-		httpAuth := &http.BasicAuth{Username: "u", Password: "p"}
-		pcx := PackageContext{PackageServices: PackageServices{GitAuth: httpAuth}}
-		got := pcx.authForRemote("git@github.com:owner/private-repo", true)
-		assert.Nil(t, got)
-	})
+			got := pcx.authForRemote(tc.remote, tc.usingSSH)
 
-	t.Run("uses SSH auth for SSH remotes", func(t *testing.T) {
-		t.Parallel()
-
-		sshAuth := &ssh.PublicKeys{User: "git"}
-		pcx := PackageContext{PackageServices: PackageServices{GitAuth: sshAuth}}
-		got := pcx.authForRemote("git@github.com:owner/private-repo", true)
-		assert.Equal(t, sshAuth, got)
-	})
-
-	t.Run("does not use SSH auth for HTTPS remotes", func(t *testing.T) {
-		t.Parallel()
-
-		sshAuth := &ssh.PublicKeys{User: "git"}
-		pcx := PackageContext{PackageServices: PackageServices{GitAuth: sshAuth}}
-		got := pcx.authForRemote("https://github.com/owner/private-repo", false)
-		assert.Nil(t, got)
-	})
-
-	t.Run("uses both auth methods from bundle", func(t *testing.T) {
-		t.Parallel()
-
-		httpAuth := &http.BasicAuth{Username: "u", Password: "p"}
-		sshAuth := &ssh.PublicKeys{User: "git"}
-		pcx := PackageContext{PackageServices: PackageServices{GitAuth: &GitMultiAuth{HTTP: httpAuth, SSH: sshAuth}}}
-
-		gotHTTP := pcx.authForRemote("https://github.com/owner/private-repo", false)
-		assert.Equal(t, httpAuth, gotHTTP)
-
-		gotSSH := pcx.authForRemote("git@github.com:owner/private-repo", true)
-		assert.Equal(t, sshAuth, gotSSH)
-	})
+			assert.Equal(t, tc.want, got)
+		})
+	}
 }

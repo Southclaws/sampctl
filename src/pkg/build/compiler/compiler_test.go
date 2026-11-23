@@ -1,13 +1,12 @@
 package compiler
 
 import (
-	"context"
-	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/Southclaws/sampctl/src/pkg/build"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
@@ -15,214 +14,85 @@ import (
 
 func TestCompileSource(t *testing.T) {
 	ensureCompilerSourceFixtures(t)
-
-	type args struct {
-		cacheDir string
-		config   build.Config
-		relative bool
+	compilerDir := newFakeCompilerDir(t)
+	defaultArgs := []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"}
+	syntaxProblems := build.Problems{
+		{File: "script.pwn", Line: 1, Severity: build.ProblemError, Code: "001", Description: "invalid function or declaration"},
+		{File: "script.pwn", Line: 3, Severity: build.ProblemError, Code: "001", Description: "invalid function or declaration"},
+		{File: "script.pwn", Line: 2, Severity: build.ProblemWarning, Code: "203", Description: `symbol is never used: "a"`},
+		{File: "script.pwn", Line: 2, Severity: build.ProblemError, Code: "013", Description: "no entry point (no public functions)"},
 	}
-	tests := []struct {
-		name         string
-		args         args
-		wantProblems build.Problems
-		wantResult   build.Result
-		wantErr      bool
-		wantOutput   bool
+
+	for _, tc := range []struct {
+		name, fixture string
+		args          []string
+		relative      bool
+		wantProblems  build.Problems
+		wantResult    build.Result
+		wantOutput    bool
 	}{
+		{name: "simple-pass", fixture: "build-simple-pass", wantOutput: true},
 		{
-			"simple-pass",
-			args{
-				fs.MustAbs("./tests/cache"),
-				build.Config{
-					WorkingDir: "./tests/build-simple-pass",
-					Input:      "./tests/build-simple-pass/script.pwn",
-					Output:     "./tests/build-simple-pass/script.amx",
-					Includes:   []string{},
-					Version:    "3.10.8",
-				},
-				false,
-			},
-			nil,
-			build.Result{},
-			false, true,
+			name: "simple-pass-d3", fixture: "build-simple-pass", args: []string{"-d3"},
+			wantResult: build.Result{Header: 60, Code: 184, Data: 0, StackHeap: 16384, Estimate: 20, Total: 16628},
+			wantOutput: true,
+		},
+		{name: "simple-fail", fixture: "build-simple-fail", wantProblems: syntaxProblems},
+		{name: "simple-fail-rel", fixture: "build-simple-fail", relative: true, wantProblems: syntaxProblems},
+		{
+			name: "local-include-pass", fixture: "build-local-include-pass", args: defaultArgs,
+			wantResult: build.Result{Header: 60, Code: 220, Data: 0, StackHeap: 16384, Estimate: 32, Total: 16664},
+			wantOutput: true,
 		},
 		{
-			"simple-pass-d3",
-			args{
-				fs.MustAbs("./tests/cache"),
-				build.Config{
-					WorkingDir: "./tests/build-simple-pass",
-					Input:      "./tests/build-simple-pass/script.pwn",
-					Output:     "./tests/build-simple-pass/script.amx",
-					Args:       []string{"-d3"},
-					Includes:   []string{},
-					Version:    "3.10.8",
-				},
-				false,
-			},
-			nil,
-			build.Result{
-				Header:    60,
-				Code:      184,
-				Data:      0,
-				StackHeap: 16384,
-				Estimate:  20,
-				Total:     16628,
-			},
-			false, true,
-		},
-		{
-			"simple-fail",
-			args{
-				fs.MustAbs("./tests/cache"),
-				build.Config{
-					WorkingDir: "./tests/build-simple-fail",
-					Input:      "./tests/build-simple-fail/script.pwn",
-					Output:     "./tests/build-simple-fail/script.amx",
-					Includes:   []string{},
-					Version:    "3.10.8",
-				},
-				false,
-			},
-			build.Problems{
-				{File: "script.pwn", Line: 1, Severity: build.ProblemError, Code: "001", Description: `invalid function or declaration`},
-				{File: "script.pwn", Line: 3, Severity: build.ProblemError, Code: "001", Description: `invalid function or declaration`},
-				{File: "script.pwn", Line: 2, Severity: build.ProblemWarning, Code: "203", Description: `symbol is never used: "a"`},
-				{File: "script.pwn", Line: 2, Severity: build.ProblemError, Code: "013", Description: `no entry point (no public functions)`},
-			},
-			build.Result{},
-			false, false,
-		},
-		{
-			"simple-fail-rel",
-			args{
-				fs.MustAbs("./tests/cache"),
-				build.Config{
-					WorkingDir: "./tests/build-simple-fail",
-					Input:      "./tests/build-simple-fail/script.pwn",
-					Output:     "./tests/build-simple-fail/script.amx",
-					Includes:   []string{},
-					Version:    "3.10.8",
-				},
-				true,
-			},
-			build.Problems{
-				{File: "script.pwn", Line: 1, Severity: build.ProblemError, Code: "001", Description: `invalid function or declaration`},
-				{File: "script.pwn", Line: 3, Severity: build.ProblemError, Code: "001", Description: `invalid function or declaration`},
-				{File: "script.pwn", Line: 2, Severity: build.ProblemWarning, Code: "203", Description: `symbol is never used: "a"`},
-				{File: "script.pwn", Line: 2, Severity: build.ProblemError, Code: "013", Description: `no entry point (no public functions)`},
-			},
-			build.Result{},
-			false, false,
-		},
-		{
-			"local-include-pass",
-			args{
-				fs.MustAbs("./tests/cache"),
-				build.Config{
-					WorkingDir: "./tests/build-local-include-pass",
-					Input:      "./tests/build-local-include-pass/script.pwn",
-					Output:     "./tests/build-local-include-pass/script.amx",
-					Args:       []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
-					Includes:   []string{},
-					Version:    "3.10.8",
-				},
-				false,
-			},
-			nil,
-			build.Result{
-				Header:    60,
-				Code:      220,
-				Data:      0,
-				StackHeap: 16384,
-				Estimate:  32,
-				Total:     16664,
-			},
-			false, true,
-		},
-		{
-			"local-include-warn",
-			args{
-				fs.MustAbs("./tests/cache"),
-				build.Config{
-					WorkingDir: "./tests/build-local-include-warn",
-					Input:      "./tests/build-local-include-warn/script.pwn",
-					Output:     "./tests/build-local-include-warn/script.amx",
-					Args:       []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
-					Includes:   []string{},
-					Version:    "3.10.8",
-				},
-				false,
-			},
-			build.Problems{
+			name: "local-include-warn", fixture: "build-local-include-warn", args: defaultArgs,
+			wantProblems: build.Problems{
 				{File: "library.inc", Line: 6, Severity: build.ProblemWarning, Code: "203", Description: `symbol is never used: "b"`},
 				{File: "script.pwn", Line: 5, Severity: build.ProblemWarning, Code: "203", Description: `symbol is never used: "a"`},
 			},
-			build.Result{
-				Header:    60,
-				Code:      276,
-				Data:      0,
-				StackHeap: 16384,
-				Estimate:  32,
-				Total:     16720,
-			},
-			false, true,
+			wantResult: build.Result{Header: 60, Code: 276, Data: 0, StackHeap: 16384, Estimate: 32, Total: 16720},
+			wantOutput: true,
 		},
 		{
-			"fatal",
-			args{
-				fs.MustAbs("./tests/cache"),
-				build.Config{
-					WorkingDir: "./tests/build-fatal",
-					Input:      "./tests/build-fatal/script.pwn",
-					Output:     "./tests/build-fatal/script.amx",
-					Args:       []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
-					Includes:   []string{},
-					Version:    "3.10.8",
-				},
-				false,
-			},
-			build.Problems{
+			name: "fatal", fixture: "build-fatal", args: defaultArgs,
+			wantProblems: build.Problems{
 				{File: "script.pwn", Line: 1, Severity: build.ProblemFatal, Code: "100", Description: `cannot read from file: "idonotexist"`},
 			},
-			build.Result{},
-			false, false,
 		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			fakeCompilerDir := newFakeCompilerDir(t)
-			tt.args.config.Compiler = build.CompilerConfig{Path: fakeCompilerDir}
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			workingDir := filepath.Join("tests", tc.fixture)
+			output := filepath.Join(t.TempDir(), "script.amx")
+			config := build.Config{
+				WorkingDir: workingDir,
+				Input:      filepath.Join(workingDir, "script.pwn"),
+				Output:     output,
+				Args:       tc.args,
+				Version:    "3.10.8",
+				Compiler:   build.CompilerConfig{Path: compilerDir},
+			}
 
-			err := os.MkdirAll(tt.args.cacheDir, 0o700)
-			assert.NoError(t, err)
-
-			gotProblems, gotResult, err := CompileSource(context.Background(), CompileRequest{
+			problems, result, err := CompileSource(t.Context(), CompileRequest{
 				ExecDir:  ".",
-				ErrorDir: "",
-				CacheDir: tt.args.cacheDir,
+				CacheDir: t.TempDir(),
 				Platform: runtime.GOOS,
-				Config:   tt.args.config,
-				Relative: tt.args.relative,
+				Config:   config,
+				Relative: tc.relative,
 			})
 
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			for i, p := range tt.wantProblems {
-				if !tt.args.relative {
-					tt.wantProblems[i].File = fs.MustAbs(filepath.Join(tt.args.config.WorkingDir, p.File))
+			require.NoError(t, err)
+			wantProblems := append(build.Problems(nil), tc.wantProblems...)
+			if !tc.relative {
+				for i, problem := range wantProblems {
+					wantProblems[i].File = fs.MustAbs(filepath.Join(workingDir, problem.File))
 				}
 			}
-
-			assert.Equal(t, tt.wantProblems, gotProblems)
-			assert.Equal(t, tt.wantResult, gotResult)
-
-			if tt.wantOutput {
-				assert.True(t, fs.Exists(tt.args.config.Output))
+			assert.Equal(t, wantProblems, problems)
+			assert.Equal(t, tc.wantResult, result)
+			if tc.wantOutput {
+				assert.FileExists(t, output)
+			} else {
+				assert.NoFileExists(t, output)
 			}
 		})
 	}

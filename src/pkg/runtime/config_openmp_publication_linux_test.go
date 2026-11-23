@@ -41,7 +41,12 @@ func TestOpenMPConfigWriteFailurePreservesPreviousFiles(t *testing.T) {
 		cfg.Network = map[string]any{"port": 7777}
 	}
 	signal.Ignore(syscall.SIGXFSZ)
-	require.NoError(t, syscall.Setrlimit(syscall.RLIMIT_FSIZE, &syscall.Rlimit{Cur: limit, Max: limit}))
+	var originalLimit syscall.Rlimit
+	require.NoError(t, syscall.Getrlimit(syscall.RLIMIT_FSIZE, &originalLimit))
+	t.Cleanup(func() {
+		require.NoError(t, syscall.Setrlimit(syscall.RLIMIT_FSIZE, &originalLimit))
+	})
+	require.NoError(t, syscall.Setrlimit(syscall.RLIMIT_FSIZE, &syscall.Rlimit{Cur: limit, Max: originalLimit.Max}))
 
 	err := GenerateConfig(cfg)
 	content, readErr := os.ReadFile(jsonPath)

@@ -6,24 +6,12 @@
 
 ![sampctl-logo](docs/sampctl-wordmark.png)
 
-The Swiss Army Knife of SA:MP - vital tools for any server owner or library
-maintainer.
-
-sampctl is a **command-line development tool** for developing SA:MP **Pawn
-scripts**. It includes a **package manager**, a **build tool** and a
-**configuration manager**.
-
-## Documentation
-
-- Start here: [docs/index.md](docs/index.md)
-- Install: [docs/install.md](docs/install.md)
-- Quick start: [docs/quickstart.md](docs/quickstart.md)
-- Packages (dependencies/build/run): [docs/packages.md](docs/packages.md)
-- Server + runtime configuration: [docs/server.md](docs/server.md) and [docs/configuration.md](docs/configuration.md)
-- Commands: [docs/command-reference.md](docs/command-reference.md)
-- Troubleshooting: [docs/troubleshooting.md](docs/troubleshooting.md)
+sampctl manages dependencies, builds Pawn scripts, and runs SA:MP and open.mp
+servers.
 
 ## Quick start
+
+[Install sampctl](docs/install.md), then run these commands in your project directory.
 
 ```bash
 sampctl init
@@ -31,13 +19,11 @@ sampctl ensure
 sampctl run
 ```
 
-More details: [docs/quickstart.md](docs/quickstart.md)
+## Documentation
 
-## Installation
-
-See: [docs/install.md](docs/install.md)
-
-## Help
-
-- Command reference: [docs/command-reference.md](docs/command-reference.md)
-- Full help in your terminal: `sampctl help`
+- [Quick start guide](docs/quickstart.md)
+- [Manage Pawn packages](docs/packages.md)
+- [Run a server](docs/server.md) and [configure the runtime](docs/configuration.md)
+- [Command reference](docs/command-reference.md) or `sampctl help` in your terminal
+- [Troubleshooting](docs/troubleshooting.md)
+- [Documentation index](docs/index.md)

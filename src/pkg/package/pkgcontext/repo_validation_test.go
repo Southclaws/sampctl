@@ -12,208 +12,110 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testSignature = &object.Signature{
-	Name:  "Test User",
-	Email: "test@example.com",
-	When:  time.Now(),
-}
-
 func TestValidateRepository(t *testing.T) {
-	t.Run("non-existent repository", func(t *testing.T) {
-		tmpDir, err := os.MkdirTemp("", "sampctl-test-*")
-		require.NoError(t, err)
-		defer os.RemoveAll(tmpDir)
+	t.Run("missing directory", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "nonexistent")
 
-		repoPath := filepath.Join(tmpDir, "nonexistent")
-		valid, err := ValidateRepository(repoPath)
-		assert.NoError(t, err)
+		valid, err := ValidateRepository(path)
+
+		require.NoError(t, err)
 		assert.False(t, valid)
 	})
 
 	t.Run("empty directory", func(t *testing.T) {
-		tmpDir, err := os.MkdirTemp("", "sampctl-test-*")
-		require.NoError(t, err)
-		defer os.RemoveAll(tmpDir)
+		path := t.TempDir()
 
-		repoPath := filepath.Join(tmpDir, "empty")
-		err = os.MkdirAll(repoPath, 0o700)
-		require.NoError(t, err)
+		valid, err := ValidateRepository(path)
 
-		valid, err := ValidateRepository(repoPath)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, valid)
 	})
 
-	t.Run("valid repository", func(t *testing.T) {
-		tmpDir, err := os.MkdirTemp("", "sampctl-test-*")
+	t.Run("repository with a commit", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "valid")
+		commitRepositoryTestFile(t, path, "test content")
+
+		valid, err := ValidateRepository(path)
+
 		require.NoError(t, err)
-		defer os.RemoveAll(tmpDir)
-
-		repoPath := filepath.Join(tmpDir, "valid")
-
-		repo, err := git.PlainInit(repoPath, false)
-		require.NoError(t, err)
-
-		testFile := filepath.Join(repoPath, "test.txt")
-		err = os.WriteFile(testFile, []byte("test content"), 0o644)
-		require.NoError(t, err)
-
-		wt, err := repo.Worktree()
-		require.NoError(t, err)
-
-		_, err = wt.Add("test.txt")
-		require.NoError(t, err)
-
-		_, err = wt.Commit("Initial commit", &git.CommitOptions{
-			Author: testSignature,
-		})
-		require.NoError(t, err)
-
-		valid, err := ValidateRepository(repoPath)
-		assert.NoError(t, err)
 		assert.True(t, valid)
 	})
 
 	t.Run("repository with no commits", func(t *testing.T) {
-		tmpDir, err := os.MkdirTemp("", "sampctl-test-*")
-		require.NoError(t, err)
-		defer os.RemoveAll(tmpDir)
-
-		repoPath := filepath.Join(tmpDir, "no-commits")
-
-		_, err = git.PlainInit(repoPath, false)
+		path := filepath.Join(t.TempDir(), "no-commits")
+		_, err := git.PlainInit(path, false)
 		require.NoError(t, err)
 
-		valid, err := ValidateRepository(repoPath)
-		assert.NoError(t, err)
+		valid, err := ValidateRepository(path)
+
+		require.NoError(t, err)
 		assert.False(t, valid)
 	})
 
-	t.Run("corrupted repository - missing objects dir", func(t *testing.T) {
-		tmpDir, err := os.MkdirTemp("", "sampctl-test-*")
+	t.Run("repository missing its objects directory", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "corrupted")
+		commitRepositoryTestFile(t, path, "test")
+		require.NoError(t, os.RemoveAll(filepath.Join(path, ".git", "objects")))
+
+		valid, err := ValidateRepository(path)
+
 		require.NoError(t, err)
-		defer os.RemoveAll(tmpDir)
-
-		repoPath := filepath.Join(tmpDir, "corrupted")
-
-		repo, err := git.PlainInit(repoPath, false)
-		require.NoError(t, err)
-
-		testFile := filepath.Join(repoPath, "test.txt")
-		err = os.WriteFile(testFile, []byte("test"), 0o644)
-		require.NoError(t, err)
-
-		wt, err := repo.Worktree()
-		require.NoError(t, err)
-
-		_, err = wt.Add("test.txt")
-		require.NoError(t, err)
-
-		_, err = wt.Commit("Initial commit", &git.CommitOptions{
-			Author: testSignature,
-		})
-		require.NoError(t, err)
-
-		objectsDir := filepath.Join(repoPath, ".git", "objects")
-		err = os.RemoveAll(objectsDir)
-		require.NoError(t, err)
-
-		valid, err := ValidateRepository(repoPath)
-		assert.NoError(t, err)
 		assert.False(t, valid)
 	})
 }
 
-func TestCleanInvalidRepository(t *testing.T) {
-	t.Run("clean invalid repository", func(t *testing.T) {
-		tmpDir, err := os.MkdirTemp("", "sampctl-test-*")
-		require.NoError(t, err)
-		defer os.RemoveAll(tmpDir)
+func TestCleanInvalidRepositoryRemovesRepositoryWithoutCommits(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "invalid")
+	_, err := git.PlainInit(path, false)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(path, "somefile.txt"), []byte("test"), 0o644))
 
-		repoPath := filepath.Join(tmpDir, "invalid")
-		err = os.MkdirAll(repoPath, 0o700)
-		require.NoError(t, err)
+	err = CleanInvalidRepository(path)
 
-		_, err = git.PlainInit(repoPath, false)
-		require.NoError(t, err)
-
-		err = os.WriteFile(filepath.Join(repoPath, "somefile.txt"), []byte("test"), 0o644)
-		require.NoError(t, err)
-
-		err = CleanInvalidRepository(repoPath)
-		assert.NoError(t, err)
-
-		_, err = os.Stat(repoPath)
-		assert.True(t, os.IsNotExist(err))
-	})
-
-	t.Run("keep valid repository", func(t *testing.T) {
-		tmpDir, err := os.MkdirTemp("", "sampctl-test-*")
-		require.NoError(t, err)
-		defer os.RemoveAll(tmpDir)
-
-		repoPath := filepath.Join(tmpDir, "valid")
-
-		repo, err := git.PlainInit(repoPath, false)
-		require.NoError(t, err)
-
-		testFile := filepath.Join(repoPath, "test.txt")
-		err = os.WriteFile(testFile, []byte("test"), 0o644)
-		require.NoError(t, err)
-
-		wt, err := repo.Worktree()
-		require.NoError(t, err)
-
-		_, err = wt.Add("test.txt")
-		require.NoError(t, err)
-
-		_, err = wt.Commit("Initial commit", &git.CommitOptions{
-			Author: testSignature,
-		})
-		require.NoError(t, err)
-
-		err = CleanInvalidRepository(repoPath)
-		assert.NoError(t, err)
-
-		_, err = os.Stat(repoPath)
-		assert.NoError(t, err)
-	})
+	require.NoError(t, err)
+	_, err = os.Stat(path)
+	assert.ErrorIs(t, err, os.ErrNotExist)
 }
 
-func TestRepairRepository(t *testing.T) {
-	t.Run("repair repository with uncommitted changes", func(t *testing.T) {
-		tmpDir, err := os.MkdirTemp("", "sampctl-test-*")
-		require.NoError(t, err)
-		defer os.RemoveAll(tmpDir)
+func TestCleanInvalidRepositoryKeepsCommittedRepository(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "valid")
+	commitRepositoryTestFile(t, path, "test")
 
-		repoPath := filepath.Join(tmpDir, "repair")
+	err := CleanInvalidRepository(path)
 
-		repo, err := git.PlainInit(repoPath, false)
-		require.NoError(t, err)
+	require.NoError(t, err)
+	_, err = os.Stat(path)
+	assert.NoError(t, err)
+}
 
-		testFile := filepath.Join(repoPath, "test.txt")
-		err = os.WriteFile(testFile, []byte("original"), 0o644)
-		require.NoError(t, err)
+func TestRepairRepositoryRestoresCommittedFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "repair")
+	file := commitRepositoryTestFile(t, path, "original")
+	require.NoError(t, os.WriteFile(file, []byte("modified"), 0o644))
 
-		wt, err := repo.Worktree()
-		require.NoError(t, err)
+	err := RepairRepository(path)
 
-		_, err = wt.Add("test.txt")
-		require.NoError(t, err)
+	require.NoError(t, err)
+	content, err := os.ReadFile(file)
+	require.NoError(t, err)
+	assert.Equal(t, "original", string(content))
+}
 
-		_, err = wt.Commit("Initial commit", &git.CommitOptions{
-			Author: testSignature,
-		})
-		require.NoError(t, err)
+func commitRepositoryTestFile(t *testing.T, path, contents string) string {
+	t.Helper()
 
-		err = os.WriteFile(testFile, []byte("modified"), 0o644)
-		require.NoError(t, err)
+	repo, err := git.PlainInit(path, false)
+	require.NoError(t, err)
+	file := filepath.Join(path, "test.txt")
+	require.NoError(t, os.WriteFile(file, []byte(contents), 0o644))
 
-		err = RepairRepository(repoPath)
-		assert.NoError(t, err)
-
-		content, err := os.ReadFile(testFile)
-		require.NoError(t, err)
-		assert.Equal(t, "original", string(content))
+	worktree, err := repo.Worktree()
+	require.NoError(t, err)
+	_, err = worktree.Add("test.txt")
+	require.NoError(t, err)
+	_, err = worktree.Commit("Initial commit", &git.CommitOptions{
+		Author: &object.Signature{Name: "Test User", Email: "test@example.com", When: time.Unix(1, 0)},
 	})
+	require.NoError(t, err)
+	return file
 }

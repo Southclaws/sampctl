@@ -282,68 +282,47 @@ func TestLoadOrCreate(t *testing.T) {
 
 func TestUpdateTimestamp(t *testing.T) {
 	lf := New("1.0.0")
-	originalTime := lf.Generated
+	previous := time.Unix(1, 0).UTC()
+	lf.Generated = previous
 
-	time.Sleep(10 * time.Millisecond)
 	lf.UpdateTimestamp()
 
-	assert.True(t, lf.Generated.After(originalTime))
+	assert.True(t, lf.Generated.After(previous))
 }
 
-func TestDependencyKeyWithOverride(t *testing.T) {
-	tests := []struct {
-		name           string
-		original       string
-		meta           versioning.DependencyMeta
-		expectedKey    string
-		lockfileHasOld bool
-		shouldMatchOld bool
-	}{
-		{
-			name:     "overridden dependency uses new key",
-			original: "Zeex/samp-plugin-crashdetect",
-			meta: versioning.DependencyMeta{
-				Site: "github.com",
-				User: "AmyrAhmady",
-				Repo: "samp-plugin-crashdetect",
-			},
-			expectedKey:    "github.com/AmyrAhmady/samp-plugin-crashdetect",
-			lockfileHasOld: true,
-			shouldMatchOld: false,
-		},
-		{
-			name:     "non-overridden dependency uses original key",
-			original: "pawn-lang/samp-stdlib",
-			meta: versioning.DependencyMeta{
-				Site: "github.com",
-				User: "pawn-lang",
-				Repo: "samp-stdlib",
-			},
-			expectedKey:    "github.com/pawn-lang/samp-stdlib",
-			lockfileHasOld: false,
-			shouldMatchOld: false,
-		},
+func TestReplacementDependencyDoesNotReuseOriginalLockfileKey(t *testing.T) {
+	lf := New("1.0.0")
+	lf.AddDependency("github.com/Zeex/samp-plugin-crashdetect", LockedDependency{
+		Commit: "oldcommit1234567890123456789012345678",
+		User:   "Zeex",
+		Repo:   "samp-plugin-crashdetect",
+	})
+	replacement := versioning.DependencyMeta{
+		Site: "github.com",
+		User: "AmyrAhmady",
+		Repo: "samp-plugin-crashdetect",
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			key := DependencyKey(tt.meta)
-			assert.Equal(t, tt.expectedKey, key)
+	key := DependencyKey(replacement)
+	_, found := lf.GetLockedMeta(replacement)
 
-			lf := New("1.0.0")
-			if tt.lockfileHasOld {
-				oldKey := "github.com/Zeex/samp-plugin-crashdetect"
-				lf.AddDependency(oldKey, LockedDependency{
-					Commit: "oldcommit1234567890123456789012345678",
-					User:   "Zeex",
-					Repo:   "samp-plugin-crashdetect",
-				})
-			}
+	assert.Equal(t, "github.com/AmyrAhmady/samp-plugin-crashdetect", key)
+	assert.False(t, found)
+}
 
-			_, found := lf.GetLockedMeta(tt.meta)
-			assert.Equal(t, tt.shouldMatchOld, found)
-		})
+func TestDependencyWithoutOverrideUsesItsOwnLockfileKey(t *testing.T) {
+	lf := New("1.0.0")
+	dependency := versioning.DependencyMeta{
+		Site: "github.com",
+		User: "pawn-lang",
+		Repo: "samp-stdlib",
 	}
+
+	key := DependencyKey(dependency)
+	_, found := lf.GetLockedMeta(dependency)
+
+	assert.Equal(t, "github.com/pawn-lang/samp-stdlib", key)
+	assert.False(t, found)
 }
 
 func TestLockfileOverrideTransition(t *testing.T) {

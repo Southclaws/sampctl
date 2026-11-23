@@ -39,48 +39,9 @@ func TestDependencyGraphUsesPinnedRevisionDefinition(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			cacheDir := t.TempDir()
 			meta := versioning.DependencyMeta{Site: "github.com", User: "fixture", Repo: "library"}
-			cachePath := meta.CachePath(cacheDir)
-			require.NoError(t, os.MkdirAll(cachePath, 0o700))
+			legacyCommit := seedLibraryWithNewerDependencyDefinition(t, meta.CachePath(cacheDir))
 
-			repo, err := git.PlainInit(cachePath, false)
-			require.NoError(t, err)
-
-			wt, err := repo.Worktree()
-			require.NoError(t, err)
-
-			require.NoError(t, os.WriteFile(filepath.Join(cachePath, "library.inc"), []byte("// legacy\n"), 0o600))
-
-			_, err = wt.Add("library.inc")
-			require.NoError(t, err)
-
-			legacyCommit, err := wt.Commit("legacy release", &git.CommitOptions{
-				Author: &object.Signature{
-					Name:  "test",
-					Email: "test@example.com",
-					When:  time.Unix(100, 0),
-				},
-			})
-			require.NoError(t, err)
-
-			_, err = repo.CreateTag("1.0.0", legacyCommit, nil)
-			require.NoError(t, err)
-
-			definition := `{"dependencies":["openmultiplayer/omp-stdlib"]}`
-			require.NoError(t, os.WriteFile(filepath.Join(cachePath, "pawn.json"), []byte(definition), 0o600))
-
-			_, err = wt.Add("pawn.json")
-			require.NoError(t, err)
-
-			_, err = wt.Commit("add current dependencies", &git.CommitOptions{
-				Author: &object.Signature{
-					Name:  "test",
-					Email: "test@example.com",
-					When:  time.Unix(200, 0),
-				},
-			})
-			require.NoError(t, err)
-
-			pinned := test.pin(meta, legacyCommit.String())
+			pinned := test.pin(meta, legacyCommit)
 			dependency := pinned.User + "/" + pinned.Repo
 			if pinned.Tag != "" {
 				dependency += ":" + pinned.Tag
@@ -106,4 +67,50 @@ func TestDependencyGraphUsesPinnedRevisionDefinition(t *testing.T) {
 			require.Equal(t, []versioning.DependencyMeta{pinned}, pcx.AllDependencies)
 		})
 	}
+}
+
+func seedLibraryWithNewerDependencyDefinition(t *testing.T, cachePath string) string {
+	t.Helper()
+
+	require.NoError(t, os.MkdirAll(cachePath, 0o700))
+
+	repo, err := git.PlainInit(cachePath, false)
+	require.NoError(t, err)
+
+	wt, err := repo.Worktree()
+	require.NoError(t, err)
+
+	require.NoError(t, os.WriteFile(filepath.Join(cachePath, "library.inc"), []byte("// legacy\n"), 0o600))
+
+	_, err = wt.Add("library.inc")
+	require.NoError(t, err)
+
+	legacyCommit, err := wt.Commit("legacy release", &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "test",
+			Email: "test@example.com",
+			When:  time.Unix(100, 0),
+		},
+	})
+	require.NoError(t, err)
+
+	_, err = repo.CreateTag("1.0.0", legacyCommit, nil)
+	require.NoError(t, err)
+
+	definition := `{"dependencies":["openmultiplayer/omp-stdlib"]}`
+	require.NoError(t, os.WriteFile(filepath.Join(cachePath, "pawn.json"), []byte(definition), 0o600))
+
+	_, err = wt.Add("pawn.json")
+	require.NoError(t, err)
+
+	_, err = wt.Commit("add current dependencies", &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "test",
+			Email: "test@example.com",
+			When:  time.Unix(200, 0),
+		},
+	})
+	require.NoError(t, err)
+
+	return legacyCommit.String()
 }

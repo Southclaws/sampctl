@@ -301,31 +301,56 @@ func TestGitHubReleaseResourceEnsure(t *testing.T) {
 	})
 }
 
-func TestFactoryFromDependencyStringAndLocalResource(t *testing.T) {
+func TestFactoryFromDependencyStringSelectsResourceType(t *testing.T) {
 	t.Parallel()
 
 	factory := NewDefaultResourceFactory(nil)
-	res, err := factory.FromDependencyString("plugin://local/plugins/test", ResourceTypePlugin)
-	require.NoError(t, err)
-	_, ok := res.(*LocalResource)
-	assert.True(t, ok)
+	for _, tc := range []struct {
+		name, declaration string
+		resourceType      ResourceType
+		want              Resource
+	}{
+		{
+			name: "local plugin", declaration: "plugin://local/plugins/test",
+			resourceType: ResourceTypePlugin, want: (*LocalResource)(nil),
+		},
+		{
+			name: "git library", declaration: "Southclaws/pawn-errors",
+			resourceType: ResourceTypePawnLibrary, want: (*GitResource)(nil),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resource, err := factory.FromDependencyString(tc.declaration, tc.resourceType)
 
-	res, err = factory.FromDependencyString("Southclaws/pawn-errors", ResourceTypePawnLibrary)
-	require.NoError(t, err)
-	_, ok = res.(*GitResource)
-	assert.True(t, ok)
+			require.NoError(t, err)
+			assert.IsType(t, tc.want, resource)
+		})
+	}
+}
 
-	_, err = factory.FromDependencyString("not valid !!!", ResourceTypePlugin)
+func TestFactoryFromDependencyStringRejectsInvalidDeclaration(t *testing.T) {
+	t.Parallel()
+
+	factory := NewDefaultResourceFactory(nil)
+
+	_, err := factory.FromDependencyString("not valid !!!", ResourceTypePlugin)
+
 	require.Error(t, err)
+}
+
+func TestLocalResourceEnsureCopiesToTarget(t *testing.T) {
+	t.Parallel()
 
 	localFile := filepath.Join(t.TempDir(), "local.txt")
 	require.NoError(t, os.WriteFile(localFile, []byte("local"), 0o644))
 	lr := NewLocalResource(localFile, ResourceTypeArbitraryFile)
 	assert.Equal(t, localFile, lr.GetLocalPath())
-	require.NoError(t, lr.Ensure(context.Background(), "", ""))
+	require.NoError(t, lr.Ensure(t.Context(), "", ""))
 
 	target := filepath.Join(t.TempDir(), "copied.txt")
-	require.NoError(t, lr.Ensure(context.Background(), "", target))
+	err := lr.Ensure(t.Context(), "", target)
+
+	require.NoError(t, err)
 	assert.FileExists(t, target)
 }
 

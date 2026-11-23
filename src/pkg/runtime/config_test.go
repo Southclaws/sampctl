@@ -14,12 +14,8 @@ import (
 )
 
 func TestSAMPConfigGeneration(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "samp_config_test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
-
-	err = os.MkdirAll(filepath.Join(tmpDir, "plugins"), 0o755)
-	require.NoError(t, err)
+	tmpDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "plugins"), 0o755))
 
 	cfg := &run.Runtime{
 		WorkingDir: tmpDir,
@@ -43,8 +39,7 @@ func TestSAMPConfigGeneration(t *testing.T) {
 
 	assert.False(t, cfg.IsOpenMP())
 
-	err = GenerateConfig(cfg)
-	require.NoError(t, err)
+	require.NoError(t, GenerateConfig(cfg))
 
 	serverCfgPath := filepath.Join(tmpDir, "server.cfg")
 	assert.FileExists(t, serverCfgPath)
@@ -62,12 +57,8 @@ func TestSAMPConfigGeneration(t *testing.T) {
 }
 
 func TestOpenMPConfigGeneration(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "openmp_config_test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
-
-	err = os.MkdirAll(filepath.Join(tmpDir, "components"), 0o755)
-	require.NoError(t, err)
+	tmpDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "components"), 0o755))
 
 	cfg := &run.Runtime{
 		WorkingDir: tmpDir,
@@ -95,8 +86,7 @@ func TestOpenMPConfigGeneration(t *testing.T) {
 
 	assert.True(t, cfg.IsOpenMP())
 
-	err = GenerateConfig(cfg)
-	require.NoError(t, err)
+	require.NoError(t, GenerateConfig(cfg))
 
 	configJSONPath := filepath.Join(tmpDir, "config.json")
 	assert.FileExists(t, configJSONPath)
@@ -108,21 +98,17 @@ func TestOpenMPConfigGeneration(t *testing.T) {
 	err = json.Unmarshal(content, &config)
 	require.NoError(t, err)
 
-	// Check basic fields
 	assert.Equal(t, "My open.mp Test Server", config["name"])
 	assert.Equal(t, float64(100), config["max_players"])
 
-	// Check network settings
 	network, ok := config["network"].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, float64(7777), network["port"])
 
-	// Check RCON settings
 	rcon, ok := config["rcon"].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, "testpass123", rcon["password"])
 
-	// Check Pawn settings
 	pawn, ok := config["pawn"].(map[string]any)
 	require.True(t, ok)
 
@@ -166,9 +152,7 @@ func TestConfigGeneratorSelection(t *testing.T) {
 }
 
 func TestExtraFieldsSupport(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "extra_fields_test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	cfg := &run.Runtime{
 		WorkingDir: tmpDir,
@@ -184,8 +168,7 @@ func TestExtraFieldsSupport(t *testing.T) {
 	hostname := "Test Server"
 	cfg.Hostname = &hostname
 
-	err = GenerateConfig(cfg)
-	require.NoError(t, err)
+	require.NoError(t, GenerateConfig(cfg))
 
 	configJSONPath := filepath.Join(tmpDir, "config.json")
 	content, err := os.ReadFile(configJSONPath)
@@ -201,9 +184,7 @@ func TestExtraFieldsSupport(t *testing.T) {
 }
 
 func TestOpenMPFieldsSupport(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "openmp_fields_test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	useDynTicks := false
 	maxBots := 123
@@ -226,8 +207,7 @@ func TestOpenMPFieldsSupport(t *testing.T) {
 		},
 	}
 
-	err = GenerateConfig(cfg)
-	require.NoError(t, err)
+	require.NoError(t, GenerateConfig(cfg))
 
 	configJSONPath := filepath.Join(tmpDir, "config.json")
 	content, err := os.ReadFile(configJSONPath)
@@ -278,9 +258,7 @@ func TestScalarConfigDefaultsReturnErrorsInsteadOfPanicking(t *testing.T) {
 }
 
 func TestOpenMPConfigGenerateWithExtraServerCfg(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "openmp_config_test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	cfg := &run.Runtime{
 		WorkingDir:  tmpDir,
@@ -292,8 +270,7 @@ func TestOpenMPConfigGenerateWithExtraServerCfg(t *testing.T) {
 	}
 
 	generator := newOpenMPConfig(tmpDir)
-	err = generator.generate(cfg)
-	require.NoError(t, err)
+	require.NoError(t, generator.generate(cfg))
 
 	configJSONPath := filepath.Join(tmpDir, "config.json")
 	assert.FileExists(t, configJSONPath)
@@ -311,9 +288,7 @@ func TestOpenMPConfigGenerateWithExtraServerCfg(t *testing.T) {
 }
 
 func TestOpenMPConfigGenerateWithoutExtraServerCfg(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "openmp_config_test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	cfg := &run.Runtime{
 		WorkingDir:  tmpDir,
@@ -322,8 +297,7 @@ func TestOpenMPConfigGenerateWithoutExtraServerCfg(t *testing.T) {
 	}
 
 	generator := newOpenMPConfig(tmpDir)
-	err = generator.generate(cfg)
-	require.NoError(t, err)
+	require.NoError(t, generator.generate(cfg))
 
 	configJSONPath := filepath.Join(tmpDir, "config.json")
 	assert.FileExists(t, configJSONPath)

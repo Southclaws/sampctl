@@ -1,13 +1,10 @@
 # Continuous integration (CI)
 
-Because `sampctl` downloads the compiler and dependencies for you, it works well in CI.
+Commit your `pawn.json` or `pawn.yaml` and the generated `pawn.lock`.
+Run `sampctl ensure` in CI to install the locked dependencies, then
+`sampctl build` to compile the project.
 
-## Recommended approach
-
-- commit a working `pawn.json` / `pawn.yaml`
-- run `sampctl ensure`
-- run `sampctl build`
-- if you have tests, run `sampctl run` in a test-friendly runtime mode
+See [Project lockfile](lockfiles.md) for what sampctl records and when it updates.
 
 ## Example: GitHub Actions (Ubuntu)
 
@@ -43,13 +40,30 @@ jobs:
 
       - name: Build
         run: sampctl build
+```
 
-      - name: Run (optional)
-        run: sampctl run --forceBuild --forceEnsure
+## Pin the sampctl version
+
+The installer above installs the latest sampctl release. To use a fixed
+version on an x86-64 Ubuntu runner, replace the install step with a download
+from a specific release.
+
+```yaml
+      - name: Install sampctl 1.16.0
+        run: |
+          curl -fsSL -o sampctl.deb https://github.com/Southclaws/sampctl/releases/download/1.16.0/sampctl_1.16.0_linux_amd64.deb
+          sudo dpkg -i sampctl.deb
 ```
 
 ## Making tests fail the build
 
-If you use y_testing, set `runtime.mode` to `y_testing` in `pawn.json`/`pawn.yaml` for your CI runtime.
+If your gamemode uses y_testing, set `runtime.mode` to `y_testing` and add
+this step after the build:
 
-See `docs/testing.md`.
+```yaml
+      - name: Run tests
+        run: sampctl run
+```
+
+Sampctl exits with a nonzero status if y_testing reports a failure. See
+[Runtime modes](testing.md#runtime-modes) for the other options.

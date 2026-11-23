@@ -137,22 +137,25 @@ func TestCheckCommittedCleanupPreservesManifest(t *testing.T) {
 func TestCheckDependencyRecoveryPreservesInvalidAndChangedState(t *testing.T) {
 	t.Parallel()
 
-	for _, scenario := range []string{"invalid metadata", "changed manifest", "unexpected staged file"} {
-		t.Run(scenario, func(t *testing.T) {
+	for _, tc := range []struct {
+		name, filename, contents string
+		inStage                  bool
+	}{
+		{name: "invalid metadata", filename: pkgcontext.DependencyRecoveryFilename, contents: "{broken"},
+		{name: "changed manifest", filename: "pawn.json", contents: `{"user":"manual edit"}`},
+		{name: "unexpected staged file", filename: "unknown.inc", contents: "keep", inStage: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			root, stage := newCheckRecoveryFixture(t, "active")
-			journal := filepath.Join(root, pkgcontext.DependencyRecoveryFilename)
-			switch scenario {
-			case "invalid metadata":
-				writeCheckRecoveryFixture(t, journal, []byte("{broken"))
-			case "changed manifest":
-				writeCheckRecoveryFixture(t, filepath.Join(root, "pawn.json"), []byte(`{"user":"manual edit"}`))
-			case "unexpected staged file":
-				writeCheckRecoveryFixture(t, filepath.Join(stage, "unknown.inc"), []byte("keep"))
+			directory := root
+			if tc.inStage {
+				directory = stage
 			}
-
+			writeCheckRecoveryFixture(t, filepath.Join(directory, tc.filename), []byte(tc.contents))
 			before := snapshotCheckDependency(t, root)
 
-			results, _, err := checkDependencyRecovery(context.Background(), root, true)
+			results, _, err := checkDependencyRecovery(t.Context(), root, true)
+
 			if err != nil || len(results) != 1 {
 				t.Fatalf("check invalid recovery = %+v, error = %v", results, err)
 			}

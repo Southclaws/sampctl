@@ -13,7 +13,6 @@ import (
 	"testing"
 
 	"github.com/google/go-github/github"
-	"github.com/kirsle/configdir"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/urfave/cli.v1"
@@ -25,12 +24,7 @@ import (
 )
 
 func TestDependencyDeclarationCommandOutput(t *testing.T) {
-	configHome := t.TempDir()
-	t.Setenv("HOME", configHome)
-	t.Setenv("XDG_CONFIG_HOME", configHome)
-	t.Setenv("APPDATA", configHome)
-	configdir.Refresh()
-	t.Cleanup(configdir.Refresh)
+	useTestConfigHome(t)
 
 	cacheDir, err := fs.ConfigDir()
 	require.NoError(t, err)
@@ -45,6 +39,8 @@ func TestDependencyDeclarationCommandOutput(t *testing.T) {
 	baseURL, err := url.Parse(server.URL + "/")
 	require.NoError(t, err)
 
+	selected := []versioning.DependencyString{"fixture/first:1.0.0", "fixture/second:1.0.0"}
+	retained := []versioning.DependencyString{"fixture/retained:1.0.0"}
 	for _, development := range []bool{false, true} {
 		for _, test := range []struct {
 			name    string
@@ -53,12 +49,12 @@ func TestDependencyDeclarationCommandOutput(t *testing.T) {
 			left    []versioning.DependencyString
 			changed bool
 		}{
-			{"install pinned bare", true, []string{"fixture/first"}, []versioning.DependencyString{"fixture/first:1.0.0", "fixture/second:1.0.0"}, false},
-			{"install multiple existing", true, []string{"fixture/first", "fixture/second"}, []versioning.DependencyString{"fixture/first:1.0.0", "fixture/second:1.0.0"}, false},
-			{"uninstall missing", false, []string{"fixture/missing"}, []versioning.DependencyString{"fixture/first:1.0.0", "fixture/second:1.0.0"}, false},
-			{"uninstall unmatched pin", false, []string{"fixture/first:2.0.0"}, []versioning.DependencyString{"fixture/first:1.0.0", "fixture/second:1.0.0"}, false},
-			{"uninstall one", false, []string{"fixture/first"}, []versioning.DependencyString{"fixture/second:1.0.0"}, true},
-			{"uninstall multiple", false, []string{"fixture/first", "fixture/second"}, nil, true},
+			{name: "install pinned bare", install: true, targets: []string{"fixture/first"}, left: selected},
+			{name: "install multiple existing", install: true, targets: []string{"fixture/first", "fixture/second"}, left: selected},
+			{name: "uninstall missing", targets: []string{"fixture/missing"}, left: selected},
+			{name: "uninstall unmatched pin", targets: []string{"fixture/first:2.0.0"}, left: selected},
+			{name: "uninstall one", targets: []string{"fixture/first"}, left: []versioning.DependencyString{"fixture/second:1.0.0"}, changed: true},
+			{name: "uninstall multiple", targets: []string{"fixture/first", "fixture/second"}, changed: true},
 		} {
 			name := test.name
 			if development {
@@ -68,8 +64,6 @@ func TestDependencyDeclarationCommandOutput(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				dir := t.TempDir()
 				pkg := pawnpackage.Package{Format: "json", LocalPath: dir, User: "fixture", Repo: "project"}
-				selected := []versioning.DependencyString{"fixture/first:1.0.0", "fixture/second:1.0.0"}
-				retained := []versioning.DependencyString{"fixture/retained:1.0.0"}
 				pkg.Dependencies, pkg.Development = selected, retained
 				if development {
 					pkg.Dependencies, pkg.Development = retained, selected
@@ -91,18 +85,12 @@ func TestDependencyDeclarationCommandOutput(t *testing.T) {
 					flags, command = packageInstallFlags(), packageInstall
 				}
 
-				set := flag.NewFlagSet(test.name, flag.ContinueOnError)
-				for _, cliFlag := range withGlobalFlags(globalFlags(), flags) {
-					cliFlag.Apply(set)
-				}
-
 				args := []string{"--dir", dir}
 				if development {
 					args = append(args, "--dev")
 				}
 				args = append(args, test.targets...)
-				require.NoError(t, set.Parse(args))
-				ctx := cli.NewContext(app, set, nil)
+				ctx := newDependencyCommandTestContext(t, app, test.name, flags, args...)
 
 				output := captureStdout(t, func() {
 					require.NoError(t, command(ctx))
@@ -137,12 +125,7 @@ func TestDependencyDeclarationCommandOutput(t *testing.T) {
 }
 
 func TestPackageEnsureMissingSelector(t *testing.T) {
-	configHome := t.TempDir()
-	t.Setenv("HOME", configHome)
-	t.Setenv("XDG_CONFIG_HOME", configHome)
-	t.Setenv("APPDATA", configHome)
-	configdir.Refresh()
-	t.Cleanup(configdir.Refresh)
+	useTestConfigHome(t)
 
 	for _, format := range []string{"json", "yaml"} {
 		t.Run(format, func(t *testing.T) {
@@ -153,17 +136,13 @@ func TestPackageEnsureMissingSelector(t *testing.T) {
 			before, err := os.ReadFile(path)
 			require.NoError(t, err)
 
-			ctx := newTestCLIContext("dev")
-			set := flag.NewFlagSet("ensure", flag.ContinueOnError)
-			for _, cliFlag := range withGlobalFlags(globalFlags(), packageEnsureFlags()) {
-				cliFlag.Apply(set)
-			}
-			require.NoError(t, set.Parse([]string{"--dir", dir, "--update", "fixture/missing"}))
-			ctx = cli.NewContext(ctx.App, set, nil)
+			ctx := newDependencyCommandTestContext(t, newTestCLIContext("dev").App, "ensure", packageEnsureFlags(),
+				"--dir", dir, "--update", "fixture/missing")
 			var output bytes.Buffer
 			ctx.App.Writer = &output
 
 			err = packageEnsure(ctx)
+
 			assert.Equal(t, 1, ExitCode(err))
 			var failure *pkgcontext.DependencyError
 			require.ErrorAs(t, err, &failure)
@@ -179,4 +158,15 @@ func TestPackageEnsureMissingSelector(t *testing.T) {
 			assert.NoFileExists(t, filepath.Join(dir, "pawn.lock"))
 		})
 	}
+}
+
+func newDependencyCommandTestContext(t *testing.T, app *cli.App, name string, flags []cli.Flag, args ...string) *cli.Context {
+	t.Helper()
+
+	set := flag.NewFlagSet(name, flag.ContinueOnError)
+	for _, cliFlag := range withGlobalFlags(globalFlags(), flags) {
+		cliFlag.Apply(set)
+	}
+	require.NoError(t, set.Parse(args))
+	return cli.NewContext(app, set, nil)
 }

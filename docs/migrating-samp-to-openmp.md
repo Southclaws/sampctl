@@ -1,161 +1,69 @@
 # Migrating from SA:MP to open.mp
 
-This guide is for existing `sampctl` projects that currently target **SA:MP** and want to switch to **open.mp**.
+## Change the preset and standard library
 
-In `sampctl`, the migration is mostly:
-
-- switch the **preset** / **compiler preset** to `openmp`
-- switch the **runtime type** to `openmp` (so `config.json` is generated)
-- review **plugins/components** and dependency URL schemes
-
-## 1) Switch the package preset
-
-In your `pawn.json` / `pawn.yaml`, set the package `preset` to `openmp`.
-
-`pawn.json`:
+Set the top-level `preset` to `openmp`. Replace any existing SA:MP standard
+library entries with the three below. The explicit branches also apply to
+unpinned transitive requests for the same repositories.
 
 ```json
 {
   "preset": "openmp",
-  "entry": "gamemodes/main.pwn",
-  "output": "gamemodes/main.amx"
-}
-```
-
-This changes the default runtime/compiler choices that `sampctl` uses.
-
-## 2) Switch the standard library dependencies (important)
-
-Most existing SA:MP projects depend on the Pawn stdlib package:
-
-- `pawn-lang/samp-stdlib`
-
-For open.mp, you generally want the open.mp stdlib:
-
-- `openmultiplayer/omp-stdlib`
-
-There’s a common gotcha during migration: many community packages still depend (directly or transitively) on `pawn-lang/samp-stdlib` and/or `pawn-lang/pawn-stdlib`. If those resolve to the “normal” SA:MP-oriented versions, you can end up compiling against the wrong includes.
-
-To avoid this, when migrating to open.mp, you should explicitly depend on the following three packages in your `dependencies` list:
-
-```json
-{
   "dependencies": [
-    "openmultiplayer/omp-stdlib",
+    "openmultiplayer/omp-stdlib@master",
     "pawn-lang/samp-stdlib@open.mp",
     "pawn-lang/pawn-stdlib@open.mp"
   ]
 }
 ```
 
-When migrating an existing project:
-
-- Remove plain `pawn-lang/samp-stdlib` (if present).
-- Add the three dependencies above (or ensure they’re present).
-
-Then refresh deps:
-
-```bash
-sampctl ensure
+```yaml
+preset: openmp
+dependencies:
+  - openmultiplayer/omp-stdlib@master
+  - pawn-lang/samp-stdlib@open.mp
+  - pawn-lang/pawn-stdlib@open.mp
 ```
 
-## 3) Switch the compiler preset (if you override it)
+Keep your existing `entry`, `output`, and other dependencies. If a build
+configuration explicitly selects the SA:MP compiler preset, set
+`compiler.preset` to `openmp` in that configuration.
 
-If you have a `build` / `builds` section that explicitly selects the compiler preset, update it.
+## Update the runtime
 
-Example `pawn.json`:
+If your manifest pins a SA:MP runtime version, change it to an open.mp
+version. For example:
 
 ```json
 {
-  "preset": "openmp",
-  "entry": "gamemodes/main.pwn",
-  "output": "gamemodes/main.amx",
-  "build": {
-    "compiler": { "preset": "openmp" }
-  }
-}
-```
-
-If you *don’t* override the compiler in `build`, you can usually just rely on the package `preset`.
-
-## 4) Switch the runtime type to open.mp
-
-`sampctl` generates:
-
-- `server.cfg` for SA:MP
-- `config.json` for open.mp
-
-Runtime type is determined by:
-
-- `runtime.runtime_type` (explicit), or
-- auto-detection from `runtime.version` (if it contains `openmp` or `open.mp`)
-
-Minimal option (explicit):
-
-```json
-{
-  "preset": "openmp",
-  "entry": "gamemodes/main.pwn",
-  "output": "gamemodes/main.amx",
   "runtime": {
     "runtime_type": "openmp",
-    "rcon_password": "change-me",
-    "port": 7777,
-    "hostname": "My open.mp Server",
-    "maxplayers": 50
-  }
-}
-```
-
-Alternative option (auto-detect via version string):
-
-```json
-{
-  "runtime": {
     "version": "1.2.0-openmp"
   }
 }
 ```
 
-Note: `runtime.version` is also used for plugin/component **resource matching** (it must match the resource’s version string exactly to be selected).
-
-## 5) Review runtime settings and config generation
-
-- You still configure the server via `runtime` in `pawn.json` / `pawn.yaml`.
-- For open.mp, `sampctl` maps common keys into `config.json` (and also supports open.mp-only sections like `network`, `logging`, `pawn`, etc).
-- If you used `runtime.extra` for SA:MP `server.cfg` keys, for open.mp it is written into `config.json`.
-
-See:
-
-- [Runtime configuration guide](configuration.md)
-- [Runtime configuration reference](runtime-configuration-reference.md)
-
-## 6) Migrate plugin/component dependencies
-
-`sampctl` supports different dependency URL schemes:
-
-- `plugin://user/repo` downloads plugin binaries into `./plugins/`
-- `component://user/repo` downloads open.mp components into `./components/`
-
-For open.mp runs:
-
-- `runtime.plugins` becomes `pawn.legacy_plugins` in `config.json`
-- `runtime.components` becomes `pawn.components` in `config.json`
-
-So when you switch runtimes:
-
-- keep SA:MP-style plugins as `plugin://...` (if you still need them)
-- prefer open.mp components as `component://...`
-
-After changing dependencies, run:
-
-```bash
-sampctl ensure
+```yaml
+runtime:
+  runtime_type: openmp
+  version: '1.2.0-openmp'
 ```
 
-## 7) Re-generate and run
+Without an explicit runtime version, the open.mp preset supplies the default.
+Sampctl generates `config.json` for open.mp. Review any SA:MP-specific
+`runtime.extra` settings before migrating. See the
+[open.mp configuration mapping](runtime-configuration-reference.md#openmp-configjson-mapping).
 
-From your project folder:
+## Review plugins and components
+
+Keep `plugin://` for compatible legacy plugins. Use `component://` for open.mp
+components so sampctl installs them in `components/`.
+
+If sampctl selects the wrong asset, check the package's resource platform and
+version. It matches the full runtime version string and falls back to an empty
+resource version for the same platform. See [Plugin resources](plugin-resources.md#resource-selection).
+
+## Build and run
 
 ```bash
 sampctl ensure
@@ -163,35 +71,29 @@ sampctl build
 sampctl run
 ```
 
-On open.mp, `sampctl run` will generate `config.json` and start the server.
+## Keep both runtimes during migration
 
-## Optional: Keep both runtimes during transition
-
-If you want to keep a SA:MP and an open.mp configuration side-by-side while you migrate, define multiple runtimes under `runtimes`:
+Define named runtimes if you need to switch between servers while testing:
 
 ```yaml
-preset: openmp
-entry: gamemodes/main.pwn
-output: gamemodes/main.amx
-
 runtimes:
   - name: samp
     runtime_type: samp
+    version: "0.3.7"
     port: 7777
   - name: openmp
     runtime_type: openmp
+    version: "openmp"
     port: 7778
 ```
 
-Then select one at run time:
+Select the runtime by name:
 
 ```bash
 sampctl run samp
 sampctl run openmp
 ```
 
-## Troubleshooting
-
-- **It still generates `server.cfg`**: set `runtime.runtime_type: openmp` or make sure `runtime.version` contains `openmp` / `open.mp`.
-- **Plugin/component binaries aren’t downloading**: check the dependency scheme (`plugin://` vs `component://`) and make sure the dependency has `resources` metadata.
-- **Wrong binary selected**: resource selection matches `runtime.version` by exact string. If there's no exact match, `sampctl` falls back to an "empty version" resource for the same platform.
+Both runtimes use the project's build and dependencies unless you select a
+different build or change the manifest. Check that your code and plugins work
+with the runtime you select.

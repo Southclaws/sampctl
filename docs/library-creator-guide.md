@@ -1,15 +1,9 @@
-# Library creator guide (includes + plugins)
+# Create a Pawn library
 
-This guide is for people *creating* libraries intended to be consumed via `sampctl`.
-
-- **Includes-only library**: ships Pawn `.inc` (and maybe `.pwn`) sources only.
-- **Plugin library**: ships Pawn includes *and* server plugin binaries (`.so`/`.dll`).
-
-`sampctl` treats libraries the same way it treats gamemodes: as a **package** described by `pawn.json` / `pawn.yaml`.
+Add a `pawn.json` or `pawn.yaml` so projects can install your library with
+sampctl. If you also ship server binaries, describe them in `resources`.
 
 ## 1) Recommended repository layout
-
-Keep it boring and predictable:
 
 - Put your public include at the repo root (recommended), e.g. `mylib.inc` so users can do `#include <mylib>`.
 - Keep a small entry script for compilation/tests, e.g. `test.pwn` (or `tests/test.pwn`).
@@ -35,9 +29,9 @@ From your repo folder:
 sampctl init
 ```
 
-For a library, your `entry` should be a **test / demo script**, not the `.inc` itself.
+Set `entry` to a test or demo `.pwn` that includes your library.
 
-Minimal `pawn.json` for an includes-only library:
+Use this manifest for an includes-only library.
 
 ```json
 {
@@ -50,19 +44,20 @@ Minimal `pawn.json` for an includes-only library:
 }
 ```
 
-Notes:
+```yaml
+entry: test.pwn
+output: test.amx
+dependencies:
+  - pawn-lang/samp-stdlib
+runtime:
+  mode: main
+```
 
-- `dependencies` should contain everything your library needs to compile *when the user only includes your `.inc`*.
-- Prefer `dev_dependencies` for dependencies only used by your tests/demos (e.g. `pawn-lang/YSI-Includes` for `y_testing`).
+List the packages needed by your public includes in `dependencies`. Put
+test-only packages, such as YSI when used for `y_testing`, in `dev_dependencies`.
+Include every header your code uses, including `a_samp` if needed.
 
-## 3) “Batteries included” include style
-
-Write libraries as if the user has **zero other packages installed**.
-
-- Include what you use (yes, even `a_samp`).
-- This makes your library compile in isolation and avoids “works on my machine” dependency drift.
-
-## 4) Testing a library
+## 3) Test the library
 
 ### Fast compilation checks
 
@@ -70,78 +65,47 @@ Write libraries as if the user has **zero other packages installed**.
 sampctl build
 ```
 
-### Watch mode
+See [Testing Pawn code](testing.md) for watch mode and `y_testing`.
 
-```bash
-sampctl build --watch
-sampctl run --watch
-```
+### Run an interactive demo
 
-### Unit tests with `y_testing`
-
-Set the runtime mode:
-
-```json
-{
-  "runtime": {
-    "mode": "y_testing"
-  }
-}
-```
-
-Then:
-
-```bash
-sampctl run --forceEnsure --forceBuild
-```
-
-### “Demo tests”
-
-A very effective pattern is making your `entry` a tiny gamemode that demonstrates the library in-game. Users can clone your repo and run:
+Set `entry` to a small gamemode and use `runtime.mode: server` to keep it
+running. Users can clone the repository and start the demo:
 
 ```bash
 sampctl ensure
 sampctl run
 ```
 
-## 5) Versioning and releasing
+## 4) Publish a release
 
-`sampctl` supports version pinning in dependencies (tags/branches/commits), so library authors should publish **version tags**.
+Publish version tags such as `1.2.3` so consumers can pin a release.
 
-Recommended:
+Before releasing:
 
-- Use Semantic Versioning tags like `1.2.3` (or your project’s established convention).
-- Create GitHub releases for tagged versions.
-
-To create a versioned release interactively:
+- Run `sampctl ensure` and `sampctl build` against your test script. Commit
+  the changes you want to release and start with a clean worktree.
+- Check that you can push to the repository's Git remote.
+- For a GitHub release, set `user` and `repo` in your manifest and configure
+  a GitHub token with write access to that repository.
 
 ```bash
 sampctl release
 ```
 
-## 6) Plugin libraries (includes + binaries)
+The wizard asks for a version and offers to generate a version include.
+It creates a release commit and pushes the branch and tag. If you also
+choose a GitHub release, sampctl creates a draft and attempts to upload a
+ZIP of the package files. Review and publish the draft on GitHub. For a
+plugin, attach the platform binaries expected by your resource definitions.
+If draft creation or upload fails, check the remote tag before retrying.
+The Git push happens before either GitHub step.
 
-If your library depends on a server plugin, you have two goals:
+## 5) Package plugin binaries
 
-1) Make it easy for users to get the `.inc`.
-2) Make it easy for `sampctl` to download the correct `.dll`/`.so` for the user’s platform.
+Use stable release asset names and declare the binaries in
+[`resources`](plugin-resources.md). Consumers can install them with
+[`plugin://` or `component://`](dependency-schemes.md).
 
-### Plugin packaging (single source of truth)
-
-Plugin libraries should declare `resources` in `pawn.json` so `sampctl` can download the right binaries from GitHub release assets.
-
-To avoid repeating (and keeping this guide focused on getting started), the detailed `resources` reference and examples live here:
-
-- [Plugin resources (for plugin library authors)](plugin-resources.md)
-
-Related user-facing docs:
-
-- [Dependency schemes (plugins, components, includes)](dependency-schemes.md)
-- [Dependencies](dependencies.md)
-
-## 7) Common pitfalls
-
-- Setting `entry` to your `.inc` (libraries should compile via a `.pwn` entry).
-- Forgetting to list a dependency your `.inc` relies on.
-- Shipping plugin binaries without GitHub releases / stable asset naming.
-- Conflicting `.inc` filenames across dependencies (avoid generic names and use include guards).
+Choose distinct names for public `.inc` files to avoid collisions with
+other libraries. Use include guards to prevent repeated inclusion.

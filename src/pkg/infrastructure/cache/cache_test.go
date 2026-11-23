@@ -28,7 +28,7 @@ func TestIsFresh(t *testing.T) {
 	assert.False(t, IsFresh(filepath.Join(t.TempDir(), "missing.json"), time.Hour))
 }
 
-func TestReadJSON(t *testing.T) {
+func TestReadJSONDecodesStoredValue(t *testing.T) {
 	t.Parallel()
 
 	path := filepath.Join(t.TempDir(), "data.json")
@@ -40,16 +40,29 @@ func TestReadJSON(t *testing.T) {
 	}
 
 	value, err := ReadJSON[payload](path)
+
 	require.NoError(t, err)
 	assert.Equal(t, payload{Name: "test", Count: 2}, value)
+}
 
-	_, err = ReadJSON[payload](filepath.Join(t.TempDir(), "missing.json"))
-	require.Error(t, err)
+func TestReadJSONReportsMissingFile(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "missing.json")
+
+	_, err := ReadJSON[map[string]any](path)
+
+	require.ErrorIs(t, err, os.ErrNotExist)
+}
+
+func TestReadJSONRejectsMalformedContent(t *testing.T) {
+	t.Parallel()
 
 	invalidPath := filepath.Join(t.TempDir(), "invalid.json")
 	require.NoError(t, os.WriteFile(invalidPath, []byte(`{"name":`), 0o644))
 
-	_, err = ReadJSON[payload](invalidPath)
+	_, err := ReadJSON[map[string]any](invalidPath)
+
 	require.Error(t, err)
 }
 

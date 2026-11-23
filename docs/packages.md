@@ -1,8 +1,7 @@
 # Packages (Pawn projects)
 
-sampctl treats a Pawn project (gamemode, filterscript, library) as a “package”.
-
-A package is described by `pawn.json` or `pawn.yaml` in the project folder.
+A Pawn package is a gamemode, filterscript, or library with a `pawn.json` or
+`pawn.yaml` manifest in its project directory.
 
 ## The package file (`pawn.json` / `pawn.yaml`)
 
@@ -16,6 +15,13 @@ A minimal example:
 }
 ```
 
+```yaml
+entry: gamemodes/main.pwn
+output: gamemodes/main.amx
+dependencies:
+  - pawn-lang/samp-stdlib
+```
+
 Common fields you’ll see:
 
 - `entry`: the `.pwn` file to compile
@@ -24,9 +30,7 @@ Common fields you’ll see:
 - `dependencies`: GitHub packages to download (includes/libraries)
 - `overrides`: optional map from dependency declarations to replacements
 
-See also: [Package definition reference](package-definition-reference.md)
-
-To place local server/runtime files in a separate directory, configure the optional `runtime_dir` field:
+To keep local server files in a separate directory, set `runtime_dir`:
 
 ```json
 {
@@ -34,9 +38,12 @@ To place local server/runtime files in a separate directory, configure the optio
 }
 ```
 
-The same field works with both SA-MP 0.3.7 and open.mp. Other package fields, including `entry` and `output`, remain independent and can be configured according to the project's layout. If `runtime_dir` is omitted, the package root remains the runtime directory. Relative values are resolved from the package root, and the setting applies to local `config.json`/`server.cfg`, binaries, plugins, components, and runtime directories.
+```yaml
+runtime_dir: server
+```
 
-When running locally with `runtime_dir` explicitly configured, sampctl copies the compiled output file by basename into `<runtime_dir>/gamemodes/` before starting the server. This allows an output such as `build/main.amx` to be used with `runtime_dir: "server"` without requiring the build output itself to be located inside the runtime directory. If `runtime_dir` is omitted, the existing local-runtime behavior is preserved.
+See [Local runtime files](package-definition-reference.md#local-runtime-files)
+for path resolution and build output placement.
 
 ## Install and update dependencies
 
@@ -72,7 +79,7 @@ Update a single dependency:
 sampctl ensure --update pawn-lang/samp-stdlib
 ```
 
-Force pinned tag dependencies to move to the newest tagged release:
+Update pinned tags as well:
 
 ```bash
 sampctl ensure --update --force
@@ -171,13 +178,27 @@ sampctl get Southclaws/formatex
 
 ## Templates
 
-Templates let you run a file inside a predefined package template:
+Use a template to build or run standalone Pawn files with a shared set of
+dependencies and compiler settings. Create one first:
 
 ```bash
 sampctl template make my-template
+```
+
+Open the directory printed by the command. Templates live under
+`templates/<name>/` in the [sampctl app directory](cache.md). Edit the
+template's manifest to add dependencies or change build and runtime settings,
+then run `sampctl ensure` from the template directory.
+
+From the directory containing your script, run either command:
+
+```bash
 sampctl template build my-template test.pwn
 sampctl template run my-template test.pwn
 ```
+
+Both commands copy the script into the template as `tmpl.pwn`, replacing
+the previous copy. Keep your source file in your project or working directory.
 
 ## Publishing (release)
 
@@ -187,4 +208,5 @@ If you maintain a package repo and want to create a versioned release:
 sampctl release
 ```
 
-This is intended for package maintainers.
+See [Publish a release](library-creator-guide.md#4-publish-a-release) for
+preparation and what the wizard pushes to Git and GitHub.

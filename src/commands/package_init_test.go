@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kirsle/configdir"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/urfave/cli.v1"
@@ -18,12 +17,7 @@ import (
 )
 
 func TestPackageInitReportsInitializationFailure(t *testing.T) {
-	t.Cleanup(configdir.Refresh)
-	configHome := t.TempDir()
-	t.Setenv("HOME", configHome)
-	t.Setenv("XDG_CONFIG_HOME", configHome)
-	t.Setenv("APPDATA", configHome)
-	configdir.Refresh()
+	useTestConfigHome(t)
 
 	ctx := newTestCLIContext("dev")
 	state, err := getCommandState(ctx)

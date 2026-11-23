@@ -2,7 +2,35 @@
 
 ## Diagnose a project
 
-Run `sampctl check` and follow the reported actions. Add `--verbose` for details or `--fix` for supported repairs. See [Project diagnostics](command-reference.md#project-diagnostics) for coverage and exit codes.
+Run `sampctl check` and follow the reported actions. Add `--verbose` for
+details or `--fix` for supported repairs. See
+[Project diagnostics](command-reference.md#project-diagnostics) for coverage
+and exit codes.
+
+## Recover interrupted installations
+
+Run `sampctl check` to see what needs recovery, then `sampctl check --fix` to
+resume recorded work. The next dependency command also resumes dependency
+recovery, and the next `ensure` resumes runtime recovery.
+
+- Dependency operations use `.sampctl-dependencies.json` to recover installed
+  files, the manifest, and `pawn.lock`. Valid shared caches remain available.
+- Runtime upgrades finish independently. The `.sampctl-runtime.json` file
+  records ownership even for external runtime directories and projects using
+  `--no-lock`. For an older untracked runtime, ensure its current version before
+  upgrading.
+- If the command reports a cleanup failure after saving changes, retry to finish
+  cleanup. The installed changes are already in place, even though the command
+  returned a nonzero status.
+
+Keep recovery files and backups if sampctl reports invalid metadata, changed
+files, or ambiguous backups. Inspect unrecognized staging directories before
+removing them.
+
+If another dependency command holds the project lock, wait for it to finish.
+A leftover `.sampctl-dependencies.lock` file can remain after the OS releases
+the lock. Recovery renames require paths on the same filesystem. On Windows,
+close any files that prevent sampctl from replacing or removing them, then retry.
 
 ## “command not found: sampctl”
 
@@ -20,52 +48,36 @@ chmod +x ./sampctl
 
 If you installed a `.deb`, re-run install with `sudo`.
 
-## Plugins not downloading / wrong platform
+## Plugins download for the wrong platform
 
-If you’re targeting a different platform than the one you’re running on (for example building on Linux but preparing Windows files), use `--platform`.
-
-Example:
+Use `--platform` to prepare files for another operating system. For example,
+run this on Linux to download Windows plugins:
 
 ```bash
 sampctl ensure --platform windows
 ```
 
-## Plugin downloads fail with “check the package definition … against the release assets”
+## Missing plugin files after extraction
 
-This usually means `sampctl` downloaded a release asset but extracted **zero matching files**.
+If a release archive contains no matching files, pin the plugin to a working
+tag in your manifest and run `sampctl ensure`.
 
-Common causes:
+If you maintain the plugin, check the [resource definition](plugin-resources.md):
 
-- The plugin package `resources[].name` regex doesn’t match the actual asset filename.
-- The selected `resources[]` entry doesn’t match your target `(platform, runtime.version)`.
-- The `plugins` / `includes` / `files` paths don’t match the archive’s internal layout.
-
-What to do:
-
-- If you’re a **user**, try pinning the dependency to a known-good tag and re-run:
-
-```bash
-sampctl ensure --forceEnsure
-```
-
-- If you’re a **plugin author**, validate your `resources` config and see: [Plugin resources](plugin-resources.md)
+- Check that `resources[].name` matches the release asset filename.
+- Check the resource for the target platform and runtime version.
+- Check `plugins`, `includes`, and `files` against the paths inside the archive.
 
 ## Plugin downloads match the wrong runtime version
 
-Resource selection matches `resources[].version` to `runtime.version` by **exact string**.
+When a resource specifies a version, `resources[].version` must match
+`runtime.version` exactly. If you maintain separate releases for SA-MP and
+open.mp, check the version on each matching resource entry.
+See [Plugin resources](plugin-resources.md).
 
-- If you run open.mp, your runtime `version` should contain `openmp` or `open.mp`.
-- If you ship separate assets (e.g. `-omp`), ensure the matching resource entry uses the same `version` string.
+## Rebuild and check dependencies before running
 
-See: [Plugin resources](plugin-resources.md)
-
-## “Works after I delete stuff” / forcing a clean run
-
-If you want to force a full refresh (common for CI or debugging cache issues):
-
-```bash
-sampctl run --forceEnsure --forceBuild
-```
+See [Install, rebuild, and run](testing.md#install-rebuild-and-run).
 
 ## Container mode issues
 

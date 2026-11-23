@@ -20,103 +20,120 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
 
+type wizardAnswer struct {
+	prompt string
+	keys   string
+}
+
 func TestInitWorkflow(t *testing.T) {
-	for _, scenario := range []string{"interrupt", "entry interrupt", "existing source", "include harness", "minimal", "manifest failure", "template failure"} {
-		t.Run(scenario, func(t *testing.T) {
+	start := wizardAnswer{"How do you want to start this package?", "\r"}
+	samp := wizardAnswer{"Which runtime should this package target?", "\r"}
+	openmp := wizardAnswer{samp.prompt, "open.mp\r"}
+	minimal := wizardAnswer{"Which starter setup do you want?", "Minimal\r"}
+	withTemplates := wizardAnswer{minimal.prompt, "\r"}
+	json := wizardAnswer{"Which package file format do you want?", "\r"}
+	yaml := wizardAnswer{json.prompt, "YAML\r"}
+	local := wizardAnswer{"Do you plan to release this as a package on GitHub?", "\r"}
+	publish := wizardAnswer{local.prompt, "Yes\r"}
+	repository := wizardAnswer{"GitHub repository to publish from (owner/repo)", "\x15new-owner/new-repo\r"}
+	entry := wizardAnswer{"Which existing .pwn file should sampctl build?", "\r"}
+
+	for _, tc := range []struct {
+		name           string
+		sourceSuffix   string
+		blockManifest  bool
+		wantTranscript string
+		answers        []wizardAnswer
+	}{
+		{name: "interrupt", answers: []wizardAnswer{{start.prompt, "\x03"}}},
+		{
+			name: "entry interrupt", sourceSuffix: ".pwn",
+			answers: []wizardAnswer{start, samp, minimal, json, publish, repository, {entry.prompt, "\x03"}},
+		},
+		{
+			name: "existing source", sourceSuffix: ".pwn",
+			answers:        []wizardAnswer{start, samp, minimal, json, local, entry},
+			wantTranscript: "Found 2 pwn files and 0 inc files.",
+		},
+		{
+			name: "include harness", sourceSuffix: ".inc",
+			answers: []wizardAnswer{start, openmp, minimal, yaml, local},
+		},
+		{name: "minimal", answers: []wizardAnswer{start, samp, minimal, json, publish, repository}},
+		{
+			name: "manifest failure", blockManifest: true,
+			answers: []wizardAnswer{start, samp, minimal, json, publish, repository},
+		},
+		{name: "template failure", answers: []wizardAnswer{start, samp, withTemplates, json, publish, repository}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
-			for _, name := range []string{"z.pwn", "nested/a.pwn", "dependencies/ignored.pwn"} {
-				if scenario != "existing source" && scenario != "entry interrupt" && scenario != "include harness" {
-					break
+			if tc.sourceSuffix != "" {
+				for _, name := range []string{"z", "nested/a", "dependencies/ignored"} {
+					file := filepath.Join(dir, name+tc.sourceSuffix)
+					require.NoError(t, os.MkdirAll(filepath.Dir(file), 0o700))
+					require.NoError(t, os.WriteFile(file, []byte("existing source"), 0o600))
 				}
-				if scenario == "include harness" {
-					name = strings.ReplaceAll(name, ".pwn", ".inc")
-				}
-				file := filepath.Join(dir, name)
-				require.NoError(t, os.MkdirAll(filepath.Dir(file), 0o700))
-				require.NoError(t, os.WriteFile(file, []byte("existing source"), 0o600))
 			}
-			if scenario == "manifest failure" {
+			if tc.blockManifest {
 				require.NoError(t, os.Mkdir(filepath.Join(dir, "pawn.json"), 0o700))
 			}
 
-			questions := []string{
-				"How do you want to start this package?",
-				"Which runtime should this package target?",
-				"Which starter setup do you want?",
-				"Which package file format do you want?",
-				"Do you plan to release this as a package on GitHub?",
-			}
-			keys := []string{"\r", "\r", "Minimal\r", "\r", "\r"}
-			if scenario == "interrupt" {
-				questions, keys = questions[:1], []string{"\x03"}
-			} else if scenario != "existing source" && scenario != "include harness" {
-				keys[4] = "Yes\r"
-				questions = append(questions, "GitHub repository to publish from (owner/repo)")
-				keys = append(keys, "\x15new-owner/new-repo\r")
-				if scenario == "entry interrupt" {
-					questions = append(questions, "Which existing .pwn file should sampctl build?")
-					keys = append(keys, "\x03")
-				}
-			}
-			if scenario == "existing source" {
-				questions = append(questions, "Which existing .pwn file should sampctl build?")
-				keys = append(keys, "\r")
-			}
-			if scenario == "template failure" {
-				keys[2] = "\r"
-			}
-			if scenario == "include harness" {
-				keys[1], keys[3] = "open.mp\r", "YAML\r"
-			}
-
-			ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
-			defer cancel()
-			binary, err := os.Executable()
-			require.NoError(t, err)
-			cmd := exec.CommandContext(ctx, binary, "-test.run=^TestInitWorkflowProcess$")
-			cmd.Env = append(os.Environ(), "SAMPCTL_INIT_SCENARIO="+scenario, "SAMPCTL_INIT_DIR="+dir)
-			input, err := cmd.StdinPipe()
-			require.NoError(t, err)
-			output, err := cmd.StdoutPipe()
-			require.NoError(t, err)
-			cmd.Stderr = cmd.Stdout
-			require.NoError(t, cmd.Start())
-			defer func() {
-				cancel()
-				_ = cmd.Wait()
-			}()
-			defer func() { _ = input.Close() }()
-
-			var transcript strings.Builder
-			next := 0
-			cursorReports := 0
-			buffer := make([]byte, 1024)
-			for {
-				n, readErr := output.Read(buffer)
-				transcript.Write(buffer[:n])
-				if next < len(questions) && strings.Contains(transcript.String(), questions[next]) {
-					_, err := io.WriteString(input, keys[next])
-					require.NoError(t, err)
-					next++
-				}
-				// Keep answers before cursor reports so survey retains buffered input.
-				for cursorReports < strings.Count(transcript.String(), "\x1b[6n") {
-					_, err := io.WriteString(input, "\x1b[1;80R")
-					require.NoError(t, err)
-					cursorReports++
-				}
-				if readErr != nil {
-					require.ErrorIs(t, readErr, io.EOF)
-					break
-				}
-			}
-			require.NoError(t, cmd.Wait(), transcript.String())
-			require.Equal(t, len(questions), next, transcript.String())
-			if scenario == "existing source" {
-				require.Contains(t, transcript.String(), "Found 2 pwn files and 0 inc files.")
+			transcript := runTestWizard(t, "TestInitWorkflowProcess", tc.answers, "SAMPCTL_INIT_SCENARIO="+tc.name, "SAMPCTL_INIT_DIR="+dir)
+			if tc.wantTranscript != "" {
+				require.Contains(t, transcript, tc.wantTranscript)
 			}
 		})
 	}
+}
+
+func runTestWizard(t *testing.T, testName string, answers []wizardAnswer, env ...string) string {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
+	defer cancel()
+	binary, err := os.Executable()
+	require.NoError(t, err)
+	cmd := exec.CommandContext(ctx, binary, "-test.run=^"+testName+"$")
+	cmd.Env = append(os.Environ(), env...)
+	input, err := cmd.StdinPipe()
+	require.NoError(t, err)
+	output, err := cmd.StdoutPipe()
+	require.NoError(t, err)
+	cmd.Stderr = cmd.Stdout
+	require.NoError(t, cmd.Start())
+	defer func() {
+		cancel()
+		_ = cmd.Wait()
+	}()
+	defer func() { _ = input.Close() }()
+
+	var transcript strings.Builder
+	next := 0
+	cursorReports := 0
+	buffer := make([]byte, 1024)
+	for {
+		n, readErr := output.Read(buffer)
+		transcript.Write(buffer[:n])
+		if next < len(answers) && strings.Contains(transcript.String(), answers[next].prompt) {
+			_, err := io.WriteString(input, answers[next].keys)
+			require.NoError(t, err)
+			next++
+		}
+		// Keep answers before cursor reports so survey retains buffered input.
+		for cursorReports < strings.Count(transcript.String(), "\x1b[6n") {
+			_, err := io.WriteString(input, "\x1b[1;80R")
+			require.NoError(t, err)
+			cursorReports++
+		}
+		if readErr != nil {
+			require.ErrorIs(t, readErr, io.EOF)
+			break
+		}
+	}
+	require.NoError(t, cmd.Wait(), transcript.String())
+	require.Equal(t, len(answers), next, transcript.String())
+	return transcript.String()
 }
 
 func TestInitWorkflowProcess(t *testing.T) {

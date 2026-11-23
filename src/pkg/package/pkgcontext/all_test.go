@@ -14,27 +14,35 @@ import (
 )
 
 var (
-	gh      *github.Client
-	gitAuth transport.AuthMethod
+	gh              *github.Client
+	gitAuth         transport.AuthMethod
+	fixtureCacheDir string
 )
 
 func TestMain(m *testing.M) {
-	err := os.MkdirAll("./tests/cache", 0o700)
+	var err error
+	fixtureCacheDir, err = os.MkdirTemp("", "sampctl-pkgcontext-*")
 	if err != nil {
 		panic(err)
 	}
 
-	if err := seedPkgContextFixtures(filepath.Clean("./tests/cache")); err != nil {
+	defer func() {
+		if err := os.RemoveAll(fixtureCacheDir); err != nil {
+			panic(err)
+		}
+	}()
+
+	if err := seedPkgContextFixtures(fixtureCacheDir); err != nil {
 		panic(err)
 	}
 
-	if err := stripPkgContextFixtureCacheRemotes(filepath.Clean("./tests/cache")); err != nil {
+	if err := stripPkgContextFixtureCacheRemotes(fixtureCacheDir); err != nil {
 		panic(err)
 	}
 
 	print.SetVerbose()
 
-	os.Exit(m.Run())
+	m.Run()
 }
 
 func stripPkgContextFixtureCacheRemotes(root string) error {

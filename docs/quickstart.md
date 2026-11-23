@@ -1,14 +1,10 @@
 # Quick start
 
-This guide shows the most common workflow:
-
-- Create a Pawn project (package)
-- Add dependencies
-- Build and run it (which starts a server)
+[Install sampctl](install.md) before starting.
 
 ## 1) Create a project
 
-1) In your project folder, create a package definition (recommended):
+Run this in your project directory:
 
 ```bash
 sampctl init
@@ -16,25 +12,23 @@ sampctl init
 
 ![Initialise a project](images/sampctl-package-init.gif)
 
-If you want open.mp instead of SA:MP (ideal for CI usage):
+The default preset is open.mp. For a SA:MP project, use:
 
 ```bash
-sampctl init --runtime openmp
+sampctl init --preset samp
 ```
 
-2) Add dependencies (example):
+## 2) Add dependencies
 
-`pawn.json`:
+Use `sampctl install` to add a library to your project. This keeps the standard
+library dependencies selected by `sampctl init` for your preset.
 
-```json
-{
-  "entry": "test.pwn",
-  "output": "gamemodes/test.amx",
-  "dependencies": ["pawn-lang/samp-stdlib", "Southclaws/formatex"]
-}
+```bash
+sampctl install Southclaws/formatex
 ```
 
-3) Install dependencies:
+If you edit `pawn.json` or `pawn.yaml` by hand, add the package to the existing
+`dependencies` list, then run:
 
 ```bash
 sampctl ensure
@@ -42,19 +36,15 @@ sampctl ensure
 
 ![Ensure dependencies](images/sampctl-package-ensure.gif)
 
-4) Build and run:
+## 3) Build and run
 
 ```bash
 sampctl build
 sampctl run
 ```
 
-More details: [Packages](packages.md)
-
-More details: [Server](server.md) and [Runtime configuration](configuration.md)
-
-Next:
-
+- [Manage Pawn packages](packages.md)
+- [Run a server](server.md) and [configure the runtime](configuration.md)
 - [Dependencies and version pinning](dependencies.md)
 - [Testing (watch mode, runtime modes)](testing.md)
 - [Containers (Docker)](containers.md)

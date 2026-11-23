@@ -48,14 +48,7 @@ func TestBuildPrepareResolvesCompilerPath(t *testing.T) {
 
 func TestBuildPrepareResolvesPathsFromPackageRoot(t *testing.T) {
 	tempDir := t.TempDir()
-	otherDir := t.TempDir()
-
-	previousWD, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(otherDir))
-	t.Cleanup(func() {
-		require.NoError(t, os.Chdir(previousWD))
-	})
+	t.Chdir(t.TempDir())
 
 	pcx := &PackageContext{
 		Package: pawnpackage.Package{
@@ -269,7 +262,7 @@ func TestBuildPrepareKeepsResourceIncludePathsWhenComponentSchemePresent(t *test
 
 func seedPkgContextBuildCache(t *testing.T, cacheDir string) {
 	t.Helper()
-	require.NoError(t, copyPkgContextFixtureDir(filepath.Join("tests", "cache", "packages"), filepath.Join(cacheDir, "packages")))
+	require.NoError(t, copyPkgContextFixtureDir(filepath.Join(fixtureCacheDir, "packages"), filepath.Join(cacheDir, "packages")))
 
 	require.NoError(t, stripPkgContextFixtureCacheRemotes(cacheDir))
 }
