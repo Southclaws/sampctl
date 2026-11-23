@@ -1,6 +1,6 @@
 module github.com/Southclaws/sampctl
 
-go 1.26.9
+go 1.26.11
 
 require (
 	dario.cat/mergo v1.0.2
