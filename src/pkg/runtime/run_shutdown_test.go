@@ -8,7 +8,9 @@ import (
 	"errors"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -40,8 +42,7 @@ func TestExecuteRuntimeCancelsWhileStreamingOutput(t *testing.T) {
 func TestRunBinaryDoesNotReportCancellationAsStartupFailure(t *testing.T) {
 	t.Parallel()
 
-	filename := filepath.Join(t.TempDir(), "server.sh")
-	require.NoError(t, os.WriteFile(filename, []byte("#!/bin/sh\nwhile :; do :; done\n"), 0o755))
+	filename := writeShutdownTestScript(t, "while :; do :; done\n")
 
 	// A cancelled context and a writable result channel were previously both
 	// eligible when the runner reported the killed command's exit status.
@@ -121,8 +122,7 @@ func TestExecuteRuntimeReturnsOutputReadFailure(t *testing.T) {
 func executeRuntimeWithTimeout(t *testing.T, parent context.Context, mode run.RunMode, output io.Writer, script string) error {
 	t.Helper()
 
-	filename := filepath.Join(t.TempDir(), "server.sh")
-	require.NoError(t, os.WriteFile(filename, []byte("#!/bin/sh\n"+script), 0o755))
+	filename := writeShutdownTestScript(t, script)
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 
@@ -138,4 +138,17 @@ func executeRuntimeWithTimeout(t *testing.T, parent context.Context, mode run.Ru
 		t.Fatal("runtime did not finish after output termination")
 		return nil
 	}
+}
+
+func writeShutdownTestScript(t *testing.T, script string) string {
+	t.Helper()
+
+	filename := filepath.Join(t.TempDir(), "server.sh")
+	// Write in a separate process so parallel forks cannot inherit a writable
+	// descriptor for the script while another test tries to execute it.
+	cmd := exec.CommandContext(t.Context(), "/bin/sh", "-c", `umask 077; cat > "$1" && chmod 700 "$1"`, "write-script", filename)
+	cmd.Stdin = strings.NewReader("#!/bin/sh\n" + script)
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, "%s", output)
+	return filename
 }
