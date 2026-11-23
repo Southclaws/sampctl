@@ -47,6 +47,7 @@ func (request DependencyUpdateRequest) selectDependencies(policy versioning.Proj
 			continue
 		}
 		if replacement, ok := policy.Replacement(declaration); ok {
+			selection.DependencyUpdateRequest = declaredRequest
 			selection.replacements = append(selection.replacements, replacement)
 		}
 	}

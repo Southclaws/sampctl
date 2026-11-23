@@ -37,6 +37,9 @@ transitive dependency uses the project's explicit pin for that repo. Examples:
 Add an `overrides` entry to the project manifest when a dependency requests a
 version your project needs to replace. Run `sampctl ensure` to apply the
 replacement and update an existing lockfile if it conflicts with the rule.
+Use the original declaration when uninstalling or targeting an overridden
+dependency for an update. A targeted update keeps a fixed tag chosen by the
+override. Edit the replacement in the manifest to change that tag.
 See [Project dependency overrides](packages.md#project-dependency-overrides)
 for JSON and YAML examples.
 

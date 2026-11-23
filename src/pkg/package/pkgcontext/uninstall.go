@@ -144,13 +144,7 @@ func (pcx *PackageContext) uninstall(
 
 // regular dependencies
 func (pcx *PackageContext) uninstallDep(target versioning.DependencyString) (err error) {
-	idx := -1
-	for i, dep := range pcx.Package.Dependencies {
-		if matchesUninstallTarget(target, dep) {
-			idx = i
-			break
-		}
-	}
+	idx := pcx.uninstallIndex(target, pcx.Package.Dependencies)
 
 	if idx == -1 {
 		print.Warn(target, "is not listed in dependencies")
@@ -164,13 +158,7 @@ func (pcx *PackageContext) uninstallDep(target versioning.DependencyString) (err
 
 // development dependencies
 func (pcx *PackageContext) uninstallDev(target versioning.DependencyString) (err error) {
-	idx := -1
-	for i, dep := range pcx.Package.Development {
-		if matchesUninstallTarget(target, dep) {
-			idx = i
-			break
-		}
-	}
+	idx := pcx.uninstallIndex(target, pcx.Package.Development)
 
 	if idx == -1 {
 		print.Warn(target, "is not listed in development dependencies")
@@ -180,6 +168,35 @@ func (pcx *PackageContext) uninstallDev(target versioning.DependencyString) (err
 	pcx.Package.Development = append(pcx.Package.Development[:idx], pcx.Package.Development[idx+1:]...)
 
 	return
+}
+
+func (pcx *PackageContext) uninstallIndex(target versioning.DependencyString, declarations []versioning.DependencyString) int {
+	if _, overridden := pcx.Package.Overrides[string(target)]; overridden {
+		if idx := slices.Index(declarations, target); idx >= 0 {
+			return idx
+		}
+	}
+	if len(pcx.Package.Overrides) > 0 {
+		targetMeta, err := target.ExplodeWithOverrides(nil)
+		if err == nil {
+			request := DependencyUpdateRequest{Target: string(target), TargetMeta: targetMeta}
+			for idx, declaration := range declarations {
+				if _, overridden := pcx.Package.Overrides[string(declaration)]; !overridden {
+					continue
+				}
+				meta, err := declaration.ExplodeWithOverrides(nil)
+				if err == nil && request.Matches(meta) {
+					return idx
+				}
+			}
+		}
+	}
+	return slices.IndexFunc(declarations, func(declaration versioning.DependencyString) bool {
+		if _, overridden := pcx.Package.Overrides[string(declaration)]; overridden {
+			return false
+		}
+		return matchesUninstallTarget(target, declaration)
+	})
 }
 
 func matchesUninstallTarget(target, dependency versioning.DependencyString) bool {
