@@ -20,26 +20,15 @@ sampctl init --preset samp
 
 ## 2) Add dependencies
 
-List the packages you need under `dependencies` in `pawn.json` or
-`pawn.yaml`. This example builds `test.pwn` into `gamemodes/test.amx`.
+Use `sampctl install` to add a library to your project. This keeps the standard
+library dependencies selected by `sampctl init` for your preset.
 
-```json
-{
-  "entry": "test.pwn",
-  "output": "gamemodes/test.amx",
-  "dependencies": ["pawn-lang/samp-stdlib", "Southclaws/formatex"]
-}
+```bash
+sampctl install Southclaws/formatex
 ```
 
-```yaml
-entry: test.pwn
-output: gamemodes/test.amx
-dependencies:
-  - pawn-lang/samp-stdlib
-  - Southclaws/formatex
-```
-
-Run `ensure` after editing the manifest:
+If you edit `pawn.json` or `pawn.yaml` by hand, add the package to the existing
+`dependencies` list, then run:
 
 ```bash
 sampctl ensure

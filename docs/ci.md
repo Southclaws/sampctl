@@ -40,6 +40,19 @@ jobs:
         run: sampctl build
 ```
 
+## Pin the sampctl version
+
+The installer above installs the latest sampctl release. To use a fixed
+version on an x86-64 Ubuntu runner, replace the install step with a download
+from a specific release.
+
+```yaml
+      - name: Install sampctl 1.16.0
+        run: |
+          curl -fsSL -o sampctl.deb https://github.com/Southclaws/sampctl/releases/download/1.16.0/sampctl_1.16.0_linux_amd64.deb
+          sudo dpkg -i sampctl.deb
+```
+
 ## Making tests fail the build
 
 If your gamemode uses y_testing, set `runtime.mode` to `y_testing` and add
