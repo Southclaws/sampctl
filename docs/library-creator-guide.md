@@ -31,7 +31,7 @@ sampctl init
 
 Set `entry` to a test or demo `.pwn` that includes your library.
 
-Minimal `pawn.json` for an includes-only library:
+Use this manifest for an includes-only library.
 
 ```json
 {
@@ -42,6 +42,15 @@ Minimal `pawn.json` for an includes-only library:
     "mode": "main"
   }
 }
+```
+
+```yaml
+entry: test.pwn
+output: test.amx
+dependencies:
+  - pawn-lang/samp-stdlib
+runtime:
+  mode: main
 ```
 
 List the packages needed by your public includes in `dependencies`. Put

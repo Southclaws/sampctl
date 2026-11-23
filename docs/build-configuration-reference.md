@@ -24,6 +24,16 @@ sampctl build <build-name>
 }
 ```
 
+```yaml
+entry: gamemodes/main.pwn
+output: gamemodes/main.amx
+build:
+  compiler:
+    preset: samp
+  options:
+    debug_level: 3
+```
+
 ## Fields
 
 - `name` (string): name to use with `sampctl build <build-name>`.

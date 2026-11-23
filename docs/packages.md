@@ -15,6 +15,13 @@ A minimal example:
 }
 ```
 
+```yaml
+entry: gamemodes/main.pwn
+output: gamemodes/main.amx
+dependencies:
+  - pawn-lang/samp-stdlib
+```
+
 Common fields you’ll see:
 
 - `entry`: the `.pwn` file to compile
@@ -29,6 +36,10 @@ To keep local server files in a separate directory, set `runtime_dir`:
 {
   "runtime_dir": "server"
 }
+```
+
+```yaml
+runtime_dir: server
 ```
 
 See [Local runtime files](package-definition-reference.md#local-runtime-files)

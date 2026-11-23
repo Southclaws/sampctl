@@ -43,3 +43,8 @@ For a y_testing gamemode, set:
   }
 }
 ```
+
+```yaml
+runtime:
+  mode: y_testing
+```

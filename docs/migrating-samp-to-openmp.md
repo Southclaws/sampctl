@@ -17,6 +17,14 @@ unpinned transitive requests for the same repositories.
 }
 ```
 
+```yaml
+preset: openmp
+dependencies:
+  - openmultiplayer/omp-stdlib@master
+  - pawn-lang/samp-stdlib@open.mp
+  - pawn-lang/pawn-stdlib@open.mp
+```
+
 Keep your existing `entry`, `output`, and other dependencies. If a build
 configuration explicitly selects the SA:MP compiler preset, set
 `compiler.preset` to `openmp` in that configuration.
@@ -33,6 +41,12 @@ version. For example:
     "version": "1.2.0-openmp"
   }
 }
+```
+
+```yaml
+runtime:
+  runtime_type: openmp
+  version: '1.2.0-openmp'
 ```
 
 Without an explicit runtime version, the open.mp preset supplies the default.

@@ -6,7 +6,7 @@ those settings.
 
 ## Example
 
-`pawn.json`:
+Set these fields in `pawn.json` or `pawn.yaml`.
 
 ```json
 {
@@ -20,6 +20,17 @@ those settings.
     "maxplayers": 50
   }
 }
+```
+
+```yaml
+entry: test.pwn
+output: gamemodes/test.amx
+preset: samp
+runtime:
+  rcon_password: change-me
+  port: 7777
+  hostname: 'My Server'
+  maxplayers: 50
 ```
 
 Sampctl uses the build output as the gamemode when `runtime.gamemodes` is
@@ -40,6 +51,18 @@ For a local server with a precompiled gamemode, configure the main script separa
     "filterscripts": ["module"]
   }
 }
+```
+
+```yaml
+entry: module.pwn
+output: filterscripts/module.amx
+preset: openmp
+local: true
+runtime:
+  gamemodes:
+    - test
+  filterscripts:
+    - module
 ```
 
 Place the existing gamemode at `gamemodes/test.amx`, then run `sampctl run`.

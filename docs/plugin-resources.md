@@ -51,6 +51,28 @@ which resource is selected.
 }
 ```
 
+```yaml
+entry: test.pwn
+output: test.amx
+dependencies:
+  - pawn-lang/samp-stdlib
+resources:
+  - name: '^my-plugin-(.*)\.zip$'
+    platform: windows
+    archive: true
+    includes:
+      - pawno/include
+    plugins:
+      - plugins/my-plugin.dll
+  - name: '^my-plugin-(.*)\.tar\.gz$'
+    platform: linux
+    archive: true
+    includes:
+      - pawno/include
+    plugins:
+      - plugins/my-plugin.so
+```
+
 ## Example: separate assets for SA:MP vs open.mp
 
 Assume you publish both of these assets:
@@ -84,6 +106,26 @@ matches the plain version number, so it won't also match the `-omp` archive.
 }
 ```
 
+```yaml
+resources:
+  - name: '^my-plugin-[0-9]+\.[0-9]+\.[0-9]+\.zip$'
+    platform: windows
+    version: '0.3.7'
+    archive: true
+    plugins:
+      - plugins/my-plugin.dll
+    includes:
+      - pawno/include
+  - name: '^my-plugin-(.*)-omp\.zip$'
+    platform: windows
+    version: v1.2.0-openmp
+    archive: true
+    plugins:
+      - components/my-plugin.dll
+    includes:
+      - pawno/include
+```
+
 `plugins` lists paths inside the archive. Use a `component://` dependency
 to install the open.mp binary into `components/`.
 
@@ -107,6 +149,17 @@ If your plugin needs extra DLLs/SOs:
 }
 ```
 
+```yaml
+resources:
+  - name: '^my-plugin-(.*)\.zip$'
+    platform: windows
+    archive: true
+    plugins:
+      - plugins/my-plugin.dll
+    files:
+      deps/libcurl.dll: libcurl.dll
+```
+
 ## `extract_ignore_patterns`
 
 To keep matching files that already exist when extracting dependency
@@ -116,6 +169,12 @@ resources, set `extract_ignore_patterns` in the consuming project's manifest:
 {
   "extract_ignore_patterns": ["server.cfg", "config.json"]
 }
+```
+
+```yaml
+extract_ignore_patterns:
+  - server.cfg
+  - config.json
 ```
 
 See also:

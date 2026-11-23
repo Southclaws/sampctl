@@ -172,6 +172,15 @@ If you need extra SA:MP `server.cfg` keys (or simple top-level open.mp keys), us
 }
 ```
 
+```yaml
+runtime:
+  port: 7777
+  hostname: 'My Server'
+  extra:
+    my_plugin_setting: '1'
+    another_setting: foo
+```
+
 For SA:MP, `extra` is written to `server.cfg`.
 
 For open.mp, `extra` is written to `config.json` (and `sampctl` may also generate a minimal `server.cfg` for legacy plugin compatibility).

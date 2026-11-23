@@ -20,8 +20,8 @@ sampctl init --preset samp
 
 ## 2) Add dependencies
 
-List the packages you need under `dependencies` in your manifest. For example,
-this `pawn.json` builds `test.pwn` into `gamemodes/test.amx`:
+List the packages you need under `dependencies` in `pawn.json` or
+`pawn.yaml`. This example builds `test.pwn` into `gamemodes/test.amx`.
 
 ```json
 {
@@ -29,6 +29,14 @@ this `pawn.json` builds `test.pwn` into `gamemodes/test.amx`:
   "output": "gamemodes/test.amx",
   "dependencies": ["pawn-lang/samp-stdlib", "Southclaws/formatex"]
 }
+```
+
+```yaml
+entry: test.pwn
+output: gamemodes/test.amx
+dependencies:
+  - pawn-lang/samp-stdlib
+  - Southclaws/formatex
 ```
 
 Run `ensure` after editing the manifest:

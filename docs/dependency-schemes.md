@@ -13,6 +13,12 @@ Use this for most include libraries.
 }
 ```
 
+```yaml
+dependencies:
+  - pawn-lang/samp-stdlib
+  - Southclaws/samp-logger
+```
+
 What happens:
 
 - The repo is cloned into `./dependencies/<repo>/`.
@@ -26,6 +32,11 @@ Use this when you want a dependency to be treated as a **server plugin binary**.
 {
   "dependencies": ["plugin://samp-incognito/samp-streamer-plugin"]
 }
+```
+
+```yaml
+dependencies:
+  - 'plugin://samp-incognito/samp-streamer-plugin'
 ```
 
 What happens:
@@ -45,6 +56,11 @@ Use this for open.mp components you want downloaded/installed and loaded.
 }
 ```
 
+```yaml
+dependencies:
+  - 'component://katursis/Pawn.RakNet:1.6.0-omp'
+```
+
 What happens:
 
 - Works like `plugin://...` but installs to `./components/` and adds to the runtime component list.
@@ -59,6 +75,11 @@ Use this to fetch a filterscript's source repository.
 }
 ```
 
+```yaml
+dependencies:
+  - 'filterscript://SomeUser/some-filterscript'
+```
+
 Sampctl installs the repository under `./dependencies/<repo>/`. To use the
 script at runtime, build it and place the resulting `.amx` in `filterscripts/`.
 
@@ -70,6 +91,11 @@ Use this for repos that should only contribute include paths (or for “monorepo
 {
   "dependencies": ["includes://SomeUser/some-includes-repo"]
 }
+```
+
+```yaml
+dependencies:
+  - 'includes://SomeUser/some-includes-repo'
 ```
 
 What happens:
