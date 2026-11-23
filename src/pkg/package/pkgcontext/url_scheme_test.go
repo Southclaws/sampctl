@@ -1,7 +1,6 @@
 package pkgcontext
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,307 +13,107 @@ import (
 )
 
 func TestHandleURLSchemeCaching(t *testing.T) {
-	tests := []struct {
-		name             string
-		pcx              *PackageContext
-		meta             versioning.DependencyMeta
-		expectedPlugins  int
-		expectedIncludes int
-		expectedDeps     int
-		wantErr          bool
+	for _, tc := range []struct {
+		name         string
+		meta         versioning.DependencyMeta
+		wantPlugins  int
+		wantIncludes int
 	}{
 		{
-			name: "local plugin scheme",
-			pcx: &PackageContext{
-				Package: pawnpackage.Package{
-					LocalPath: "/test/path",
-				},
-				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}, AllDependencies: []versioning.DependencyMeta{}},
-			},
-			meta: versioning.DependencyMeta{
-				Scheme: "plugin",
-				Local:  "plugins/test",
-			},
-			expectedPlugins:  1,
-			expectedIncludes: 0,
-			expectedDeps:     0,
-			wantErr:          false,
+			name:        "local plugin",
+			meta:        versioning.DependencyMeta{Scheme: "plugin", Local: "plugins/test"},
+			wantPlugins: 1,
 		},
 		{
-			name: "remote plugin scheme",
-			pcx: &PackageContext{
-				Package: pawnpackage.Package{
-					LocalPath: "/test/path",
-				},
-				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}, AllDependencies: []versioning.DependencyMeta{}},
-			},
-			meta: versioning.DependencyMeta{
-				Scheme: "plugin",
-				Site:   "github.com",
-				User:   "user",
-				Repo:   "plugin-repo",
-				Tag:    "v1.0.0",
-			},
-			expectedPlugins:  1,
-			expectedIncludes: 0,
-			expectedDeps:     0,
-			wantErr:          false,
+			name:        "remote plugin",
+			meta:        versioning.DependencyMeta{Scheme: "plugin", Site: "github.com", User: "user", Repo: "plugin-repo", Tag: "v1.0.0"},
+			wantPlugins: 1,
 		},
 		{
-			name: "local component scheme",
-			pcx: &PackageContext{
-				Package: pawnpackage.Package{
-					LocalPath: "/test/path",
-				},
-				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}, AllDependencies: []versioning.DependencyMeta{}},
-			},
-			meta: versioning.DependencyMeta{
-				Scheme: "component",
-				Local:  "components/test",
-			},
-			expectedPlugins:  1,
-			expectedIncludes: 0,
-			expectedDeps:     0,
-			wantErr:          false,
+			name:        "local component",
+			meta:        versioning.DependencyMeta{Scheme: "component", Local: "components/test"},
+			wantPlugins: 1,
 		},
 		{
-			name: "remote component scheme",
-			pcx: &PackageContext{
-				Package: pawnpackage.Package{
-					LocalPath: "/test/path",
-				},
-				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}, AllDependencies: []versioning.DependencyMeta{}},
-			},
-			meta: versioning.DependencyMeta{
-				Scheme: "component",
-				Site:   "github.com",
-				User:   "user",
-				Repo:   "component-repo",
-				Tag:    "v1.0.0",
-			},
-			expectedPlugins:  1,
-			expectedIncludes: 0,
-			expectedDeps:     0,
-			wantErr:          false,
+			name:        "remote component",
+			meta:        versioning.DependencyMeta{Scheme: "component", Site: "github.com", User: "user", Repo: "component-repo", Tag: "v1.0.0"},
+			wantPlugins: 1,
 		},
 		{
-			name: "local includes scheme",
-			pcx: &PackageContext{
-				Package: pawnpackage.Package{
-					LocalPath: "/test/path",
-				},
-				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}, AllDependencies: []versioning.DependencyMeta{}},
-			},
-			meta: versioning.DependencyMeta{
-				Scheme: "includes",
-				Local:  "legacy/includes",
-			},
-			expectedPlugins:  0,
-			expectedIncludes: 1,
-			expectedDeps:     0,
-			wantErr:          false,
+			name:         "local includes",
+			meta:         versioning.DependencyMeta{Scheme: "includes", Local: "legacy/includes"},
+			wantIncludes: 1,
 		},
 		{
-			name: "remote includes scheme",
-			pcx: &PackageContext{
-				Package: pawnpackage.Package{
-					LocalPath: "/test/path",
-					Vendor:    "/test/path/dependencies",
-				},
-				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}, AllDependencies: []versioning.DependencyMeta{}},
-			},
-			meta: versioning.DependencyMeta{
-				Scheme: "includes",
-				Site:   "github.com",
-				User:   "user",
-				Repo:   "includes-repo",
-			},
-			expectedPlugins:  0,
-			expectedIncludes: 1,
-			expectedDeps:     0,
-			wantErr:          false,
+			name:         "remote includes",
+			meta:         versioning.DependencyMeta{Scheme: "includes", Site: "github.com", User: "user", Repo: "includes-repo"},
+			wantIncludes: 1,
 		},
 		{
-			name: "local filterscript scheme",
-			pcx: &PackageContext{
-				Package: pawnpackage.Package{
-					LocalPath: "/test/path",
-				},
-				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}, AllDependencies: []versioning.DependencyMeta{}},
-			},
-			meta: versioning.DependencyMeta{
-				Scheme: "filterscript",
-				Local:  "filterscripts/test.pwn",
-			},
-			expectedPlugins:  0,
-			expectedIncludes: 0,
-			expectedDeps:     0,
-			wantErr:          false,
+			name: "local filterscript",
+			meta: versioning.DependencyMeta{Scheme: "filterscript", Local: "filterscripts/test.pwn"},
 		},
 		{
-			name: "remote filterscript scheme",
-			pcx: &PackageContext{
-				Package: pawnpackage.Package{
-					LocalPath: "/test/path",
-				},
-				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}, AllDependencies: []versioning.DependencyMeta{}},
-			},
-			meta: versioning.DependencyMeta{
-				Scheme: "filterscript",
-				Site:   "github.com",
-				User:   "user",
-				Repo:   "filterscript-repo",
-			},
-			expectedPlugins:  0,
-			expectedIncludes: 0,
-			expectedDeps:     0,
-			wantErr:          false,
+			name: "remote filterscript",
+			meta: versioning.DependencyMeta{Scheme: "filterscript", Site: "github.com", User: "user", Repo: "filterscript-repo"},
 		},
-		{
-			name: "unsupported scheme",
-			pcx: &PackageContext{
-				Package: pawnpackage.Package{
-					LocalPath: "/test/path",
-				},
-				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}, AllDependencies: []versioning.DependencyMeta{}},
-			},
-			meta: versioning.DependencyMeta{
-				Scheme: "unsupported",
-				User:   "user",
-				Repo:   "repo",
-			},
-			expectedPlugins:  0,
-			expectedIncludes: 0,
-			expectedDeps:     0,
-			wantErr:          true,
-		},
-	}
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			pcx := &PackageContext{Package: pawnpackage.Package{
+				LocalPath: "/test/path",
+				Vendor:    "/test/path/dependencies",
+			}}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.pcx.handleURLSchemeCaching(tt.meta, "test-prefix")
-
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
-			}
+			err := pcx.handleURLSchemeCaching(tc.meta, "test-prefix")
 
 			assert.NoError(t, err)
-			assert.Len(t, tt.pcx.AllPlugins, tt.expectedPlugins, "unexpected number of plugins")
-			assert.Len(t, tt.pcx.AllIncludePaths, tt.expectedIncludes, "unexpected number of include paths")
-			assert.Len(t, tt.pcx.AllDependencies, tt.expectedDeps, "unexpected number of dependencies")
+			assert.Len(t, pcx.AllPlugins, tc.wantPlugins, "unexpected number of plugins")
+			assert.Len(t, pcx.AllIncludePaths, tc.wantIncludes, "unexpected number of include paths")
+			assert.Empty(t, pcx.AllDependencies)
 		})
 	}
 }
 
-func TestEnsureURLSchemeDependency(t *testing.T) {
-	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "sampctl-test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+func TestHandleURLSchemeCachingRejectsUnsupportedScheme(t *testing.T) {
+	pcx := &PackageContext{Package: pawnpackage.Package{LocalPath: "/test/path"}}
+	meta := versioning.DependencyMeta{Scheme: "unsupported", User: "user", Repo: "repo"}
 
-	testPath := filepath.Join(tmpDir, "test", "path")
+	err := pcx.handleURLSchemeCaching(meta, "test-prefix")
 
-	// Create necessary directories and files for the tests
-	require.NoError(t, os.MkdirAll(filepath.Join(testPath, "plugins"), 0o755))
-	require.NoError(t, os.MkdirAll(filepath.Join(testPath, "components"), 0o755))
-	require.NoError(t, os.MkdirAll(filepath.Join(testPath, "legacy"), 0o755))
-	require.NoError(t, os.MkdirAll(filepath.Join(testPath, "filterscripts"), 0o755))
+	assert.Error(t, err)
+}
 
-	// Create mock files
-	require.NoError(t, os.WriteFile(filepath.Join(testPath, "plugins", "test"), []byte("mock plugin"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(testPath, "components", "test"), []byte("mock component"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(testPath, "legacy", "includes"), []byte("mock include"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(testPath, "filterscripts", "test.pwn"), []byte("mock filterscript"), 0o644))
-
-	tests := []struct {
-		name    string
-		pcx     *PackageContext
-		meta    versioning.DependencyMeta
-		wantErr bool
+func TestEnsureLocalURLSchemeDependency(t *testing.T) {
+	for _, tc := range []struct {
+		scheme   string
+		path     string
+		contents string
 	}{
-		{
-			name: "plugin scheme",
-			pcx: &PackageContext{
-				Package: pawnpackage.Package{
-					LocalPath: testPath,
-				},
-				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}},
-			},
-			meta: versioning.DependencyMeta{
-				Scheme: "plugin",
-				Local:  "plugins/test",
-			},
-			wantErr: false,
-		},
-		{
-			name: "includes scheme",
-			pcx: &PackageContext{
-				Package: pawnpackage.Package{
-					LocalPath: testPath,
-				},
-				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}},
-			},
-			meta: versioning.DependencyMeta{
-				Scheme: "includes",
-				Local:  "legacy/includes",
-			},
-			wantErr: false,
-		},
-		{
-			name: "component scheme",
-			pcx: &PackageContext{
-				Package: pawnpackage.Package{
-					LocalPath: testPath,
-				},
-				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}},
-			},
-			meta: versioning.DependencyMeta{
-				Scheme: "component",
-				Local:  "components/test",
-			},
-			wantErr: false,
-		},
-		{
-			name: "filterscript scheme",
-			pcx: &PackageContext{
-				Package: pawnpackage.Package{
-					LocalPath: testPath,
-				},
-				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}},
-			},
-			meta: versioning.DependencyMeta{
-				Scheme: "filterscript",
-				Local:  "filterscripts/test.pwn",
-			},
-			wantErr: false,
-		},
-		{
-			name: "unsupported scheme",
-			pcx: &PackageContext{
-				Package: pawnpackage.Package{
-					LocalPath: testPath,
-				},
-				PackageResolvedState: PackageResolvedState{AllPlugins: []versioning.DependencyMeta{}, AllIncludePaths: []string{}},
-			},
-			meta: versioning.DependencyMeta{
-				Scheme: "unsupported",
-				User:   "user",
-				Repo:   "repo",
-			},
-			wantErr: true,
-		},
-	}
+		{scheme: "plugin", path: "plugins/test", contents: "mock plugin"},
+		{scheme: "component", path: "components/test", contents: "mock component"},
+		{scheme: "includes", path: "legacy/includes", contents: "mock include"},
+		{scheme: "filterscript", path: "filterscripts/test.pwn", contents: "mock filterscript"},
+	} {
+		t.Run(tc.scheme, func(t *testing.T) {
+			root := t.TempDir()
+			path := filepath.Join(root, tc.path)
+			require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+			require.NoError(t, os.WriteFile(path, []byte(tc.contents), 0o644))
+			pcx := &PackageContext{Package: pawnpackage.Package{LocalPath: root}}
+			meta := versioning.DependencyMeta{Scheme: tc.scheme, Local: tc.path}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.pcx.ensureURLSchemeDependency(context.Background(), tt.meta)
+			err := pcx.ensureURLSchemeDependency(t.Context(), meta)
 
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
+			assert.NoError(t, err)
 		})
 	}
+}
+
+func TestEnsureURLSchemeDependencyRejectsUnsupportedScheme(t *testing.T) {
+	pcx := &PackageContext{Package: pawnpackage.Package{LocalPath: t.TempDir()}}
+	meta := versioning.DependencyMeta{Scheme: "unsupported", User: "user", Repo: "repo"}
+
+	err := pcx.ensureURLSchemeDependency(t.Context(), meta)
+
+	assert.Error(t, err)
 }

@@ -14,10 +14,8 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/go-git/go-git/v5/plumbing/storer"
 	"github.com/google/go-github/github"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -60,92 +58,20 @@ func Test_generateVersionIncString(t *testing.T) {
 	}
 }
 
-func TestReleaseWithoutUserRepo(t *testing.T) {
+func TestReleaseFixtureDetectsUntrackedFile(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}
 
-	tmpDir, err := os.MkdirTemp("", "sampctl-release-test-*")
+	root, repo := setupTestRepository(t)
+	worktree, err := repo.Worktree()
 	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	require.NoError(t, os.WriteFile(filepath.Join(root, "uncommitted.txt"), []byte("uncommitted"), 0o644))
 
-	repo, err := git.PlainInit(tmpDir, false)
+	status, err := worktree.Status()
+
 	require.NoError(t, err)
-
-	wt, err := repo.Worktree()
-	require.NoError(t, err)
-
-	dummyFile := filepath.Join(tmpDir, "test.txt")
-	err = os.WriteFile(dummyFile, []byte("test"), 0o644)
-	require.NoError(t, err)
-
-	_, err = wt.Add("test.txt")
-	require.NoError(t, err)
-
-	_, err = wt.Commit("initial commit", &git.CommitOptions{
-		Author: &object.Signature{
-			Name:  "Test User",
-			Email: "test@example.com",
-			When:  time.Now(),
-		},
-	})
-	require.NoError(t, err)
-
-	pkg := pawnpackage.Package{
-		LocalPath: tmpDir,
-	}
-	pkg.User = ""
-	pkg.Repo = ""
-
-	if pkg.User == "" || pkg.Repo == "" {
-		validationErr := assert.AnError
-		assert.Error(t, validationErr, "Expected error when User and Repo are empty")
-	}
-}
-
-func TestReleaseWithDirtyWorktree(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-
-	tmpDir, err := os.MkdirTemp("", "sampctl-release-test-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
-
-	repo, err := git.PlainInit(tmpDir, false)
-	require.NoError(t, err)
-
-	wt, err := repo.Worktree()
-	require.NoError(t, err)
-
-	dummyFile := filepath.Join(tmpDir, "test.txt")
-	err = os.WriteFile(dummyFile, []byte("test"), 0o644)
-	require.NoError(t, err)
-
-	_, err = wt.Add("test.txt")
-	require.NoError(t, err)
-
-	_, err = wt.Commit("initial commit", &git.CommitOptions{
-		Author: &object.Signature{
-			Name:  "Test User",
-			Email: "test@example.com",
-			When:  time.Now(),
-		},
-	})
-	require.NoError(t, err)
-
-	dirtyFile := filepath.Join(tmpDir, "uncommitted.txt")
-	err = os.WriteFile(dirtyFile, []byte("uncommitted"), 0o644)
-	require.NoError(t, err)
-
-	status, err := wt.Status()
-	require.NoError(t, err)
-	assert.False(t, status.IsClean(), "Worktree should be dirty")
-
-	if !status.IsClean() {
-		validationErr := assert.AnError
-		assert.Error(t, validationErr, "Expected error when worktree is dirty")
-	}
+	assert.False(t, status.IsClean(), "untracked file should make the worktree dirty")
 }
 
 func TestGenerateVersionIncRespected(t *testing.T) {
@@ -168,9 +94,7 @@ func TestGenerateVersionIncRespected(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir, err := os.MkdirTemp("", "sampctl-version-test-*")
-			require.NoError(t, err)
-			defer os.RemoveAll(tmpDir)
+			tmpDir := t.TempDir()
 
 			pkg := pawnpackage.Package{
 				LocalPath: tmpDir,
@@ -246,21 +170,6 @@ func TestPackageSlug(t *testing.T) {
 	}
 }
 
-func TestGitConfigPathError(t *testing.T) {
-	configPath := filepath.Join(os.Getenv("HOME"), ".samp", "config.json")
-	assert.NotEmpty(t, configPath)
-	assert.Contains(t, configPath, "config.json")
-}
-
-func TestGitPushRefSpecs(t *testing.T) {
-	branchName := "main"
-	expectedCommitRefSpec := config.RefSpec("refs/heads/" + branchName + ":refs/heads/" + branchName)
-	expectedTagsRefSpec := config.RefSpec("refs/tags/*:refs/tags/*")
-
-	assert.Equal(t, "refs/heads/main:refs/heads/main", string(expectedCommitRefSpec))
-	assert.Equal(t, "refs/tags/*:refs/tags/*", string(expectedTagsRefSpec))
-}
-
 func TestUploadReleaseAsset(t *testing.T) {
 	tmpDir := t.TempDir()
 	archivePath := filepath.Join(tmpDir, "fixture.zip")
@@ -312,121 +221,12 @@ func TestUploadReleaseAsset(t *testing.T) {
 	assert.Equal(t, []byte("archive-data"), gotBody)
 }
 
-type MockGitHubClient struct {
-	CreateReleaseCalled bool
-	CreateReleaseError  error
-	User                string
-	Repo                string
-}
-
-func TestGitHubReleaseValidation(t *testing.T) {
-	tests := []struct {
-		name        string
-		user        string
-		repo        string
-		shouldError bool
-	}{
-		{
-			name:        "Valid user and repo",
-			user:        "testuser",
-			repo:        "testrepo",
-			shouldError: false,
-		},
-		{
-			name:        "Missing user",
-			user:        "",
-			repo:        "testrepo",
-			shouldError: true,
-		},
-		{
-			name:        "Missing repo",
-			user:        "testuser",
-			repo:        "",
-			shouldError: true,
-		},
-		{
-			name:        "Missing both",
-			user:        "",
-			repo:        "",
-			shouldError: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			pkg := pawnpackage.Package{}
-			pkg.User = tt.user
-			pkg.Repo = tt.repo
-
-			if pkg.User == "" || pkg.Repo == "" {
-				validationErr := assert.AnError
-				if tt.shouldError {
-					assert.Error(t, validationErr, "Expected error for invalid user/repo")
-				}
-			} else {
-				if !tt.shouldError {
-					assert.NotEmpty(t, pkg.User)
-					assert.NotEmpty(t, pkg.Repo)
-				}
-			}
-		})
-	}
-}
-
-func TestErrorMessageFormat(t *testing.T) {
-	tests := []struct {
-		name            string
-		errorType       string
-		expectedPhrases []string
-	}{
-		{
-			name:      "Git authentication error",
-			errorType: "auth",
-			expectedPhrases: []string{
-				"Git authentication failed",
-				"Set up SSH keys",
-				"git credentials",
-				"config.json",
-			},
-		},
-		{
-			name:      "GitHub token error",
-			errorType: "github",
-			expectedPhrases: []string{
-				"GitHub release",
-				"GitHub API token",
-				"config.json",
-				"repo' scope",
-				"write access",
-			},
-		},
-		{
-			name:      "Missing user/repo error",
-			errorType: "validation",
-			expectedPhrases: []string{
-				"user and repo fields",
-				"pawn.json",
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			for _, phrase := range tt.expectedPhrases {
-				assert.NotEmpty(t, phrase, "Error message should contain helpful phrase")
-			}
-		})
-	}
-}
-
 func TestCleanWorktreeCheck(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}
 
-	tmpDir, err := os.MkdirTemp("", "sampctl-worktree-test-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	repo, err := git.PlainInit(tmpDir, false)
 	require.NoError(t, err)
@@ -466,10 +266,10 @@ func TestCleanWorktreeCheck(t *testing.T) {
 	assert.False(t, status.IsClean(), "Worktree should be dirty after modification")
 }
 
-func setupTestRepository(t *testing.T) (string, *git.Repository, func()) {
-	tmpDir, err := os.MkdirTemp("", "sampctl-integration-*")
-	require.NoError(t, err)
+func setupTestRepository(t *testing.T) (string, *git.Repository) {
+	t.Helper()
 
+	tmpDir := t.TempDir()
 	repo, err := git.PlainInit(tmpDir, false)
 	require.NoError(t, err)
 
@@ -492,11 +292,7 @@ func setupTestRepository(t *testing.T) (string, *git.Repository, func()) {
 	})
 	require.NoError(t, err)
 
-	cleanup := func() {
-		os.RemoveAll(tmpDir)
-	}
-
-	return tmpDir, repo, cleanup
+	return tmpDir, repo
 }
 
 func TestReleaseIntegration(t *testing.T) {
@@ -504,8 +300,7 @@ func TestReleaseIntegration(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 
-	tmpDir, repo, cleanup := setupTestRepository(t)
-	defer cleanup()
+	tmpDir, repo := setupTestRepository(t)
 
 	pkg := pawnpackage.Package{
 		LocalPath: tmpDir,
@@ -565,8 +360,9 @@ func TestGenerateChangelog(t *testing.T) {
 	tests := []struct {
 		name            string
 		commits         []string
-		tags            []string
+		baseTag         string
 		expectedPhrases []string
+		excludedPhrases []string
 	}{
 		{
 			name: "Initial release with no previous tags",
@@ -575,7 +371,6 @@ func TestGenerateChangelog(t *testing.T) {
 				"Fix bug in parser",
 				"Update documentation",
 			},
-			tags: []string{},
 			expectedPhrases: []string{
 				"Initial Release",
 				"Add initial feature",
@@ -590,7 +385,7 @@ func TestGenerateChangelog(t *testing.T) {
 				"Add new feature",
 				"Improve performance",
 			},
-			tags: []string{"1.0.0"},
+			baseTag: "1.0.0",
 			expectedPhrases: []string{
 				"Changes since 1.0.0",
 				"Add new feature",
@@ -605,26 +400,24 @@ func TestGenerateChangelog(t *testing.T) {
 				"Fix issue B",
 				"Merge branch 'dev' into main",
 			},
-			tags: []string{},
 			expectedPhrases: []string{
 				"Add feature A",
 				"Fix issue B",
 			},
+			excludedPhrases: []string{"Merge pull request", "Merge branch"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir, err := os.MkdirTemp("", "changelog-test-*")
-			require.NoError(t, err)
-			defer os.RemoveAll(tmpDir)
-
+			tmpDir := t.TempDir()
 			repo, err := git.PlainInit(tmpDir, false)
 			require.NoError(t, err)
 
 			wt, err := repo.Worktree()
 			require.NoError(t, err)
 
+			var firstCommit plumbing.Hash
 			for i, commitMsg := range tt.commits {
 				dummyFile := filepath.Join(tmpDir, fmt.Sprintf("file%d.txt", i))
 				err = os.WriteFile(dummyFile, []byte(commitMsg), 0o644)
@@ -633,39 +426,30 @@ func TestGenerateChangelog(t *testing.T) {
 				_, err = wt.Add(filepath.Base(dummyFile))
 				require.NoError(t, err)
 
-				_, err = wt.Commit(commitMsg, &git.CommitOptions{
+				commit, err := wt.Commit(commitMsg, &git.CommitOptions{
 					Author: &object.Signature{
 						Name:  "Test Author",
 						Email: "test@example.com",
-						When:  time.Now().Add(time.Duration(i) * time.Hour),
+						When:  time.Unix(1_000+int64(i), 0),
 					},
 				})
 				require.NoError(t, err)
+				if i == 0 {
+					firstCommit = commit
+				}
 			}
 
 			var versionedTags versioning.VersionedTags
-			for _, tagVersion := range tt.tags {
-				v := semver.MustParse(tagVersion)
-
-				commits, err := repo.CommitObjects()
-				require.NoError(t, err)
-
-				err = commits.ForEach(func(c *object.Commit) error {
-					if c.Message == "v"+tagVersion+": Previous release" || c.Message == tagVersion {
-						ref := plumbing.NewHashReference(plumbing.ReferenceName("refs/tags/"+tagVersion), c.Hash)
-						versionedTags = append(versionedTags, versioning.VersionedTag{
-							Ref:     ref,
-							Name:    tagVersion,
-							Version: v,
-						})
-						return storer.ErrStop
-					}
-					return nil
-				})
-				require.NoError(t, err)
+			if tt.baseTag != "" {
+				versionedTags = versioning.VersionedTags{{
+					Ref:     plumbing.NewHashReference(plumbing.NewTagReferenceName(tt.baseTag), firstCommit),
+					Name:    tt.baseTag,
+					Version: semver.MustParse(tt.baseTag),
+				}}
 			}
 
 			changelog, err := generateChangelog(repo, versionedTags)
+
 			require.NoError(t, err)
 			assert.NotEmpty(t, changelog)
 
@@ -673,9 +457,8 @@ func TestGenerateChangelog(t *testing.T) {
 				assert.Contains(t, changelog, phrase, "Changelog should contain: "+phrase)
 			}
 
-			if tt.name == "Release with merge commits (should be filtered)" {
-				assert.NotContains(t, changelog, "Merge pull request")
-				assert.NotContains(t, changelog, "Merge branch")
+			for _, phrase := range tt.excludedPhrases {
+				assert.NotContains(t, changelog, phrase)
 			}
 		})
 	}
@@ -755,20 +538,16 @@ func TestCreateReleaseArchive(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir, err := os.MkdirTemp("", "archive-test-*")
-			require.NoError(t, err)
-			defer os.RemoveAll(tmpDir)
+			root := t.TempDir()
 
 			for path, content := range tt.files {
-				fullPath := filepath.Join(tmpDir, path)
-				err := os.MkdirAll(filepath.Dir(fullPath), 0o755)
-				require.NoError(t, err)
-				err = os.WriteFile(fullPath, []byte(content), 0o644)
-				require.NoError(t, err)
+				fullPath := filepath.Join(root, path)
+				require.NoError(t, os.MkdirAll(filepath.Dir(fullPath), 0o755))
+				require.NoError(t, os.WriteFile(fullPath, []byte(content), 0o644))
 			}
 
 			pkg := pawnpackage.Package{
-				LocalPath:   tmpDir,
+				LocalPath:   root,
 				IncludePath: tt.includePath,
 			}
 			pkg.Repo = "test-package"
@@ -782,15 +561,9 @@ func TestCreateReleaseArchive(t *testing.T) {
 			expectedName := "test-package-1.0.0.zip"
 			assert.Equal(t, expectedName, filepath.Base(archivePath))
 
-			archiveFile, err := os.Open(archivePath)
+			reader, err := zip.OpenReader(archivePath)
 			require.NoError(t, err)
-			defer archiveFile.Close()
-
-			stat, err := archiveFile.Stat()
-			require.NoError(t, err)
-
-			reader, err := zip.NewReader(archiveFile, stat.Size())
-			require.NoError(t, err)
+			t.Cleanup(func() { assert.NoError(t, reader.Close()) })
 
 			var archiveFiles []string
 			for _, f := range reader.File {
@@ -840,9 +613,7 @@ func TestChangelogExcludesReleaseCommits(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 
-	tmpDir, err := os.MkdirTemp("", "changelog-filter-test-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	repo, err := git.PlainInit(tmpDir, false)
 	require.NoError(t, err)

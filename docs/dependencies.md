@@ -6,8 +6,8 @@ List dependencies in `pawn.json` / `pawn.yaml` under `dependencies` or
 ## Add and remove
 
 ```bash
-sampctl install <user/repo>
-sampctl uninstall <user/repo>
+sampctl install samp-incognito/samp-streamer-plugin:2.8.2
+sampctl uninstall samp-incognito/samp-streamer-plugin
 sampctl ensure
 ```
 
@@ -32,12 +32,20 @@ transitive dependency uses the project's explicit pin for that repo. Examples:
 - `pawn-lang/YSI-Includes@5.x`
 - `samp-incognito/samp-streamer-plugin:2.8.2`
 
+## Resolve version conflicts
+
+Add an `overrides` entry to the project manifest when a dependency requests a
+version your project needs to replace. Run `sampctl ensure` to apply the
+replacement and update an existing lockfile if it conflicts with the rule.
+See [Project dependency overrides](packages.md#project-dependency-overrides)
+for JSON and YAML examples.
+
 ## Dependency schemes
 
 - `plugin://user/repo` downloads plugin binaries into `./plugins/`
 - `component://user/repo` downloads open.mp components into `./components/`
 - `includes://user/repo` adds include paths
-- `filterscript://user/repo` installs a filterscript
+- `filterscript://user/repo` fetches a filterscript's source repository
 
 See [Dependency schemes](dependency-schemes.md) for details.
 
@@ -51,41 +59,15 @@ uses a resource for the same platform with an empty `version`. Versions containi
 `openmp` or `open.mp` select open.mp. See [Plugin resources](plugin-resources.md)
 for package author guidance.
 
+## Install and refresh lockfile pins
+
+- `sampctl install` preserves existing pins and saves `pawn.lock` when enabled.
+- `sampctl ensure --no-lock` installs without using or writing `pawn.lock`.
+- `sampctl ensure --lock-only` refreshes pins without installing dependencies.
+
 ## Failures and recovery
 
-Failures return a nonzero exit status, with independent errors reported together.
-Use `--verbose` for details or `sampctl check` to inspect local state.
-
-Install preserves existing pins and saves `pawn.lock` when enabled.
-`ensure --no-lock` leaves it alone. `ensure --lock-only` refreshes pins without
-installing dependencies.
-
-Dependency commands record staged changes in `.sampctl-dependencies.json`. Before
-commit, failures trigger an attempt to restore previous installations, the
-manifest, and `pawn.lock`. Output reports incomplete recovery. Valid shared caches
-remain.
-
-The next dependency command recovers pending work. `sampctl check` reports it
-without changing files. `sampctl check --fix` runs the same recovery. Saved changes
-remain installed if cleanup fails. The command exits nonzero. Retry to finish
-cleanup.
-
-Invalid metadata, changed files, or ambiguous backups need manual inspection.
-Keep the record and backups until installed files, the manifest, and pins agree.
-Unknown staging directories remain.
-
-Runtime upgrades commit independently of dependencies. `.sampctl-runtime.json`
-records ownership, including external directories and `--no-lock` projects.
-Replacements are staged and verified, with previous managed files kept for
-recovery. Failed upgrades restore those files when safe. Saved upgrades remain
-installed if cleanup fails.
-
-The next ensure or `sampctl check --fix` recovers interrupted runtime work.
-Changed files or invalid recovery records need manual inspection. For older
-untracked installations, ensure the current version before upgrading.
-
-Dependency recovery uses the project lock. Retry when another operation finishes.
-The OS releases the lock on exit, so a leftover `.sampctl-dependencies.lock` file
-does not mean an operation is active. Renames require one filesystem. Directory
-changes are synced where supported. On Windows, close files blocking promotion
-or cleanup, then retry.
+Dependency commands return a nonzero exit status on failure and report independent
+errors together. Use `--verbose` for details or `sampctl check` to inspect local
+state. For interrupted operations or cleanup failures, see
+[Recover interrupted installations](troubleshooting.md#recover-interrupted-installations).

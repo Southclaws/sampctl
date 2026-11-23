@@ -1,12 +1,11 @@
 # Global configuration
 
-`sampctl` has a global config file (and env vars) for settings like your default GitHub username and API tokens.
-
-It also loads environment variables from a `.env` file in the directory you run it from.
+Set defaults and GitHub credentials in the global config or through
+environment variables. Sampctl also loads `.env` from your working directory.
 
 ## Config file location
 
-The config file is stored in the `sampctl` cache directory (see `docs/cache.md`).
+The config file lives in the [sampctl cache directory](cache.md).
 
 `sampctl` reads (first match wins):
 
@@ -38,7 +37,3 @@ Field names use the internal names you see in `sampctl config` output (for examp
 - `GitUsername` (`SAMPCTL_GIT_USERNAME`): git username for private repos
 - `GitPassword` (`SAMPCTL_GIT_PASSWORD`): git password/token for private repos
 - `HideVersionUpdateMessage` (`SAMPCTL_HIDE_VERSION_UPDATE_MESSAGE`): hide update reminder
-
-## CI detection
-
-If the `CI` environment variable is set (common on CI services), `sampctl` can change behavior for automation.

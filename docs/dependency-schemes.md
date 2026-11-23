@@ -1,10 +1,7 @@
 # Dependency schemes (when to use what)
 
-Most dependencies are regular Pawn packages:
-
-- `user/repo` (installed into `./dependencies/<repo>/`)
-
-Some dependencies use URL-like schemes. These control **where** `sampctl` installs them and/or how they’re used.
+Use `user/repo` for most Pawn libraries. Add a scheme such as `plugin://` to
+tell sampctl how to use a dependency.
 
 ## Regular packages: `user/repo`
 
@@ -54,7 +51,7 @@ What happens:
 
 ## Filterscripts: `filterscript://user/repo`
 
-Use this when you want a repo’s compiled script installed as a filterscript.
+Use this to fetch a filterscript's source repository.
 
 ```json
 {
@@ -62,10 +59,8 @@ Use this when you want a repo’s compiled script installed as a filterscript.
 }
 ```
 
-What happens:
-
-- `sampctl` ensures the package and builds it.
-- The resulting `.amx` is installed into `./filterscripts/`.
+Sampctl installs the repository under `./dependencies/<repo>/`. To use the
+script at runtime, build it and place the resulting `.amx` in `filterscripts/`.
 
 ## Extra include paths: `includes://user/repo`
 

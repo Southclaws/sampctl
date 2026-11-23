@@ -1,13 +1,8 @@
 # Runtime configuration (in `pawn.json` / `pawn.yaml`)
 
-You don’t edit `server.cfg` by hand.
-
-Instead, `sampctl` generates:
-
-- `server.cfg` for SA:MP
-- `config.json` for open.mp
-
-…based on the `runtime`/`runtimes` section in your `pawn.json` / `pawn.yaml`.
+Set server options in `runtime` or `runtimes` in your package manifest.
+Sampctl generates `server.cfg` for SA:MP or `config.json` for open.mp from
+those settings.
 
 ## Example
 
@@ -27,7 +22,8 @@ Instead, `sampctl` generates:
 }
 ```
 
-By default, `sampctl run` runs your built output as the gamemode (you don’t need to set `gamemodes`). If `runtime.gamemodes` is explicitly configured and non-empty, that list is preserved instead.
+Sampctl uses the build output as the gamemode when `runtime.gamemodes` is
+empty or omitted.
 
 ## Building a filterscript with an existing gamemode
 
@@ -46,16 +42,20 @@ For a local server with a precompiled gamemode, configure the main script separa
 }
 ```
 
-Place the existing gamemode at `gamemodes/test.amx`, then use `sampctl run`. The output is built when missing (or with `--forceBuild`) without replacing the configured gamemode. Use `--watch` to rebuild and restart after source changes.
+Place the existing gamemode at `gamemodes/test.amx`, then run `sampctl run`.
+Sampctl keeps that gamemode and builds the filterscript when its output is
+missing. Use `--forceBuild` to rebuild or `--watch` to rebuild and restart
+after source changes.
 
-Keep `runtime` at the top level, alongside `build`, not inside it. If `runtime.gamemodes` is omitted or empty, the output still becomes the gamemode. This changes the previous behavior for explicit lists, which were always overwritten.
-
-Custom outputs such as `module/module.amx` can also be built while running an explicit gamemode; loading them is the responsibility of your configured scripts or module loader. This local-server example does not change how scripts are copied to temporary runtimes or a separate `runtime_dir`.
+Keep `runtime` at the top level alongside `build`. If you build an output
+outside the standard script directories, such as `module/module.amx`, load
+it from your scripts or module loader.
 
 ## Plugins and components
 
-- `runtime.plugins` / `runtime.components` are *just the names to load* from `./plugins` or `./components`.
-- To have `sampctl` *download* plugins/components for you, add them as dependencies using URL schemes:
+- `runtime.plugins` and `runtime.components` list binaries to load from the
+  runtime's `plugins/` and `components/` directories.
+- To download a binary, add its package as a dependency:
   - `plugin://user/repo`
   - `component://user/repo` (open.mp)
 
@@ -83,7 +83,7 @@ Depending on what’s missing, `sampctl` may create:
 - `./plugins/` (plugin binaries)
 - `./components/` (open.mp components)
 - `server.cfg` / `config.json` (generated)
-- `.sampctl/` (runtime install manifest)
+- `.sampctl-runtime.json` (runtime file ownership)
 
 See also:
 

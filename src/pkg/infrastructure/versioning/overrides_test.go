@@ -175,11 +175,7 @@ func TestDependencyOverrideIntegration(t *testing.T) {
 }
 
 func TestDependencyOverrideConfig(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "sampctl-config-test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
-
-	configPath := filepath.Join(tmpDir, "dependency-overrides.json")
+	configPath := filepath.Join(t.TempDir(), "dependency-overrides.json")
 
 	testOverrides := map[string]string{
 		"old-user/old-repo":  "new-user/new-repo",
@@ -187,8 +183,7 @@ func TestDependencyOverrideConfig(t *testing.T) {
 		"deprecated/package": "maintained/package",
 	}
 
-	err = SaveDependencyOverrides(testOverrides, configPath)
-	require.NoError(t, err)
+	require.NoError(t, SaveDependencyOverrides(testOverrides, configPath))
 
 	loadedOverrides := LoadDependencyOverrides(configPath)
 
@@ -228,22 +223,18 @@ func TestLoadDependencyOverridesContextPassesContextToRemoteLoader(t *testing.T)
 }
 
 func TestApplyDependencyOverridesWithConfig(t *testing.T) {
+	useTemporaryDependencyOverridesConfig(t)
 	ResetDependencyOverrides()
+	t.Cleanup(ResetDependencyOverrides)
 
-	tmpDir, err := os.MkdirTemp("", "sampctl-test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
-
-	configPath := filepath.Join(tmpDir, "dependency-overrides.json")
 	customOverrides := map[string]string{
 		"custom/dependency": "replacement/dependency",
 	}
+	require.NoError(t, SaveDependencyOverrides(customOverrides, DefaultDependencyOverridesPath()))
 
-	err = SaveDependencyOverrides(customOverrides, configPath)
-	require.NoError(t, err)
+	custom := ApplyDependencyOverrides("custom/dependency")
+	builtIn := ApplyDependencyOverrides("Zeex/samp-plugin-crashdetect")
 
-	result := ApplyDependencyOverrides("Zeex/samp-plugin-crashdetect")
-	assert.Equal(t, "AmyrAhmady/samp-plugin-crashdetect", result)
-
-	ResetDependencyOverrides()
+	assert.Equal(t, "replacement/dependency", custom)
+	assert.Equal(t, "AmyrAhmady/samp-plugin-crashdetect", builtIn)
 }

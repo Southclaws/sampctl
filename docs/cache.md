@@ -9,14 +9,12 @@ local app configuration directory.
 
 ## What’s inside?
 
-The cache holds global settings, downloaded archives, and managed installations.
-Dependency repositories live under `packages/<host>/<user>/<repo>/<branch>`.
-Older repositories move into the host directory only when their configured origin
-matches the requested dependency; other legacy copies are preserved.
-
-Compiler versions live under `pawn/<user>/<repo>/<version>`. Installations are
-staged and verified before replacement, including supporting files. Builds and
-repairs share a lock for that compiler version.
+- [Global settings](global-config.md) and downloaded archives.
+- Dependency repositories in `packages/<host>/<user>/<repo>/<branch>`.
+  Sampctl moves an older cached checkout to the host directory only if its
+  Git origin matches the requested dependency.
+- Installed compilers in `pawn/<user>/<repo>/<version>`, including their
+  supporting files.
 
 Run `sampctl check` to inspect cached compilers. `check --fix` can finish recorded
 recovery, restore execute permissions, or reinstall from a cached archive.

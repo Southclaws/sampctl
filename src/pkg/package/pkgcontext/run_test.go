@@ -34,7 +34,7 @@ func (env *configuredGamemodeEnvironment) Run(ctx context.Context, cfg run.Runti
 	return env.fakeRuntimeEnvironment.Run(ctx, cfg, options)
 }
 
-func TestRunPrepareGamemodes(t *testing.T) {
+func TestRunSelectsConfiguredGamemodesOrBuildOutput(t *testing.T) {
 	tests := []struct {
 		name          string
 		output        string
@@ -122,15 +122,6 @@ func TestRunPrepareGamemodes(t *testing.T) {
 			t.Parallel()
 
 			root := t.TempDir()
-			output := tt.output
-			if tt.buildOutput != "" {
-				output = tt.buildOutput
-			}
-			filename := filepath.Join(root, filepath.FromSlash(output))
-			require.NoError(t, os.MkdirAll(filepath.Dir(filename), 0o700))
-			require.NoError(t, os.WriteFile(filename, []byte{0}, 0o600))
-
-			local := true
 			env := &configuredGamemodeEnvironment{}
 			pcx := newPackageContextBase(NewPackageContextOptions{
 				Platform:   runtime.GOOS,
@@ -141,17 +132,24 @@ func TestRunPrepareGamemodes(t *testing.T) {
 				Parent:    true,
 				LocalPath: root,
 				Output:    filepath.FromSlash(tt.output),
-				Local:     &local,
+				Local:     new(true),
 				Format:    "json",
 				Runtime:   tt.runtime,
 				Runtimes:  tt.runtimes,
 			}
-			if tt.buildOutput != "" {
-				pcx.Package.Build = &build.Config{Output: filepath.FromSlash(tt.buildOutput)}
-			}
 			pcx.Runtime = tt.runtimeName
 
+			selectedOutput := filepath.FromSlash(tt.output)
+			if tt.buildOutput != "" {
+				selectedOutput = filepath.FromSlash(tt.buildOutput)
+				pcx.Package.Build = &build.Config{Output: selectedOutput}
+			}
+			wantOutputPath := filepath.Join(root, selectedOutput)
+			require.NoError(t, os.MkdirAll(filepath.Dir(wantOutputPath), 0o700))
+			require.NoError(t, os.WriteFile(wantOutputPath, []byte{0}, 0o600))
+
 			require.NoError(t, pcx.Run(t.Context(), io.Discard, nil))
+
 			require.True(t, env.ensureCalled)
 			require.True(t, env.generateCalled)
 			require.True(t, env.runCalled)
@@ -161,7 +159,7 @@ func TestRunPrepareGamemodes(t *testing.T) {
 			require.Equal(t, filepath.FromSlash(tt.output), pcx.Package.Output)
 			actualOutput, err := pcx.runtimeOutputPath()
 			require.NoError(t, err)
-			require.Equal(t, filename, actualOutput)
+			require.Equal(t, wantOutputPath, actualOutput)
 		})
 	}
 }

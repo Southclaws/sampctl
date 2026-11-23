@@ -1,8 +1,7 @@
 # Packages (Pawn projects)
 
-sampctl treats a Pawn project (gamemode, filterscript, library) as a “package”.
-
-A package is described by `pawn.json` or `pawn.yaml` in the project folder.
+A Pawn package is a gamemode, filterscript, or library with a `pawn.json` or
+`pawn.yaml` manifest in its project directory.
 
 ## The package file (`pawn.json` / `pawn.yaml`)
 
@@ -24,9 +23,7 @@ Common fields you’ll see:
 - `dependencies`: GitHub packages to download (includes/libraries)
 - `overrides`: optional map from dependency declarations to replacements
 
-See also: [Package definition reference](package-definition-reference.md)
-
-To place local server/runtime files in a separate directory, configure the optional `runtime_dir` field:
+To keep local server files in a separate directory, set `runtime_dir`:
 
 ```json
 {
@@ -34,9 +31,8 @@ To place local server/runtime files in a separate directory, configure the optio
 }
 ```
 
-The same field works with both SA-MP 0.3.7 and open.mp. Other package fields, including `entry` and `output`, remain independent and can be configured according to the project's layout. If `runtime_dir` is omitted, the package root remains the runtime directory. Relative values are resolved from the package root, and the setting applies to local `config.json`/`server.cfg`, binaries, plugins, components, and runtime directories.
-
-When running locally with `runtime_dir` explicitly configured, sampctl copies the compiled output file by basename into `<runtime_dir>/gamemodes/` before starting the server. This allows an output such as `build/main.amx` to be used with `runtime_dir: "server"` without requiring the build output itself to be located inside the runtime directory. If `runtime_dir` is omitted, the existing local-runtime behavior is preserved.
+See [Local runtime files](package-definition-reference.md#local-runtime-files)
+for path resolution and build output placement.
 
 ## Install and update dependencies
 
@@ -72,7 +68,7 @@ Update a single dependency:
 sampctl ensure --update pawn-lang/samp-stdlib
 ```
 
-Force pinned tag dependencies to move to the newest tagged release:
+Update pinned tags as well:
 
 ```bash
 sampctl ensure --update --force

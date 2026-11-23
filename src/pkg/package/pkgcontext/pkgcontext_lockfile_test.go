@@ -17,52 +17,68 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/package/lockfile"
 )
 
-func TestPackageContextConstructorsResolveSelectedGraph(t *testing.T) {
-	for _, name := range []string{"lockfile", "lockfile disabled", "plain", "load only"} {
-		t.Run(name, func(t *testing.T) {
-			options, parent, child, pinned := constructorGraphFixture(t)
-			options.UseLockfile = name != "lockfile disabled"
-			construct := NewPackageContextWithLockfile
-			switch name {
-			case "plain":
-				construct = NewPackageContext
-			case "load only":
-				construct = LoadPackageContext
-			}
+func TestNewPackageContextWithLockfileResolvesSelectedGraph(t *testing.T) {
+	options, parent, child, pinned := constructorGraphFixture(t)
+	options.UseLockfile = true
 
-			pcx, err := construct(options)
+	pcx, err := NewPackageContextWithLockfile(options)
+
+	require.NoError(t, err)
+	wantDependencies := []versioning.DependencyMeta{parent, child}
+	wantIncludes := graphRevisionIncludePaths(pcx.Package.Vendor, "parent", "child")
+	assert.Equal(t, []versioning.DependencyString{"fixture/parent@release"}, pcx.Package.Dependencies)
+	assert.Equal(t, wantDependencies, pcx.AllDependencies)
+	assert.Equal(t, wantDependencies, pcx.AllPlugins)
+	assert.Equal(t, wantIncludes, pcx.AllIncludePaths)
+	assert.Equal(t, pinned, pcx.LockedVersion(parent, false).Commit)
+	assert.True(t, pcx.UseLockfile)
+	assert.Equal(t, options.AppVersion, pcx.AppVersion)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	require.ErrorIs(t, pcx.EnsureDependenciesCachedContext(ctx), context.Canceled)
+	assert.Equal(t, wantDependencies, pcx.AllDependencies)
+
+	require.NoError(t, pcx.EnsureDependenciesCachedContext(t.Context()))
+	assert.Equal(t, wantDependencies, pcx.AllDependencies)
+	assert.Equal(t, wantIncludes, pcx.AllIncludePaths)
+}
+
+func TestPackageContextConstructorsResolveWithoutLockfile(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		useLockfile bool
+		construct   func(NewPackageContextOptions) (*PackageContext, error)
+	}{
+		{name: "lockfile disabled", construct: NewPackageContextWithLockfile},
+		{name: "plain constructor", useLockfile: true, construct: NewPackageContext},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			options, parent, _, _ := constructorGraphFixture(t)
+			options.UseLockfile = tc.useLockfile
+
+			pcx, err := tc.construct(options)
+
 			require.NoError(t, err)
 			assert.Equal(t, []versioning.DependencyString{"fixture/parent@release"}, pcx.Package.Dependencies)
-			if name == "load only" {
-				assert.Empty(t, pcx.AllDependencies)
-				assert.False(t, pcx.HasLockfileResolver())
-				return
-			}
-			if name != "lockfile" {
-				assert.Equal(t, []versioning.DependencyMeta{parent}, pcx.AllDependencies)
-				assert.Empty(t, pcx.AllPlugins)
-				assert.Empty(t, pcx.AllIncludePaths)
-				assert.False(t, pcx.HasLockfileResolver())
-				return
-			}
-
-			assert.Equal(t, []versioning.DependencyMeta{parent, child}, pcx.AllDependencies)
-			assert.Equal(t, []versioning.DependencyMeta{parent, child}, pcx.AllPlugins)
-			assert.Equal(t, graphRevisionIncludePaths(pcx.Package.Vendor, "parent", "child"), pcx.AllIncludePaths)
-			assert.Equal(t, pinned, pcx.LockedVersion(parent, false).Commit)
-			assert.True(t, pcx.UseLockfile)
-			assert.Equal(t, options.AppVersion, pcx.AppVersion)
-
-			ctx, cancel := context.WithCancel(t.Context())
-			cancel()
-			require.ErrorIs(t, pcx.EnsureDependenciesCachedContext(ctx), context.Canceled)
-			assert.Equal(t, []versioning.DependencyMeta{parent, child}, pcx.AllDependencies)
-
-			require.NoError(t, pcx.EnsureDependenciesCachedContext(t.Context()))
-			assert.Equal(t, []versioning.DependencyMeta{parent, child}, pcx.AllDependencies)
-			assert.Equal(t, graphRevisionIncludePaths(pcx.Package.Vendor, "parent", "child"), pcx.AllIncludePaths)
+			assert.Equal(t, []versioning.DependencyMeta{parent}, pcx.AllDependencies)
+			assert.Empty(t, pcx.AllPlugins)
+			assert.Empty(t, pcx.AllIncludePaths)
+			assert.False(t, pcx.HasLockfileResolver())
 		})
 	}
+}
+
+func TestLoadPackageContextLeavesDependenciesUnresolved(t *testing.T) {
+	options, _, _, _ := constructorGraphFixture(t)
+	options.UseLockfile = true
+
+	pcx, err := LoadPackageContext(options)
+
+	require.NoError(t, err)
+	assert.Equal(t, []versioning.DependencyString{"fixture/parent@release"}, pcx.Package.Dependencies)
+	assert.Empty(t, pcx.AllDependencies)
+	assert.False(t, pcx.HasLockfileResolver())
 }
 
 func TestNewPackageContextWithLockfileHonorsChangedConstraint(t *testing.T) {

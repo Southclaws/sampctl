@@ -1,6 +1,7 @@
 # Build configuration reference (`build` / `builds`)
 
-Build configuration lives in your `pawn.json` / `pawn.yaml` under `build` (single) or `builds` (multiple).
+Use `build` for one build configuration or `builds` for a list of named
+configurations in `pawn.json` or `pawn.yaml`.
 
 Select a named build:
 
@@ -25,45 +26,37 @@ sampctl build <build-name>
 
 ## Fields
 
-All fields below are supported under a build entry (e.g. `builds.<name>`).
-
-- `name` (string): build name (usually set implicitly by the `builds` map key).
-- `version` (string): optional version label.
+- `name` (string): name to use with `sampctl build <build-name>`.
+- `version` (string): compiler version. Prefer `compiler.version` in new manifests.
 - `workingDir` (string): working directory for compilation.
 - `input` (string): source file to compile.
 - `output` (string): output `.amx` path.
 - `includes` (string[]): include directories passed as `-i` flags.
-- `constants` (object map): constant definitions passed as `-D` flags (key/value).
+- `constants` (map of strings): compiler definitions passed as `NAME=value`.
+  See [the generated build include](package-definition-reference.md#experimental-build-file-experimentalbuild_file)
+  for their use in Pawn source.
 
 ### Args and options
 
-You can provide raw arguments and/or structured options:
+- `options` (object): [structured compiler options](#compiler-options-options).
+- `args` (string[]): legacy raw compiler arguments. Sampctl uses these when
+  `options` is absent.
 
-- `args` (string[]): raw arguments passed to the compiler (**deprecated**, prefer `options`).
-- `options` (object): structured compiler options (see below).
+### Build hooks
 
-### Plugins (pre-compile commands)
+- `prebuild` runs commands before compilation.
+- `postbuild` runs commands after compilation.
 
-- `plugins` (array of string arrays): commands to run before compilation.
-
-Example:
+Each command is an array containing the executable and its arguments:
 
 ```yaml
 build:
-  plugins:
+  prebuild:
     - ["echo", "hello"]
 ```
 
-### Compiler selection
-
-- `compiler` (string or object):
-  - string: a preset name (e.g. `samp`, `openmp`).
-  - object: a compiler configuration (see **Compiler config** below).
-
-### Hooks
-
-- `prebuild` (array of string arrays): commands run before compilation.
-- `postbuild` (array of string arrays): commands run after compilation.
+Replace legacy build `plugins` entries with hooks. Sampctl no longer runs
+those entries.
 
 ## Compiler options (`options`)
 
@@ -75,21 +68,15 @@ These map to Pawn compiler flags:
 - `require_escape_sequences` (bool): `-\\+` / `-\\-`
 - `compatibility_mode` (bool): `-Z+` / `-Z-`
 - `optimization_level` (int): `-O<level>`
-- `show_listing` (bool): `-l` / `-l-`
-- `show_annotated_assembly` (bool): `-a` / `-a-`
+- `show_listing` (bool): adds `-l` when enabled.
+- `show_annotated_assembly` (bool): adds `-a` when enabled.
 - `show_error_file` (string): `-e<filename>`
 - `show_warnings` (bool): `-w+` / `-w-`
 - `compact_encoding` (bool): `-C+` / `-C-`
 - `tab_size` (int): `-t<spaces>`
 
-## Compiler config (`compiler` as an object)
-
-If `compiler` is an object, these fields are supported:
+## Compiler selection
 
 - `preset` (string): `samp` or `openmp`.
-- `path` (string): local path to a compiler.
+- `path` (string): local path to a compiler. Use this field on its own.
 - `site` / `user` / `repo` / `version` (strings): use a compiler from a Git repo.
-
-## Compiler presets
-
-`sampctl` ships with built-in compiler presets: `samp` and `openmp`.

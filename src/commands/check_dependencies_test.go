@@ -328,20 +328,29 @@ func TestCheckDependenciesReportsStaleProjectOverride(t *testing.T) {
 	commit := newCheckDependencyRepo(t, filepath.Join(pkg.Vendor, "example"), `{}`)
 	policy, err := versioning.NewProjectOverrides(map[string]string{"fixture/old:1.0.0": "fixture/example:1.5.2"}, "json")
 	require.NoError(t, err)
-	lf := lockfile.New("test")
+	overrides := checkDependencyOverrides{project: policy}
 
-	for _, tag := range []string{"2.0.0", "v1.5.2"} {
-		lf.AddDependency("github.com/fixture/example", lockfile.LockedDependency{
-			User: "fixture", Repo: "example", Commit: commit, Constraint: ":1.5.2", Resolved: tag,
+	for _, tc := range []struct {
+		name    string
+		tag     string
+		status  checkStatus
+		message string
+	}{
+		{"incompatible tag", "2.0.0", checkFailed, "does not satisfy the project override"},
+		{"equivalent tag", "v1.5.2", checkPassed, "is installed"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			lf := lockfile.New("test")
+			lf.AddDependency("github.com/fixture/example", lockfile.LockedDependency{
+				User: "fixture", Repo: "example", Commit: commit, Constraint: ":1.5.2", Resolved: tc.tag,
+			})
+
+			results, err := checkDependencies(t.Context(), pkg, lf, overrides)
+
+			require.NoError(t, err)
+			require.Len(t, results, 2)
+			assert.Equal(t, tc.status, results[0].Status)
+			assert.Contains(t, results[0].Message, tc.message)
 		})
-		results, err := checkDependencies(t.Context(), pkg, lf, checkDependencyOverrides{project: policy})
-		require.NoError(t, err)
-		require.Len(t, results, 2)
-		if tag == "2.0.0" {
-			assert.Equal(t, checkFailed, results[0].Status)
-			assert.Contains(t, results[0].Message, "does not satisfy the project override")
-		} else {
-			assert.Equal(t, checkPassed, results[0].Status)
-		}
 	}
 }

@@ -28,16 +28,12 @@ runtime:
 	require.NoError(t, err)
 	require.True(t, cfg.IsOpenMP())
 
-	tmpDir, err := os.MkdirTemp("", "pawnpackage-openmp-fields")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
-
-	cfg.WorkingDir = tmpDir
+	cfg.WorkingDir = t.TempDir()
 	cfg.Platform = "linux"
 
 	require.NoError(t, GenerateConfig(&cfg))
 
-	content, err := os.ReadFile(filepath.Join(tmpDir, "config.json"))
+	content, err := os.ReadFile(filepath.Join(cfg.WorkingDir, "config.json"))
 	require.NoError(t, err)
 
 	var parsed map[string]interface{}

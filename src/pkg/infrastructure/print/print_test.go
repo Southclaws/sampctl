@@ -1,23 +1,19 @@
 package print
 
-import "testing"
+import (
+	"testing"
 
-func TestPrints(t *testing.T) {
-	origVerbose := isVerbose.Load()
-	origColoured := isColoured.Load()
-	defer func() {
-		isVerbose.Store(origVerbose)
-		isColoured.Store(origColoured)
-	}()
+	"github.com/stretchr/testify/assert"
+)
 
-	isVerbose.Store(false)
-	isColoured.Store(false)
+func TestPrintsPlainMessages(t *testing.T) {
+	resetPrintFlagsForTest(t)
 
-	Verb("should not appear")
+	assert.Empty(t, captureStdout(t, func() { Verb("hidden") }))
 
 	SetVerbose()
-	Verb("A Verbose message")
-	Info("An info message")
-	Warn("A warning message")
-	Erro("An error message")
+	assert.Contains(t, captureStdout(t, func() { Verb("shown") }), "INFO: shown")
+	assert.Contains(t, captureStdout(t, func() { Info("info") }), "INFO: info")
+	assert.Contains(t, captureStdout(t, func() { Warn("warn") }), "WARN: warn")
+	assert.Contains(t, captureStdout(t, func() { Erro("error") }), "ERROR: error")
 }

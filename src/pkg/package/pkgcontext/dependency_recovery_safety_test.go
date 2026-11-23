@@ -580,37 +580,7 @@ func TestDependencyRecoveryRunsBeforeNextEnsure(t *testing.T) {
 			target := filepath.Join(pcx.Package.Vendor, "dep")
 			original := readCrashRecoveryFile(t, filepath.Join(target, "dep.pwn"))
 
-			state, err := pcx.beginDependencyOperation(context.Background())
-			if err != nil {
-				t.Fatal(err)
-			}
-			t.Cleanup(func() {
-				if err := state.lock.Close(); err != nil {
-					t.Errorf("close interrupted operation lock: %v", err)
-				}
-			})
-
-			stage, err := pcx.dependencyInstalls.stage(pcx.Package.Vendor, "dep")
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			source := filepath.Join(stage, "dep")
-			if err := stagePreviousDependency(context.Background(), target, source); err != nil {
-				t.Fatal(err)
-			}
-
-			if err := os.WriteFile(filepath.Join(source, "dep.pwn"), []byte("interrupted replacement"), 0o644); err != nil {
-				t.Fatal(err)
-			}
-
-			if err := pcx.dependencyInstalls.promote(source, target); err != nil {
-				t.Fatal(err)
-			}
-
-			if err := state.lock.Unlock(); err != nil {
-				t.Fatal(err)
-			}
+			interruptDependencyReplacement(t, pcx, target)
 
 			fresh, err := LoadPackageContext(NewPackageContextOptions{Dir: pcx.Package.LocalPath, Parent: true, CacheDir: pcx.CacheDir, Platform: "linux", RuntimeProv: &fakeRuntimeProvisioner{}})
 			if err != nil {
@@ -642,5 +612,41 @@ func TestDependencyRecoveryRunsBeforeNextEnsure(t *testing.T) {
 				t.Errorf("next %s ensure corrupted lockfile: %v", entrypoint, err)
 			}
 		})
+	}
+}
+
+func interruptDependencyReplacement(t *testing.T, pcx *PackageContext, target string) {
+	t.Helper()
+
+	state, err := pcx.beginDependencyOperation(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := state.lock.Close(); err != nil {
+			t.Errorf("close interrupted operation lock: %v", err)
+		}
+	})
+
+	stage, err := pcx.dependencyInstalls.stage(pcx.Package.Vendor, "dep")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	source := filepath.Join(stage, "dep")
+	if err := stagePreviousDependency(t.Context(), target, source); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.WriteFile(filepath.Join(source, "dep.pwn"), []byte("interrupted replacement"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := pcx.dependencyInstalls.promote(source, target); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := state.lock.Unlock(); err != nil {
+		t.Fatal(err)
 	}
 }

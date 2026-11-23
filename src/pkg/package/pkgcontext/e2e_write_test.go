@@ -12,35 +12,20 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
 
-// TestE2EConfigWrite simulates the full workflow of loading and writing a package
-// to verify that default runtime fields are not polluting the config file
-func TestE2EConfigWrite(t *testing.T) {
+func TestWriteDefinitionPreservesExplicitRuntimeSettings(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}
 
-	tmpDir, err := os.MkdirTemp("", "sampctl-e2e-test-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
-
+	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "pawn.json")
-	minimalConfig := map[string]interface{}{
-		"entry":  "test.pwn",
+	config := `{
+		"entry": "test.pwn",
 		"output": "test.amx",
-		"runtime": map[string]interface{}{
-			"version": "0.3.7",
-		},
-		"dependencies": []string{},
-	}
-
-	configBytes, err := json.MarshalIndent(minimalConfig, "", "\t")
-	require.NoError(t, err)
-
-	err = os.WriteFile(configPath, configBytes, 0o644)
-	require.NoError(t, err)
-
-	t.Log("Initial config:")
-	t.Log(string(configBytes))
+		"runtime": {"version": "0.3.7"},
+		"dependencies": []
+	}`
+	require.NoError(t, os.WriteFile(configPath, []byte(config), 0o644))
 
 	pkg, err := pawnpackage.PackageFromDir(tmpDir)
 	require.NoError(t, err)
@@ -58,10 +43,6 @@ func TestE2EConfigWrite(t *testing.T) {
 	err = json.Unmarshal(writtenBytes, &writtenConfig)
 	require.NoError(t, err)
 
-	t.Log("Final config:")
-	prettyBytes, _ := json.MarshalIndent(writtenConfig, "", "\t")
-	t.Log(string(prettyBytes))
-
 	runtime, ok := writtenConfig["runtime"].(map[string]interface{})
 	require.True(t, ok, "runtime should be a map")
 
@@ -69,12 +50,11 @@ func TestE2EConfigWrite(t *testing.T) {
 
 	deps, ok := writtenConfig["dependencies"].([]interface{})
 	require.True(t, ok, "dependencies should be an array")
-	assert.Len(t, deps, 1)
+	require.Len(t, deps, 1)
 	assert.Equal(t, "test-user/test-package:1.0.0", deps[0])
 
 	defaultFields := []string{"port", "hostname", "maxplayers", "language", "mode", "rootLink", "rcon_password"}
 	for _, field := range defaultFields {
-		_, has := runtime[field]
-		assert.False(t, has, "runtime should not have default field: %s", field)
+		assert.NotContains(t, runtime, field)
 	}
 }

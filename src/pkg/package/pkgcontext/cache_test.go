@@ -1,83 +1,56 @@
 package pkgcontext
 
 import (
-	"os"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
 
 func TestEnsureDependenciesCached(t *testing.T) {
-	tests := []struct {
-		name                string
-		pcx                 PackageContext
-		wantAllDependencies []versioning.DependencyMeta
-		wantErr             bool
+	sampStdlib := versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"}
+	pawnStdlib := versioning.DependencyMeta{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib"}
+	pawnRequests := versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-requests"}
+
+	for _, tc := range []struct {
+		name         string
+		dependencies []versioning.DependencyString
+		want         []versioning.DependencyMeta
 	}{
 		{
-			"basic",
-			PackageContext{
-				Package: pawnpackage.Package{
-					Parent:    true,
-					LocalPath: fs.MustAbs("./tests/deps-basic"),
-					User:      "local", Repo: "local",
-					Dependencies: []versioning.DependencyString{
-						"pawn-lang/samp-stdlib",
-					},
-				},
-				PackageServices: PackageServices{Platform: "linux", CacheDir: "./tests/cache", GitAuth: gitAuth},
-			},
-			[]versioning.DependencyMeta{
-				{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
-				{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib"},
-			},
-			false,
+			name:         "includes transitive standard library",
+			dependencies: []versioning.DependencyString{"pawn-lang/samp-stdlib"},
+			want:         []versioning.DependencyMeta{sampStdlib, pawnStdlib},
 		},
 		{
-			"plugin",
-			PackageContext{
-				Package: pawnpackage.Package{
-					Parent:    true,
-					LocalPath: fs.MustAbs("./tests/deps-plugin"),
-					User:      "local", Repo: "local",
-					Dependencies: []versioning.DependencyString{
-						"pawn-lang/samp-stdlib",
-						"Southclaws/pawn-requests",
-					},
-				},
-				PackageServices: PackageServices{Platform: "linux", CacheDir: "./tests/cache", GitAuth: gitAuth},
-			},
-			[]versioning.DependencyMeta{
-				{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
-				{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib"},
-				{Site: "github.com", User: "Southclaws", Repo: "pawn-requests"},
-			},
-			false,
+			name:         "includes plugin alongside standard libraries",
+			dependencies: []versioning.DependencyString{"pawn-lang/samp-stdlib", "Southclaws/pawn-requests"},
+			want:         []versioning.DependencyMeta{sampStdlib, pawnStdlib, pawnRequests},
 		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			os.RemoveAll(tt.pcx.Package.LocalPath)
-			os.MkdirAll(tt.pcx.Package.LocalPath, 0o700) //nolint
-
-			tt.pcx.GitHub = gh
-			tt.pcx.GitAuth = gitAuth
-
-			err := tt.pcx.EnsureDependenciesCached()
-			if tt.wantErr {
-				assert.Equal(t, tt.wantErr, err)
-			} else {
-				assert.NoError(t, err)
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			pcx := PackageContext{
+				Package: pawnpackage.Package{
+					Parent:       true,
+					LocalPath:    t.TempDir(),
+					User:         "local",
+					Repo:         "local",
+					Dependencies: tc.dependencies,
+				},
+				PackageServices: PackageServices{
+					Platform: "linux",
+					CacheDir: fixtureCacheDir,
+					GitHub:   gh,
+					GitAuth:  gitAuth,
+				},
 			}
 
-			gotAllDependencies := tt.pcx.AllDependencies
+			err := pcx.EnsureDependenciesCached()
 
-			assert.Equal(t, tt.wantAllDependencies, gotAllDependencies)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, pcx.AllDependencies)
 		})
 	}
 }

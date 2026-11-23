@@ -184,11 +184,28 @@ func TestClonePackageRepositoryChecksOutRequestedRevision(t *testing.T) {
 	latest := commit("default branch")
 	installCloneTestProtocol(t, cloneFixtureTransport{Transport: file.DefaultClient, path: remote})
 
+	clone := func(t *testing.T, revision versioning.DependencyMeta) (*git.Repository, error) {
+		t.Helper()
+		revision.Site, revision.User, revision.Repo = "fixture.invalid", "u", "r"
+		return clonePackageRepository(GetOptions{Context: t.Context(), Meta: revision, Dir: filepath.Join(t.TempDir(), "clone")})
+	}
+	assertRevision := func(t *testing.T, revision versioning.DependencyMeta, want plumbing.Hash) {
+		t.Helper()
+		cloned, err := clone(t, revision)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		head, err := cloned.Head()
+		if err != nil || head.Hash() != want {
+			t.Errorf("checked out head = %v, %v; want %s", head, err, want)
+		}
+	}
+
 	for _, test := range []struct {
-		name    string
-		meta    versioning.DependencyMeta
-		want    plumbing.Hash
-		wantErr bool
+		name string
+		meta versioning.DependencyMeta
+		want plumbing.Hash
 	}{
 		{name: "default", want: latest},
 		{name: "annotated tag", meta: versioning.DependencyMeta{Tag: "v1.0.0"}, want: first},
@@ -196,28 +213,17 @@ func TestClonePackageRepositoryChecksOutRequestedRevision(t *testing.T) {
 		{name: "latest release", meta: versioning.DependencyMeta{Tag: "latest"}, want: second},
 		{name: "branch", meta: versioning.DependencyMeta{Branch: "old"}, want: first},
 		{name: "commit", meta: versioning.DependencyMeta{Commit: first.String()}, want: first},
-		{name: "missing tag", meta: versioning.DependencyMeta{Tag: "missing"}, wantErr: true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			meta := test.meta
-			meta.Site, meta.User, meta.Repo = "fixture.invalid", "u", "r"
-			cloned, err := clonePackageRepository(GetOptions{Context: t.Context(), Meta: meta, Dir: filepath.Join(t.TempDir(), "clone")})
-			if test.wantErr {
-				if err == nil {
-					t.Fatal("missing requested revision unexpectedly succeeded")
-				}
-
-				return
-			}
-			if err != nil {
-				t.Fatal(err)
-			}
-			head, err := cloned.Head()
-			if err != nil || head.Hash() != test.want {
-				t.Errorf("checked out head = %v, %v; want %s", head, err, test.want)
-			}
+			assertRevision(t, test.meta, test.want)
 		})
 	}
+
+	t.Run("missing tag", func(t *testing.T) {
+		if _, err := clone(t, versioning.DependencyMeta{Tag: "missing"}); err == nil {
+			t.Fatal("missing requested revision unexpectedly succeeded")
+		}
+	})
 
 	for _, name := range []string{"v1.0.0", "v1.2.0"} {
 		if err := repo.DeleteTag(name); err != nil {
@@ -225,14 +231,7 @@ func TestClonePackageRepositoryChecksOutRequestedRevision(t *testing.T) {
 		}
 	}
 	t.Run("latest without tags uses default branch", func(t *testing.T) {
-		cloned, err := clonePackageRepository(GetOptions{Context: t.Context(), Meta: versioning.DependencyMeta{Site: "fixture.invalid", User: "u", Repo: "r", Tag: "latest"}, Dir: filepath.Join(t.TempDir(), "clone")})
-		if err != nil {
-			t.Fatal(err)
-		}
-		head, err := cloned.Head()
-		if err != nil || head.Hash() != latest {
-			t.Errorf("latest without tags = %v, %v; want default branch %s", head, err, latest)
-		}
+		assertRevision(t, versioning.DependencyMeta{Tag: "latest"}, latest)
 	})
 
 	for name, hash := range map[string]plumbing.Hash{"alpha": first, "beta": second} {
@@ -241,13 +240,6 @@ func TestClonePackageRepositoryChecksOutRequestedRevision(t *testing.T) {
 		}
 	}
 	t.Run("latest nonsemantic tag uses deterministic ordering", func(t *testing.T) {
-		cloned, err := clonePackageRepository(GetOptions{Context: t.Context(), Meta: versioning.DependencyMeta{Site: "fixture.invalid", User: "u", Repo: "r", Tag: "latest"}, Dir: filepath.Join(t.TempDir(), "clone")})
-		if err != nil {
-			t.Fatal(err)
-		}
-		head, err := cloned.Head()
-		if err != nil || head.Hash() != second {
-			t.Errorf("latest nonsemantic tag = %v, %v; want beta %s", head, err, second)
-		}
+		assertRevision(t, versioning.DependencyMeta{Tag: "latest"}, second)
 	})
 }

@@ -9,7 +9,7 @@ For an introduction and a minimal example, see: [Packages](packages.md)
 - `preset`: selects defaults for runtime/compiler. Common values: `samp`, `openmp`.
 - `entry`: the `.pwn` file to compile.
 - `output`: where the `.amx` output should be written.
-- `runtime_dir`: where to install local runtime files for SA-MP or open.mp. Relative paths start at the package root, which is the default.
+- `runtime_dir`: where to install [local runtime files](#local-runtime-files).
 - `dependencies`: packages to download for building/running.
 - `dev_dependencies`: packages only needed for building/testing.
 - `overrides`: optional map from dependency strings to replacement strings. See [Dependency overrides](#dependency-overrides).
@@ -41,6 +41,17 @@ See also:
 - [Runtime configuration guide](configuration.md)
 - [Runtime configuration reference](runtime-configuration-reference.md)
 
+### Local runtime files
+
+For SA-MP and open.mp, `runtime_dir` defaults to the package root. Relative paths
+start at that root. Generated config files, server binaries, plugins, and
+components go in the runtime directory.
+
+When running locally with `runtime_dir` set, sampctl copies the build output
+into the runtime's `gamemodes/` directory. For example, with
+`runtime_dir: "server"`, `build/main.amx` is copied to
+`server/gamemodes/main.amx` before the server starts.
+
 ## Build fields
 
 - `build`: a single build configuration.
@@ -56,11 +67,11 @@ See also: [Build configuration reference](build-configuration-reference.md)
 
 ## Advanced fields
 
-- `local`: if `true`, run/build inside your project folder instead of a temporary runtime folder.
+- `local`: run locally instead of using a temporary runtime directory.
 - `include_path`: for repos where the Pawn sources are in a subfolder.
 - `resources`: advanced extra resources for a package (per-platform files, archives).
 - `extract_ignore_patterns`: patterns to skip when extracting plugin archives.
-- `experimental.build_file`: control generation of the build-time include file (`sampctl_build_file.inc`) containing build constants and git metadata. The default is `true`. Set it to `false` to disable it.
+- `experimental.build_file`: generate the [build include](#experimental-build-file-experimentalbuild_file).
 - `contributors`, `website`: optional metadata (useful for published packages).
 
 ### Experimental build file (`experimental.build_file`)
@@ -80,8 +91,7 @@ The generated file includes:
   - Values starting with `$NAME` expand environment variable `NAME`.
 - Git metadata defines if available (unless overridden by your constants): `SAMPCTL_BUILD_COMMIT`, `SAMPCTL_BUILD_COMMIT_SHORT`, `SAMPCTL_BUILD_BRANCH`.
 
-Usage: include it in your Pawn source with `#include "sampctl_build_file.inc"`.
-If you need to turn it off, set `experimental.build_file: false` in `pawn.json` / `pawn.yaml`.
+Include it in your Pawn source with `#include "sampctl_build_file.inc"`.
 
 See also:
 

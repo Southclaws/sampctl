@@ -21,46 +21,50 @@ import (
 
 func TestManifestCacheFreshGet(t *testing.T) {
 	for _, manifest := range manifestCacheFixtures() {
-		t.Run(manifest.name, func(t *testing.T) {
-			for _, scenario := range []string{"valid", "canceled", "malformed"} {
-				t.Run(scenario, func(t *testing.T) {
-					directory := t.TempDir()
-					path := filepath.Join(directory, manifest.filename)
-					body := manifest.body
-					if scenario == "malformed" {
-						body = "{"
-					}
-					require.NoError(t, os.WriteFile(path, []byte(body), 0o600))
-					stderr := captureManifestStderr(t)
+		for _, tc := range []struct {
+			name       string
+			body       string
+			want       any
+			canceled   bool
+			wantSyntax bool
+		}{
+			{name: "valid", body: manifest.body, want: manifest.value},
+			{name: "canceled", body: manifest.body, want: manifest.value, canceled: true},
+			{name: "malformed", body: "{", want: manifest.zero, wantSyntax: true},
+		} {
+			t.Run(manifest.name+"/"+tc.name, func(t *testing.T) {
+				directory := t.TempDir()
+				path := filepath.Join(directory, manifest.filename)
+				require.NoError(t, os.WriteFile(path, []byte(tc.body), 0o600))
+				stderr := captureManifestStderr(t)
 
-					ctx, cancel := context.WithCancel(t.Context())
-					defer cancel()
-					if scenario == "canceled" {
-						cancel()
-					}
-					calls := 0
-					client := roundTripClient(func(*http.Request) (*http.Response, error) {
-						calls++
-						return nil, errors.New("unexpected manifest request")
-					})
-
-					value, err := manifest.get(ctx, directory, client)
-					if scenario == "malformed" {
-						var syntaxError *json.SyntaxError
-						require.ErrorAs(t, err, &syntaxError)
-						assert.Equal(t, manifest.zero, value)
-					} else {
-						require.NoError(t, err)
-						assert.Equal(t, manifest.value, value)
-					}
-					assert.Zero(t, calls)
-					assert.Empty(t, stderr())
-					data, err := os.ReadFile(path)
-					require.NoError(t, err)
-					assert.Equal(t, body, string(data))
+				ctx, cancel := context.WithCancel(t.Context())
+				defer cancel()
+				if tc.canceled {
+					cancel()
+				}
+				calls := 0
+				client := roundTripClient(func(*http.Request) (*http.Response, error) {
+					calls++
+					return nil, errors.New("unexpected manifest request")
 				})
-			}
-		})
+
+				value, err := manifest.get(ctx, directory, client)
+
+				if tc.wantSyntax {
+					var syntaxError *json.SyntaxError
+					require.ErrorAs(t, err, &syntaxError)
+				} else {
+					require.NoError(t, err)
+				}
+				assert.Equal(t, tc.want, value)
+				assert.Zero(t, calls)
+				assert.Empty(t, stderr())
+				data, err := os.ReadFile(path)
+				require.NoError(t, err)
+				assert.Equal(t, tc.body, string(data))
+			})
+		}
 	}
 }
 

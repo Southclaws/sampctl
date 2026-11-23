@@ -125,22 +125,46 @@ func TestEnsurePlugins(t *testing.T) {
 	}
 }
 
-func TestGetResourceAndPath(t *testing.T) {
+func TestGetResourcePrefersExactRuntimeMatch(t *testing.T) {
 	t.Parallel()
 
-	resource, err := GetResource([]res.Resource{
+	resources := []res.Resource{
 		{Name: `linux-default`, Platform: "linux", Archive: true, Plugins: []string{"plugins/test.so"}},
 		{Name: `linux-openmp`, Platform: "linux", Version: "v1.0.0-openmp", Archive: true, Plugins: []string{"plugins/test.so"}},
-	}, "linux", "v1.0.0-openmp")
+	}
+
+	resource, err := GetResource(resources, "linux", "v1.0.0-openmp")
+
 	require.NoError(t, err)
 	assert.Equal(t, "linux-openmp", resource.Name)
+}
 
-	resource, err = GetResource([]res.Resource{{Name: `linux-default`, Platform: "linux", Archive: true, Plugins: []string{"plugins/test.so"}}}, "linux", "0.3.7")
+func TestGetResourceFallsBackToPlatformDefault(t *testing.T) {
+	t.Parallel()
+
+	resources := []res.Resource{
+		{Name: "linux-default", Platform: "linux", Archive: true, Plugins: []string{"plugins/test.so"}},
+	}
+
+	resource, err := GetResource(resources, "linux", "0.3.7")
+
 	require.NoError(t, err)
 	assert.Equal(t, "linux-default", resource.Name)
+}
 
-	_, err = GetResource([]res.Resource{{Name: `linux-default`, Platform: "linux"}}, "windows", "0.3.7")
-	require.Error(t, err)
+func TestGetResourceRejectsDifferentPlatform(t *testing.T) {
+	t.Parallel()
+
+	resources := []res.Resource{{Name: "linux-default", Platform: "linux"}}
+
+	_, err := GetResource(resources, "windows", "0.3.7")
+
+	var missing *PluginResourceNotFoundError
+	require.ErrorAs(t, err, &missing)
+}
+
+func TestGetResourcePathUsesTagOrLatest(t *testing.T) {
+	t.Parallel()
 
 	assert.Equal(t, filepath.Join("plugins", "streamer", "latest"), GetResourcePath(versioning.DependencyMeta{Repo: "streamer"}))
 	assert.Equal(t, filepath.Join("plugins", "streamer", "v1.0.0"), GetResourcePath(versioning.DependencyMeta{Repo: "streamer", Tag: "v1.0.0"}))
@@ -168,6 +192,7 @@ func TestEnsurePluginsRegistersEveryArchiveMatch(t *testing.T) {
 			}
 
 			err := EnsurePlugins(EnsurePluginsRequest{Context: t.Context(), Config: &cfg, CacheDir: cacheDir})
+
 			require.NoError(t, err)
 			plugins, directory := cfg.Plugins, "plugins"
 			if scheme == "component" {

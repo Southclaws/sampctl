@@ -21,9 +21,7 @@ func TestInstallDoesNotWriteDefaultRuntimeFields(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 
-	tmpDir, err := os.MkdirTemp("", "sampctl-install-test-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	minimalConfig := map[string]interface{}{
 		"entry":  "test.pwn",
@@ -46,7 +44,7 @@ func TestInstallDoesNotWriteDefaultRuntimeFields(t *testing.T) {
 	require.NoError(t, err)
 	pkg.LocalPath = tmpDir
 
-	assert.NotNil(t, pkg.Runtime)
+	require.NotNil(t, pkg.Runtime)
 	assert.Equal(t, "0.3.7", pkg.Runtime.Version)
 
 	pkg.Dependencies = append(pkg.Dependencies, "test-user/test-package:1.0.0")
@@ -64,29 +62,15 @@ func TestInstallDoesNotWriteDefaultRuntimeFields(t *testing.T) {
 	deps, ok := writtenConfig["dependencies"].([]interface{})
 	require.True(t, ok, "dependencies should be an array")
 	require.Len(t, deps, 1)
-	assert.Equal(t, "test-user/test-package:1.0.0", deps[0].(string))
+	assert.Equal(t, "test-user/test-package:1.0.0", deps[0])
 
 	runtime, ok := writtenConfig["runtime"].(map[string]interface{})
 	require.True(t, ok, "runtime should be a map")
-	assert.Equal(t, "0.3.7", runtime["version"].(string))
+	assert.Equal(t, "0.3.7", runtime["version"])
 
-	t.Logf("Runtime fields in written config: %v", runtime)
-
-	_, hasMode := runtime["mode"]
-	_, hasPort := runtime["port"]
-	_, hasRCON := runtime["rcon_password"]
-	_, hasHostname := runtime["hostname"]
-	_, hasMaxPlayers := runtime["maxplayers"]
-	_, hasLanguage := runtime["language"]
-	_, hasRootLink := runtime["rootLink"]
-
-	assert.False(t, hasMode, "mode should not be written to config (it's a default value)")
-	assert.False(t, hasPort, "port should not be written to config (it's a default value)")
-	assert.False(t, hasRCON, "rcon_password should not be written to config (it's a default value)")
-	assert.False(t, hasHostname, "hostname should not be written to config (it's a default value)")
-	assert.False(t, hasMaxPlayers, "maxplayers should not be written to config (it's a default value)")
-	assert.False(t, hasLanguage, "language should not be written to config (it's a default value)")
-	assert.False(t, hasRootLink, "rootLink should not be written to config (it's a default value)")
+	for _, field := range []string{"mode", "port", "rcon_password", "hostname", "maxplayers", "language", "rootLink"} {
+		assert.NotContains(t, runtime, field)
+	}
 }
 
 // TestPackageContextDoesNotApplyDefaultsToPackageRuntime verifies that
@@ -96,9 +80,7 @@ func TestPackageContextDoesNotApplyDefaultsToPackageRuntime(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 
-	tmpDir, err := os.MkdirTemp("", "sampctl-context-test-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	minimalConfig := map[string]interface{}{
 		"entry":  "test.pwn",
@@ -115,9 +97,7 @@ func TestPackageContextDoesNotApplyDefaultsToPackageRuntime(t *testing.T) {
 	err = os.WriteFile(configPath, configBytes, 0o644)
 	require.NoError(t, err)
 
-	cacheDir, err := os.MkdirTemp("", "sampctl-cache-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(cacheDir)
+	cacheDir := t.TempDir()
 
 	pcx, err := NewPackageContext(NewPackageContextOptions{
 		Parent:   true,
@@ -259,9 +239,7 @@ func TestActualRuntimeHasDefaults(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 
-	tmpDir, err := os.MkdirTemp("", "sampctl-actual-runtime-test-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	minimalConfig := map[string]interface{}{
 		"entry":  "test.pwn",
@@ -282,9 +260,7 @@ func TestActualRuntimeHasDefaults(t *testing.T) {
 	err = os.WriteFile(filepath.Join(tmpDir, "test.pwn"), []byte("main() {}"), 0o644)
 	require.NoError(t, err)
 
-	cacheDir, err := os.MkdirTemp("", "sampctl-cache-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(cacheDir)
+	cacheDir := t.TempDir()
 
 	pcx, err := NewPackageContext(NewPackageContextOptions{
 		Parent:   true,

@@ -1,42 +1,29 @@
-# Plugin resources (for plugin library authors)
+# Plugin resources
 
-This page is for **plugin library** maintainers: libraries that ship Pawn includes *and* server binaries (`.dll` / `.so`) via GitHub releases.
+Declare `resources` in `pawn.json` or `pawn.yaml` so sampctl can download
+your plugin binaries from GitHub releases.
 
-If you’re starting a new library repo (layout, tests, releases), see: [Library creator guide (includes + plugins)](library-creator-guide.md)
+For repository layout, tests, and release setup, see the
+[library creator guide](library-creator-guide.md).
 
-To make `sampctl` automatically download and install your binaries, declare `resources` in your `pawn.json` / `pawn.yaml`.
+## Resource selection
 
-## How `sampctl` selects a resource (important)
-
-When installing plugin binaries from a package:
-
-- `sampctl` selects **one** `resources[]` entry by matching:
-  - `platform` (must match the target runtime platform)
-  - `version` (must exactly match the runtime `version` string)
-- If there is no exact version match, it falls back to the first resource where:
-  - `platform` matches
-  - `version` is empty
-
-So:
-
-- Use `resources[].version` to ship different binaries for different runtimes.
-- `resources[].version` is compared as a **raw string** (no semver parsing).
+Sampctl uses the first entry that matches the target platform and the exact
+`runtime.version` string. If none matches, it uses the first entry for that
+platform with an empty `version`. An empty runtime version defaults to
+`0.3.7` for resource selection. The `runtime_type` field does not affect
+which resource is selected.
 
 ## Resource fields
 
-Each entry in `resources` is a Resource object:
-
 - `name` (string, required): a regular expression matching the GitHub release asset filename.
-- `platform` (`"windows"` or `"linux"`, required): target platform.
+- `platform` (string, required): target platform, such as `windows` or `linux`.
 - `version` (string, optional): runtime version string this resource belongs to.
 - `archive` (bool, optional): whether the asset is an archive (`.zip` or `.tar.gz`).
 - `includes` (string[], optional): directories inside the archive to extract (and treat as include roots).
 - `plugins` (string[], optional): plugin binaries inside the archive to extract.
-- `files` (map string->string, optional): extra files to extract from the archive, mapped to destinations relative to the runtime root.
-
-Related advanced field:
-
-- `extract_ignore_patterns` (string[], optional): patterns of files that should not be overwritten during extraction. This is meant for users so they can avoid overwriting their own config files.
+- `files` (map of strings, optional): archive paths mapped to destinations
+  relative to the extraction directory.
 
 ## Example: simple per-platform archives
 
@@ -71,13 +58,14 @@ Assume you publish both of these assets:
 - `my-plugin-1.2.3.zip` (SA:MP)
 - `my-plugin-1.2.3-omp.zip` (open.mp)
 
-You can model them as two resources per platform, distinguished by `name` and `version`.
+Use a separate resource for each runtime version. The SA:MP pattern below
+matches the plain version number, so it won't also match the `-omp` archive.
 
 ```json
 {
   "resources": [
     {
-      "name": "^my-plugin-(.*)\\.zip$",
+      "name": "^my-plugin-[0-9]+\\.[0-9]+\\.[0-9]+\\.zip$",
       "platform": "windows",
       "version": "0.3.7",
       "archive": true,
@@ -96,11 +84,8 @@ You can model them as two resources per platform, distinguished by `name` and `v
 }
 ```
 
-Notes:
-
-- Resource selection uses `runtime.version` and `platform`. `runtime_type` has no effect.
-- open.mp detection is based on the runtime `version` string containing `openmp` or `open.mp`.
-- The `plugins` paths refer to files inside the archive. `sampctl` extracts them into the correct runtime folder.
+`plugins` lists paths inside the archive. Use a `component://` dependency
+to install the open.mp binary into `components/`.
 
 ## Extra files example (`files`)
 
@@ -124,15 +109,14 @@ If your plugin needs extra DLLs/SOs:
 
 ## `extract_ignore_patterns`
 
-If you extract archives that contain files that might overwrite user files, set:
+To keep matching files that already exist when extracting dependency
+resources, set `extract_ignore_patterns` in the consuming project's manifest:
 
 ```json
 {
   "extract_ignore_patterns": ["server.cfg", "config.json"]
 }
 ```
-
-This will skip overwriting existing matching files during archive extraction.
 
 See also:
 

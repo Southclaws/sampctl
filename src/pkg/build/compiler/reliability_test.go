@@ -102,8 +102,15 @@ func TestCompilerIncompleteLegacyCacheRepairAndUnknownFiles(t *testing.T) {
 }
 
 func TestCompilerArchiveFailuresPreservePreviousInstallation(t *testing.T) {
-	for _, failure := range []string{"missing", "corrupt", "traversal"} {
-		t.Run(failure, func(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		files map[string]string
+	}{
+		{name: "missing compiler binary", files: map[string]string{"libpawnc.so": "lib"}},
+		{name: "corrupt archive"},
+		{name: "path traversal", files: map[string]string{"../escape": "no", "pawncc": "compiler", "libpawnc.so": "lib"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			request, pkg, _ := compilerReliabilityFixture(t)
 			_, err := GetCompilerPackage(context.Background(), request)
 			require.NoError(t, err)
@@ -111,16 +118,15 @@ func TestCompilerArchiveFailuresPreservePreviousInstallation(t *testing.T) {
 			require.NoError(t, err)
 
 			archive := filepath.Join(t.TempDir(), "broken.tgz")
-			switch failure {
-			case "missing":
-				createCompilerArchive(t, archive, pkg.Method, map[string]string{"libpawnc.so": "lib"})
-			case "corrupt":
+			if tc.files == nil {
 				require.NoError(t, os.WriteFile(archive, []byte("not an archive"), 0o600))
-			case "traversal":
-				createCompilerArchive(t, archive, pkg.Method, map[string]string{"../escape": "no", "pawncc": "compiler", "libpawnc.so": "lib"})
+			} else {
+				createCompilerArchive(t, archive, pkg.Method, tc.files)
 			}
 
-			require.Error(t, installCompilerArchive(context.Background(), archive, request.Dir, request.Meta, request.Platform, pkg))
+			err = installCompilerArchive(t.Context(), archive, request.Dir, request.Meta, request.Platform, pkg)
+
+			require.Error(t, err)
 			after, err := compilerTreeHash(context.Background(), request.Dir)
 			require.NoError(t, err)
 			require.Equal(t, before, after)
@@ -190,32 +196,38 @@ func TestCompilerConcurrentInstallationAndCancellation(t *testing.T) {
 }
 
 func TestCompilerCrashRecovery(t *testing.T) {
-	for _, point := range []string{"prepared", "backed-up", "promoted", "committed"} {
-		t.Run(point, func(t *testing.T) {
+	const previousCompiler = "#!/bin/sh\nexit 0\n"
+	for _, tc := range []struct {
+		point        string
+		committed    bool
+		wantCompiler string
+	}{
+		{point: "prepared", wantCompiler: previousCompiler},
+		{point: "backed-up", wantCompiler: previousCompiler},
+		{point: "promoted", wantCompiler: previousCompiler},
+		{point: "committed", committed: true, wantCompiler: "new compiler"},
+	} {
+		t.Run(tc.point, func(t *testing.T) {
 			request, pkg, _ := compilerReliabilityFixture(t)
 			_, err := GetCompilerPackage(context.Background(), request)
 			require.NoError(t, err)
 
 			archive := filepath.Join(t.TempDir(), "replacement.tgz")
 			createCompilerArchive(t, archive, pkg.Method, map[string]string{"pawncc": "new compiler", "libpawnc.so": "new library"})
-			crashCompilerInstaller(t, request, pkg, archive, point)
+			crashCompilerInstaller(t, request, pkg, archive, tc.point)
 
 			status, err := InspectManagedCompiler(context.Background(), request)
 			require.NoError(t, err)
 			require.True(t, status.Pending)
 			require.True(t, status.CanRepair)
-			require.Equal(t, point == "committed", status.Committed)
+			require.Equal(t, tc.committed, status.Committed)
 
 			require.NoError(t, recoverCompilerInstallation(context.Background(), request.Dir))
 			require.NoError(t, recoverCompilerInstallation(context.Background(), request.Dir))
 
 			contents, err := os.ReadFile(filepath.Join(request.Dir, "pawncc"))
 			require.NoError(t, err)
-			want := "#!/bin/sh\nexit 0\n"
-			if point == "committed" {
-				want = "new compiler"
-			}
-			require.Equal(t, want, string(contents))
+			require.Equal(t, tc.wantCompiler, string(contents))
 			require.NoError(t, verifyCompilerInstallation(context.Background(), request.Dir, request.Meta, request.Platform, pkg))
 		})
 	}

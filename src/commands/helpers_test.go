@@ -56,13 +56,20 @@ func TestGetCommandConfig(t *testing.T) {
 	assert.Equal(t, "tester", got.DefaultUser)
 }
 
-func TestGetCommandEnv(t *testing.T) {
+func useTestConfigHome(t *testing.T) string {
+	t.Helper()
+
 	t.Cleanup(configdir.Refresh)
 	configHome := t.TempDir()
 	t.Setenv("HOME", configHome)
 	t.Setenv("XDG_CONFIG_HOME", configHome)
 	t.Setenv("APPDATA", configHome)
 	configdir.Refresh()
+	return configHome
+}
+
+func TestGetCommandEnv(t *testing.T) {
+	configHome := useTestConfigHome(t)
 
 	cacheDir := fs.ConfigDirPath()
 	if rel, err := filepath.Rel(configHome, cacheDir); err != nil || !filepath.IsLocal(rel) {

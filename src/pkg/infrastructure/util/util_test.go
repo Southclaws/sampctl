@@ -2,42 +2,23 @@ package util
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestMain(m *testing.M) {
-	_ = os.MkdirAll("./tests", 0o700)
+func TestCopyFileCreatesDestination(t *testing.T) {
+	t.Parallel()
 
-	f, _ := os.Create("./tests/file")
-	f.Close() // nolint
+	directory := t.TempDir()
+	source := filepath.Join(directory, "source")
+	destination := filepath.Join(directory, "destination")
+	require.NoError(t, os.WriteFile(source, nil, 0o600))
 
-	os.Exit(m.Run())
-}
+	err := CopyFile(source, destination)
 
-func TestCopyFile(t *testing.T) {
-	type args struct {
-		src string
-		dst string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		{"valid", args{"./tests/file", "./tests/file2"}, false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := CopyFile(tt.args.src, tt.args.dst)
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.True(t, Exists(tt.args.dst))
-			}
-		})
-	}
+	require.NoError(t, err)
+	assert.True(t, Exists(destination))
 }

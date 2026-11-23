@@ -1,159 +1,92 @@
 package pawnpackage_test
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 
-	"github.com/go-git/go-git/v5/plumbing/transport"
-	"github.com/google/go-github/github"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/Southclaws/sampctl/src/pkg/build"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/fs"
-	"github.com/Southclaws/sampctl/src/pkg/infrastructure/print"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 )
 
-var (
-	gh      *github.Client
-	gitAuth transport.AuthMethod
-)
-
-func TestMain(m *testing.M) {
-	err := os.MkdirAll("./tests/cache", 0o700)
-	if err != nil {
-		panic(err)
+func TestPackageBuildWithDependencies(t *testing.T) {
+	stdlib := []versioning.DependencyMeta{
+		{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
+		{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib"},
 	}
-
-	print.SetVerbose()
-
-	os.Exit(m.Run())
-}
-
-func TestPackage_Build(t *testing.T) {
-	type args struct {
-		pkg          pawnpackage.Package
-		build        string
-		ensure       bool
-		dependencies []versioning.DependencyMeta
-	}
-	tests := []struct {
+	for _, tc := range []struct {
 		name         string
-		sourceCode   []byte
-		args         args
-		wantProblems build.Problems
-		wantErr      bool
+		source       string
+		builds       []*build.Config
+		dependencies []versioning.DependencyMeta
 	}{
 		{
-			"bare", []byte(`main(){}`), args{
-				pawnpackage.Package{
-					Parent:    true,
-					LocalPath: fs.MustAbs("./tests/build-auto-bare"),
-					User:      "test", Repo: "bare",
-					Entry:  "gamemodes/test.pwn",
-					Output: "gamemodes/test.amx",
-					Builds: []*build.Config{
-						{Name: "build", Version: "3.10.10"},
-					},
-				},
-				"build", true,
-				[]versioning.DependencyMeta{},
-			}, nil, false,
+			name: "no dependencies", source: "main(){}",
+			builds: []*build.Config{{Name: "build", Version: "3.10.10"}},
 		},
 		{
-			"stdlib", []byte(`#include <a_samp>
+			name: "standard library",
+			source: `#include <a_samp>
 			main() {print("hi");}`,
-			), args{
-				pawnpackage.Package{
-					Parent:    true,
-					LocalPath: fs.MustAbs("./tests/build-auto-stdlib"),
-					User:      "test", Repo: "stdlib",
-					Entry:  "gamemodes/test.pwn",
-					Output: "gamemodes/test.amx",
-					Builds: []*build.Config{
-						{Name: "build", Version: "3.10.10"},
-					},
-				},
-				"build", true,
-				[]versioning.DependencyMeta{
-					{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
-					{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib"},
-				},
-			}, nil, false,
+			builds:       []*build.Config{{Name: "build", Version: "3.10.10"}},
+			dependencies: stdlib,
 		},
 		{
-			"uuid", []byte(`#include <a_samp>
+			name: "standard library and UUID",
+			source: `#include <a_samp>
 			#include <uuid>
 			main() {}`,
-			), args{
-				pawnpackage.Package{
-					Parent:    true,
-					LocalPath: fs.MustAbs("./tests/build-auto-requests"),
-					User:      "test", Repo: "requests",
-					Entry:  "gamemodes/test.pwn",
-					Output: "gamemodes/test.amx",
-				},
-				"build", true,
-				[]versioning.DependencyMeta{
-					{Site: "github.com", User: "pawn-lang", Repo: "samp-stdlib"},
-					{Site: "github.com", User: "pawn-lang", Repo: "pawn-stdlib"},
-					{Site: "github.com", User: "Southclaws", Repo: "pawn-uuid"},
-				},
-			}, nil, false,
+			dependencies: append([]versioning.DependencyMeta{
+				stdlib[0], stdlib[1],
+			}, versioning.DependencyMeta{Site: "github.com", User: "Southclaws", Repo: "pawn-uuid"}),
 		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cacheDir := seedPawnPackageFixtureCache(t)
-			pcxWorkspace := t.TempDir()
-			pcxVendor := filepath.Join(pcxWorkspace, "dependencies")
-			compilerDir := newPackageTestCompilerDir(t)
-
-			err := os.MkdirAll(filepath.Join(pcxWorkspace, "gamemodes"), 0o700)
-			if err != nil {
-				t.Fatalf("create gamemodes dir: %v", err)
-			}
-
-			err = os.WriteFile(filepath.Join(pcxWorkspace, tt.args.pkg.Entry), tt.sourceCode, 0o700)
-			if err != nil {
-				t.Fatalf("write source file: %v", err)
-			}
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			entry := filepath.Join("gamemodes", "test.pwn")
+			source := filepath.Join(root, entry)
+			require.NoError(t, os.MkdirAll(filepath.Dir(source), 0o700))
+			require.NoError(t, os.WriteFile(source, []byte(tc.source), 0o700))
 
 			pcx := pkgcontext.PackageContext{
-				Package: tt.args.pkg,
+				Package: pawnpackage.Package{
+					LocalPath: root,
+					Vendor:    filepath.Join(root, "dependencies"),
+					Entry:     entry,
+					Output:    filepath.Join("gamemodes", "test.amx"),
+					Build:     &build.Config{Compiler: build.CompilerConfig{Path: newPackageTestCompilerDir(t)}},
+					Builds:    tc.builds,
+				},
 				PackageServices: pkgcontext.PackageServices{
-					CacheDir: cacheDir,
-					GitHub:   gh,
-					GitAuth:  gitAuth,
+					CacheDir: seedPawnPackageFixtureCache(t),
 					Platform: runtime.GOOS,
 				},
-				PackageResolvedState: pkgcontext.PackageResolvedState{AllDependencies: tt.args.dependencies},
+				PackageResolvedState: pkgcontext.PackageResolvedState{AllDependencies: tc.dependencies},
 			}
-
-			pcx.Package.Parent = false
-			pcx.Package.LocalPath = pcxWorkspace
-			pcx.Package.Vendor = pcxVendor
 			pcx.Package.SetDependencyMeta(versioning.DependencyMeta{User: "local", Repo: "local"})
-			pcx.Package.Build = &build.Config{Compiler: build.CompilerConfig{Path: compilerDir}}
 
-			gotProblems, _, err := pcx.Build(context.Background(), pkgcontext.BuildOptions{
-				Name:   tt.args.build,
-				Ensure: tt.args.ensure,
-			})
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
-			}
+			problems, _, err := pcx.Build(t.Context(), pkgcontext.BuildOptions{Name: "build", Ensure: true})
 
-			assert.NoError(t, err)
-
-			assert.Equal(t, tt.wantProblems, gotProblems)
+			require.NoError(t, err)
+			assert.Equal(t, build.Problems(nil), problems)
 		})
 	}
+}
+
+func TestPackageStringIncludesDependencyVersion(t *testing.T) {
+	pkg := pawnpackage.Package{}
+	pkg.SetDependencyMeta(versioning.DependencyMeta{
+		Site: "github.com",
+		User: "pawn-lang",
+		Repo: "samp-stdlib",
+		Tag:  "0.3.7-R2-2-1",
+	})
+
+	assert.Equal(t, "github.com/pawn-lang/samp-stdlib:0.3.7-R2-2-1", pkg.String())
 }

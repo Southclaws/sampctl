@@ -17,7 +17,22 @@ import (
 const dependencyRecoveryCrashExit = 83
 
 func TestDependencyRecoveryAfterProcessExit(t *testing.T) {
-	for _, boundary := range []string{"before staging", "during staging", "after staging", "after backup", "after promotion", "after manifest", "after lockfile", "during rollback", "after rollback restore", "during committed cleanup"} {
+	for _, tc := range []struct {
+		boundary  string
+		committed bool
+	}{
+		{boundary: "before staging"},
+		{boundary: "during staging"},
+		{boundary: "after staging"},
+		{boundary: "after backup"},
+		{boundary: "after promotion"},
+		{boundary: "after manifest"},
+		{boundary: "after lockfile"},
+		{boundary: "during rollback"},
+		{boundary: "after rollback restore"},
+		{boundary: "during committed cleanup", committed: true},
+	} {
+		boundary := tc.boundary
 		t.Run(boundary, func(t *testing.T) {
 			project := t.TempDir()
 			pkg := pawnpackage.Package{
@@ -41,17 +56,9 @@ func TestDependencyRecoveryAfterProcessExit(t *testing.T) {
 			manifestBefore := readCrashRecoveryFile(t, filepath.Join(project, "pawn.json"))
 			lockBefore := readCrashRecoveryFile(t, filepath.Join(project, lockfile.Filename))
 
-			command := exec.Command(os.Args[0], "-test.run=^TestDependencyRecoveryCrashHelper$")
-			command.Dir = t.TempDir()
-			command.Env = append(os.Environ(), "SAMPCTL_RECOVERY_CRASH_PROJECT="+project, "SAMPCTL_RECOVERY_CRASH_BOUNDARY="+boundary)
+			crashDependencyOperation(t, project, boundary)
 
-			output, err := command.CombinedOutput()
-			var exitErr *exec.ExitError
-			if !errors.As(err, &exitErr) || exitErr.ExitCode() != dependencyRecoveryCrashExit {
-				t.Fatalf("crash helper at %q: exit = %v, want %d; output:\n%s", boundary, err, dependencyRecoveryCrashExit, output)
-			}
-
-			if _, err := os.Lstat(filepath.Join(project, ".sampctl-dependencies.json")); err != nil {
+			if _, err := os.Lstat(filepath.Join(project, DependencyRecoveryFilename)); err != nil {
 				t.Fatalf("crash at %q left no recovery metadata: %v", boundary, err)
 			}
 
@@ -63,7 +70,7 @@ func TestDependencyRecoveryAfterProcessExit(t *testing.T) {
 			if err != nil {
 				t.Fatalf("inspect crash at %q: %v", boundary, err)
 			}
-			if !status.Pending || !status.CanRecover || status.Active || status.Committed != (boundary == "during committed cleanup") {
+			if !status.Pending || !status.CanRecover || status.Active || status.Committed != tc.committed {
 				t.Errorf("inspection at %q = %+v, want recoverable inactive operation with matching commit state", boundary, status)
 			}
 
@@ -78,7 +85,7 @@ func TestDependencyRecoveryAfterProcessExit(t *testing.T) {
 			}
 
 			wantDependency := "previous"
-			if boundary == "during committed cleanup" {
+			if tc.committed {
 				wantDependency = "replacement"
 				manifest := readCrashRecoveryFile(t, filepath.Join(project, "pawn.json"))
 				if bytes.Equal(manifest, manifestBefore) {
@@ -104,7 +111,7 @@ func TestDependencyRecoveryAfterProcessExit(t *testing.T) {
 				t.Errorf("dependency after recovery at %q = %q, want %q", boundary, got, wantDependency)
 			}
 
-			if _, err := os.Lstat(filepath.Join(project, ".sampctl-dependencies.json")); !errors.Is(err, os.ErrNotExist) {
+			if _, err := os.Lstat(filepath.Join(project, DependencyRecoveryFilename)); !errors.Is(err, os.ErrNotExist) {
 				t.Errorf("completed recovery at %q retained metadata: %v", boundary, err)
 			}
 
@@ -112,6 +119,20 @@ func TestDependencyRecoveryAfterProcessExit(t *testing.T) {
 				t.Errorf("repeated recovery at %q: %v", boundary, err)
 			}
 		})
+	}
+}
+
+func crashDependencyOperation(t *testing.T, project, boundary string) {
+	t.Helper()
+
+	command := exec.Command(os.Args[0], "-test.run=^TestDependencyRecoveryCrashHelper$")
+	command.Dir = t.TempDir()
+	command.Env = append(os.Environ(), "SAMPCTL_RECOVERY_CRASH_PROJECT="+project, "SAMPCTL_RECOVERY_CRASH_BOUNDARY="+boundary)
+
+	output, err := command.CombinedOutput()
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != dependencyRecoveryCrashExit {
+		t.Fatalf("crash helper at %q: exit = %v, want %d; output:\n%s", boundary, err, dependencyRecoveryCrashExit, output)
 	}
 }
 

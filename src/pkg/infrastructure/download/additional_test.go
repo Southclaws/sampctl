@@ -352,117 +352,104 @@ func TestReleaseAssetByPattern(t *testing.T) {
 	assert.Equal(t, []byte("asset-body"), data)
 }
 
-func TestReleaseAssetAndReleaseLookupErrors(t *testing.T) {
-	t.Run("download release asset branches", func(t *testing.T) {
-		meta := versioning.DependencyMeta{User: "u", Repo: "r"}
+func TestDownloadReleaseAssetRejectsIncompleteResponses(t *testing.T) {
+	asset := &github.ReleaseAsset{ID: github.Int64(1), Name: github.String("asset.zip")}
+	for _, tc := range []struct {
+		name         string
+		client       GitHubReleasesAPI
+		asset        *github.ReleaseAsset
+		errorMessage string
+	}{
+		{name: "missing asset"},
+		{name: "download error", client: &fakeReleasesAPI{downloadErr: errors.New("boom")}, asset: asset},
+		{name: "empty body", client: &fakeReleasesAPI{}, asset: asset, errorMessage: "empty response body"},
+		{
+			name: "missing download URL", asset: &github.ReleaseAsset{Name: github.String("asset.zip")},
+			errorMessage: "no download URL",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			request := ReleaseAssetDownloadRequest{
+				Context: t.Context(), Client: tc.client, Asset: tc.asset,
+				Meta:        versioning.DependencyMeta{User: "u", Repo: "r"},
+				Destination: filepath.Join(t.TempDir(), "out.bin"),
+			}
 
-		_, err := downloadReleaseAsset(ReleaseAssetDownloadRequest{
-			Context:     context.Background(),
-			Client:      nil,
-			Meta:        meta,
-			Asset:       nil,
-			Destination: filepath.Join(t.TempDir(), "out.bin"),
-		})
-		require.Error(t, err)
+			_, err := downloadReleaseAsset(request)
 
-		api := &fakeReleasesAPI{downloadErr: errors.New("boom")}
-		asset := &github.ReleaseAsset{ID: github.Int64(1), Name: github.String("asset.zip")}
-		_, err = downloadReleaseAsset(ReleaseAssetDownloadRequest{
-			Context:     context.Background(),
-			Client:      api,
-			Meta:        meta,
-			Asset:       asset,
-			Destination: filepath.Join(t.TempDir(), "out.bin"),
+			require.Error(t, err)
+			if tc.errorMessage != "" {
+				assert.ErrorContains(t, err, tc.errorMessage)
+			}
 		})
-		require.Error(t, err)
+	}
+}
 
-		api = &fakeReleasesAPI{}
-		_, err = downloadReleaseAsset(ReleaseAssetDownloadRequest{
-			Context:     context.Background(),
-			Client:      api,
-			Meta:        meta,
-			Asset:       asset,
-			Destination: filepath.Join(t.TempDir(), "out.bin"),
-		})
-		require.ErrorContains(t, err, "empty response body")
+func TestDownloadReleaseAssetFollowsRedirect(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		_, _ = w.Write([]byte("redirected"))
+	}))
+	defer server.Close()
 
-		asset = &github.ReleaseAsset{Name: github.String("asset.zip")}
-		_, err = downloadReleaseAsset(ReleaseAssetDownloadRequest{
-			Context:     context.Background(),
-			Client:      nil,
-			Meta:        meta,
-			Asset:       asset,
-			Destination: filepath.Join(t.TempDir(), "out.bin"),
-		})
-		require.ErrorContains(t, err, "no download URL")
+	oldFactory := fromNetClientFactory
+	defer func() { fromNetClientFactory = oldFactory }()
+	fromNetClientFactory = func() *http.Client { return server.Client() }
+
+	api := &fakeReleasesAPI{downloadRedirectURL: server.URL}
+	asset := &github.ReleaseAsset{ID: github.Int64(1), Name: github.String("asset.zip")}
+	out := filepath.Join(t.TempDir(), "out.bin")
+	got, err := downloadReleaseAsset(ReleaseAssetDownloadRequest{
+		Context:     t.Context(),
+		Client:      api,
+		Meta:        versioning.DependencyMeta{User: "u", Repo: "r"},
+		Asset:       asset,
+		Destination: out,
 	})
+	require.NoError(t, err)
+	assert.Equal(t, out, got)
 
-	t.Run("redirect download path", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/octet-stream")
-			_, _ = w.Write([]byte("redirected"))
-		}))
-		defer server.Close()
+	data, readErr := os.ReadFile(out)
+	require.NoError(t, readErr)
+	assert.Equal(t, "redirected", string(data))
+}
 
-		oldFactory := fromNetClientFactory
-		defer func() { fromNetClientFactory = oldFactory }()
-		fromNetClientFactory = func() *http.Client { return server.Client() }
+func TestLatestReleaseLookupReportsFailures(t *testing.T) {
+	_, err := getLatestReleaseOrPreRelease(t.Context(), errorReleasesAPI{}, "u", "r")
+	require.Error(t, err)
 
-		api := &fakeReleasesAPI{downloadRedirectURL: server.URL}
-		asset := &github.ReleaseAsset{ID: github.Int64(1), Name: github.String("asset.zip")}
-		out := filepath.Join(t.TempDir(), "out.bin")
-		got, err := downloadReleaseAsset(ReleaseAssetDownloadRequest{
-			Context:     context.Background(),
-			Client:      api,
-			Meta:        versioning.DependencyMeta{User: "u", Repo: "r"},
-			Asset:       asset,
-			Destination: out,
-		})
-		require.NoError(t, err)
-		assert.Equal(t, out, got)
+	_, err = getLatestReleaseOrPreRelease(t.Context(), &fakeReleasesAPI{}, "u", "r")
+	require.ErrorContains(t, err, "no releases available")
+}
 
-		data, readErr := os.ReadFile(out)
-		require.NoError(t, readErr)
-		assert.Equal(t, "redirected", string(data))
+func TestReleaseAssetUsesOutputBasename(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		_, _ = w.Write([]byte("custom-name"))
+	}))
+	defer server.Close()
+
+	oldFactory := fromNetClientFactory
+	defer func() { fromNetClientFactory = oldFactory }()
+	fromNetClientFactory = func() *http.Client { return server.Client() }
+
+	assetURL := server.URL + "/asset.zip"
+	fake := &fakeReleasesAPI{releases: []*github.RepositoryRelease{{
+		TagName: github.String("v1.0.0"),
+		Assets:  []github.ReleaseAsset{{Name: github.String("asset.zip"), BrowserDownloadURL: &assetURL}},
+	}}}
+
+	file, _, err := ReleaseAssetByPatternWithAPI(ReleaseAssetAPIRequest{
+		Context:    t.Context(),
+		Client:     fake,
+		Meta:       versioning.DependencyMeta{User: "u", Repo: "r"},
+		Matcher:    regexp.MustCompile(`asset`),
+		Dir:        "",
+		OutputFile: "nested/custom.bin",
+		CacheDir:   t.TempDir(),
 	})
-
-	t.Run("latest release lookup errors", func(t *testing.T) {
-		_, err := getLatestReleaseOrPreRelease(context.Background(), errorReleasesAPI{}, "u", "r")
-		require.Error(t, err)
-
-		_, err = getLatestReleaseOrPreRelease(context.Background(), &fakeReleasesAPI{}, "u", "r")
-		require.ErrorContains(t, err, "no releases available")
-	})
-
-	t.Run("release asset wrapper uses basename output file", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/octet-stream")
-			_, _ = w.Write([]byte("custom-name"))
-		}))
-		defer server.Close()
-
-		oldFactory := fromNetClientFactory
-		defer func() { fromNetClientFactory = oldFactory }()
-		fromNetClientFactory = func() *http.Client { return server.Client() }
-
-		assetURL := server.URL + "/asset.zip"
-		fake := &fakeReleasesAPI{releases: []*github.RepositoryRelease{{
-			TagName: github.String("v1.0.0"),
-			Assets:  []github.ReleaseAsset{{Name: github.String("asset.zip"), BrowserDownloadURL: &assetURL}},
-		}}}
-
-		file, _, err := ReleaseAssetByPatternWithAPI(ReleaseAssetAPIRequest{
-			Context:    context.Background(),
-			Client:     fake,
-			Meta:       versioning.DependencyMeta{User: "u", Repo: "r"},
-			Matcher:    regexp.MustCompile(`asset`),
-			Dir:        "",
-			OutputFile: "nested/custom.bin",
-			CacheDir:   t.TempDir(),
-		})
-		require.NoError(t, err)
-		assert.Equal(t, "custom.bin", filepath.Base(file))
-	})
+	require.NoError(t, err)
+	assert.Equal(t, "custom.bin", filepath.Base(file))
 }
 
 type errorReleasesAPI struct{}

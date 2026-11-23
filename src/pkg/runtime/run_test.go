@@ -3,10 +3,10 @@ package runtime
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -117,33 +117,15 @@ func TestReadBinaryOutput(t *testing.T) {
 	t.Run("main only skips preamble and exits on end line", func(t *testing.T) {
 		t.Parallel()
 
-		reader, writer := io.Pipe()
-		termCh := make(chan termination, 1)
-		streamCh := make(chan string, 8)
-		done := readBinaryOutput(outputReaderRequest{
-			Context:      context.Background(),
-			RunType:      run.MainOnly,
-			OutputReader: reader,
-			TermCh:       termCh,
-			StreamCh:     streamCh,
-		})
+		lines, term := captureRuntimeOutput(t, run.MainOnly,
+			"Loaded 1 filterscripts.",
+			"",
+			"hello world",
+			"Number of vehicle models: 212",
+		)
 
-		go func() {
-			defer writer.Close()
-			_, _ = fmt.Fprintln(writer, "Loaded 1 filterscripts.")
-			_, _ = fmt.Fprintln(writer)
-			_, _ = fmt.Fprintln(writer, "hello world")
-			_, _ = fmt.Fprintln(writer, "Number of vehicle models: 212")
-		}()
-
-		var lines []string
-		for line := range streamCh {
-			lines = append(lines, line)
-		}
-		<-done
-
-		term := <-termCh
 		assert.Equal(t, []string{"hello world"}, lines)
+		require.NotNil(t, term)
 		assert.True(t, term.exit)
 		assert.NoError(t, term.err)
 	})
@@ -151,67 +133,63 @@ func TestReadBinaryOutput(t *testing.T) {
 	t.Run("testing mode returns failure termination", func(t *testing.T) {
 		t.Parallel()
 
-		reader, writer := io.Pipe()
-		termCh := make(chan termination, 1)
-		streamCh := make(chan string, 4)
-		done := readBinaryOutput(outputReaderRequest{
-			Context:      context.Background(),
-			RunType:      run.YTesting,
-			OutputReader: reader,
-			TermCh:       termCh,
-			StreamCh:     streamCh,
-		})
+		_, term := captureRuntimeOutput(t, run.YTesting,
+			"Loaded 1 filterscripts.",
+			"",
+			"*** Tests: 4, Fails: 1",
+		)
 
-		go func() {
-			defer writer.Close()
-			_, _ = fmt.Fprintln(writer, "Loaded 1 filterscripts.")
-			_, _ = fmt.Fprintln(writer)
-			_, _ = fmt.Fprintln(writer, "*** Tests: 4, Fails: 1")
-		}()
-
-		for range streamCh {
-		}
-		<-done
-
-		term := <-termCh
-		require.Error(t, term.err)
+		require.NotNil(t, term)
 		assert.EqualError(t, term.err, "tests failed")
 		assert.True(t, term.exit)
 	})
 
-	t.Run("default mode emits lines until EOF", func(t *testing.T) {
+	t.Run("server mode emits lines until EOF", func(t *testing.T) {
 		t.Parallel()
 
-		reader, writer := io.Pipe()
-		termCh := make(chan termination, 1)
-		streamCh := make(chan string, 4)
-		done := readBinaryOutput(outputReaderRequest{
-			Context:      context.Background(),
-			RunType:      run.Server,
-			OutputReader: reader,
-			TermCh:       termCh,
-			StreamCh:     streamCh,
-		})
-
-		go func() {
-			defer writer.Close()
-			_, _ = fmt.Fprintln(writer, "first")
-			_, _ = fmt.Fprintln(writer, "second")
-		}()
-
-		var lines []string
-		for line := range streamCh {
-			lines = append(lines, line)
-		}
-		<-done
+		lines, term := captureRuntimeOutput(t, run.Server, "first", "second")
 
 		assert.Equal(t, []string{"first", "second"}, lines)
-		select {
-		case term := <-termCh:
-			t.Fatalf("unexpected termination: %+v", term)
-		default:
-		}
+		assert.Nil(t, term)
 	})
+}
+
+func captureRuntimeOutput(t *testing.T, mode run.RunMode, input ...string) ([]string, *termination) {
+	t.Helper()
+
+	reader, writer := io.Pipe()
+	termCh := make(chan termination, 1)
+	streamCh := make(chan string, len(input))
+	done := readBinaryOutput(outputReaderRequest{
+		Context:      t.Context(),
+		RunType:      mode,
+		OutputReader: reader,
+		TermCh:       termCh,
+		StreamCh:     streamCh,
+	})
+	wrote := make(chan error, 1)
+	go func() {
+		_, err := io.WriteString(writer, strings.Join(input, "\n")+"\n")
+		if closeErr := writer.Close(); err == nil {
+			err = closeErr
+		}
+		wrote <- err
+	}()
+
+	var lines []string
+	for line := range streamCh {
+		lines = append(lines, line)
+	}
+	<-done
+	require.NoError(t, reader.Close())
+	require.NoError(t, <-wrote)
+
+	select {
+	case term := <-termCh:
+		return lines, &term
+	default:
+		return lines, nil
+	}
 }
 
 func TestProcessOutputLine(t *testing.T) {

@@ -1,6 +1,6 @@
 # sampctl documentation
 
-This documentation is for people using `sampctl` to manage SA:MP servers and Pawn projects.
+Use sampctl to build Pawn projects and run SA:MP or open.mp servers.
 
 ## Start here
 
@@ -18,8 +18,8 @@ This documentation is for people using `sampctl` to manage SA:MP servers and Paw
 - [Dependencies and version pinning](dependencies.md)
 - [Migrating from SA:MP to open.mp](migrating-samp-to-openmp.md)
 - [Dependency schemes (plugins, components, includes)](dependency-schemes.md)
-- [Library creator guide (includes + plugins)](library-creator-guide.md)
-- [Plugin resources (for plugin library authors)](plugin-resources.md)
+- [Create a Pawn library](library-creator-guide.md)
+- [Package plugin binaries](plugin-resources.md)
 - [Testing (watch mode, runtime modes)](testing.md)
 - [Containers (Docker)](containers.md)
 - [Continuous integration (CI)](ci.md)

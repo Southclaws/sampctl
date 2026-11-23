@@ -27,25 +27,28 @@ func TestLoadConfigDoesNotCreateDefaults(t *testing.T) {
 func TestLoadConfigPreservesExistingFiles(t *testing.T) {
 	t.Parallel()
 
-	for _, name := range []string{"config.json", "config.yaml"} {
-		t.Run(name, func(t *testing.T) {
+	for _, tc := range []struct {
+		filename string
+		contents string
+	}{
+		{filename: "config.json", contents: `{"default_user":"fixture-user"}`},
+		{filename: "config.yaml", contents: "defaultuser: fixture-user\n"},
+	} {
+		t.Run(tc.filename, func(t *testing.T) {
 			cacheDir := t.TempDir()
-			contents := []byte(`{"default_user":"fixture-user"}`)
-			if name == "config.yaml" {
-				contents = []byte("defaultuser: fixture-user\n")
-			}
-			path := filepath.Join(cacheDir, name)
-			require.NoError(t, os.WriteFile(path, contents, 0o600))
+			path := filepath.Join(cacheDir, tc.filename)
+			require.NoError(t, os.WriteFile(path, []byte(tc.contents), 0o600))
 			before, err := os.Stat(path)
 			require.NoError(t, err)
 
 			cfg, err := LoadConfig(cacheDir)
+
 			require.NoError(t, err)
 			assert.Equal(t, "fixture-user", cfg.DefaultUser)
 
 			got, err := os.ReadFile(path)
 			require.NoError(t, err)
-			assert.Equal(t, contents, got)
+			assert.Equal(t, tc.contents, string(got))
 
 			after, err := os.Stat(path)
 			require.NoError(t, err)

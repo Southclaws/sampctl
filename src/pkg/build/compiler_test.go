@@ -6,10 +6,6 @@ import (
 )
 
 func TestCompilerOptions_ToArgs(t *testing.T) {
-	boolPtr := func(b bool) *bool { return &b }
-	intPtr := func(i int) *int { return &i }
-	strPtr := func(s string) *string { return &s }
-
 	tests := []struct {
 		name string
 		opts *CompilerOptions
@@ -28,87 +24,87 @@ func TestCompilerOptions_ToArgs(t *testing.T) {
 		{
 			name: "default SA:MP options",
 			opts: &CompilerOptions{
-				DebugLevel:             intPtr(3),
-				RequireSemicolons:      boolPtr(true),
-				RequireParentheses:     boolPtr(true),
-				RequireEscapeSequences: boolPtr(true),
-				CompatibilityMode:      boolPtr(true),
+				DebugLevel:             new(3),
+				RequireSemicolons:      new(true),
+				RequireParentheses:     new(true),
+				RequireEscapeSequences: new(true),
+				CompatibilityMode:      new(true),
 			},
 			want: []string{"-d3", "-;+", "-(+", "-\\+", "-Z+"},
 		},
 		{
 			name: "relaxed options",
 			opts: &CompilerOptions{
-				DebugLevel:             intPtr(0),
-				RequireSemicolons:      boolPtr(false),
-				RequireParentheses:     boolPtr(false),
-				RequireEscapeSequences: boolPtr(false),
-				CompatibilityMode:      boolPtr(false),
+				DebugLevel:             new(0),
+				RequireSemicolons:      new(false),
+				RequireParentheses:     new(false),
+				RequireEscapeSequences: new(false),
+				CompatibilityMode:      new(false),
 			},
 			want: []string{"-d0", "-;-", "-(-", "-\\-", "-Z-"},
 		},
 		{
 			name: "with optimization",
 			opts: &CompilerOptions{
-				DebugLevel:        intPtr(3),
-				OptimizationLevel: intPtr(2),
+				DebugLevel:        new(3),
+				OptimizationLevel: new(2),
 			},
 			want: []string{"-d3", "-O2"},
 		},
 		{
 			name: "with listing and assembly",
 			opts: &CompilerOptions{
-				ShowListing:           boolPtr(true),
-				ShowAnnotatedAssembly: boolPtr(true),
+				ShowListing:           new(true),
+				ShowAnnotatedAssembly: new(true),
 			},
 			want: []string{"-l", "-a"},
 		},
 		{
 			name: "with error file",
 			opts: &CompilerOptions{
-				ShowErrorFile: strPtr("errors.txt"),
+				ShowErrorFile: new("errors.txt"),
 			},
 			want: []string{"-eerrors.txt"},
 		},
 		{
-			name: "with warnings control",
+			name: "enable warnings",
 			opts: &CompilerOptions{
-				ShowWarnings: boolPtr(true),
+				ShowWarnings: new(true),
 			},
 			want: []string{"-w+"},
 		},
 		{
 			name: "disable warnings",
 			opts: &CompilerOptions{
-				ShowWarnings: boolPtr(false),
+				ShowWarnings: new(false),
 			},
 			want: []string{"-w-"},
 		},
 		{
 			name: "with compact encoding",
 			opts: &CompilerOptions{
-				CompactEncoding: boolPtr(true),
+				CompactEncoding: new(true),
 			},
 			want: []string{"-C+"},
 		},
 		{
 			name: "with tab size",
 			opts: &CompilerOptions{
-				TabSize: intPtr(4),
+				TabSize: new(4),
 			},
 			want: []string{"-t4"},
 		},
 		{
-			name: "complex combination",
+			name: "combined options preserve argument order",
 			opts: &CompilerOptions{
-				DebugLevel:             intPtr(2),
-				RequireSemicolons:      boolPtr(true),
-				RequireParentheses:     boolPtr(true),
-				RequireEscapeSequences: boolPtr(true),
-				CompatibilityMode:      boolPtr(true),
-				OptimizationLevel:      intPtr(1),
-				ShowWarnings:           boolPtr(true),
-				TabSize:                intPtr(4),
+				DebugLevel:             new(2),
+				RequireSemicolons:      new(true),
+				RequireParentheses:     new(true),
+				RequireEscapeSequences: new(true),
+				CompatibilityMode:      new(true),
+				OptimizationLevel:      new(1),
+				ShowWarnings:           new(true),
+				TabSize:                new(4),
 			},
 			want: []string{"-d2", "-;+", "-(+", "-\\+", "-Z+", "-O1", "-w+", "-t4"},
 		},

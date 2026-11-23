@@ -51,33 +51,7 @@ func TestInstallLegacyStdlibReferencesPreservesDirectPin(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			// A newer branch tip must not replace the project's existing lock.
-			repo, err := git.PlainOpen(meta.CachePath(pcx.CacheDir))
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			worktree, err := repo.Worktree()
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if err := os.WriteFile(filepath.Join(meta.CachePath(pcx.CacheDir), "a_samp.inc"), []byte("// newer branch includes\n"), 0o644); err != nil {
-				t.Fatal(err)
-			}
-
-			if _, err := worktree.Add("a_samp.inc"); err != nil {
-				t.Fatal(err)
-			}
-
-			newer, err := worktree.Commit("newer", &git.CommitOptions{Author: &object.Signature{Name: "test", Email: "test@example.com"}})
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if err := repo.Storer.SetReference(plumbing.NewHashReference(plumbing.NewBranchReferenceName(meta.Branch), newer)); err != nil {
-				t.Fatal(err)
-			}
+			advanceStdlibBranch(t, meta.CachePath(pcx.CacheDir), meta.Branch)
 
 			for _, fixture := range []struct{ repo, definition string }{
 				{"progress", fmt.Sprintf(`{"dependencies":[%q,"fixture/indirect:1.0.0","sampctl/%s"]}`, test.legacy, test.repo)},
@@ -132,6 +106,37 @@ func TestInstallLegacyStdlibReferencesPreservesDirectPin(t *testing.T) {
 			}
 			assertNoDependencyStages(t, pcx.Package.Vendor)
 		})
+	}
+}
+
+func advanceStdlibBranch(t *testing.T, repoPath, branch string) {
+	t.Helper()
+
+	repo, err := git.PlainOpen(repoPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	worktree, err := repo.Worktree()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.WriteFile(filepath.Join(repoPath, "a_samp.inc"), []byte("// newer branch includes\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := worktree.Add("a_samp.inc"); err != nil {
+		t.Fatal(err)
+	}
+
+	newer, err := worktree.Commit("newer", &git.CommitOptions{Author: &object.Signature{Name: "test", Email: "test@example.com"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := repo.Storer.SetReference(plumbing.NewHashReference(plumbing.NewBranchReferenceName(branch), newer)); err != nil {
+		t.Fatal(err)
 	}
 }
 

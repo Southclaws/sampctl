@@ -1,14 +1,10 @@
 # Quick start
 
-This guide shows the most common workflow:
-
-- Create a Pawn project (package)
-- Add dependencies
-- Build and run it (which starts a server)
+[Install sampctl](install.md) before starting.
 
 ## 1) Create a project
 
-1) In your project folder, create a package definition (recommended):
+Run this in your project directory:
 
 ```bash
 sampctl init
@@ -16,15 +12,16 @@ sampctl init
 
 ![Initialise a project](images/sampctl-package-init.gif)
 
-If you want open.mp instead of SA:MP (ideal for CI usage):
+The default preset is open.mp. For a SA:MP project, use:
 
 ```bash
-sampctl init --runtime openmp
+sampctl init --preset samp
 ```
 
-2) Add dependencies (example):
+## 2) Add dependencies
 
-`pawn.json`:
+List the packages you need under `dependencies` in your manifest. For example,
+this `pawn.json` builds `test.pwn` into `gamemodes/test.amx`:
 
 ```json
 {
@@ -34,7 +31,7 @@ sampctl init --runtime openmp
 }
 ```
 
-3) Install dependencies:
+Run `ensure` after editing the manifest:
 
 ```bash
 sampctl ensure
@@ -42,19 +39,15 @@ sampctl ensure
 
 ![Ensure dependencies](images/sampctl-package-ensure.gif)
 
-4) Build and run:
+## 3) Build and run
 
 ```bash
 sampctl build
 sampctl run
 ```
 
-More details: [Packages](packages.md)
-
-More details: [Server](server.md) and [Runtime configuration](configuration.md)
-
-Next:
-
+- [Manage Pawn packages](packages.md)
+- [Run a server](server.md) and [configure the runtime](configuration.md)
 - [Dependencies and version pinning](dependencies.md)
 - [Testing (watch mode, runtime modes)](testing.md)
 - [Containers (Docker)](containers.md)

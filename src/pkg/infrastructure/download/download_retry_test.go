@@ -21,29 +21,18 @@ func TestDownloadDoesNotRetryOn404(t *testing.T) {
 		w.WriteHeader(http.StatusNotFound)
 		_, _ = w.Write([]byte("nope"))
 	}))
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
-	oldMax := fromNetMaxAttempts
-	oldSleep := fromNetSleep
-	oldClientFactory := fromNetClientFactory
-	oldBackoff := fromNetBackoff
-	defer func() {
-		fromNetMaxAttempts = oldMax
-		fromNetSleep = oldSleep
-		fromNetClientFactory = oldClientFactory
-		fromNetBackoff = oldBackoff
-	}()
+	preserveDownloadRetryHooks(t)
 
 	fromNetMaxAttempts = 5
 	fromNetSleep = func(time.Duration) {}
 	fromNetBackoff = func(int) time.Duration { return 0 }
 	fromNetClientFactory = func() *http.Client { return srv.Client() }
 
-	tmpDir, err := os.MkdirTemp("", "sampctl-fromnet-404-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
-	_, err = FromNet(context.Background(), srv.URL, filepath.Join(tmpDir, "out.bin"))
+	_, err := FromNet(t.Context(), srv.URL, filepath.Join(tmpDir, "out.bin"))
 	require.Error(t, err)
 	require.Equal(t, int32(1), atomic.LoadInt32(&hits), "expected exactly 1 request for non-retryable status")
 }
@@ -62,30 +51,19 @@ func TestDownloadRetriesOn500ThenSucceeds(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	}))
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
-	oldMax := fromNetMaxAttempts
-	oldSleep := fromNetSleep
-	oldClientFactory := fromNetClientFactory
-	oldBackoff := fromNetBackoff
-	defer func() {
-		fromNetMaxAttempts = oldMax
-		fromNetSleep = oldSleep
-		fromNetClientFactory = oldClientFactory
-		fromNetBackoff = oldBackoff
-	}()
+	preserveDownloadRetryHooks(t)
 
 	fromNetMaxAttempts = 5
 	fromNetSleep = func(time.Duration) {}
 	fromNetBackoff = func(int) time.Duration { return 0 }
 	fromNetClientFactory = func() *http.Client { return srv.Client() }
 
-	tmpDir, err := os.MkdirTemp("", "sampctl-fromnet-500-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	outPath := filepath.Join(tmpDir, "out.bin")
-	gotPath, err := FromNet(context.Background(), srv.URL, outPath)
+	gotPath, err := FromNet(t.Context(), srv.URL, outPath)
 	require.NoError(t, err)
 	require.Equal(t, outPath, gotPath)
 	require.Equal(t, int32(3), atomic.LoadInt32(&hits), "expected retries for 5xx then success")
@@ -96,16 +74,7 @@ func TestDownloadRetriesOn500ThenSucceeds(t *testing.T) {
 }
 
 func TestDownloadStopsRetryingWhenContextCanceledDuringBackoff(t *testing.T) {
-	oldMax := fromNetMaxAttempts
-	oldSleep := fromNetSleep
-	oldClientFactory := fromNetClientFactory
-	oldBackoff := fromNetBackoff
-	defer func() {
-		fromNetMaxAttempts = oldMax
-		fromNetSleep = oldSleep
-		fromNetClientFactory = oldClientFactory
-		fromNetBackoff = oldBackoff
-	}()
+	preserveDownloadRetryHooks(t)
 
 	fromNetMaxAttempts = 5
 	fromNetBackoff = func(int) time.Duration { return time.Second }
@@ -122,10 +91,11 @@ func TestDownloadStopsRetryingWhenContextCanceledDuringBackoff(t *testing.T) {
 		})}
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
+	outPath := filepath.Join(t.TempDir(), "out.bin")
 	done := make(chan error, 1)
 	go func() {
-		_, err := FromNet(ctx, "https://example.invalid/test", filepath.Join(t.TempDir(), "out.bin"))
+		_, err := FromNet(ctx, "https://example.invalid/test", outPath)
 		done <- err
 	}()
 
@@ -135,4 +105,19 @@ func TestDownloadStopsRetryingWhenContextCanceledDuringBackoff(t *testing.T) {
 
 	err := <-done
 	require.ErrorIs(t, err, context.Canceled)
+}
+
+func preserveDownloadRetryHooks(t *testing.T) {
+	t.Helper()
+
+	oldMax := fromNetMaxAttempts
+	oldSleep := fromNetSleep
+	oldClientFactory := fromNetClientFactory
+	oldBackoff := fromNetBackoff
+	t.Cleanup(func() {
+		fromNetMaxAttempts = oldMax
+		fromNetSleep = oldSleep
+		fromNetClientFactory = oldClientFactory
+		fromNetBackoff = oldBackoff
+	})
 }
