@@ -75,6 +75,17 @@ func packageEnsure(c *cli.Context) error {
 		return reportDependencyCommandError(c, "ensure", errors.Wrap(err, "failed to load the Pawn package"))
 	}
 
+	if updateRequest.HasTarget() {
+		policy, err := versioning.NewProjectOverrides(pcx.Package.Overrides, pcx.Package.Format)
+		if err != nil {
+			return reportDependencyCommandError(c, "ensure", err)
+		}
+		updateRequest.TargetMeta, err = policy.Resolve(versioning.DependencyString(updateRequest.Target))
+		if err != nil {
+			return &commandExitError{code: 1, err: errors.Wrap(err, "invalid dependency argument")}
+		}
+	}
+
 	state, err := getCommandState(c)
 	if err != nil {
 		return err
@@ -115,14 +126,10 @@ func parseEnsureUpdateRequest(c *cli.Context) (pkgcontext.DependencyUpdateReques
 			return pkgcontext.DependencyUpdateRequest{}, errors.New("dependency arguments require --update")
 		}
 
-		target := c.Args().First()
-		targetMeta, err := versioning.DependencyString(target).Explode()
-		if err != nil {
-			return pkgcontext.DependencyUpdateRequest{}, errors.Wrap(err, "invalid dependency argument")
+		request.Target = c.Args().First()
+		if request.Target == "" {
+			return pkgcontext.DependencyUpdateRequest{}, errors.New("invalid dependency argument: empty selector")
 		}
-
-		request.Target = target
-		request.TargetMeta = targetMeta
 	}
 
 	return request, nil

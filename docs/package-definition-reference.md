@@ -12,6 +12,18 @@ For an introduction and a minimal example, see: [Packages](packages.md)
 - `runtime_dir`: where to install local runtime files for SA-MP or open.mp. Relative paths start at the package root, which is the default.
 - `dependencies`: packages to download for building/running.
 - `dev_dependencies`: packages only needed for building/testing.
+- `overrides`: optional map from dependency strings to replacement strings. See [Dependency overrides](#dependency-overrides).
+
+## Dependency overrides
+
+sampctl applies one substitution per declaration. If A maps to B and B maps
+to C, a declaration of A resolves to B.
+
+When a rule matches and selects a fixed tag, `sampctl ensure --update --force`
+keeps that tag. Edit the replacement in the manifest to change it.
+
+See [the PawnPlus example](packages.md#project-dependency-overrides) for JSON
+and YAML syntax, exact matching, root scope, and precedence.
 
 ## Runtime fields
 

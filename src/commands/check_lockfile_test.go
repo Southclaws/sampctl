@@ -36,7 +36,7 @@ func TestCheckLockfile(t *testing.T) {
 				require.NoError(t, os.WriteFile(path, []byte(tt.content), 0o644))
 			}
 
-			lf, results := checkLockfile(pkg, map[string]string{})
+			lf, results := checkLockfile(pkg, checkDependencyOverrides{legacy: map[string]string{}})
 			require.Len(t, results, 1)
 			assert.Equal(t, tt.want, results[0].Status)
 			assert.False(t, results[0].CanFix)
@@ -84,7 +84,7 @@ func TestCheckLockfileDependencyData(t *testing.T) {
 			}
 			writeCheckLockfile(t, pkg.LocalPath, lf)
 
-			_, results := checkLockfile(pkg, map[string]string{})
+			_, results := checkLockfile(pkg, checkDependencyOverrides{legacy: map[string]string{}})
 			statuses := make([]checkStatus, 0, len(results))
 			for _, result := range results {
 				statuses = append(statuses, result.Status)
@@ -122,7 +122,7 @@ func TestCheckLockfileConsistency(t *testing.T) {
 			lf.AddDependency("github.com/owner/repo", tt.locked)
 			writeCheckLockfile(t, pkg.LocalPath, lf)
 
-			_, results := checkLockfile(pkg, map[string]string{})
+			_, results := checkLockfile(pkg, checkDependencyOverrides{legacy: map[string]string{}})
 			require.Len(t, results, 1)
 			assert.Equal(t, tt.want, results[0].Status)
 		})
@@ -133,7 +133,7 @@ func TestCheckLockfileConsistency(t *testing.T) {
 		pkg.Dependencies = []versioning.DependencyString{"owner/missing"}
 		writeCheckLockfile(t, pkg.LocalPath, lockfile.New("test"))
 
-		_, results := checkLockfile(pkg, map[string]string{})
+		_, results := checkLockfile(pkg, checkDependencyOverrides{legacy: map[string]string{}})
 		require.Len(t, results, 1)
 		assert.Equal(t, checkFailed, results[0].Status)
 	})
@@ -152,7 +152,7 @@ func TestCheckLockfileMissingOverridesSkipsComparison(t *testing.T) {
 	pkg.Dependencies = []versioning.DependencyString{"owner/missing"}
 	writeCheckLockfile(t, pkg.LocalPath, lockfile.New("test"))
 
-	lf, results := checkLockfile(pkg, nil)
+	lf, results := checkLockfile(pkg, checkDependencyOverrides{})
 	require.NotNil(t, lf)
 	require.Len(t, results, 1)
 	assert.Equal(t, checkSkipped, results[0].Status)
@@ -167,7 +167,7 @@ func TestCheckLockfileInconsistencyPreservesIntegrityChecks(t *testing.T) {
 	})
 	writeCheckLockfile(t, pkg.LocalPath, lf)
 
-	loaded, results := checkLockfile(pkg, map[string]string{})
+	loaded, results := checkLockfile(pkg, checkDependencyOverrides{legacy: map[string]string{}})
 	require.NotNil(t, loaded)
 	require.Len(t, results, 1)
 	assert.Equal(t, checkFailed, results[0].Status)
@@ -180,7 +180,7 @@ func TestCheckLockfileBrokenSymlink(t *testing.T) {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
 
-	lf, results := checkLockfile(pkg, map[string]string{})
+	lf, results := checkLockfile(pkg, checkDependencyOverrides{legacy: map[string]string{}})
 	assert.Nil(t, lf)
 	require.Len(t, results, 1)
 	assert.Equal(t, checkFailed, results[0].Status)

@@ -128,7 +128,7 @@ func (pcx *PackageContext) appendBuildDependencyIncludes(config *build.Config) (
 		hasIncludeResources := false
 		noPackage := false
 		depDir := filepath.Join(pcx.Package.LocalPath, "dependencies", depMeta.Repo)
-		pkgInner, errInner := pawnpackage.PackageFromDir(depDir)
+		pkgInner, errInner := pawnpackage.DependencyFromDir(depDir)
 		if errInner != nil {
 			print.Verb(depMeta, "error while loading:", errInner, "using cached copy for include path checking")
 			pkgInner, errInner = pawnpackage.GetCachedPackage(depMeta, pcx.CacheDir)
@@ -171,7 +171,7 @@ func (pcx *PackageContext) appendBuildDependencyIncludes(config *build.Config) (
 		}
 
 		includeDir := localDepDir
-		if pkgInner, errInner := pawnpackage.PackageFromDir(localDepDir); errInner == nil {
+		if pkgInner, errInner := pawnpackage.DependencyFromDir(localDepDir); errInner == nil {
 			if pkgInner.IncludePath != "" {
 				includeDir = filepath.Join(localDepDir, pkgInner.IncludePath)
 			}

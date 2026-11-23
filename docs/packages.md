@@ -22,6 +22,7 @@ Common fields you’ll see:
 - `output`: where the `.amx` file should be written
 - `runtime_dir`: directory where local runtime files should be installed
 - `dependencies`: GitHub packages to download (includes/libraries)
+- `overrides`: optional map from dependency declarations to replacements
 
 See also: [Package definition reference](package-definition-reference.md)
 
@@ -78,6 +79,46 @@ sampctl ensure --update --force
 ```
 
 By default, dependencies are cloned into `./dependencies/`.
+
+### Project dependency overrides
+
+Add `overrides` to your project's manifest to resolve conflicting dependency
+versions. In this example, `sampctl ensure` redirects two older PawnPlus
+requests to v1.5.2.
+
+In `pawn.json`
+
+```json
+{
+  "dependencies": ["github.com/IllidanS4/PawnPlus:v1.5.2"],
+  "overrides": {
+    "github.com/IllidanS4/PawnPlus:v1.0.0-pre4": "github.com/IllidanS4/PawnPlus:v1.5.2",
+    "github.com/IllidanS4/PawnPlus:v1.4.0.1": "github.com/IllidanS4/PawnPlus:v1.5.2"
+  }
+}
+```
+
+In `pawn.yaml`
+
+```yaml
+dependencies:
+  - "github.com/IllidanS4/PawnPlus:v1.5.2"
+overrides:
+  "github.com/IllidanS4/PawnPlus:v1.0.0-pre4": "github.com/IllidanS4/PawnPlus:v1.5.2"
+  "github.com/IllidanS4/PawnPlus:v1.4.0.1": "github.com/IllidanS4/PawnPlus:v1.5.2"
+```
+
+- Copy the original dependency string exactly, including case, any host or
+  protocol prefix, and the version.
+- The root manifest's rules apply to direct, development, and transitive
+  dependencies. A library's rules apply only when it's the root project.
+- Project overrides take precedence over user, remote, and built-in overrides,
+  in that order.
+
+Build and run your project with the replacement before committing the override.
+A library may rely on behavior from the version it requested.
+
+See the [override rules and update behavior](package-definition-reference.md#dependency-overrides).
 
 ## Build
 

@@ -12,7 +12,7 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
 
-func checkLockfile(pkg pawnpackage.Package, overrides map[string]string) (*lockfile.Lockfile, []diagnostic) {
+func checkLockfile(pkg pawnpackage.Package, overrides checkDependencyOverrides) (*lockfile.Lockfile, []diagnostic) {
 	path := filepath.Join(pkg.LocalPath, lockfile.Filename)
 	_, err := os.Lstat(path)
 	if os.IsNotExist(err) {
@@ -130,8 +130,8 @@ func validCheckHex(value string, size int) bool {
 	return err == nil
 }
 
-func checkLockfileDeclarations(pkg pawnpackage.Package, lf *lockfile.Lockfile, path string, overrides map[string]string) []diagnostic {
-	if overrides == nil {
+func checkLockfileDeclarations(pkg pawnpackage.Package, lf *lockfile.Lockfile, path string, overrides checkDependencyOverrides) []diagnostic {
+	if overrides.legacy == nil {
 		return []diagnostic{{Name: "lockfile", Status: checkSkipped, Path: path, Message: "Cannot compare the lockfile until the dependency overrides are fixed"}}
 	}
 
@@ -139,7 +139,7 @@ func checkLockfileDeclarations(pkg pawnpackage.Package, lf *lockfile.Lockfile, p
 	var results []diagnostic
 	validDeclarations := true
 	for _, declaration := range pkg.GetAllDependencies() {
-		meta, err := declaration.ExplodeWithOverrides(overrides)
+		meta, err := overrides.resolve(declaration)
 		if err != nil {
 			validDeclarations = false
 			results = append(results, diagnostic{

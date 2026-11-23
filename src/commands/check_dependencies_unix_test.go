@@ -24,7 +24,7 @@ func TestCheckDependenciesRejectsSpecialFiles(t *testing.T) {
 	require.NoError(t, os.Remove(source))
 	require.NoError(t, syscall.Mkfifo(source, 0o600))
 
-	results, err := checkDependencies(context.Background(), pkg, nil, nil)
+	results, err := checkDependencies(context.Background(), pkg, nil, checkDependencyOverrides{})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	assert.Equal(t, checkFailed, results[0].Status)
@@ -46,7 +46,7 @@ func TestCheckDependenciesRejectsSpecialMetadata(t *testing.T) {
 			require.NoError(t, os.Remove(metadata))
 			require.NoError(t, syscall.Mkfifo(metadata, 0o600))
 
-			results, err := checkDependencies(context.Background(), pkg, nil, nil)
+			results, err := checkDependencies(context.Background(), pkg, nil, checkDependencyOverrides{})
 			require.NoError(t, err)
 			require.Len(t, results, 1)
 			assert.Equal(t, checkFailed, results[0].Status)

@@ -116,7 +116,7 @@ func (pcx *PackageContext) resourcePackageDefinition(ctx context.Context, meta v
 	}
 
 	depDir := filepath.Join(pcx.Package.Vendor, meta.Repo)
-	pkgLocal, errLocal := pawnpackage.PackageFromDir(depDir)
+	pkgLocal, errLocal := pawnpackage.DependencyFromDir(depDir)
 	if errLocal != nil {
 		return pawnpackage.Package{}, errors.Wrap(errLocal, "failed to read dependency package definition")
 	}

@@ -14,7 +14,7 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
 
-func checkDependencies(ctx context.Context, pkg pawnpackage.Package, lf *lockfile.Lockfile, overrides map[string]string, recoveryStages ...string) ([]diagnostic, error) {
+func checkDependencies(ctx context.Context, pkg pawnpackage.Package, lf *lockfile.Lockfile, overrides checkDependencyOverrides, recoveryStages ...string) ([]diagnostic, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -30,7 +30,7 @@ func checkDependencies(ctx context.Context, pkg pawnpackage.Package, lf *lockfil
 
 		declaration := pending[0]
 		pending = pending[1:]
-		meta, err := declaration.ExplodeWithOverrides(overrides)
+		meta, err := overrides.resolve(declaration)
 		if err != nil {
 			results = append(results, diagnostic{
 				Name: "dependencies", Status: checkFailed,
@@ -284,7 +284,7 @@ func readCheckDependencyDefinition(path string) (pawnpackage.Package, error) {
 		}
 	}
 
-	return pawnpackage.PackageFromDir(path)
+	return pawnpackage.DependencyFromDir(path)
 }
 
 func checkDependencyRepository(ctx context.Context, result diagnostic, meta versioning.DependencyMeta) diagnostic {

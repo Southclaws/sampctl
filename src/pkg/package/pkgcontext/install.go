@@ -26,22 +26,29 @@ func (pcx *PackageContext) Install(
 	}
 	defer func() { err = pcx.finishDependencyOperation(state, err) }()
 
+	policy, err := versioning.NewProjectOverrides(pcx.Package.Overrides, pcx.Package.Format)
+	if err != nil {
+		return err
+	}
+
 	changed := false
 	for _, target := range targets {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 		var meta versioning.DependencyMeta
-		meta, err = target.Explode()
+		meta, err = policy.Resolve(target)
 		if err != nil {
 			return &DependencyError{Dependency: string(target), Operation: "parse", Err: err}
 		}
-		if pcx.declaresDependency(meta) {
+		if pcx.declaresDependency(meta, policy) {
 			continue
 		}
-		target, err = pcx.resolveInstallTarget(ctx, target, meta)
-		if err != nil {
-			return err
+		if !policy.Matches(target) {
+			target, err = pcx.resolveInstallTarget(ctx, target, meta)
+			if err != nil {
+				return err
+			}
 		}
 		if slices.Contains(pcx.Package.GetAllDependencies(), target) {
 			continue
@@ -77,9 +84,9 @@ func (pcx *PackageContext) Install(
 	return pcx.syncDependencyLockfile(ctx)
 }
 
-func (pcx PackageContext) declaresDependency(target versioning.DependencyMeta) bool {
+func (pcx PackageContext) declaresDependency(target versioning.DependencyMeta, policy versioning.ProjectOverrides) bool {
 	for _, declaration := range pcx.Package.GetAllDependencies() {
-		meta, err := declaration.Explode()
+		meta, err := policy.Resolve(declaration)
 		if err != nil || dependencyUpdateIdentity(meta) != dependencyUpdateIdentity(target) {
 			continue
 		}

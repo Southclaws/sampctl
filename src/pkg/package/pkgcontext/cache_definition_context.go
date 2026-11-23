@@ -26,7 +26,7 @@ func (pcx PackageContext) packageFromCachedRevisionContext(ctx context.Context, 
 
 	repo, err := pcx.repositoryStore().Open(path)
 	if errors.Is(err, git.ErrRepositoryNotExists) && (meta.Tag == "" || meta.Tag == "latest") && meta.Commit == "" {
-		return pawnpackage.PackageFromDir(path)
+		return pawnpackage.DependencyFromDir(path)
 	}
 	if err != nil {
 		return pkg, err
