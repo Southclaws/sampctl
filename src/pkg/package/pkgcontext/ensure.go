@@ -29,7 +29,7 @@ func (pcx *PackageContext) EnsureDependencies(ctx context.Context, forceUpdate b
 		}
 		defer func() { err = pcx.finishDependencyOperation(state, err) }()
 
-		if state.recovered && pcx.Package.Parent {
+		if (state.recovered || len(pcx.Package.Overrides) > 0) && pcx.Package.Parent {
 			if err := pcx.refreshDependencyGraphContext(ctx, DependencyUpdateRequest{}); err != nil {
 				return err
 			}
@@ -71,13 +71,18 @@ func (pcx *PackageContext) ensureDependencies(
 		return errors.New("package local path does not exist")
 	}
 
-	pcx.Package.Vendor = filepath.Join(pcx.Package.LocalPath, "dependencies")
-	if err := pcx.validateDependencyDestinations(); err != nil {
+	policy, err := versioning.NewProjectOverrides(pcx.Package.Overrides, pcx.Package.Format)
+	if err != nil {
 		return err
 	}
-	directDependencies := pcx.directDependencySet()
-	directConstraints := pcx.directDependencyConstraints()
-	failures := pcx.validateLocalDependencyPaths(ctx)
+	selection := request.selectDependencies(policy, pcx.Package.GetAllDependencies())
+	pcx.Package.Vendor = filepath.Join(pcx.Package.LocalPath, "dependencies")
+	if err := pcx.validateDependencyDestinations(policy); err != nil {
+		return err
+	}
+	directDependencies := pcx.directDependencySet(policy)
+	directConstraints := pcx.directDependencyConstraints(policy)
+	failures := pcx.validateLocalDependencyPaths(ctx, policy)
 
 	for _, dependency := range pcx.AllDependencies {
 		dependency = inheritDirectDependencyConstraint(dependency, directConstraints)
@@ -86,7 +91,7 @@ func (pcx *PackageContext) ensureDependencies(
 		}
 
 		_, direct := directDependencies[dependencyUpdateIdentity(dependency)]
-		forceDependencyUpdate := request.ShouldForceDependency(dependency, direct)
+		forceDependencyUpdate := selection.ShouldForceDependency(dependency, direct)
 		print.Verb("attempting to ensure dependency", dependency)
 		err := pcx.ensurePackage(ctx, dependency, forceDependencyUpdate)
 		if err != nil {
@@ -122,14 +127,14 @@ func (pcx *PackageContext) ensureDependencies(
 	return err
 }
 
-func (pcx *PackageContext) validateLocalDependencyPaths(ctx context.Context) []error {
+func (pcx *PackageContext) validateLocalDependencyPaths(ctx context.Context, policy versioning.ProjectOverrides) []error {
 	var failures []error
 	for _, declaration := range pcx.Package.GetAllDependencies() {
 		if err := ctx.Err(); err != nil {
 			return append(failures, err)
 		}
 
-		meta, err := declaration.Explode()
+		meta, err := policy.Resolve(declaration)
 		if err != nil {
 			failures = append(failures, &DependencyError{Dependency: string(declaration), Operation: "parse", Err: err})
 			continue

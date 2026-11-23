@@ -44,6 +44,20 @@ func (c VersionedTags) Swap(i, j int) {
 	c[i], c[j] = c[j], c[i]
 }
 
+// TagSatisfiesConstraint checks a recorded tag using exact names and the same
+// semantic version constraints as RefFromTag.
+func TagSatisfiesConstraint(tag, requirement string) bool {
+	if tag == requirement {
+		return true
+	}
+	constraint, err := semver.NewConstraint(requirement)
+	if err != nil {
+		return false
+	}
+	version, err := semver.NewVersion(tag)
+	return err == nil && constraint.Check(version)
+}
+
 // RefFromTag returns a ref from a given tag
 func RefFromTag(repo *git.Repository, meta DependencyMeta) (ref *plumbing.Reference, err error) {
 	constraint, constraintErr := semver.NewConstraint(meta.Tag)

@@ -32,7 +32,7 @@ func validateLocalDependencyPath(root string, meta versioning.DependencyMeta) er
 	}
 
 	if info.IsDir() && (meta.IsPlugin() || meta.Scheme == "component") {
-		pkg, err := pawnpackage.PackageFromDir(path)
+		pkg, err := pawnpackage.DependencyFromDir(path)
 		if err != nil {
 			return err
 		}

@@ -54,7 +54,7 @@ func TestCheckDependencyStagingIgnoresExternalSymlinks(t *testing.T) {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
 
-	results, err := checkDependencies(context.Background(), pkg, nil, nil)
+	results, err := checkDependencies(context.Background(), pkg, nil, checkDependencyOverrides{})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	assert.Equal(t, checkPassed, results[0].Status)

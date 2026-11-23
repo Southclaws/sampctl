@@ -168,3 +168,14 @@ func TestRunPackageEnsureReturnsEnsureError(t *testing.T) {
 	assert.EqualError(t, err, "failed to install dependencies: boom")
 	assert.True(t, target.ensureCalled)
 }
+
+func TestParseEnsureRejectsExplicitEmptySelector(t *testing.T) {
+	set := flag.NewFlagSet("ensure", flag.ContinueOnError)
+	set.Bool("update", true, "")
+	set.Bool("force", true, "")
+	require.NoError(t, set.Parse([]string{""}))
+	ctx := cli.NewContext(newTestCLIContext("dev").App, set, nil)
+
+	_, err := parseEnsureUpdateRequest(ctx)
+	require.ErrorContains(t, err, "empty selector")
+}

@@ -11,7 +11,7 @@ import (
 
 func (pcx PackageContext) readPackageFromCachedRevision(meta versioning.DependencyMeta, path string) (pawnpackage.Package, error) {
 	if (meta.Tag == "" || meta.Tag == "latest") && meta.Commit == "" {
-		return pawnpackage.PackageFromDir(path)
+		return pawnpackage.DependencyFromDir(path)
 	}
 
 	repo, err := pcx.PackageServices.repositoryStore().Open(path)
@@ -70,7 +70,7 @@ func (pcx PackageContext) readPackageFromCachedRevision(meta versioning.Dependen
 			return pawnpackage.Package{}, contentErr
 		}
 
-		pkg, err = pawnpackage.PackageFromDefinition([]byte(contents), definition.format)
+		pkg, err = pawnpackage.DependencyFromDefinition([]byte(contents), definition.format)
 		if err != nil {
 			return pawnpackage.Package{}, err
 		}

@@ -82,7 +82,7 @@ func TestCheckDependencies(t *testing.T) {
 				tt.setup(t, pkg)
 			}
 
-			results, err := checkDependencies(context.Background(), pkg, nil, nil)
+			results, err := checkDependencies(context.Background(), pkg, nil, checkDependencyOverrides{})
 			require.NoError(t, err)
 			require.NotEmpty(t, results)
 			statuses := make([]checkStatus, 0, len(results))
@@ -109,7 +109,7 @@ func TestCheckDependenciesExternalPaths(t *testing.T) {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
 
-	results, err := checkDependencies(context.Background(), pkg, nil, nil)
+	results, err := checkDependencies(context.Background(), pkg, nil, checkDependencyOverrides{})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	assert.Equal(t, checkPassed, results[0].Status)
@@ -129,13 +129,13 @@ func TestCheckDependenciesIntegrityAndRevision(t *testing.T) {
 		User: "owner", Repo: "repo", Commit: commit, Integrity: lockfile.CalculateCommitIntegrity(commit),
 	})
 
-	results, err := checkDependencies(context.Background(), pkg, lf, nil)
+	results, err := checkDependencies(context.Background(), pkg, lf, checkDependencyOverrides{})
 	require.NoError(t, err)
 	assert.Equal(t, checkPassed, results[0].Status)
 
 	require.NoError(t, os.WriteFile(filepath.Join(path, "library.inc"), []byte("local change"), 0o644))
 
-	results, err = checkDependencies(context.Background(), pkg, lf, nil)
+	results, err = checkDependencies(context.Background(), pkg, lf, checkDependencyOverrides{})
 	require.NoError(t, err)
 	assert.Equal(t, checkFailed, results[0].Status)
 	assert.Contains(t, results[0].Message, "integrity")
@@ -149,7 +149,7 @@ func TestCheckDependenciesIntegrityAndRevision(t *testing.T) {
 	locked.Integrity = ""
 	lf.Dependencies["github.com/owner/repo"] = locked
 
-	results, err = checkDependencies(context.Background(), pkg, lf, nil)
+	results, err = checkDependencies(context.Background(), pkg, lf, checkDependencyOverrides{})
 	require.NoError(t, err)
 	assert.Equal(t, checkFailed, results[0].Status)
 	assert.Contains(t, results[0].Message, "revision")
@@ -160,7 +160,7 @@ func TestCheckDependenciesCyclesOverridesAndCancellation(t *testing.T) {
 	pkg.Dependencies = []versioning.DependencyString{"old/repo"}
 	newCheckDependencyRepo(t, filepath.Join(pkg.Vendor, "repo"), `{"dependencies":["old/repo"]}`)
 
-	results, err := checkDependencies(context.Background(), pkg, nil, map[string]string{"old/repo": "new/repo"})
+	results, err := checkDependencies(context.Background(), pkg, nil, checkDependencyOverrides{legacy: map[string]string{"old/repo": "new/repo"}})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	assert.Equal(t, checkPassed, results[0].Status)
@@ -168,15 +168,33 @@ func TestCheckDependenciesCyclesOverridesAndCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err = checkDependencies(ctx, pkg, nil, nil)
+	_, err = checkDependencies(ctx, pkg, nil, checkDependencyOverrides{})
 	assert.ErrorIs(t, err, context.Canceled)
+}
+
+func TestCheckDependenciesUsesRootProjectOverrides(t *testing.T) {
+	pkg := newCheckDependenciesPackage(t)
+	pkg.Dependencies = []versioning.DependencyString{"fixture/library"}
+	pkg.Overrides = map[string]string{"fixture/old": "fixture/replacement"}
+	newCheckDependencyRepo(t, filepath.Join(pkg.Vendor, "library"), `{"dependencies":["fixture/old"],"overrides":{"fixture/old":"fixture/other"}}`)
+	newCheckDependencyRepo(t, filepath.Join(pkg.Vendor, "replacement"), `{}`)
+
+	policy, err := versioning.NewProjectOverrides(pkg.Overrides, pkg.Format)
+	require.NoError(t, err)
+	overrides := checkDependencyOverrides{project: policy, legacy: map[string]string{"fixture/old": "legacy/other"}}
+	results, err := checkDependencies(t.Context(), pkg, nil, overrides)
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+	assert.Equal(t, checkPassed, results[0].Status)
+	assert.Equal(t, checkPassed, results[1].Status)
+	assert.Contains(t, results[1].Message, "fixture/replacement")
 }
 
 func TestCheckDependenciesMultipleFailures(t *testing.T) {
 	pkg := newCheckDependenciesPackage(t)
 	pkg.Dependencies = []versioning.DependencyString{"owner/first", "owner/second"}
 
-	results, err := checkDependencies(context.Background(), pkg, nil, nil)
+	results, err := checkDependencies(context.Background(), pkg, nil, checkDependencyOverrides{})
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 	assert.Equal(t, checkFailed, results[0].Status)
@@ -201,7 +219,7 @@ func TestCheckDependenciesDoesNotInitializeMissingSubmodules(t *testing.T) {
 
 	before := snapshotCheckDependency(t, path)
 
-	results, err := checkDependencies(t.Context(), pkg, nil, nil)
+	results, err := checkDependencies(t.Context(), pkg, nil, checkDependencyOverrides{})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	assert.Equal(t, checkFailed, results[0].Status)
@@ -238,7 +256,7 @@ func TestCheckDependenciesSupportsLinkedWorktree(t *testing.T) {
 	parentBefore := snapshotCheckDependency(t, parent)
 	before := snapshotCheckDependency(t, path)
 
-	results, err := checkDependencies(t.Context(), pkg, lf, nil)
+	results, err := checkDependencies(t.Context(), pkg, lf, checkDependencyOverrides{})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	assert.Equal(t, checkPassed, results[0].Status, "%v", results[0].Err)
@@ -301,4 +319,29 @@ func newCheckDependencyRepo(t *testing.T, path, definition string) string {
 	require.NoError(t, err)
 
 	return commit.String()
+}
+
+func TestCheckDependenciesReportsStaleProjectOverride(t *testing.T) {
+	pkg := newCheckDependenciesPackage(t)
+	pkg.Dependencies = []versioning.DependencyString{"fixture/example:1.5.2", "fixture/library"}
+	newCheckDependencyRepo(t, filepath.Join(pkg.Vendor, "library"), `{"dependencies":["fixture/old:1.0.0"]}`)
+	commit := newCheckDependencyRepo(t, filepath.Join(pkg.Vendor, "example"), `{}`)
+	policy, err := versioning.NewProjectOverrides(map[string]string{"fixture/old:1.0.0": "fixture/example:1.5.2"}, "json")
+	require.NoError(t, err)
+	lf := lockfile.New("test")
+
+	for _, tag := range []string{"2.0.0", "v1.5.2"} {
+		lf.AddDependency("github.com/fixture/example", lockfile.LockedDependency{
+			User: "fixture", Repo: "example", Commit: commit, Constraint: ":1.5.2", Resolved: tag,
+		})
+		results, err := checkDependencies(t.Context(), pkg, lf, checkDependencyOverrides{project: policy})
+		require.NoError(t, err)
+		require.Len(t, results, 2)
+		if tag == "2.0.0" {
+			assert.Equal(t, checkFailed, results[0].Status)
+			assert.Contains(t, results[0].Message, "does not satisfy the project override")
+		} else {
+			assert.Equal(t, checkPassed, results[0].Status)
+		}
+	}
 }

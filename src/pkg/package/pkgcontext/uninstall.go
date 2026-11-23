@@ -65,9 +65,13 @@ func (pcx *PackageContext) Uninstall(
 }
 
 func (pcx *PackageContext) pruneUninstalledLockfile(lf *lockfile.Lockfile) error {
+	policy, err := versioning.NewProjectOverrides(pcx.Package.Overrides, pcx.Package.Format)
+	if err != nil {
+		return err
+	}
 	direct := make(map[string]bool)
 	for _, dep := range pcx.Package.GetAllDependencies() {
-		meta, err := dep.Explode()
+		meta, err := policy.Resolve(dep)
 		if err != nil {
 			return &DependencyError{Dependency: string(dep), Operation: "parse", Err: err}
 		}

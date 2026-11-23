@@ -25,15 +25,21 @@ func (pcx *PackageContext) EnsureDependenciesCachedContext(ctx context.Context) 
 }
 
 func (pcx *PackageContext) refreshDependencyGraphContext(ctx context.Context, request DependencyUpdateRequest) error {
-	return pcx.refreshDependencyGraphWithResolution(ctx, request, true)
+	return pcx.refreshDependencyGraphWithResolution(ctx, request, dependencyGraphOptions{})
 }
 
 // Reference-only updates can name tags that are not cached yet.
 func (pcx *PackageContext) refreshDependencyReferenceGraphContext(ctx context.Context, request DependencyUpdateRequest) error {
-	return pcx.refreshDependencyGraphWithResolution(ctx, request, false)
+	return pcx.refreshDependencyGraphWithResolution(ctx, request, dependencyGraphOptions{referenceOnly: true})
 }
 
-func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Context, request DependencyUpdateRequest, resolveLatest bool) error {
+type dependencyGraphOptions struct {
+	referenceOnly bool
+	policy        *versioning.ProjectOverrides
+	activePins    map[versioning.DependencyMeta]bool
+}
+
+func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Context, request DependencyUpdateRequest, options dependencyGraphOptions) error {
 	if !pcx.Package.Parent {
 		return errors.New("package is not a parent package")
 	}
@@ -50,14 +56,36 @@ func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Cont
 		return err
 	}
 
+	var policy versioning.ProjectOverrides
+	if options.policy == nil {
+		var err error
+		policy, err = versioning.NewProjectOverrides(pcx.Package.Overrides, pcx.Package.Format)
+		if err != nil {
+			return err
+		}
+	} else {
+		policy = *options.policy
+	}
+	pcx.staleOverrideLocks = nil
+	for {
+		retry, err := pcx.walkDependencyGraph(ctx, request, options, policy)
+		if !retry || ctx.Err() != nil {
+			return err
+		}
+	}
+}
+
+func (pcx *PackageContext) walkDependencyGraph(ctx context.Context, request DependencyUpdateRequest, options dependencyGraphOptions, policy versioning.ProjectOverrides) (bool, error) {
+	selection := request.selectDependencies(policy, pcx.Package.GetAllDependencies())
+	retry := false
 	pcx.AllDependencies = nil
 	pcx.AllPlugins = nil
 	pcx.AllIncludePaths = nil
 	visited := map[versioning.DependencyMeta]bool{managedDependencyIdentity(pcx.Package.Dependency()): true}
 	directDependencies := make(map[versioning.DependencyMeta]bool)
-	directConstraints := pcx.directDependencyConstraints()
+	directConstraints := pcx.directDependencyConstraints(policy)
 	for _, declaration := range pcx.Package.GetAllDependencies() {
-		meta, err := declaration.Explode()
+		meta, err := policy.Resolve(declaration)
 		if err == nil {
 			directDependencies[managedDependencyIdentity(meta)] = true
 		}
@@ -73,9 +101,9 @@ func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Cont
 		prefix := strings.Repeat("|-", depth+1)
 		currentPackage := pcx.Package
 		if depth != 0 {
-			forceUpdate := request.ShouldForceDependency(meta, direct || directDependencies[managedDependencyIdentity(meta)])
+			forceUpdate := selection.ShouldForceDependency(meta, direct || directDependencies[managedDependencyIdentity(meta)])
 			var err error
-			currentPackage, err = pcx.loadDependencyPackage(ctx, meta, forceUpdate, resolveLatest)
+			currentPackage, err = pcx.loadDependencyPackage(ctx, meta, forceUpdate, !options.referenceOnly)
 			if err != nil {
 				return err
 			}
@@ -85,7 +113,7 @@ func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Cont
 		}
 
 		dependencies := currentPackage.Dependencies
-		if currentPackage.Parent {
+		if depth == 0 {
 			dependencies = currentPackage.GetAllDependencies()
 		}
 		var failures []error
@@ -94,15 +122,37 @@ func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Cont
 				return stderrors.Join(append(failures, err)...)
 			}
 
-			subMeta, err := dependency.Explode()
+			subMeta, err := policy.Resolve(dependency)
 			if err != nil {
 				failures = append(failures, &DependencyError{Dependency: string(dependency), Operation: "parse", Err: errors.Wrapf(err, "invalid dependency in %s", currentPackage)})
 				continue
 			}
+			if isPinnedTagDependency(subMeta) && policy.Matches(dependency) {
+				identity := managedDependencyIdentity(subMeta)
+				if options.activePins != nil {
+					options.activePins[identity] = true
+				}
+				if !pcx.staleOverrideLocks[identity] {
+					if _, stale := pcx.GetLockfile().ConflictingOverrideTag(normalizeLockfileDependency(subMeta)); stale {
+						if pcx.staleOverrideLocks == nil {
+							pcx.staleOverrideLocks = make(map[versioning.DependencyMeta]bool)
+						}
+						pcx.staleOverrideLocks[identity] = true
+						retry = retry || visited[identity]
+					}
+				}
+			}
 			subMeta = inheritDirectDependencyConstraint(subMeta, directConstraints)
-			if !subMeta.IsLocalScheme() {
+			if options.activePins == nil && !subMeta.IsLocalScheme() {
 				if err := registerDependencyDestination(destinations, subMeta); err != nil {
 					failures = append(failures, err)
+					continue
+				}
+			}
+
+			if subMeta.IsLocalScheme() && policy.Matches(dependency) {
+				if err := validateLocalDependencyPath(pcx.Package.LocalPath, subMeta); err != nil {
+					failures = append(failures, &DependencyError{Dependency: string(dependency), Operation: "access override local path", Err: errors.Wrapf(err, "replacement %s from pawn.%s overrides", subMeta, pcx.Package.Format)})
 					continue
 				}
 			}
@@ -138,11 +188,22 @@ func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Cont
 		return stderrors.Join(failures...)
 	}
 
-	return recurse(pcx.Package.Dependency(), false, 0, true)
+	err := recurse(pcx.Package.Dependency(), false, 0, true)
+	return retry, err
+}
+
+// activeProjectPins finds the fixed tags actually selected by project rules.
+func (pcx PackageContext) activeProjectPins(ctx context.Context, request DependencyUpdateRequest, policy versioning.ProjectOverrides) (map[versioning.DependencyMeta]bool, error) {
+	if !request.Enabled || !request.Force || !policy.HasPinnedTags() {
+		return nil, nil
+	}
+	pins := make(map[versioning.DependencyMeta]bool)
+	err := pcx.refreshDependencyGraphWithResolution(ctx, DependencyUpdateRequest{}, dependencyGraphOptions{policy: &policy, activePins: pins})
+	return pins, err
 }
 
 func (pcx *PackageContext) loadDependencyPackage(ctx context.Context, meta versioning.DependencyMeta, forceUpdate, resolveLatest bool) (pawnpackage.Package, error) {
-	effectiveMeta := pcx.LockedVersion(meta, forceUpdate)
+	effectiveMeta := pcx.LockedVersion(meta, forceUpdate || pcx.staleOverrideLocks[managedDependencyIdentity(meta)])
 	if resolveLatest {
 		resolvedMeta, err := pcx.resolveDynamicDependencyReference(ctx, effectiveMeta, meta, forceUpdate)
 		if err != nil {

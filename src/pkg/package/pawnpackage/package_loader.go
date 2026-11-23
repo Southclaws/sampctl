@@ -43,7 +43,16 @@ func NewRemotePackageFetcher(client *github.Client) RemotePackageFetcher {
 }
 
 // PackageFromDir attempts to parse a pawn.json or pawn.yaml file from a directory
-func PackageFromDir(dir string) (pkg Package, err error) {
+func PackageFromDir(dir string) (Package, error) {
+	return packageFromDir(dir, true)
+}
+
+// DependencyFromDir reads a dependency manifest with its override policy ignored.
+func DependencyFromDir(dir string) (Package, error) {
+	return packageFromDir(dir, false)
+}
+
+func packageFromDir(dir string, root bool) (pkg Package, err error) {
 	jsonPath := filepath.Join(dir, "pawn.json")
 	yamlPath := filepath.Join(dir, "pawn.yaml")
 	jsonExists := fs.Exists(jsonPath)
@@ -53,22 +62,22 @@ func PackageFromDir(dir string) (pkg Package, err error) {
 	case jsonExists && yamlExists:
 		return pkg, errors.New("found both pawn.json and pawn.yaml. Keep one package definition file")
 	case jsonExists:
-		return readPackageDefinition(jsonPath, "json")
+		return readPackageDefinition(jsonPath, "json", root)
 	case yamlExists:
-		return readPackageDefinition(yamlPath, "yaml")
+		return readPackageDefinition(yamlPath, "yaml", root)
 	default:
 		print.Verb("no package definition file (pawn.{json|yaml})")
 		return pkg, nil
 	}
 }
 
-func readPackageDefinition(path, format string) (pkg Package, err error) {
+func readPackageDefinition(path, format string, root bool) (pkg Package, err error) {
 	data, err := readDefinitionFile(path)
 	if err != nil {
 		return pkg, err
 	}
 
-	pkg, err = PackageFromDefinition(data, format)
+	pkg, err = packageFromDefinition(data, format, root)
 	if err != nil {
 		return pkg, errors.Wrapf(err, "failed to parse configuration from '%s'", path)
 	}
@@ -77,9 +86,20 @@ func readPackageDefinition(path, format string) (pkg Package, err error) {
 }
 
 // PackageFromDefinition parses a package definition.
-func PackageFromDefinition(data []byte, format string) (pkg Package, err error) {
+func PackageFromDefinition(data []byte, format string) (Package, error) {
+	return packageFromDefinition(data, format, true)
+}
+
+// DependencyFromDefinition parses a dependency manifest with its override policy ignored.
+func DependencyFromDefinition(data []byte, format string) (Package, error) {
+	return packageFromDefinition(data, format, false)
+}
+
+func packageFromDefinition(data []byte, format string, root bool) (pkg Package, err error) {
 	if format == "json" {
-		err = json.Unmarshal(data, &pkg)
+		definition := newJSONPackageDefinition(&pkg, root)
+		err = json.Unmarshal(data, &definition)
+		pkg.Overrides = definition.Overrides.rules
 		if err == nil {
 			contents := bytes.TrimSpace(data)
 			if len(contents) == 0 || contents[0] != '{' {
@@ -92,7 +112,11 @@ func PackageFromDefinition(data []byte, format string) (pkg Package, err error) 
 			if len(document.Content) != 1 || document.Content[0].Kind != yaml.MappingNode {
 				err = errors.New("package definition must be a mapping")
 			} else {
-				err = document.Content[0].Decode(&pkg)
+				mapping := document.Content[0]
+				if !root {
+					mapping = withoutYAMLOverrides(mapping, make(map[*yaml.Node]*yaml.Node))
+				}
+				err = mapping.Decode(&pkg)
 			}
 		}
 	} else {
@@ -108,10 +132,103 @@ func PackageFromDefinition(data []byte, format string) (pkg Package, err error) 
 	return pkg, nil
 }
 
+type jsonPackageDefinition struct {
+	*Package
+	Overrides jsonOverrideField `json:"overrides"`
+}
+
+func newJSONPackageDefinition(pkg *Package, root bool) jsonPackageDefinition {
+	return jsonPackageDefinition{Package: pkg, Overrides: jsonOverrideField{ignore: !root}}
+}
+
+// jsonOverrideField preserves exact keys and rejects duplicate fields or rules.
+type jsonOverrideField struct {
+	rules  map[string]string
+	seen   bool
+	ignore bool
+}
+
+func (m *jsonOverrideField) UnmarshalJSON(data []byte) error {
+	if m.ignore {
+		return nil
+	}
+	if m.seen {
+		return errors.New("pawn.json contains multiple overrides fields")
+	}
+	m.seen = true
+	if bytes.Equal(data, []byte("null")) {
+		return nil
+	}
+
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	token, err := decoder.Token()
+	if err != nil {
+		return err
+	}
+	if token != json.Delim('{') {
+		return errors.New("pawn.json overrides must be an object")
+	}
+
+	rules := make(map[string]string)
+	for decoder.More() {
+		token, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		key, ok := token.(string)
+		if !ok {
+			return errors.New("pawn.json overrides must have string keys")
+		}
+		if _, exists := rules[key]; exists {
+			return fmt.Errorf("pawn.json overrides: duplicate key %q", key)
+		}
+		var replacement string
+		if err := decoder.Decode(&replacement); err != nil {
+			return fmt.Errorf("pawn.json overrides: invalid replacement for %q: %w", key, err)
+		}
+		rules[key] = replacement
+	}
+
+	m.rules = rules
+	return nil
+}
+
+// withoutYAMLOverrides also strips fields inherited through YAML merges.
+func withoutYAMLOverrides(node *yaml.Node, seen map[*yaml.Node]*yaml.Node) *yaml.Node {
+	if previous := seen[node]; previous != nil {
+		return previous
+	}
+	copy := *node
+	seen[node] = &copy
+	switch node.Kind {
+	case yaml.AliasNode:
+		// Resolve only merge aliases. Other fields keep their original nodes.
+		copy.Alias = withoutYAMLOverrides(node.Alias, seen)
+	case yaml.SequenceNode:
+		copy.Content = make([]*yaml.Node, 0, len(node.Content))
+		for _, child := range node.Content {
+			copy.Content = append(copy.Content, withoutYAMLOverrides(child, seen))
+		}
+	case yaml.MappingNode:
+		copy.Content = make([]*yaml.Node, 0, len(node.Content))
+		for i := 0; i < len(node.Content); i += 2 {
+			key, value := node.Content[i], node.Content[i+1]
+			if key.Value == "overrides" {
+				continue
+			}
+			if key.ShortTag() == "!!merge" {
+				value = withoutYAMLOverrides(value, seen)
+			}
+			copy.Content = append(copy.Content, key, value)
+		}
+	}
+	return &copy
+}
+
 // GetCachedPackage returns a package using the cached copy, if it exists
 func GetCachedPackage(meta versioning.DependencyMeta, cacheDir string) (pkg Package, err error) {
 	path := meta.CachePath(cacheDir)
-	return PackageFromDir(path)
+	return DependencyFromDir(path)
 }
 
 // GetRemotePackage attempts to get a package definition for the given dependency meta.
@@ -243,19 +360,14 @@ func fetchRemoteDefinitionFromGitHub(request remoteDefinitionRequest) (Package, 
 				return Package{}, errors.Wrapf(err, "failed to decode %s/%s (%s)", request.Owner, request.Repo, path)
 			}
 
-			var pkg Package
-			switch path {
-			case "pawn.json":
-				err = json.Unmarshal(rawContent, &pkg)
-			case "pawn.yaml":
-				err = yaml.Unmarshal(rawContent, &pkg)
-			default:
-				err = errors.Errorf("unsupported remote definition format for %s", path)
-			}
+			format := strings.TrimPrefix(path, "pawn.")
+			pkg, err := DependencyFromDefinition(rawContent, format)
 			if err != nil {
 				return Package{}, errors.Wrapf(err, "failed to parse %s/%s (%s)", request.Owner, request.Repo, path)
 			}
 
+			// Remote definitions historically leave Format unset.
+			pkg.Format = ""
 			return pkg, nil
 		}
 	}
@@ -387,9 +499,14 @@ func fetchCandidate(ctx context.Context, client *http.Client, candidate remoteCa
 
 	switch candidate.format {
 	case "json":
-		err = json.NewDecoder(resp.Body).Decode(&pkg)
+		definition := newJSONPackageDefinition(&pkg, false)
+		err = json.NewDecoder(resp.Body).Decode(&definition)
 	case "yaml":
-		err = yaml.NewDecoder(resp.Body).Decode(&pkg)
+		var document yaml.Node
+		err = yaml.NewDecoder(resp.Body).Decode(&document)
+		if err == nil && len(document.Content) == 1 {
+			err = withoutYAMLOverrides(document.Content[0], make(map[*yaml.Node]*yaml.Node)).Decode(&pkg)
+		}
 	default:
 		err = errors.Errorf("unsupported remote definition format '%s'", candidate.format)
 	}

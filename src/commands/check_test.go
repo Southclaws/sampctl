@@ -322,7 +322,7 @@ func TestCheckDependenciesNeedGit(t *testing.T) {
 		{name: "invalid", deps: []versioning.DependencyString{"invalid"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.need, checkDependenciesNeedGit(pawnpackage.Package{Dependencies: tc.deps}, nil))
+			assert.Equal(t, tc.need, checkDependenciesNeedGit(pawnpackage.Package{Dependencies: tc.deps}, checkDependencyOverrides{}))
 		})
 	}
 }

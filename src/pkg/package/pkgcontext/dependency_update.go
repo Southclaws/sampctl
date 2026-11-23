@@ -23,6 +23,56 @@ func (request DependencyUpdateRequest) HasTarget() bool {
 	return request.Target != ""
 }
 
+type dependencyUpdateSelection struct {
+	DependencyUpdateRequest
+	replacements []versioning.DependencyMeta
+}
+
+func (request DependencyUpdateRequest) selectDependencies(policy versioning.ProjectOverrides, declarations []versioning.DependencyString) dependencyUpdateSelection {
+	selection := dependencyUpdateSelection{DependencyUpdateRequest: request}
+	if !request.HasTarget() {
+		return selection
+	}
+	declaredRequest := request
+	declaredMeta, declaredErr := versioning.DependencyString(request.Target).ExplodeWithOverrides(nil)
+	if declaredErr == nil {
+		declaredRequest.TargetMeta = declaredMeta
+	}
+	for _, declaration := range declarations {
+		if !policy.Matches(declaration) {
+			continue
+		}
+		original, err := declaration.ExplodeWithOverrides(nil)
+		if string(declaration) != request.Target && (err != nil || !declaredRequest.Matches(original)) {
+			continue
+		}
+		if replacement, ok := policy.Replacement(declaration); ok {
+			selection.replacements = append(selection.replacements, replacement)
+		}
+	}
+	return selection
+}
+
+func (selection dependencyUpdateSelection) Matches(meta versioning.DependencyMeta) bool {
+	if selection.DependencyUpdateRequest.Matches(meta) {
+		return true
+	}
+	for _, replacement := range selection.replacements {
+		if dependencyUpdateIdentity(replacement) == dependencyUpdateIdentity(meta) && sameDependencyConstraint(replacement, meta) {
+			return true
+		}
+	}
+	return false
+}
+
+func (selection dependencyUpdateSelection) ShouldForceDependency(meta versioning.DependencyMeta, direct bool) bool {
+	request := selection.DependencyUpdateRequest
+	if request.HasTarget() && direct && selection.Matches(meta) {
+		request.TargetMeta = meta
+	}
+	return request.ShouldForceDependency(meta, direct)
+}
+
 func (request DependencyUpdateRequest) Matches(meta versioning.DependencyMeta) bool {
 	if !request.HasTarget() {
 		return true
@@ -127,6 +177,16 @@ func (pcx *PackageContext) UpdateDependencyReferences(
 		}()
 	}
 
+	policy, err := versioning.NewProjectOverrides(pcx.Package.Overrides, pcx.Package.Format)
+	if err != nil {
+		return false, err
+	}
+	selection := request.selectDependencies(policy, pcx.Package.GetAllDependencies())
+	activePins, err := pcx.activeProjectPins(ctx, request, policy)
+	if err != nil {
+		return false, err
+	}
+
 	definitionPath, definitionPerm, originalDefinition, err := pcx.readDefinitionSnapshot()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to read package definition")
@@ -136,12 +196,12 @@ func (pcx *PackageContext) UpdateDependencyReferences(
 	originalDev := append([]versioning.DependencyString(nil), pcx.Package.Development...)
 	originalResolved := pcx.PackageResolvedState
 
-	changedDeps, err := pcx.updateDependencyList(ctx, pcx.Package.Dependencies, request)
+	changedDeps, err := pcx.updateDependencyList(ctx, pcx.Package.Dependencies, selection, policy, activePins)
 	if err != nil {
 		return false, err
 	}
 
-	changedDev, err := pcx.updateDependencyList(ctx, pcx.Package.Development, request)
+	changedDev, err := pcx.updateDependencyList(ctx, pcx.Package.Development, selection, policy, activePins)
 	if err != nil {
 		return false, err
 	}
@@ -184,7 +244,9 @@ func (pcx *PackageContext) UpdateDependencyReferences(
 func (pcx *PackageContext) updateDependencyList(
 	ctx context.Context,
 	deps []versioning.DependencyString,
-	request DependencyUpdateRequest,
+	selection dependencyUpdateSelection,
+	policy versioning.ProjectOverrides,
+	activePins map[versioning.DependencyMeta]bool,
 ) (dependencyUpdateResult, error) {
 	result := dependencyUpdateResult{updated: make([]versioning.DependencyString, 0, len(deps))}
 	var failures []error
@@ -194,19 +256,23 @@ func (pcx *PackageContext) updateDependencyList(
 			return dependencyUpdateResult{}, stderrors.Join(append(failures, err)...)
 		}
 
-		meta, err := depStr.Explode()
+		meta, err := policy.Resolve(depStr)
 		if err != nil {
 			failures = append(failures, &DependencyError{Dependency: string(depStr), Operation: "parse", Err: err})
 			continue
 		}
 
-		if !request.Matches(meta) {
+		if !selection.Matches(meta) {
 			result.updated = append(result.updated, depStr)
 			continue
 		}
 		result.matched = true
+		if policy.Matches(depStr) || activePins[managedDependencyIdentity(meta)] {
+			result.updated = append(result.updated, depStr)
+			continue
+		}
 
-		updatedMeta, changed, updateErr := pcx.updatedDependencyMeta(ctx, meta, request)
+		updatedMeta, changed, updateErr := pcx.updatedDependencyMeta(ctx, meta, selection.DependencyUpdateRequest)
 		if updateErr != nil {
 			failures = append(failures, &DependencyError{Dependency: string(depStr), Operation: "update", Err: updateErr})
 			if stderrors.Is(updateErr, context.Canceled) || stderrors.Is(updateErr, context.DeadlineExceeded) {
@@ -280,11 +346,11 @@ func (pcx *PackageContext) updatedDependencyMeta(
 	}
 }
 
-func (pcx *PackageContext) directDependencySet() map[string]struct{} {
+func (pcx *PackageContext) directDependencySet(policy versioning.ProjectOverrides) map[string]struct{} {
 	direct := make(map[string]struct{}, len(pcx.Package.Dependencies)+len(pcx.Package.Development))
 
 	for _, depStr := range append(append([]versioning.DependencyString(nil), pcx.Package.Dependencies...), pcx.Package.Development...) {
-		meta, err := depStr.Explode()
+		meta, err := policy.Resolve(depStr)
 		if err != nil {
 			continue
 		}

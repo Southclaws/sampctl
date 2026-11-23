@@ -7,11 +7,11 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 )
 
-func (pcx *PackageContext) validateDependencyDestinations() error {
-	constraints := pcx.directDependencyConstraints()
+func (pcx *PackageContext) validateDependencyDestinations(policy versioning.ProjectOverrides) error {
+	constraints := pcx.directDependencyConstraints(policy)
 	candidates := append([]versioning.DependencyMeta(nil), pcx.AllDependencies...)
 	for _, declaration := range pcx.Package.GetAllDependencies() {
-		meta, err := declaration.Explode()
+		meta, err := policy.Resolve(declaration)
 		if err == nil {
 			candidates = append(candidates, meta)
 		}
@@ -32,10 +32,10 @@ func (pcx *PackageContext) validateDependencyDestinations() error {
 }
 
 // Unpinned references share the revision selected by the project's direct dependency.
-func (pcx *PackageContext) directDependencyConstraints() map[versioning.DependencyMeta]versioning.DependencyMeta {
+func (pcx *PackageContext) directDependencyConstraints(policy versioning.ProjectOverrides) map[versioning.DependencyMeta]versioning.DependencyMeta {
 	constraints := make(map[versioning.DependencyMeta]versioning.DependencyMeta)
 	for _, declaration := range pcx.Package.GetAllDependencies() {
-		meta, err := declaration.Explode()
+		meta, err := policy.Resolve(declaration)
 		if err == nil && !meta.IsLocalScheme() && hasExplicitDependencyConstraint(meta) {
 			constraints[dependencyRepositoryIdentity(meta)] = meta
 		}

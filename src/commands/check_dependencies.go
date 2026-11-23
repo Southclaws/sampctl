@@ -14,13 +14,13 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/package/pawnpackage"
 )
 
-func checkDependencies(ctx context.Context, pkg pawnpackage.Package, lf *lockfile.Lockfile, overrides map[string]string, recoveryStages ...string) ([]diagnostic, error) {
+func checkDependencies(ctx context.Context, pkg pawnpackage.Package, lf *lockfile.Lockfile, overrides checkDependencyOverrides, recoveryStages ...string) ([]diagnostic, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
 	pending := pkg.GetAllDependencies()
-	visited := make(map[string]bool)
+	visited := make(map[string]int)
 	results := checkDependencyStaging(pkg.Vendor, recoveryStages...)
 
 	for len(pending) > 0 {
@@ -30,7 +30,7 @@ func checkDependencies(ctx context.Context, pkg pawnpackage.Package, lf *lockfil
 
 		declaration := pending[0]
 		pending = pending[1:]
-		meta, err := declaration.ExplodeWithOverrides(overrides)
+		meta, err := overrides.resolve(declaration)
 		if err != nil {
 			results = append(results, diagnostic{
 				Name: "dependencies", Status: checkFailed,
@@ -39,17 +39,36 @@ func checkDependencies(ctx context.Context, pkg pawnpackage.Package, lf *lockfil
 			continue
 		}
 
+		var mismatch diagnostic
+		if overrides.project.Matches(declaration) {
+			if tag, stale := lf.ConflictingOverrideTag(normalizeCheckDependency(meta)); stale {
+				mismatch = diagnostic{
+					Name: "dependencies", Status: checkFailed,
+					Message: fmt.Sprintf("pawn.lock records %q for %s, which does not satisfy the project override", tag, meta),
+					Action:  "Run `sampctl ensure` to resolve the override and update pawn.lock.",
+				}
+			}
+		}
+
 		identity := meta.String() + "\x00" + meta.Path
-		if visited[identity] {
+		if index, seen := visited[identity]; seen {
+			if mismatch.Message != "" && results[index].Status == checkPassed {
+				mismatch.Path = results[index].Path
+				results[index] = mismatch
+			}
 			continue
 		}
 
-		visited[identity] = true
+		visited[identity] = len(results)
 		result, subpackage := checkInstalledDependency(ctx, pkg, meta, lf)
 		if err := ctx.Err(); err != nil {
 			return results, err
 		}
 
+		if mismatch.Message != "" && result.Status == checkPassed {
+			mismatch.Path = result.Path
+			result = mismatch
+		}
 		results = append(results, result)
 		if subpackage != nil {
 			pending = append(pending, subpackage.Dependencies...)
@@ -284,7 +303,7 @@ func readCheckDependencyDefinition(path string) (pawnpackage.Package, error) {
 		}
 	}
 
-	return pawnpackage.PackageFromDir(path)
+	return pawnpackage.DependencyFromDir(path)
 }
 
 func checkDependencyRepository(ctx context.Context, result diagnostic, meta versioning.DependencyMeta) diagnostic {

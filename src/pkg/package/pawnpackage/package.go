@@ -64,6 +64,8 @@ type Package struct {
 	Contributors []string `json:"contributors,omitempty" yaml:"contributors,omitempty"` // list of contributors
 	Website      string   `json:"website,omitempty" yaml:"website,omitempty"`           // website or forum topic associated with the package
 
+	Overrides map[string]string `json:"overrides,omitempty" yaml:"overrides,omitempty"`
+
 	// Functional, set by the package author to declare relevant files and dependencies
 	Preset                string                        `json:"preset,omitempty" yaml:"preset,omitempty"`                                   // package preset controlling default runtime/compiler (samp, openmp)
 	Experimental          *ExperimentalConfig           `json:"experimental,omitempty" yaml:"experimental,omitempty"`                       // experimental feature flags

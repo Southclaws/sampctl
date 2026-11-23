@@ -134,10 +134,13 @@ func runChecks(ctx context.Context, opts checkOptions) ([]diagnostic, error) {
 	}
 
 	pkg, project := checkProject(opts.Dir)
-	var overrides map[string]string
+	var overrides checkDependencyOverrides
 	var overrideErr error
 	if project.Status == checkPassed {
-		overrides, overrideErr = versioning.LoadLocalDependencyOverrides(opts.CacheDir)
+		overrides.project, overrideErr = versioning.NewProjectOverrides(pkg.Overrides, pkg.Format)
+		if overrideErr == nil {
+			overrides.legacy, overrideErr = versioning.LoadLocalDependencyOverrides(opts.CacheDir)
+		}
 	}
 	results = append(results, project, checkGit(overrideErr == nil && checkDependenciesNeedGit(pkg, overrides)))
 
@@ -158,7 +161,7 @@ func runChecks(ctx context.Context, opts checkOptions) ([]diagnostic, error) {
 	results = append(results, checkProjectPaths(pkg)...)
 	if overrideErr != nil {
 		results = append(results, diagnostic{Name: "dependency overrides", Status: checkFailed, Message: "Cannot read dependency overrides", Action: "Fix the dependency overrides, then run `sampctl check` again.", Err: overrideErr})
-		overrides = nil
+		overrides.legacy = nil
 	}
 
 	if active {
@@ -236,9 +239,18 @@ func checkGit(required bool) diagnostic {
 	return d
 }
 
-func checkDependenciesNeedGit(pkg pawnpackage.Package, overrides map[string]string) bool {
+type checkDependencyOverrides struct {
+	project versioning.ProjectOverrides
+	legacy  map[string]string
+}
+
+func (overrides checkDependencyOverrides) resolve(declaration versioning.DependencyString) (versioning.DependencyMeta, error) {
+	return overrides.project.ResolveWithLegacy(declaration, overrides.legacy)
+}
+
+func checkDependenciesNeedGit(pkg pawnpackage.Package, overrides checkDependencyOverrides) bool {
 	for _, declaration := range pkg.GetAllDependencies() {
-		meta, err := declaration.ExplodeWithOverrides(overrides)
+		meta, err := overrides.resolve(declaration)
 		if err == nil && !meta.IsLocalScheme() {
 			return true
 		}

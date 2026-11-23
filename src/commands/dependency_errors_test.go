@@ -419,3 +419,16 @@ func TestDependencyVerboseDetailsIncludeGitCause(t *testing.T) {
 	assert.NotContains(t, rendered, "private")
 	assert.Contains(t, rendered, "[redacted]")
 }
+
+func TestInvalidProjectOverrideDiagnosticWithoutVerbose(t *testing.T) {
+	_, failure := versioning.NewProjectOverrides(map[string]string{"fixture/lib:1.0.0": "invalid"}, "yaml")
+	require.Error(t, failure)
+	ctx := newTestCLIContext("dev")
+	var output bytes.Buffer
+	ctx.App.Writer = &output
+
+	err := reportDependencyCommandError(ctx, "ensure", fmt.Errorf("failed to install dependencies: %w", failure))
+	assert.ErrorIs(t, err, failure)
+	assert.Contains(t, output.String(), `pawn.yaml overrides: invalid replacement "invalid" for "fixture/lib:1.0.0"`)
+	assert.NotContains(t, output.String(), "Details:")
+}

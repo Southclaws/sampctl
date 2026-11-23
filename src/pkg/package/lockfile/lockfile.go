@@ -129,6 +129,18 @@ func (l *Lockfile) GetLockedMeta(meta versioning.DependencyMeta) (versioning.Dep
 	return lockedMeta, true
 }
 
+// ConflictingOverrideTag returns the locked tag when it violates a fixed project override.
+func (l *Lockfile) ConflictingOverrideTag(meta versioning.DependencyMeta) (string, bool) {
+	if l == nil || meta.Tag == "" || meta.Tag == "latest" || l.IsOutdated(meta) {
+		return "", false
+	}
+	entry := l.Dependencies[DependencyKey(meta)]
+	if entry.Commit == "" || versioning.TagSatisfiesConstraint(entry.Resolved, meta.Tag) {
+		return "", false
+	}
+	return entry.Resolved, true
+}
+
 func (l *Lockfile) IsOutdated(meta versioning.DependencyMeta) bool {
 	key := DependencyKey(meta)
 	locked, ok := l.Dependencies[key]

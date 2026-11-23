@@ -16,6 +16,7 @@ import (
 
 	"github.com/Southclaws/sampctl/src/pkg/build/compiler"
 	"github.com/Southclaws/sampctl/src/pkg/infrastructure/download"
+	"github.com/Southclaws/sampctl/src/pkg/infrastructure/versioning"
 	"github.com/Southclaws/sampctl/src/pkg/package/pkgcontext"
 	"github.com/Southclaws/sampctl/src/pkg/runtime"
 )
@@ -252,6 +253,11 @@ func dependencyOperationDiagnostic(failure *pkgcontext.OperationError) diagnosti
 }
 
 func dependencyFailureAdvice(err error) (string, string) {
+	var override *versioning.ProjectOverrideError
+	if errors.As(err, &override) {
+		return override.Error(), "Use a valid dependency string for both sides of the override."
+	}
+
 	switch {
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		return "Dependency command was cancelled", "Run the command again to retry."
