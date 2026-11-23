@@ -43,7 +43,7 @@ func (pcx *PackageContext) buildPrepare(
 
 	config.Includes = append(config.Includes, pcx.Package.LocalPath)
 
-	if err = pcx.ensureBuildFile(config); err != nil {
+	if err = pcx.ensureBuildFile(ctx, config); err != nil {
 		return
 	}
 

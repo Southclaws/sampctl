@@ -411,13 +411,7 @@ func TestBuildPrepareAllowsBuildFileDefaultsToBeOverridden(t *testing.T) {
 func TestBuildPrepareBuildFileIncludesGitInfo(t *testing.T) {
 	t.Parallel()
 
-	tempDir := t.TempDir()
-	gitDir := filepath.Join(tempDir, ".git")
-	require.NoError(t, os.MkdirAll(filepath.Join(gitDir, "refs", "heads"), 0o755))
-
-	commit := "0123456789abcdef0123456789abcdef01234567"
-	require.NoError(t, os.WriteFile(filepath.Join(gitDir, "HEAD"), []byte("ref: refs/heads/main\n"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(gitDir, "refs", "heads", "main"), []byte(commit), 0o644))
+	tempDir, commit := newBuildGitRepository(t, "main")
 
 	pcx := &PackageContext{
 		Package: pawnpackage.Package{

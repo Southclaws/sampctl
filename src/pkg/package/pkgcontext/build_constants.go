@@ -1,6 +1,7 @@
 package pkgcontext
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"sort"
@@ -11,7 +12,7 @@ import (
 	"github.com/Southclaws/sampctl/src/pkg/build"
 )
 
-func (pcx *PackageContext) ensureBuildFile(config *build.Config) (err error) {
+func (pcx *PackageContext) ensureBuildFile(ctx context.Context, config *build.Config) (err error) {
 	exp := pcx.Package.ExperimentalFlags()
 	if exp == nil || !exp.BuildFileEnabled() {
 		return nil
@@ -42,7 +43,7 @@ func (pcx *PackageContext) ensureBuildFile(config *build.Config) (err error) {
 	}
 	builder.WriteString("\n")
 
-	if commit, branch := readBuildGitInfo(pcx.Package.LocalPath); commit != "" {
+	if commit, branch := readBuildGitInfo(ctx, pcx.Package.LocalPath); commit != "" {
 		if _, exists := config.Constants["SAMPCTL_BUILD_COMMIT"]; !exists {
 			writePawnDefine(&builder, "SAMPCTL_BUILD_COMMIT", commit, true)
 		}
@@ -87,7 +88,7 @@ func (pcx *PackageContext) ensureBuildFile(config *build.Config) (err error) {
 	}
 	builder.WriteString("\n")
 
-	if err = os.WriteFile(buildFilePath, []byte(builder.String()), 0o600); err != nil {
+	if err = publishBuildInclude(buildFilePath, []byte(builder.String())); err != nil {
 		return errors.Wrap(err, "failed to write build include file")
 	}
 
@@ -138,24 +139,4 @@ func isPawnNumericLiteral(value string) bool {
 	}
 
 	return true
-}
-
-func readBuildGitInfo(repoPath string) (commit, branch string) {
-	headBytes, err := os.ReadFile(filepath.Join(repoPath, ".git", "HEAD"))
-	if err != nil {
-		return "", ""
-	}
-
-	head := strings.TrimSpace(string(headBytes))
-	if !strings.HasPrefix(head, "ref: ") {
-		return head, ""
-	}
-
-	ref := strings.TrimSpace(strings.TrimPrefix(head, "ref: "))
-	refBytes, err := os.ReadFile(filepath.Join(repoPath, ".git", filepath.FromSlash(ref)))
-	if err == nil {
-		commit = strings.TrimSpace(string(refBytes))
-	}
-
-	return commit, filepath.Base(ref)
 }
