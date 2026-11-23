@@ -79,14 +79,27 @@ sampctl run
 
 ## 4) Publish a release
 
-Publish version tags such as `1.2.3` so consumers can pin a release. Attach
-any plugin binaries to the corresponding GitHub release.
+Publish version tags such as `1.2.3` so consumers can pin a release.
 
-To create a versioned release interactively:
+Before releasing:
+
+- Run `sampctl ensure` and `sampctl build` against your test script. Commit
+  the changes you want to release and start with a clean worktree.
+- Check that you can push to the repository's Git remote.
+- For a GitHub release, set `user` and `repo` in your manifest and configure
+  a GitHub token with write access to that repository.
 
 ```bash
 sampctl release
 ```
+
+The wizard asks for a version and offers to generate a version include.
+It creates a release commit and pushes the branch and tag. If you also
+choose a GitHub release, sampctl creates a draft and attempts to upload a
+ZIP of the package files. Review and publish the draft on GitHub. For a
+plugin, attach the platform binaries expected by your resource definitions.
+If draft creation or upload fails, check the remote tag before retrying.
+The Git push happens before either GitHub step.
 
 ## 5) Package plugin binaries
 

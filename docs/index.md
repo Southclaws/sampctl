@@ -28,6 +28,7 @@ Use sampctl to build Pawn projects and run SA:MP or open.mp servers.
 
 - [Command reference](command-reference.md)
 - [Package definition reference](package-definition-reference.md)
+- [Project lockfile](lockfiles.md)
 - [Build configuration reference](build-configuration-reference.md)
 - [Runtime configuration reference](runtime-configuration-reference.md)
 - [Troubleshooting](troubleshooting.md)

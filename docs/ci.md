@@ -4,6 +4,8 @@ Commit your `pawn.json` or `pawn.yaml` and the generated `pawn.lock`.
 Run `sampctl ensure` in CI to install the locked dependencies, then
 `sampctl build` to compile the project.
 
+See [Project lockfile](lockfiles.md) for what sampctl records and when it updates.
+
 ## Example: GitHub Actions (Ubuntu)
 
 Create `.github/workflows/ci.yml`:

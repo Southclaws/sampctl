@@ -73,6 +73,8 @@ See also: [Build configuration reference](build-configuration-reference.md)
 - `extract_ignore_patterns`: patterns to skip when extracting plugin archives.
 - `experimental.build_file`: generate the [build include](#experimental-build-file-experimentalbuild_file).
 - `contributors`, `website`: optional metadata (useful for published packages).
+- `user`, `repo`: GitHub owner and repository name. Required when creating
+  a GitHub release through [`sampctl release`](library-creator-guide.md#4-publish-a-release).
 
 ### Experimental build file (`experimental.build_file`)
 

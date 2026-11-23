@@ -178,13 +178,27 @@ sampctl get Southclaws/formatex
 
 ## Templates
 
-Templates let you run a file inside a predefined package template:
+Use a template to build or run standalone Pawn files with a shared set of
+dependencies and compiler settings. Create one first:
 
 ```bash
 sampctl template make my-template
+```
+
+Open the directory printed by the command. Templates live under
+`templates/<name>/` in the [sampctl app directory](cache.md). Edit the
+template's manifest to add dependencies or change build and runtime settings,
+then run `sampctl ensure` from the template directory.
+
+From the directory containing your script, run either command:
+
+```bash
 sampctl template build my-template test.pwn
 sampctl template run my-template test.pwn
 ```
+
+Both commands copy the script into the template as `tmpl.pwn`, replacing
+the previous copy. Keep your source file in your project or working directory.
 
 ## Publishing (release)
 
@@ -194,4 +208,5 @@ If you maintain a package repo and want to create a versioned release:
 sampctl release
 ```
 
-This is intended for package maintainers.
+See [Publish a release](library-creator-guide.md#4-publish-a-release) for
+preparation and what the wizard pushes to Git and GitHub.

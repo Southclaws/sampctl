@@ -65,6 +65,8 @@ for package author guidance.
 - `sampctl ensure --no-lock` installs without using or writing `pawn.lock`.
 - `sampctl ensure --lock-only` refreshes pins without installing dependencies.
 
+See [Project lockfile](lockfiles.md) for what gets recorded and how to refresh pins.
+
 ## Failures and recovery
 
 Dependency commands return a nonzero exit status on failure and report independent
