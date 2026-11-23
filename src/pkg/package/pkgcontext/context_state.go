@@ -52,11 +52,12 @@ func (services PackageServices) runtimeProvisioner() RuntimeProvisioner {
 }
 
 type PackageResolvedState struct {
-	AllDependencies []versioning.DependencyMeta
-	AllPlugins      []versioning.DependencyMeta
-	AllIncludePaths []string
-	ActualRuntime   runtimecfg.Runtime
-	ActualBuild     build.Config
+	staleOverrideLocks map[versioning.DependencyMeta]bool
+	AllDependencies    []versioning.DependencyMeta
+	AllPlugins         []versioning.DependencyMeta
+	AllIncludePaths    []string
+	ActualRuntime      runtimecfg.Runtime
+	ActualBuild        build.Config
 }
 
 type PackageExecutionState struct {

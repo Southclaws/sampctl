@@ -16,6 +16,7 @@ type lockfileDependencyState struct {
 	Meta       versioning.DependencyMeta
 	Direct     bool
 	RequiredBy map[string]struct{}
+	resolution lockfile.DependencyResolution
 }
 
 // UpdateLockfile refreshes lockfile dependency entries without installing dependencies into the working tree.
@@ -29,6 +30,18 @@ func (pcx *PackageContext) UpdateLockfile(ctx context.Context, request Dependenc
 		return err
 	}
 
+	for _, dep := range deps {
+		var err error
+		if dep.Meta.IsLocalScheme() {
+			err = pcx.RecordLocalDependency(dep.Meta)
+		} else {
+			err = pcx.RecordDependencyResolution(dep.Meta, dep.resolution, !dep.Direct, "")
+		}
+		if err != nil {
+			return &DependencyError{Dependency: dep.Meta.String(), Operation: "record lockfile", Err: err}
+		}
+	}
+
 	pcx.pruneLockfileDependencies(lockfileDependencyMetas(deps))
 	pcx.updateLockfileRelationships(deps)
 	print.Verb("lockfile dependency metadata refreshed from cache")
@@ -39,9 +52,9 @@ func (pcx *PackageContext) UpdateLockfile(ctx context.Context, request Dependenc
 func (pcx *PackageContext) resolveLockfileDependencyMeta(
 	ctx context.Context,
 	meta versioning.DependencyMeta,
-	forceUpdate, upgradePin bool,
+	forceUpdate, upgradePin, staleOverrideLock bool,
 ) (versioning.DependencyMeta, error) {
-	resolvedMeta := pcx.PackageLockfileState.LockedVersion(meta, forceUpdate)
+	resolvedMeta := pcx.PackageLockfileState.LockedVersion(meta, forceUpdate || staleOverrideLock)
 	resolvedMeta, err := pcx.resolveDynamicDependencyReference(ctx, resolvedMeta, meta, forceUpdate)
 	if err != nil {
 		return versioning.DependencyMeta{}, err
@@ -81,11 +94,20 @@ func (pcx *PackageContext) lockfileDependencies(ctx context.Context, request Dep
 		return nil, err
 	}
 	selection := request.selectDependencies(policy, pcx.Package.GetAllDependencies())
-	activePins, err := pcx.activeProjectPins(ctx, request, policy)
-	if err != nil {
-		return nil, err
+	activePins := make(map[versioning.DependencyMeta]bool)
+	for {
+		deps, retry, err := pcx.walkLockfileDependencies(ctx, selection, policy, refresh, activePins)
+		if !retry || ctx.Err() != nil {
+			return deps, err
+		}
 	}
+}
 
+// A newer release can introduce an override for a dependency already visited.
+// Rewalk with the newly discovered pin before recording any lockfile entries.
+func (pcx *PackageContext) walkLockfileDependencies(ctx context.Context, selection dependencyUpdateSelection, policy versioning.ProjectOverrides, refresh bool, activePins map[versioning.DependencyMeta]bool) ([]lockfileDependencyState, bool, error) {
+	retry := false
+	upgrades := make(map[versioning.DependencyMeta]bool)
 	states := make(map[string]*lockfileDependencyState)
 	visited := make(map[string]bool)
 	directDependencies := make(map[string]bool)
@@ -130,16 +152,17 @@ func (pcx *PackageContext) lockfileDependencies(ctx context.Context, request Dep
 				state.RequiredBy[parent] = struct{}{}
 			}
 
+			identity := managedDependencyIdentity(normalized)
+			if refresh && isPinnedTagDependency(meta) && policy.Matches(depStr) && !activePins[identity] {
+				activePins[identity] = true
+				_, stale := pcx.GetLockfile().ConflictingOverrideTag(normalized)
+				retry = retry || upgrades[identity] || stale && visited[key]
+			}
 			if visited[key] {
 				continue
 			}
 			visited[key] = true
 			if normalized.IsLocalScheme() {
-				if refresh {
-					if err := pcx.RecordLocalDependency(normalized); err != nil {
-						failures = append(failures, &DependencyError{Dependency: string(depStr), Operation: "record lockfile", Err: err})
-					}
-				}
 				continue
 			}
 
@@ -147,8 +170,10 @@ func (pcx *PackageContext) lockfileDependencies(ctx context.Context, request Dep
 			if refresh {
 				rootDependency := directDependencies[key]
 				force := selection.ShouldForceDependency(normalized, rootDependency)
-				pinned := policy.Matches(depStr) || activePins[managedDependencyIdentity(normalized)]
-				pkg, err = pcx.refreshLockfileDependency(ctx, normalized, force, force && !pinned, rootDependency, parent)
+				upgradePin := force && isPinnedTagDependency(normalized) && !activePins[identity]
+				upgrades[identity] = upgradePin
+				_, stale := pcx.GetLockfile().ConflictingOverrideTag(normalized)
+				pkg, state.resolution, err = pcx.refreshLockfileDependency(ctx, normalized, force, upgradePin, activePins[identity] && stale)
 			} else {
 				pkg, err = pcx.lockfileDependencyPackageContext(ctx, normalized)
 			}
@@ -175,7 +200,7 @@ func (pcx *PackageContext) lockfileDependencies(ctx context.Context, request Dep
 	}
 
 	if err := walk(pcx.Package.GetAllDependencies(), "", true); err != nil {
-		return nil, err
+		return nil, retry, err
 	}
 
 	deps := make([]lockfileDependencyState, 0, len(states))
@@ -183,31 +208,31 @@ func (pcx *PackageContext) lockfileDependencies(ctx context.Context, request Dep
 		deps = append(deps, *state)
 	}
 
-	return deps, nil
+	return deps, retry, nil
 }
 
-func (pcx *PackageContext) refreshLockfileDependency(ctx context.Context, meta versioning.DependencyMeta, force, upgradePin, direct bool, parent string) (pawnpackage.Package, error) {
-	resolved, err := pcx.resolveLockfileDependencyMeta(ctx, meta, force, upgradePin)
+func (pcx *PackageContext) refreshLockfileDependency(ctx context.Context, meta versioning.DependencyMeta, force, upgradePin, staleOverrideLock bool) (pawnpackage.Package, lockfile.DependencyResolution, error) {
+	resolved, err := pcx.resolveLockfileDependencyMeta(ctx, meta, force, upgradePin, staleOverrideLock)
 	if err != nil {
-		return pawnpackage.Package{}, err
+		return pawnpackage.Package{}, lockfile.DependencyResolution{}, err
 	}
 
 	refreshCache := force
 	if refreshCache {
 		noOrigin, err := pcx.cachedRepoHasNoOriginContext(ctx, resolved)
 		if err != nil {
-			return pawnpackage.Package{}, err
+			return pawnpackage.Package{}, lockfile.DependencyResolution{}, err
 		}
 		refreshCache = !noOrigin
 	}
 	if _, err := pcx.EnsureDependencyCachedContext(ctx, resolved, refreshCache); err != nil {
-		return pawnpackage.Package{}, err
+		return pawnpackage.Package{}, lockfile.DependencyResolution{}, err
 	}
 
 	path := resolved.CachePath(pcx.CacheDir)
 	unlock, err := lockRepositoryPath(ctx, path)
 	if err != nil {
-		return pawnpackage.Package{}, err
+		return pawnpackage.Package{}, lockfile.DependencyResolution{}, err
 	}
 
 	repo, err := pcx.repositoryStore().Open(path)
@@ -217,18 +242,15 @@ func (pcx *PackageContext) refreshLockfileDependency(ctx context.Context, meta v
 	}
 	err = stderrors.Join(err, unlock())
 	if err != nil {
-		return pawnpackage.Package{}, err
+		return pawnpackage.Package{}, lockfile.DependencyResolution{}, err
 	}
 
 	if previous, ok := pcx.PreviousDependency(meta); ok && resolved.Commit != "" && previous.Commit == resolution.Commit && previous.Resolved != "" {
 		resolution.Resolved = previous.Resolved
 	}
-	if err := pcx.RecordDependencyResolution(meta, resolution, !direct, parent); err != nil {
-		return pawnpackage.Package{}, err
-	}
-
 	resolved.Tag, resolved.Branch, resolved.Commit = "", "", resolution.Commit
-	return pcx.packageFromCachedRevisionContext(ctx, resolved, path)
+	pkg, err := pcx.packageFromCachedRevisionContext(ctx, resolved, path)
+	return pkg, resolution, err
 }
 
 func (pcx *PackageContext) lockfileDependencyPackageContext(ctx context.Context, meta versioning.DependencyMeta) (pawnpackage.Package, error) {

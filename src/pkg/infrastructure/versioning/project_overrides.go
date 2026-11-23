@@ -19,6 +19,24 @@ type ProjectOverrides struct {
 	source string
 }
 
+// ProjectOverrideError describes an invalid rule in the root manifest.
+type ProjectOverrideError struct {
+	Source      string
+	Key         string
+	Replacement string
+	InvalidKey  bool
+	Err         error
+}
+
+func (e *ProjectOverrideError) Error() string {
+	if e.InvalidKey {
+		return fmt.Sprintf("%s: invalid key %q: %v", e.Source, e.Key, e.Err)
+	}
+	return fmt.Sprintf("%s: invalid replacement %q for %q: %v", e.Source, e.Replacement, e.Key, e.Err)
+}
+
+func (e *ProjectOverrideError) Unwrap() error { return e.Err }
+
 // NewProjectOverrides validates every rule, including rules unused by the current graph.
 func NewProjectOverrides(overrides map[string]string, format string) (ProjectOverrides, error) {
 	var policy ProjectOverrides
@@ -31,11 +49,11 @@ func NewProjectOverrides(overrides map[string]string, format string) (ProjectOve
 	for _, original := range slices.Sorted(maps.Keys(overrides)) {
 		replacement := overrides[original]
 		if _, err := DependencyString(original).ExplodeWithOverrides(nil); err != nil {
-			return ProjectOverrides{}, fmt.Errorf("%s: invalid key %q: %w", policy.source, original, err)
+			return ProjectOverrides{}, &ProjectOverrideError{Source: policy.source, Key: original, InvalidKey: true, Err: err}
 		}
 		meta, err := DependencyString(replacement).ExplodeWithOverrides(nil)
 		if err != nil {
-			return ProjectOverrides{}, fmt.Errorf("%s: invalid replacement %q for %q: %w", policy.source, replacement, original, err)
+			return ProjectOverrides{}, &ProjectOverrideError{Source: policy.source, Key: original, Replacement: replacement, Err: err}
 		}
 		policy.rules[DependencyString(original)] = projectOverride{replacement: replacement, meta: meta}
 	}

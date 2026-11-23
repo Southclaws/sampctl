@@ -66,8 +66,18 @@ func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Cont
 	} else {
 		policy = *options.policy
 	}
-	selection := request.selectDependencies(policy, pcx.Package.GetAllDependencies())
+	pcx.staleOverrideLocks = nil
+	for {
+		retry, err := pcx.walkDependencyGraph(ctx, request, options, policy)
+		if !retry || ctx.Err() != nil {
+			return err
+		}
+	}
+}
 
+func (pcx *PackageContext) walkDependencyGraph(ctx context.Context, request DependencyUpdateRequest, options dependencyGraphOptions, policy versioning.ProjectOverrides) (bool, error) {
+	selection := request.selectDependencies(policy, pcx.Package.GetAllDependencies())
+	retry := false
 	pcx.AllDependencies = nil
 	pcx.AllPlugins = nil
 	pcx.AllIncludePaths = nil
@@ -117,11 +127,23 @@ func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Cont
 				failures = append(failures, &DependencyError{Dependency: string(dependency), Operation: "parse", Err: errors.Wrapf(err, "invalid dependency in %s", currentPackage)})
 				continue
 			}
-			if options.activePins != nil && isPinnedTagDependency(subMeta) && policy.Matches(dependency) {
-				options.activePins[managedDependencyIdentity(subMeta)] = true
+			if isPinnedTagDependency(subMeta) && policy.Matches(dependency) {
+				identity := managedDependencyIdentity(subMeta)
+				if options.activePins != nil {
+					options.activePins[identity] = true
+				}
+				if !pcx.staleOverrideLocks[identity] {
+					if _, stale := pcx.GetLockfile().ConflictingOverrideTag(normalizeLockfileDependency(subMeta)); stale {
+						if pcx.staleOverrideLocks == nil {
+							pcx.staleOverrideLocks = make(map[versioning.DependencyMeta]bool)
+						}
+						pcx.staleOverrideLocks[identity] = true
+						retry = retry || visited[identity]
+					}
+				}
 			}
 			subMeta = inheritDirectDependencyConstraint(subMeta, directConstraints)
-			if !subMeta.IsLocalScheme() {
+			if options.activePins == nil && !subMeta.IsLocalScheme() {
 				if err := registerDependencyDestination(destinations, subMeta); err != nil {
 					failures = append(failures, err)
 					continue
@@ -166,7 +188,8 @@ func (pcx *PackageContext) refreshDependencyGraphWithResolution(ctx context.Cont
 		return stderrors.Join(failures...)
 	}
 
-	return recurse(pcx.Package.Dependency(), false, 0, true)
+	err := recurse(pcx.Package.Dependency(), false, 0, true)
+	return retry, err
 }
 
 // activeProjectPins finds the fixed tags actually selected by project rules.
@@ -180,7 +203,7 @@ func (pcx PackageContext) activeProjectPins(ctx context.Context, request Depende
 }
 
 func (pcx *PackageContext) loadDependencyPackage(ctx context.Context, meta versioning.DependencyMeta, forceUpdate, resolveLatest bool) (pawnpackage.Package, error) {
-	effectiveMeta := pcx.LockedVersion(meta, forceUpdate)
+	effectiveMeta := pcx.LockedVersion(meta, forceUpdate || pcx.staleOverrideLocks[managedDependencyIdentity(meta)])
 	if resolveLatest {
 		resolvedMeta, err := pcx.resolveDynamicDependencyReference(ctx, effectiveMeta, meta, forceUpdate)
 		if err != nil {

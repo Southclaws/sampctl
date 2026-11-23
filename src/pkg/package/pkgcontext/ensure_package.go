@@ -101,7 +101,7 @@ func (pcx *PackageContext) ensureManagedPackage(request ensurePackageRequest) (e
 		return pcx.ensureURLSchemeDependency(request.Context, request.Meta)
 	}
 
-	effectiveMeta := pcx.PackageLockfileState.LockedVersion(request.Meta, request.ForceUpdate)
+	effectiveMeta := pcx.PackageLockfileState.LockedVersion(request.Meta, request.ForceUpdate || pcx.staleOverrideLocks[managedDependencyIdentity(request.Meta)])
 	effectiveMeta, err = pcx.resolveDynamicDependencyReference(request.Context, effectiveMeta, request.Meta, request.ForceUpdate)
 	if err != nil {
 		return errors.Wrap(err, "failed to resolve dependency reference")
@@ -202,7 +202,7 @@ func (pcx *PackageContext) prepareDependency(request ensurePackageRequest, effec
 		return errors.Wrap(err, "failed to update repository state")
 	}
 
-	refreshIntegrity := request.ForceUpdate
+	refreshIntegrity := request.ForceUpdate || pcx.staleOverrideLocks[managedDependencyIdentity(request.Meta)]
 	if lf := pcx.GetLockfile(); lf != nil && lf.IsOutdated(request.Meta) {
 		refreshIntegrity = true
 	}
@@ -323,6 +323,9 @@ func (pcx *PackageContext) recordDependencyResolution(meta versioning.Dependency
 		return errors.Wrap(err, "failed to resolve dependency lock data")
 	}
 
+	if pcx.staleOverrideLocks[managedDependencyIdentity(meta)] {
+		resolution.Resolved = meta.Tag
+	}
 	if err := pcx.PackageLockfileState.RecordDependencyResolution(meta, resolution, isTransitive, parentRepo); err != nil {
 		return errors.Wrap(err, "failed to record dependency resolution to lockfile")
 	}

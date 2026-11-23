@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/kirsle/configdir"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -226,4 +228,105 @@ func TestProjectOverridesIgnoresMalformedDownloadedRules(t *testing.T) {
 	assert.Equal(t, []versioning.DependencyMeta{meta}, pcx.AllDependencies)
 	_, err = pawnpackage.PackageFromDir(meta.CachePath(pcx.CacheDir))
 	require.ErrorContains(t, err, "invalid replacement")
+}
+
+func TestProjectOverridesLockOnlyFindsPinsIntroducedByUpgrade(t *testing.T) {
+	useOfflineProjectOverrides(t)
+	pcx := lifecycleContext(t, "json")
+	pawnPlus := graphRevisionMeta(t, "fixture/PawnPlus:1.5.2")
+	library := graphRevisionMeta(t, "fixture/library:1.0.0")
+	seedEnsureProjectDependencyRepo(t, pcx.CacheDir, pawnPlus, []string{"1.5.2", "2.0.0"})
+	libraryPath := library.CachePath(pcx.CacheDir)
+	repo := seedReliabilityRepo(t, libraryPath, `{}`)
+	pcx.Package.Dependencies = []versioning.DependencyString{"fixture/PawnPlus:1.5.2", "fixture/library:1.0.0"}
+	pcx.Package.Overrides = map[string]string{"fixture/PawnPlus:1.0.0": "fixture/PawnPlus:1.5.2"}
+	require.NoError(t, pcx.Package.WriteDefinition())
+	require.NoError(t, pcx.InitLockfileResolver("test"))
+	_, err := pcx.EnsureProject(t.Context(), DependencyUpdateRequest{})
+	require.NoError(t, err)
+
+	require.NoError(t, os.WriteFile(filepath.Join(libraryPath, "pawn.json"), []byte(`{"dependencies":["fixture/PawnPlus:1.0.0"]}`), 0o644))
+	worktree, err := repo.Worktree()
+	require.NoError(t, err)
+	_, err = worktree.Add("pawn.json")
+	require.NoError(t, err)
+	revision, err := worktree.Commit("request PawnPlus", &git.CommitOptions{Author: &object.Signature{Name: "fixture", Email: "fixture@example.com"}})
+	require.NoError(t, err)
+	_, err = repo.CreateTag("2.0.0", revision, nil)
+	require.NoError(t, err)
+
+	require.NoError(t, pcx.UpdateProjectLockfile(t.Context(), DependencyUpdateRequest{Enabled: true, Force: true}))
+	deps := pcx.GetLockfile().Dependencies
+	assert.Equal(t, "2.0.0", deps[lockfile.DependencyKey(library)].Resolved)
+	assert.Equal(t, "1.5.2", deps[lockfile.DependencyKey(pawnPlus)].Resolved)
+	assert.Equal(t, []string{lockfile.DependencyKey(library)}, deps[lockfile.DependencyKey(pawnPlus)].RequiredBy)
+
+	_, err = pcx.EnsureProject(t.Context(), DependencyUpdateRequest{})
+	require.NoError(t, err)
+	contents, err := os.ReadFile(filepath.Join(pcx.Package.Vendor, "PawnPlus", "dep.pwn"))
+	require.NoError(t, err)
+	assert.Contains(t, string(contents), "1.5.2")
+}
+
+func TestProjectOverridesUnusedRuleDoesNotBlockConflictRepair(t *testing.T) {
+	useOfflineProjectOverrides(t)
+	pcx := lifecycleContext(t, "json")
+	pawnPlus := graphRevisionMeta(t, "fixture/PawnPlus:1.5.2")
+	library := graphRevisionMeta(t, "fixture/library:1.0.0")
+	seedEnsureProjectDependencyRepo(t, pcx.CacheDir, pawnPlus, []string{"1.5.2", "2.0.0"})
+	seedReliabilityRepo(t, library.CachePath(pcx.CacheDir), `{"dependencies":["fixture/PawnPlus:2.0.0"]}`)
+	pcx.Package.Dependencies = []versioning.DependencyString{"fixture/PawnPlus:1.5.2", "fixture/library:1.0.0"}
+	pcx.Package.Overrides = map[string]string{"fixture/unused:1.0.0": "fixture/PawnPlus:1.5.2"}
+	require.NoError(t, pcx.Package.WriteDefinition())
+	require.NoError(t, pcx.InitLockfileResolver("test"))
+
+	updated, err := pcx.EnsureProject(t.Context(), DependencyUpdateRequest{Enabled: true, Force: true})
+	require.NoError(t, err)
+	assert.True(t, updated)
+	assert.Equal(t, "2.0.0", pcx.GetLockfile().Dependencies[lockfile.DependencyKey(pawnPlus)].Resolved)
+}
+
+func TestProjectOverridesRefreshStaleLock(t *testing.T) {
+	useOfflineProjectOverrides(t)
+
+	for _, mode := range []string{"ensure", "lock-only", "unused"} {
+		t.Run(mode, func(t *testing.T) {
+			pcx := lifecycleContext(t, "json")
+			pawnPlus := graphRevisionMeta(t, "fixture/PawnPlus:1.5.2")
+			library := graphRevisionMeta(t, "fixture/library:1.0.0")
+			seedEnsureProjectDependencyRepo(t, pcx.CacheDir, pawnPlus, []string{"v1.5.2", "2.0.0"})
+			pc := "fixture/PawnPlus:1.5.2"
+			pcx.Package.Dependencies = []versioning.DependencyString{versioning.DependencyString(pc)}
+			require.NoError(t, pcx.Package.WriteDefinition())
+			require.NoError(t, pcx.InitLockfileResolver("test"))
+			require.NoError(t, pcx.UpdateProjectLockfile(t.Context(), DependencyUpdateRequest{Enabled: true, Force: true}))
+			key := lockfile.DependencyKey(pawnPlus)
+			require.Equal(t, "2.0.0", pcx.GetLockfile().Dependencies[key].Resolved)
+
+			seedReliabilityRepo(t, library.CachePath(pcx.CacheDir), `{"dependencies":["fixture/PawnPlus:1.0.0"]}`)
+			if mode != "unused" {
+				pcx.Package.Dependencies = append(pcx.Package.Dependencies, "fixture/library:1.0.0")
+			}
+			pcx.Package.Overrides = map[string]string{"fixture/PawnPlus:1.0.0": pc}
+			require.NoError(t, pcx.Package.WriteDefinition())
+
+			if mode == "lock-only" {
+				require.NoError(t, pcx.UpdateProjectLockfile(t.Context(), DependencyUpdateRequest{}))
+				_, stale := pcx.GetLockfile().ConflictingOverrideTag(pawnPlus)
+				require.False(t, stale)
+			}
+			_, err := pcx.EnsureProject(t.Context(), DependencyUpdateRequest{})
+			require.NoError(t, err)
+			installed, err := os.ReadFile(filepath.Join(pcx.Package.Vendor, "PawnPlus", "dep.pwn"))
+			require.NoError(t, err)
+			if mode == "unused" {
+				assert.Contains(t, string(installed), "2.0.0")
+				assert.Equal(t, "2.0.0", pcx.GetLockfile().Dependencies[key].Resolved)
+			} else {
+				assert.Contains(t, string(installed), "v1.5.2")
+				_, stale := pcx.GetLockfile().ConflictingOverrideTag(pawnPlus)
+				assert.False(t, stale)
+			}
+		})
+	}
 }

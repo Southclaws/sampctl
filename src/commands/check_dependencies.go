@@ -20,7 +20,7 @@ func checkDependencies(ctx context.Context, pkg pawnpackage.Package, lf *lockfil
 	}
 
 	pending := pkg.GetAllDependencies()
-	visited := make(map[string]bool)
+	visited := make(map[string]int)
 	results := checkDependencyStaging(pkg.Vendor, recoveryStages...)
 
 	for len(pending) > 0 {
@@ -39,17 +39,36 @@ func checkDependencies(ctx context.Context, pkg pawnpackage.Package, lf *lockfil
 			continue
 		}
 
+		var mismatch diagnostic
+		if overrides.project.Matches(declaration) {
+			if tag, stale := lf.ConflictingOverrideTag(normalizeCheckDependency(meta)); stale {
+				mismatch = diagnostic{
+					Name: "dependencies", Status: checkFailed,
+					Message: fmt.Sprintf("pawn.lock records %q for %s, which does not satisfy the project override", tag, meta),
+					Action:  "Run `sampctl ensure` to resolve the override and update pawn.lock.",
+				}
+			}
+		}
+
 		identity := meta.String() + "\x00" + meta.Path
-		if visited[identity] {
+		if index, seen := visited[identity]; seen {
+			if mismatch.Message != "" && results[index].Status == checkPassed {
+				mismatch.Path = results[index].Path
+				results[index] = mismatch
+			}
 			continue
 		}
 
-		visited[identity] = true
+		visited[identity] = len(results)
 		result, subpackage := checkInstalledDependency(ctx, pkg, meta, lf)
 		if err := ctx.Err(); err != nil {
 			return results, err
 		}
 
+		if mismatch.Message != "" && result.Status == checkPassed {
+			mismatch.Path = result.Path
+			result = mismatch
+		}
 		results = append(results, result)
 		if subpackage != nil {
 			pending = append(pending, subpackage.Dependencies...)
