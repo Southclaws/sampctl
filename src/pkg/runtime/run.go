@@ -60,11 +60,12 @@ type termination struct {
 }
 
 type runtimeExecution struct {
-	binary  string
-	runType run.RunMode
-	recover bool
-	output  io.Writer
-	input   io.Reader
+	binary        string
+	runType       run.RunMode
+	outputTimeout time.Duration
+	recover       bool
+	output        io.Writer
+	input         io.Reader
 }
 
 type binaryRunConfig struct {
@@ -78,11 +79,12 @@ type binaryRunConfig struct {
 }
 
 type runtimeTerminationRequest struct {
-	Context  context.Context
-	Output   io.Writer
-	StreamCh <-chan string
-	TermCh   <-chan termination
-	SigCh    <-chan os.Signal
+	Context       context.Context
+	Output        io.Writer
+	OutputTimeout time.Duration
+	StreamCh      <-chan string
+	TermCh        <-chan termination
+	SigCh         <-chan os.Signal
 }
 
 type outputReaderRequest struct {
@@ -114,7 +116,14 @@ type commandTracker struct {
 // Run handles the actual running of the server process - it collects log output too.
 func Run(ctx context.Context, cfg run.Runtime, options RunOptions) error {
 	options = options.withDefaults()
+	outputTimeout, err := cfg.Mode.OutputTimeout()
+	if err != nil {
+		return err
+	}
 	if cfg.Container != nil {
+		if outputTimeout > 0 {
+			return errors.New("runtime timeout mode is not supported with container execution")
+		}
 		return RunContainer(ctx, cfg, options)
 	}
 
@@ -133,11 +142,12 @@ func Run(ctx context.Context, cfg run.Runtime, options RunOptions) error {
 	}
 
 	return executeRuntime(ctx, runtimeExecution{
-		binary:  fullPath,
-		runType: cfg.Mode,
-		recover: options.Recover,
-		output:  options.Output,
-		input:   options.Input,
+		binary:        fullPath,
+		runType:       cfg.Mode,
+		outputTimeout: outputTimeout,
+		recover:       options.Recover,
+		output:        options.Output,
+		input:         options.Input,
 	})
 }
 
@@ -179,11 +189,12 @@ func executeRuntime(ctx context.Context, execCfg runtimeExecution) error {
 	defer signal.Stop(sigCh)
 
 	term := waitForRuntimeTermination(runtimeTerminationRequest{
-		Context:  runCtx,
-		Output:   execCfg.output,
-		StreamCh: streamCh,
-		TermCh:   termCh,
-		SigCh:    sigCh,
+		Context:       runCtx,
+		Output:        execCfg.output,
+		OutputTimeout: execCfg.outputTimeout,
+		StreamCh:      streamCh,
+		TermCh:        termCh,
+		SigCh:         sigCh,
 	})
 	print.Verb("finished server execution with:", term)
 
@@ -222,6 +233,14 @@ func shouldKillTrackedProcess(term termination) bool {
 }
 
 func waitForRuntimeTermination(request runtimeTerminationRequest) termination {
+	var timeoutCh <-chan time.Time
+	var timeoutTimer *time.Timer
+	if request.OutputTimeout > 0 {
+		timeoutTimer = time.NewTimer(request.OutputTimeout)
+		timeoutCh = timeoutTimer.C
+		defer timeoutTimer.Stop()
+	}
+
 	for {
 		select {
 		case line, ok := <-request.StreamCh:
@@ -233,6 +252,9 @@ func waitForRuntimeTermination(request runtimeTerminationRequest) termination {
 			if _, err := fmt.Fprintln(request.Output, line); err != nil {
 				return termination{err: errors.Wrap(err, "failed to write runtime output")}
 			}
+			if timeoutTimer != nil {
+				resetOutputTimeout(timeoutTimer, request.OutputTimeout)
+			}
 
 		case sig := <-request.SigCh:
 			return termination{err: errors.Wrapf(context.Canceled, "received signal: %v", sig)}
@@ -240,10 +262,26 @@ func waitForRuntimeTermination(request runtimeTerminationRequest) termination {
 		case term := <-request.TermCh:
 			return term
 
+		case <-timeoutCh:
+			return termination{
+				err:  errors.Errorf("runtime output timed out after %s", request.OutputTimeout),
+				exit: true,
+			}
+
 		case <-request.Context.Done():
 			return termination{err: request.Context.Err()}
 		}
 	}
+}
+
+func resetOutputTimeout(timer *time.Timer, duration time.Duration) {
+	if !timer.Stop() {
+		select {
+		case <-timer.C:
+		default:
+		}
+	}
+	timer.Reset(duration)
 }
 
 func flushRuntimeOutput(output io.Writer, streamCh <-chan string) error {
