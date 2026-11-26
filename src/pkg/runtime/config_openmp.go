@@ -262,7 +262,9 @@ func assembleOpenMPConfig(cfg *run.Runtime) (map[string]any, error) {
 	if cfg.Query != nil {
 		config.EnableQuery = *cfg.Query
 	}
-	if cfg.Weburl != nil && *cfg.Weburl != "open.mp" {
+	if cfg.Website != nil && *cfg.Website != "" {
+		config.Website = *cfg.Website
+	} else if cfg.Weburl != nil && *cfg.Weburl != "open.mp" {
 		config.Website = *cfg.Weburl
 	}
 	if cfg.Sleep != nil {
@@ -391,15 +393,25 @@ func assembleOpenMPConfig(cfg *run.Runtime) (map[string]any, error) {
 	}
 
 	if len(cfg.Components) > 0 {
-		components := make([]string, len(cfg.Components))
-		for i, component := range cfg.Components {
+		excluded := make(map[string]bool, len(cfg.Exclude))
+		for _, exc := range cfg.Exclude {
+			excStr := strings.TrimSuffix(string(exc), filepath.Ext(string(exc)))
+			excluded[excStr] = true
+		}
+
+		components := make([]string, 0, len(cfg.Components))
+		for _, component := range cfg.Components {
 			componentStr := string(component)
 			if strings.HasSuffix(componentStr, ".so") || strings.HasSuffix(componentStr, ".dll") {
 				componentStr = strings.TrimSuffix(componentStr, filepath.Ext(componentStr))
 			}
-			components[i] = componentStr
+			if !excluded[componentStr] {
+				components = append(components, componentStr)
+			}
 		}
-		config.Pawn.Components = components
+		if len(components) > 0 {
+			config.Pawn.Components = components
+		}
 	}
 
 	if len(cfg.Gamemodes) > 0 {
